@@ -24,7 +24,6 @@ def get_config():
         # Filer og kataloger
         'visualization_dir': Path("Visualiseringer"),
         'log_file_kronologisk': "ytelse_kronologisk.txt",
-        'log_file_alfabetisk': "ytelse_alfabetisk.txt",
         
         # Bildeprosessering - Threshold
         'threshold_value': 127,           # Threshold-verdi for binær konvertering
@@ -176,7 +175,8 @@ def log_operation_time(filename, method_name, operation_name, execution_time):
 
 def flush_log_buffer():
     """
-    Skriver alle buffrede logg-oppføringer til filene.
+    Skriver alle buffrede logg-oppføringer til filen.
+    Appender til eksisterende fil.
     Dette bør kalles når en funksjon/metode er ferdig.
     """
     global _log_buffer, config
@@ -186,18 +186,6 @@ def flush_log_buffer():
     # Skriv alle til kronologisk fil (append)
     with open(config['log_file_kronologisk'], "a", encoding="utf-8") as f:
         f.writelines(_log_buffer)
-    
-    # For alfabetisk fil: les eksisterende, legg til nye, sorter, skriv
-    entries = []
-    if os.path.exists(config['log_file_alfabetisk']):
-        with open(config['log_file_alfabetisk'], "r", encoding="utf-8") as f:
-            entries = f.readlines()
-    
-    entries.extend(_log_buffer)
-    entries.sort()
-    
-    with open(config['log_file_alfabetisk'], "w", encoding="utf-8") as f:
-        f.writelines(entries)
     
     # Tøm buffer
     _log_buffer = []
@@ -279,13 +267,11 @@ def find_outer_contour(image_path, visualize=True):
         flush_log_buffer()
         return None, None
     
-    # Time max() operasjon med contourArea
+    # Finn den største konturen (time hele operasjonen)
     start_max = time.time()
-    # Beregn alle areas først for å time dem
     areas = []
     for c in contours:
-        area = time_operation(filename, "find_outer_contour", "cv2.contourArea", 
-                             cv2.contourArea, c)
+        area = cv2.contourArea(c)
         areas.append((area, c))
     largest_contour = max(areas, key=lambda x: x[0])[1]
     log_operation_time(filename, "find_outer_contour", "max(contours, key=contourArea)", time.time() - start_max)
@@ -379,33 +365,28 @@ def detect_scoring_zones_tree(image_path, visualize=True):
                   config['contour_thickness'])
     save_visualization(img_contours, "04_Alle_contours_RETR_TREE", 4)
     
-    # Filtrer contours basert på sirkel-likhet og størrelse
+    # Filtrer contours basert på sirkel-likhet og størrelse (time hele løkken)
     circles = []
     img_filtered = img.copy()
     
-    # Time hele filtreringsløkken
     start_filter = time.time()
     for i, contour in enumerate(contours):
-        area = time_operation(filename, "detect_scoring_zones_tree", "cv2.contourArea", 
-                             cv2.contourArea, contour)
+        area = cv2.contourArea(contour)
         if area < config['min_contour_area']:  # Ignorer små contours
             continue
         
         # Sjekk hvor sirkel-lignende contour er
-        perimeter = time_operation(filename, "detect_scoring_zones_tree", "cv2.arcLength", 
-                                  cv2.arcLength, contour, True)
+        perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
             continue
         
         circularity = 4 * np.pi * area / (perimeter * perimeter)
         
         if circularity > config['circularity_threshold']:  # Terskel for sirkel-likhet
-            (x, y), radius = time_operation(filename, "detect_scoring_zones_tree", "cv2.minEnclosingCircle", 
-                                            cv2.minEnclosingCircle, contour)
+            (x, y), radius = cv2.minEnclosingCircle(contour)
             circles.append((int(x), int(y), int(radius)))
             # Tegn contour for visualisering
-            time_operation(filename, "detect_scoring_zones_tree", "cv2.drawContours", 
-                          cv2.drawContours, img_filtered, [contour], -1, config['color_green'], 
+            cv2.drawContours(img_filtered, [contour], -1, config['color_green'], 
                           config['contour_thickness'])
     log_operation_time(filename, "detect_scoring_zones_tree", "contour_filtering_loop", time.time() - start_filter)
     
@@ -424,29 +405,25 @@ def detect_scoring_zones_tree(image_path, visualize=True):
         center = np.mean(centers, axis=0).astype(int)
         log_operation_time(filename, "detect_scoring_zones_tree", "np.mean(centers)", time.time() - start_mean)
     
-    # Visualiser resultatet med nummererte sirkler
+    # Visualiser resultatet med nummererte sirkler (time hele tegneoperasjonen)
     result = img.copy()
     if circles:
         start_draw = time.time()
         for i, (x, y, r) in enumerate(circles):
             # Tegn sirkelen
-            time_operation(filename, "detect_scoring_zones_tree", "cv2.circle", 
-                          cv2.circle, result, (x, y), r, config['color_green'], 
-                          config['circle_thickness'])
+            cv2.circle(result, (x, y), r, config['color_green'], 
+                      config['circle_thickness'])
             # Tegn sentrum
-            time_operation(filename, "detect_scoring_zones_tree", "cv2.circle", 
-                          cv2.circle, result, (x, y), 2, config['color_red'], 3)
+            cv2.circle(result, (x, y), 2, config['color_red'], 3)
             # Legg til nummer (ytterste = 1, innerste = høyest)
-            time_operation(filename, "detect_scoring_zones_tree", "cv2.putText", 
-                          cv2.putText, result, str(i+1), (x-10, y), 
-                          config['font'], config['font_scale_small'], config['color_blue'], 
-                          config['font_thickness'])
+            cv2.putText(result, str(i+1), (x-10, y), 
+                       config['font'], config['font_scale_small'], config['color_blue'], 
+                       config['font_thickness'])
         
         # Tegn hoved-sentrum
         if center is not None:
-            time_operation(filename, "detect_scoring_zones_tree", "cv2.circle", 
-                          cv2.circle, result, tuple(center), config['circle_center_size'], 
-                          config['color_magenta'], config['circle_center_size'])
+            cv2.circle(result, tuple(center), config['circle_center_size'], 
+                      config['color_magenta'], config['circle_center_size'])
         log_operation_time(filename, "detect_scoring_zones_tree", "draw_result_loop", time.time() - start_draw)
     
     save_visualization(result, "06_Resultat_detect_scoring_zones_tree", 6)
@@ -471,6 +448,10 @@ def detect_scoring_zones_tree(image_path, visualize=True):
 if __name__ == "__main__":
     # Test med bilde fra config
     image_path = config['test_image_path']
+    
+    # Tøm loggfil ved start (overskriv for å starte på nytt)
+    with open(config['log_file_kronologisk'], "w", encoding="utf-8") as f:
+        f.write("")  # Tøm filen
     
     print("Tester find_outer_contour (RETR_EXTERNAL)...")
     circle, center = find_outer_contour(image_path, visualize=True)
