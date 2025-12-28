@@ -51,6 +51,7 @@ def get_config():
         'outer_circle_blur_sigma': 1.0,             # Gaussian blur sigma
         'outer_circle_mag_floor': 1e-3,             # Minimum gradient magnitude
         'outer_circle_mag_percentile': 60.0,        # Percentile for edge threshold
+        'outer_circle_filter_angle_deg': 2.0,       # Filter gradients within ±N degrees of horizontal/vertical
         'outer_circle_max_edge_points': 12000,      # Maks antall edge points
         'outer_circle_rmin_frac': 0.25,             # Minimum radius fraction
         'outer_circle_rmax_frac': 0.55,              # Maximum radius fraction
@@ -326,12 +327,33 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
     Gy = cv2.Scharr(gray, cv2.CV_32F, 0, 1)
     mag = cv2.magnitude(Gx, Gy)
     
+    # Filter out gradients that are nearly horizontal or vertical (±N degrees)
+    # This helps remove gradients from straight lines that aren't part of circles
+    angle_threshold_deg = cfg['outer_circle_filter_angle_deg']
+    angle_threshold_rad = np.deg2rad(angle_threshold_deg)
+    angle_threshold_tan = np.tan(angle_threshold_rad)
+    
+    # Calculate angle from horizontal: atan2(Gy, Gx)
+    # For nearly horizontal: |Gy| / |Gx| < tan(2°) when |Gx| > |Gy|
+    # For nearly vertical: |Gx| / |Gy| < tan(2°) when |Gy| > |Gx|
+    eps = 1e-6
+    mag_safe = mag + eps
+    
+    # Check if gradient is nearly horizontal (angle close to 0° or 180°)
+    # This means |Gy| is small compared to |Gx|
+    nearly_horizontal = np.abs(Gy) / (np.abs(Gx) + eps) < angle_threshold_tan
+    
+    # Check if gradient is nearly vertical (angle close to 90° or 270°)
+    # This means |Gx| is small compared to |Gy|
+    nearly_vertical = np.abs(Gx) / (np.abs(Gy) + eps) < angle_threshold_tan
+    
+    # Set magnitude to 0 for nearly horizontal or vertical gradients
+    mag[nearly_horizontal | nearly_vertical] = 0.0
+    
     # Gradient directions (normalized)
     # Note: For a dark circle on light background, gradient points outward (away from center)
     # For a light circle on dark background, gradient points inward (toward center)
     # We vote in both directions, so it should work either way
-    eps = 1e-6
-    mag_safe = mag + eps
     ux = Gx / mag_safe
     uy = Gy / mag_safe
     log_operation_time(filename, "detect_outer_circle", "gradient", time.time() - start_gradient)
