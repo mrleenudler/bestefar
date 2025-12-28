@@ -1,0 +1,25 @@
+Notater til koden:
+
+* Sentrum skal beregnes for kun den ytterste sirkelen, ikke som gjennomsnitt.
+	* Vi kan ikke bruke sirkel-rundt ytterste kontur (hvis det er kulehull i 1-poengs linjen - ikke sant?)
+
+* forsøker gradientmagnitude -> Scharr er best? (anbefalt, men ikke vurdert mtp. kjøretid)
+* RANSAC (RAndom SAmple Consensus) ser ut til å være bra for å bestemme sirkelen. -> Utgår til fordel for å finne senter først?
+* Kan polarTransform brukes til å finne de store sirklene? / Kan også finne sirkler med radial alignment når sentrum er funnet
+
+* Når omgivelser er med på bildet: 
+	-> Kan jeg terskle bort omgivelsene?
+	-> Kan jeg croppe til skjerm eller blink?
+
+
+Nedkalering er viktig
+	* Hvilken nedskalieringsmetode bevarer poengringene best? -> Arealbasert?
+	* Aktuelt med en morfologisk "lukking"?
+
+
+Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødvendig.
+
+* outer_circle_gradient_percentile -> Det ser ut som siste vurdering ikke ble med i beregningen her
+
+
+! Elektronisk skive på <1000px tar ~300ms å finne sirkler for

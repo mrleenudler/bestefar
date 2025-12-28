@@ -1,42 +1,14 @@
-"2025-12-27 11:46:39" | Blink 1 (fake).jpg | find_outer_contour | cv2.imread | 14,481306
-"2025-12-27 11:46:39" | visualization | save_visualization | cv2.cvtColor | 5,499125
-"2025-12-27 11:46:39" | visualization | save_visualization | plt.imsave | 280,631065
-"2025-12-27 11:46:39" | Blink 1 (fake).jpg | find_outer_contour | cv2.cvtColor | 1,119614
-"2025-12-27 11:46:39" | visualization | save_visualization | plt.imsave | 294,224024
-"2025-12-27 11:46:39" | Blink 1 (fake).jpg | find_outer_contour | cv2.threshold | 0,762701
-"2025-12-27 11:46:40" | visualization | save_visualization | plt.imsave | 160,541534
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.findContours | 3,092051
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.drawContours | 0,950336
-"2025-12-27 11:46:40" | visualization | save_visualization | cv2.cvtColor | 1,277208
-"2025-12-27 11:46:40" | visualization | save_visualization | plt.imsave | 250,700474
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | max(contours, key=contourArea) | 0,097513
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.drawContours | 1,260996
-"2025-12-27 11:46:40" | visualization | save_visualization | cv2.cvtColor | 1,287699
-"2025-12-27 11:46:40" | visualization | save_visualization | plt.imsave | 273,249865
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.minEnclosingCircle | 2,878904
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.circle | 0,180721
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.circle | 0,008821
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | cv2.putText | 0,137806
-"2025-12-27 11:46:40" | visualization | save_visualization | cv2.cvtColor | 1,376629
-"2025-12-27 11:46:40" | visualization | save_visualization | plt.imsave | 252,346516
-"2025-12-27 11:46:40" | Blink 1 (fake).jpg | find_outer_contour | RETR_EXTERNAL | 1561,220407
-"2025-12-27 11:46:44" | Blink 1 (fake).jpg | detect_scoring_zones_tree | cv2.imread | 20,956039
-"2025-12-27 11:46:44" | visualization | save_visualization | cv2.cvtColor | 1,397133
-"2025-12-27 11:46:45" | visualization | save_visualization | plt.imsave | 449,239254
-"2025-12-27 11:46:45" | Blink 1 (fake).jpg | detect_scoring_zones_tree | cv2.cvtColor | 1,056433
-"2025-12-27 11:46:45" | visualization | save_visualization | plt.imsave | 372,005701
-"2025-12-27 11:46:45" | Blink 1 (fake).jpg | detect_scoring_zones_tree | cv2.threshold | 0,679493
-"2025-12-27 11:46:45" | visualization | save_visualization | plt.imsave | 158,028364
-"2025-12-27 11:46:45" | Blink 1 (fake).jpg | detect_scoring_zones_tree | cv2.findContours | 7,973433
-"2025-12-27 11:46:45" | Blink 1 (fake).jpg | detect_scoring_zones_tree | cv2.drawContours | 14,886618
-"2025-12-27 11:46:45" | visualization | save_visualization | cv2.cvtColor | 1,632214
-"2025-12-27 11:46:46" | visualization | save_visualization | plt.imsave | 270,164251
-"2025-12-27 11:46:46" | Blink 1 (fake).jpg | detect_scoring_zones_tree | contour_filtering_loop | 16,350031
-"2025-12-27 11:46:46" | visualization | save_visualization | cv2.cvtColor | 1,442909
-"2025-12-27 11:46:46" | visualization | save_visualization | plt.imsave | 260,274410
-"2025-12-27 11:46:46" | Blink 1 (fake).jpg | detect_scoring_zones_tree | sorted(circles) | 0,034332
-"2025-12-27 11:46:46" | Blink 1 (fake).jpg | detect_scoring_zones_tree | np.mean(centers) | 0,134706
-"2025-12-27 11:46:46" | Blink 1 (fake).jpg | detect_scoring_zones_tree | draw_result_loop | 2,668858
-"2025-12-27 11:46:46" | visualization | save_visualization | cv2.cvtColor | 1,290798
-"2025-12-27 11:46:46" | visualization | save_visualization | plt.imsave | 252,591610
-"2025-12-27 11:46:46" | Blink 1 (fake).jpg | detect_scoring_zones_tree | RETR_TREE | 1847,613335
+"2025-12-28 19:51:49" | visualization | save_visualization | cv2.cvtColor | 5,738020
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 49,676180
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | detect_outer_circle | gradient | 4,126310
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | detect_outer_circle | threshold_extract | 26,025295
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | detect_outer_circle | voting | 26,019812
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_peaks | 3,989458
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | detect_outer_circle | total | 62,516212
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 25,028467
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 41,038513
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 30,534983
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 58,408976
+"2025-12-28 19:51:49" | visualization | save_visualization | plt.imsave | 5,777597
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | program | uforklart_tid | 24,422407
+"2025-12-28 19:51:49" | Elektronisk skive.jpg | program | total_tid | 300,786018

@@ -25,20 +25,6 @@ def get_config():
         'visualization_dir': Path("Visualiseringer"),
         'log_file_kronologisk': "ytelse_kronologisk.txt",
         
-        # Bildeprosessering - Threshold
-        'threshold_value': 127,           # Threshold-verdi for binær konvertering
-        'threshold_max': 255,              # Maksimum verdi for threshold
-        'threshold_type': cv2.THRESH_BINARY_INV,  # Threshold-type
-        
-        # Contour-deteksjon
-        'contour_mode_retr_external': cv2.RETR_EXTERNAL,  # For find_outer_contour
-        'contour_mode_retr_tree': cv2.RETR_TREE,          # For detect_scoring_zones_tree
-        'contour_approx': cv2.CHAIN_APPROX_SIMPLE,        # Contour-approksimasjon
-        
-        # Contour-filtrering
-        'min_contour_area': 100,          # Minimum areal for å beholde contour
-        'circularity_threshold': 0.5,      # Minimum circularity for å beholde contour
-        
         # Visualisering - Farger (BGR format)
         'color_green': (0, 255, 0),       # Grønn for contours/sirkler
         'color_red': (0, 0, 255),         # Rød for sentrum
@@ -48,21 +34,34 @@ def get_config():
         # Visualisering - Tegneparametere
         'circle_thickness': 2,            # Tykkelse på sirkler
         'circle_center_size': 5,           # Størrelse på sentrum-markør
-        'contour_thickness': 2,           # Tykkelse på contours
-        'contour_thickness_large': 3,     # Tykkelse på største contour
         
         # Visualisering - Tekst
         'font': cv2.FONT_HERSHEY_SIMPLEX,
-        'font_scale_small': 0.5,          # Font-størrelse for nummerering
         'font_scale_medium': 0.7,         # Font-størrelse for radius-tekst
         'font_thickness': 2,              # Font-tykkelse
         
         # Matplotlib
         'figure_size': (10, 10),          # Størrelse på matplotlib-figurer
-        'save_dpi': 150,                   # DPI for lagrede bilder
         
         # Test-bilde (i main)
-        'test_image_path': Path("Blink 1 (fake).jpg"),
+        'test_image_path': Path("Elektronisk skive.jpg"),
+        
+        # Outer circle detection - Gradient-normal center voting
+        'outer_circle_max_side': 1200,              # Maks side i px for downscaling
+        'outer_circle_blur_sigma': 1.0,             # Gaussian blur sigma
+        'outer_circle_mag_floor': 1e-3,             # Minimum gradient magnitude
+        'outer_circle_mag_percentile': 60.0,        # Percentile for edge threshold
+        'outer_circle_max_edge_points': 12000,      # Maks antall edge points
+        'outer_circle_rmin_frac': 0.25,             # Minimum radius fraction
+        'outer_circle_rmax_frac': 0.55,              # Maximum radius fraction
+        'outer_circle_t_steps': 9,                  # Antall t-verdier for voting
+        'outer_circle_center_win': 5,               # Vindu for subpixel center refinement
+        'outer_circle_align_min': 0.7,              # Minimum radial alignment
+        'outer_circle_r_bin_px': 1.0,               # Bin width for radius histogram
+        'outer_circle_r_smooth_sigma': 2.0,         # Smoothing sigma for radius histogram
+        'outer_circle_peaks_keep': 10,              # Antall topper å beholde
+        'outer_circle_peak_score_min_frac': 0.2,    # Minimum score fraction for peak
+        'outer_circle_r_inlier_eps': 3.0,           # Inlier epsilon for final fit
     }
 
 
@@ -71,6 +70,9 @@ visualization_index = 0
 
 # Global buffer for å samle logg-oppføringer (for optimalisering)
 _log_buffer = []
+
+# Global variabel for å holde styr på total tid brukt i loggde operasjoner (i ms)
+_logged_time_ms = 0.0
 
 # Last inn konfigurasjon
 config = get_config()
@@ -155,14 +157,22 @@ def log_operation_time(filename, method_name, operation_name, execution_time):
     """
     Logger kjøretid for en spesifikk operasjon (f.eks. cv2-funksjon).
     Bruker buffer for å unngå å skrive til fil for hver operasjon.
+    Logger kun operasjoner som tar minst 1 ms.
     
     Args:
         filename: Navn på bildet som ble prosessert
         method_name: Navn på metoden/funksjonen som kaller operasjonen
         operation_name: Navn på operasjonen (f.eks. "cv2.imread", "cv2.cvtColor")
         execution_time: Kjøretid i sekunder
+    
+    Returns:
+        True hvis logget, False hvis ikke (pga. for kort tid)
     """
     global _log_buffer
+    # Kun logg hvis >= 1 ms
+    if execution_time < 0.001:
+        return False
+    
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # Konverter til millisekunder og bruk komma som desimaltegn
     time_ms = execution_time * 1000
@@ -171,6 +181,12 @@ def log_operation_time(filename, method_name, operation_name, execution_time):
     
     # Legg til i buffer i stedet for å skrive direkte
     _log_buffer.append(entry)
+    
+    # Legg til i total logget tid
+    global _logged_time_ms
+    _logged_time_ms += time_ms
+    
+    return True
 
 
 def flush_log_buffer():
@@ -191,277 +207,446 @@ def flush_log_buffer():
     _log_buffer = []
 
 
-
-
-def time_operation(filename, method_name, operation_name, func, *args, **kwargs):
+def log_unaccounted_time(filename, total_time_ms, logged_time_ms):
     """
-    Utfører en operasjon og logger kjøretiden.
+    Logger uforklart tid (tid som ikke er logget i individuelle operasjoner).
     
     Args:
         filename: Navn på bildet som ble prosessert
-        method_name: Navn på metoden/funksjonen som kaller operasjonen
-        operation_name: Navn på operasjonen (f.eks. "cv2.imread")
-        func: Funksjonen å kjøre
-        *args, **kwargs: Argumenter til funksjonen
+        total_time_ms: Total kjøretid i millisekunder
+        logged_time_ms: Sum av all logget tid i millisekunder
+    """
+    unaccounted_ms = total_time_ms - logged_time_ms
+    if unaccounted_ms >= 1.0:  # Kun logg hvis >= 1 ms
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        time_str = f"{unaccounted_ms:.6f}".replace('.', ',')
+        entry = f'"{timestamp}" | {filename} | program | uforklart_tid | {time_str}\n'
+        
+        global _log_buffer
+        _log_buffer.append(entry)
+
+
+
+
+def fit_circle_pratt(points, weights):
+    """
+    Fit circle using Pratt's algebraic method (weighted).
+    Minimizes algebraic distance with weights.
+    """
+    n = len(points)
+    if n < 3:
+        return None
     
-    Returns:
-        Resultatet av funksjonen
-    """
-    start_time = time.time()
-    result = func(*args, **kwargs)
-    execution_time = time.time() - start_time
-    log_operation_time(filename, method_name, operation_name, execution_time)
-    return result
+    x = points[:, 0]
+    y = points[:, 1]
+    w = weights
+    
+    # Weighted means
+    x_mean = np.sum(w * x) / np.sum(w)
+    y_mean = np.sum(w * y) / np.sum(w)
+    
+    # Center points
+    u = x - x_mean
+    v = y - y_mean
+    
+    # Weighted moments
+    suu = np.sum(w * u * u)
+    svv = np.sum(w * v * v)
+    suv = np.sum(w * u * v)
+    suuu = np.sum(w * u * u * u)
+    svvv = np.sum(w * v * v * v)
+    suvv = np.sum(w * u * v * v)
+    svuu = np.sum(w * v * u * u)
+    
+    # Solve for center offset
+    A = np.array([[suu, suv], [suv, svv]])
+    b = np.array([0.5 * (suuu + suvv), 0.5 * (svvv + svuu)])
+    
+    try:
+        delta = np.linalg.solve(A, b)
+        cx = x_mean + delta[0]
+        cy = y_mean + delta[1]
+        
+        # Compute radius
+        r = np.sqrt(np.sum(w * ((x - cx)**2 + (y - cy)**2)) / np.sum(w))
+        return (cx, cy, r)
+    except np.linalg.LinAlgError:
+        return None
 
 
-def find_outer_contour(image_path, visualize=True):
+def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False, 
+                       filename: str = "unknown"):
     """
-    Finner den ytterste konturen ved å bruke minEnclosingCircle på den største konturen.
+    Detekterer ytterste sirkel ved hjelp av gradient-normal center voting.
     
     Args:
-        image_path: Sti til bildet
-        visualize: Om resultatet skal visualiseres
+        img: Input bilde (BGR eller gråskala)
+        cfg: Konfigurasjonsdictionary
+        debug: Om debug-artifakter skal returneres
+        filename: Filnavn for logging
     
     Returns:
-        circle: (x, y, radius) for den ytterste sirkelen, eller None
-        center: Sentrum (x, y)
+        (cx, cy, r) i original bilde-koordinater, og eventuelt debug_dict
     """
-    start_time = time.time()
-    filename = Path(image_path).name
+    start_total = time.time()
     
-    # Les bildet
-    img = time_operation(filename, "find_outer_contour", "cv2.imread", 
-                        cv2.imread, str(image_path))
-    if img is None:
-        raise ValueError(f"Kunne ikke lese bildet: {image_path}")
+    # 1) Downscale
+    start_resize = time.time()
+    h, w = img.shape[:2]
+    max_dim = max(h, w)
+    target_max = cfg['outer_circle_max_side']
+    scale = target_max / max_dim if max_dim > target_max else 1.0
     
-    save_visualization(img, "01_Originalt_bilde")
+    if scale < 1.0:
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        img_down = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    else:
+        img_down = img.copy()
+        new_w, new_h = w, h
+    log_operation_time(filename, "detect_outer_circle", "resize", time.time() - start_resize)
     
-    # Konverter til gråskala
-    gray = time_operation(filename, "find_outer_contour", "cv2.cvtColor", 
-                         cv2.cvtColor, img, cv2.COLOR_BGR2GRAY)
-    save_visualization(gray, "02_Graaskala", 2)
+    # 2) Grayscale + blur
+    start_preprocess = time.time()
+    if len(img_down.shape) == 3:
+        gray = cv2.cvtColor(img_down, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img_down.copy()
     
-    # Threshold for å få binær bilde
-    _, thresh = time_operation(filename, "find_outer_contour", "cv2.threshold", 
-                              cv2.threshold, gray, config['threshold_value'], 
-                              config['threshold_max'], config['threshold_type'])
-    save_visualization(thresh, "03_Threshold_binar", 3)
+    sigma = cfg['outer_circle_blur_sigma']
+    ksize = int(6 * sigma + 1)
+    if ksize % 2 == 0:
+        ksize += 1
+    gray = cv2.GaussianBlur(gray, (ksize, ksize), sigma)
+    log_operation_time(filename, "detect_outer_circle", "preprocess", time.time() - start_preprocess)
     
-    # Finn contours med RETR_EXTERNAL (kun ytterste contours)
-    contours, hierarchy = time_operation(filename, "find_outer_contour", "cv2.findContours", 
-                                        cv2.findContours, thresh, config['contour_mode_retr_external'], 
-                                        config['contour_approx'])
+    # 3) Gradients
+    start_gradient = time.time()
+    Gx = cv2.Scharr(gray, cv2.CV_32F, 1, 0)
+    Gy = cv2.Scharr(gray, cv2.CV_32F, 0, 1)
+    mag = cv2.magnitude(Gx, Gy)
     
-    # Visualiser alle contours
-    img_contours = img.copy()
-    time_operation(filename, "find_outer_contour", "cv2.drawContours", 
-                  cv2.drawContours, img_contours, contours, -1, config['color_green'], 
-                  config['contour_thickness'])
-    save_visualization(img_contours, "04_Alle_contours_RETR_EXTERNAL", 4)
+    # Gradient directions (normalized)
+    # Note: For a dark circle on light background, gradient points outward (away from center)
+    # For a light circle on dark background, gradient points inward (toward center)
+    # We vote in both directions, so it should work either way
+    eps = 1e-6
+    mag_safe = mag + eps
+    ux = Gx / mag_safe
+    uy = Gy / mag_safe
+    log_operation_time(filename, "detect_outer_circle", "gradient", time.time() - start_gradient)
     
-    # Finn den største konturen
-    if not contours:
-        execution_time = time.time() - start_time
-        log_performance(filename, "find_outer_contour", "RETR_EXTERNAL", execution_time)
-        flush_log_buffer()
-        return None, None
+    # 4) Dynamic threshold
+    start_threshold = time.time()
+    mag_floor = cfg['outer_circle_mag_floor']
+    mag_nonzero = mag[mag > mag_floor]
+    if len(mag_nonzero) == 0:
+        raise ValueError("Ingen gradient magnituder funnet")
     
-    # Finn den største konturen (time hele operasjonen)
-    start_max = time.time()
-    areas = []
-    for c in contours:
-        area = cv2.contourArea(c)
-        areas.append((area, c))
-    largest_contour = max(areas, key=lambda x: x[0])[1]
-    log_operation_time(filename, "find_outer_contour", "max(contours, key=contourArea)", time.time() - start_max)
+    percentile = cfg['outer_circle_mag_percentile']
+    threshold = np.percentile(mag_nonzero, percentile)
+    edge_mask = mag >= threshold
     
-    # Visualiser største contour
-    img_largest = img.copy()
-    time_operation(filename, "find_outer_contour", "cv2.drawContours", 
-                  cv2.drawContours, img_largest, [largest_contour], -1, config['color_green'], 
-                  config['contour_thickness_large'])
-    save_visualization(img_largest, "05_Storste_contour", 5)
+    # Extract edge points
+    y_coords, x_coords = np.where(edge_mask)
+    x = x_coords.astype(np.float32)
+    y = y_coords.astype(np.float32)
+    u = np.column_stack((ux[y_coords, x_coords], uy[y_coords, x_coords]))
+    w = mag[y_coords, x_coords]
     
-    # Bruk minEnclosingCircle på den største konturen
-    (x, y), radius = time_operation(filename, "find_outer_contour", "cv2.minEnclosingCircle", 
-                                    cv2.minEnclosingCircle, largest_contour)
-    center = (int(x), int(y))
-    radius = int(radius)
+    # Random subsample if too many
+    max_points = cfg['outer_circle_max_edge_points']
+    if len(x) > max_points:
+        rng = np.random.default_rng(42)
+        indices = rng.choice(len(x), max_points, replace=False)
+        x = x[indices]
+        y = y[indices]
+        u = u[indices]
+        w = w[indices]
+    log_operation_time(filename, "detect_outer_circle", "threshold_extract", time.time() - start_threshold)
     
-    # Visualiser resultatet
-    result = img.copy()
-    time_operation(filename, "find_outer_contour", "cv2.circle", 
-                  cv2.circle, result, center, radius, config['color_green'], 
-                  config['circle_thickness'])
-    time_operation(filename, "find_outer_contour", "cv2.circle", 
-                  cv2.circle, result, center, config['circle_center_size'], config['color_red'], -1)
-    time_operation(filename, "find_outer_contour", "cv2.putText", 
-                  cv2.putText, result, f"Radius: {radius}", (center[0] - 50, center[1] - radius - 20),
-                  config['font'], config['font_scale_medium'], config['color_blue'], config['font_thickness'])
-    save_visualization(result, "06_Resultat_find_outer_contour", 6)
+    # 5) Center voting
+    start_voting = time.time()
+    acc = np.zeros((new_h, new_w), dtype=np.float32)
     
-    execution_time = time.time() - start_time
-    log_performance(filename, "find_outer_contour", "RETR_EXTERNAL", execution_time)
+    rmin = cfg['outer_circle_rmin_frac'] * min(new_h, new_w)
+    rmax = cfg['outer_circle_rmax_frac'] * min(new_h, new_w)
+    t_steps = cfg['outer_circle_t_steps']
+    t_values = np.linspace(rmin, rmax, t_steps)
     
-    # Skriv alle logg-oppføringer til fil
-    flush_log_buffer()
-    
-    if visualize:
-        plt.figure(figsize=config['figure_size'])
-        result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-        plt.imshow(result_rgb)
-        plt.title(f'Ytterste sirkel funnet (radius: {radius})')
-        plt.axis('off')
-        plt.show()
-    
-    return (center[0], center[1], radius), center
-
-
-def detect_scoring_zones_tree(image_path, visualize=True):
-    """
-    Detekterer poengsoner ved å bruke RETR_TREE for å finne alle contours
-    (inkludert nested contours for de koncentriske sirklene).
-    
-    Args:
-        image_path: Sti til bildet
-        visualize: Om resultatet skal visualiseres
-    
-    Returns:
-        circles: Liste med detekterte sirkler (x, y, radius)
-        center: Sentrum av skyteskiven (x, y)
-    """
-    start_time = time.time()
-    filename = Path(image_path).name
-    
-    # Les bildet
-    img = time_operation(filename, "detect_scoring_zones_tree", "cv2.imread", 
-                        cv2.imread, str(image_path))
-    if img is None:
-        raise ValueError(f"Kunne ikke lese bildet: {image_path}")
-    
-    save_visualization(img, "01_Originalt_bilde")
-    
-    # Konverter til gråskala
-    gray = time_operation(filename, "detect_scoring_zones_tree", "cv2.cvtColor", 
-                         cv2.cvtColor, img, cv2.COLOR_BGR2GRAY)
-    save_visualization(gray, "02_Graaskala", 2)
-    
-    # Threshold for å få binær bilde
-    _, thresh = time_operation(filename, "detect_scoring_zones_tree", "cv2.threshold", 
-                              cv2.threshold, gray, config['threshold_value'], 
-                              config['threshold_max'], config['threshold_type'])
-    save_visualization(thresh, "03_Threshold_binar", 3)
-    
-    # Finn contours med RETR_TREE (alle contours, inkludert nested)
-    contours, hierarchy = time_operation(filename, "detect_scoring_zones_tree", "cv2.findContours", 
-                                        cv2.findContours, thresh, config['contour_mode_retr_tree'], 
-                                        config['contour_approx'])
-    
-    # Visualiser alle contours
-    img_contours = img.copy()
-    time_operation(filename, "detect_scoring_zones_tree", "cv2.drawContours", 
-                  cv2.drawContours, img_contours, contours, -1, config['color_green'], 
-                  config['contour_thickness'])
-    save_visualization(img_contours, "04_Alle_contours_RETR_TREE", 4)
-    
-    # Filtrer contours basert på sirkel-likhet og størrelse (time hele løkken)
-    circles = []
-    img_filtered = img.copy()
-    
-    start_filter = time.time()
-    for i, contour in enumerate(contours):
-        area = cv2.contourArea(contour)
-        if area < config['min_contour_area']:  # Ignorer små contours
-            continue
+    for t in t_values:
+        # Vote both directions (inward and outward)
+        # For a dark circle on light background: gradient points outward (away from center)
+        # For a light circle on dark background: gradient points inward (toward center)
+        # We vote in both directions to handle both cases
+        cx1 = x - t * u[:, 0]  # Vote in direction opposite to gradient (toward center for dark circle)
+        cy1 = y - t * u[:, 1]
+        cx2 = x + t * u[:, 0]  # Vote in gradient direction (away from center for dark circle)
+        cy2 = y + t * u[:, 1]
         
-        # Sjekk hvor sirkel-lignende contour er
-        perimeter = cv2.arcLength(contour, True)
-        if perimeter == 0:
-            continue
+        # Round to integers
+        cx1_int = np.round(cx1).astype(int)
+        cy1_int = np.round(cy1).astype(int)
+        cx2_int = np.round(cx2).astype(int)
+        cy2_int = np.round(cy2).astype(int)
         
-        circularity = 4 * np.pi * area / (perimeter * perimeter)
+        # Filter out-of-bounds votes (ignore instead of clipping)
+        valid1 = (cx1_int >= 0) & (cx1_int < new_w) & (cy1_int >= 0) & (cy1_int < new_h)
+        valid2 = (cx2_int >= 0) & (cx2_int < new_w) & (cy2_int >= 0) & (cy2_int < new_h)
         
-        if circularity > config['circularity_threshold']:  # Terskel for sirkel-likhet
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-            circles.append((int(x), int(y), int(radius)))
-            # Tegn contour for visualisering
-            cv2.drawContours(img_filtered, [contour], -1, config['color_green'], 
-                          config['contour_thickness'])
-    log_operation_time(filename, "detect_scoring_zones_tree", "contour_filtering_loop", time.time() - start_filter)
-    
-    save_visualization(img_filtered, "05_Filtrerte_contours", 5)
-    
-    # Sorter etter radius (største først = ytterste sone)
-    start_sort = time.time()
-    circles = sorted(circles, key=lambda x: x[2], reverse=True)
-    log_operation_time(filename, "detect_scoring_zones_tree", "sorted(circles)", time.time() - start_sort)
-    
-    # Finn sentrum (gjennomsnitt av alle sentre, eller bruk den største)
-    center = None
-    if circles:
-        start_mean = time.time()
-        centers = np.array([(x, y) for x, y, r in circles])
-        center = np.mean(centers, axis=0).astype(int)
-        log_operation_time(filename, "detect_scoring_zones_tree", "np.mean(centers)", time.time() - start_mean)
-    
-    # Visualiser resultatet med nummererte sirkler (time hele tegneoperasjonen)
-    result = img.copy()
-    if circles:
-        start_draw = time.time()
-        for i, (x, y, r) in enumerate(circles):
-            # Tegn sirkelen
-            cv2.circle(result, (x, y), r, config['color_green'], 
-                      config['circle_thickness'])
-            # Tegn sentrum
-            cv2.circle(result, (x, y), 2, config['color_red'], 3)
-            # Legg til nummer (ytterste = 1, innerste = høyest)
-            cv2.putText(result, str(i+1), (x-10, y), 
-                       config['font'], config['font_scale_small'], config['color_blue'], 
-                       config['font_thickness'])
+        # Only vote for valid positions
+        if np.any(valid1):
+            idx1 = cy1_int[valid1] * new_w + cx1_int[valid1]
+            w1 = w[valid1]
+            acc_flat = acc.flatten()
+            np.add.at(acc_flat, idx1, w1)
+            acc = acc_flat.reshape((new_h, new_w))
         
-        # Tegn hoved-sentrum
-        if center is not None:
-            cv2.circle(result, tuple(center), config['circle_center_size'], 
-                      config['color_magenta'], config['circle_center_size'])
-        log_operation_time(filename, "detect_scoring_zones_tree", "draw_result_loop", time.time() - start_draw)
+        if np.any(valid2):
+            idx2 = cy2_int[valid2] * new_w + cx2_int[valid2]
+            w2 = w[valid2]
+            acc_flat = acc.flatten()
+            np.add.at(acc_flat, idx2, w2)
+            acc = acc_flat.reshape((new_h, new_w))
     
-    save_visualization(result, "06_Resultat_detect_scoring_zones_tree", 6)
+    # Find peak
+    peak_idx = np.argmax(acc)
+    peak_y = peak_idx // new_w
+    peak_x = peak_idx % new_w
+    c_hat = (peak_x, peak_y)
+    log_operation_time(filename, "detect_outer_circle", "voting", time.time() - start_voting)
     
-    execution_time = time.time() - start_time
-    log_performance(filename, "detect_scoring_zones_tree", "RETR_TREE", execution_time)
+    # 6) Subpixel center refinement
+    start_center_refine = time.time()
+    win = cfg['outer_circle_center_win']
+    x_min = max(0, peak_x - win)
+    x_max = min(new_w, peak_x + win + 1)
+    y_min = max(0, peak_y - win)
+    y_max = min(new_h, peak_y + win + 1)
     
-    # Skriv alle logg-oppføringer til fil
-    flush_log_buffer()
+    window = acc[y_min:y_max, x_min:x_max]
+    y_grid, x_grid = np.mgrid[y_min:y_max, x_min:x_max]
     
-    if visualize:
-        plt.figure(figsize=config['figure_size'])
-        result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-        plt.imshow(result_rgb)
-        plt.title(f'Detekterte poengsoner med RETR_TREE ({len(circles)} sirkler)')
-        plt.axis('off')
-        plt.show()
+    total_weight = np.sum(window)
+    if total_weight > 0:
+        c0x = np.sum(x_grid * window) / total_weight
+        c0y = np.sum(y_grid * window) / total_weight
+    else:
+        c0x, c0y = float(peak_x), float(peak_y)
+    log_operation_time(filename, "detect_outer_circle", "center_refine", time.time() - start_center_refine)
     
-    return circles, center
+    # 7) Radius estimation
+    start_radius = time.time()
+    # Compute radii and alignment
+    dx = x - c0x
+    dy = y - c0y
+    ri = np.sqrt(dx**2 + dy**2)
+    
+    # Radial alignment
+    ri_safe = ri + eps
+    vi = np.column_stack((dx / ri_safe, dy / ri_safe))
+    ai = np.abs(vi[:, 0] * u[:, 0] + vi[:, 1] * u[:, 1])
+    
+    # Filter by alignment
+    align_min = cfg['outer_circle_align_min']
+    keep_mask = ai >= align_min
+    x_aligned = x[keep_mask]
+    y_aligned = y[keep_mask]
+    ri_aligned = ri[keep_mask]
+    w_aligned = w[keep_mask]
+    ai_aligned = ai[keep_mask]
+    
+    # Build histogram
+    rmax_search = 0.6 * min(new_h, new_w)
+    bin_width = cfg['outer_circle_r_bin_px']
+    bins = np.arange(0, rmax_search + bin_width, bin_width)
+    weights_hist = w_aligned * ai_aligned
+    hist, bin_edges = np.histogram(ri_aligned, bins=bins, weights=weights_hist)
+    
+    # Smooth histogram
+    smooth_sigma = cfg['outer_circle_r_smooth_sigma']
+    try:
+        from scipy import ndimage
+        hist_smooth = ndimage.gaussian_filter1d(hist.astype(np.float32), smooth_sigma)
+    except ImportError:
+        # Fallback: simple box filter if scipy not available
+        kernel_size = int(smooth_sigma * 2) * 2 + 1
+        kernel = np.ones(kernel_size) / kernel_size
+        hist_smooth = np.convolve(hist.astype(np.float32), kernel, mode='same')
+    
+    # Find peaks
+    peaks_keep = cfg['outer_circle_peaks_keep']
+    try:
+        from scipy.signal import find_peaks
+        peaks, properties = find_peaks(hist_smooth, prominence=np.max(hist_smooth) * 0.1)
+    except ImportError:
+        # Fallback: simple local maxima detection
+        peaks = []
+        for i in range(1, len(hist_smooth) - 1):
+            if hist_smooth[i] > hist_smooth[i-1] and hist_smooth[i] > hist_smooth[i+1]:
+                if hist_smooth[i] > np.max(hist_smooth) * 0.1:
+                    peaks.append(i)
+        peaks = np.array(peaks)
+    
+    if len(peaks) == 0:
+        # Fallback: use maximum
+        peak_idx = np.argmax(hist_smooth)
+        r0 = (bin_edges[peak_idx] + bin_edges[peak_idx + 1]) / 2
+    else:
+        # Sort by score
+        peak_scores = hist_smooth[peaks]
+        sorted_indices = np.argsort(peak_scores)[::-1][:peaks_keep]
+        sorted_peaks = peaks[sorted_indices]
+        sorted_scores = peak_scores[sorted_indices]
+        
+        # Choose outermost peak with sufficient score
+        best_score = sorted_scores[0]
+        min_score = cfg['outer_circle_peak_score_min_frac'] * best_score
+        
+        # Find outermost peak above threshold
+        outer_peak_idx = None
+        for i in range(len(sorted_peaks) - 1, -1, -1):  # Start from largest radius
+            if sorted_scores[i] >= min_score:
+                outer_peak_idx = sorted_peaks[i]
+                break
+        
+        if outer_peak_idx is None:
+            outer_peak_idx = sorted_peaks[-1]  # Use outermost if none above threshold
+        
+        r0 = (bin_edges[outer_peak_idx] + bin_edges[outer_peak_idx + 1]) / 2
+    
+    log_operation_time(filename, "detect_outer_circle", "radius_hist_peaks", time.time() - start_radius)
+    
+    # 8) Final circle refinement
+    start_final_fit = time.time()
+    r_eps = cfg['outer_circle_r_inlier_eps']
+    inlier_mask = np.abs(ri_aligned - r0) < r_eps
+    inlier_points = np.column_stack((x_aligned[inlier_mask], y_aligned[inlier_mask]))
+    inlier_weights = (w_aligned[inlier_mask] * ai_aligned[inlier_mask])
+    
+    if len(inlier_points) >= 3:
+        result = fit_circle_pratt(inlier_points, inlier_weights)
+        if result:
+            cx_final, cy_final, r_final = result
+        else:
+            cx_final, cy_final, r_final = c0x, c0y, r0
+    else:
+        cx_final, cy_final, r_final = c0x, c0y, r0
+    
+    log_operation_time(filename, "detect_outer_circle", "final_fit", time.time() - start_final_fit)
+    
+    # 9) Map back to original coordinates
+    cx_orig = cx_final / scale
+    cy_orig = cy_final / scale
+    r_orig = r_final / scale
+    
+    total_time = time.time() - start_total
+    log_performance(filename, "detect_outer_circle", "total", total_time)
+    
+    # 10) Debug output
+    debug_dict = None
+    if debug:
+        debug_dict = {
+            'downscaled_gray': gray,
+            'mag': mag,
+            'edge_mask': edge_mask,
+            'accumulator': acc,
+            'c_hat': c_hat,
+            'c0': (c0x, c0y),
+            'radius_histogram': hist_smooth,
+            'bin_edges': bin_edges,
+            'chosen_peak': r0,
+            'inlier_points': inlier_points,
+            'scale': scale
+        }
+    
+    return (cx_orig, cy_orig, r_orig, debug_dict)
 
 
 if __name__ == "__main__":
+    # Start timing av hele programmet
+    program_start_time = time.time()
+    
     # Test med bilde fra config
     image_path = config['test_image_path']
+    filename = Path(image_path).name
     
     # Tøm loggfil ved start (overskriv for å starte på nytt)
     with open(config['log_file_kronologisk'], "w", encoding="utf-8") as f:
         f.write("")  # Tøm filen
     
-    print("Tester find_outer_contour (RETR_EXTERNAL)...")
-    circle, center = find_outer_contour(image_path, visualize=True)
-    if circle:
-        print(f"Funnet ytterste sirkel: sentrum=({circle[0]}, {circle[1]}), radius={circle[2]}")
-    else:
-        print("Ingen sirkel funnet")
+    # Nullstill global logget tid
+    _logged_time_ms = 0.0
     
-    print("\nTester detect_scoring_zones_tree (RETR_TREE)...")
-    circles, center = detect_scoring_zones_tree(image_path, visualize=True)
-    print(f"Funnet {len(circles)} sirkler")
-    if center is not None:
-        print(f"Sentrum: ({center[0]}, {center[1]})")
+    print("Tester detect_outer_circle (Gradient-normal center voting)...")
+    
+    # Les bildet
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise ValueError(f"Kunne ikke lese bildet: {image_path}")
+    
+    save_visualization(img, "01_Originalt_bilde")
+    
+    # Kjør deteksjon
+    cx, cy, r, debug_dict = detect_outer_circle(img, config, debug=True, filename=filename)
+    
+    print(f"Funnet ytterste sirkel: sentrum=({cx:.2f}, {cy:.2f}), radius={r:.2f}")
+    
+    # Visualiser resultatet
+    result = img.copy()
+    center = (int(cx), int(cy))
+    radius = int(r)
+    
+    # Tegn sirkelen
+    cv2.circle(result, center, radius, config['color_green'], config['circle_thickness'])
+    cv2.circle(result, center, config['circle_center_size'], config['color_red'], -1)
+    cv2.putText(result, f"Radius: {radius}", (center[0] - 50, center[1] - radius - 20),
+                config['font'], config['font_scale_medium'], config['color_blue'], config['font_thickness'])
+    
+    save_visualization(result, "02_Resultat_detect_outer_circle", 2)
+    
+    # Vis debug-artifakter hvis tilgjengelig
+    if debug_dict:
+        save_visualization(debug_dict['downscaled_gray'], "03_Downscaled_graaskala", 3)
+        save_visualization(debug_dict['edge_mask'].astype(np.uint8) * 255, "04_Edge_mask", 4)
+        
+        # Visualiser accumulator med peak markert
+        acc = debug_dict['accumulator']
+        acc_norm = (acc / (np.max(acc) + 1e-6) * 255).astype(np.uint8)
+        acc_colored = cv2.applyColorMap(acc_norm, cv2.COLORMAP_JET)
+        
+        # Mark peak position
+        c_hat = debug_dict['c_hat']
+        c0 = debug_dict['c0']
+        # We're visualizing the downscaled accumulator, so use c_hat and c0 directly
+        cv2.circle(acc_colored, (int(c_hat[0]), int(c_hat[1])), 5, (255, 255, 255), 2)
+        cv2.circle(acc_colored, (int(c0[0]), int(c0[1])), 3, (0, 0, 0), 2)
+        
+        save_visualization(acc_colored, "05_Accumulator", 5)
+        
+        # Visualiser radius histogram
+        if 'radius_histogram' in debug_dict:
+            hist_img = np.zeros((200, 400), dtype=np.uint8)
+            hist = debug_dict['radius_histogram']
+            if len(hist) > 0:
+                hist_norm = (hist / (np.max(hist) + 1e-6) * 199).astype(int)
+                for i, h in enumerate(hist_norm[:400]):
+                    cv2.line(hist_img, (i, 199), (i, 199 - h), 255, 1)
+            save_visualization(hist_img, "06_Radius_histogram", 6)
+    
+    # Beregn total tid og uforklart tid
+    program_total_time = time.time() - program_start_time
+    program_total_time_ms = program_total_time * 1000
+    
+    # Logg uforklart tid
+    log_unaccounted_time(filename, program_total_time_ms, _logged_time_ms)
+    
+    # Logg total programtid
+    log_performance(filename, "program", "total_tid", program_total_time)
+    
+    # Skriv alle logg-oppføringer til fil
+    flush_log_buffer()
+    
+    print(f"\nTotal programtid: {program_total_time_ms:.2f} ms")
+    print(f"Logget tid: {_logged_time_ms:.2f} ms")
+    print(f"Uforklart tid: {program_total_time_ms - _logged_time_ms:.2f} ms")
