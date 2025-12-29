@@ -1,5 +1,7 @@
 Notater til koden:
 
+CURSOR VENTER PÅ AVKLARINGER!!
+
 * Sentrum skal beregnes for kun den ytterste sirkelen, ikke som gjennomsnitt.
 	* Vi kan ikke bruke sirkel-rundt ytterste kontur (hvis det er kulehull i 1-poengs linjen - ikke sant?)
 

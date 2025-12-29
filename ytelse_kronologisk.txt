@@ -1,14 +1,14 @@
-"2025-12-28 20:39:33" | visualization | save_visualization | cv2.cvtColor | 5,112410
-"2025-12-28 20:39:33" | visualization | save_visualization | plt.imsave | 45,105696
-"2025-12-28 20:39:33" | Elektronisk skive.jpg | detect_outer_circle | gradient | 10,083199
-"2025-12-28 20:39:33" | Elektronisk skive.jpg | detect_outer_circle | threshold_extract | 21,190643
-"2025-12-28 20:39:33" | Elektronisk skive.jpg | detect_outer_circle | voting | 22,393942
-"2025-12-28 20:39:33" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_peaks | 3,741026
-"2025-12-28 20:39:33" | Elektronisk skive.jpg | detect_outer_circle | total | 59,391737
-"2025-12-28 20:39:34" | visualization | save_visualization | plt.imsave | 22,793531
-"2025-12-28 20:39:34" | visualization | save_visualization | plt.imsave | 33,747911
-"2025-12-28 20:39:34" | visualization | save_visualization | plt.imsave | 32,463312
-"2025-12-28 20:39:34" | visualization | save_visualization | plt.imsave | 59,601545
-"2025-12-28 20:39:34" | visualization | save_visualization | plt.imsave | 6,203651
-"2025-12-28 20:39:34" | Elektronisk skive.jpg | program | uforklart_tid | 24,678946
-"2025-12-28 20:39:34" | Elektronisk skive.jpg | program | total_tid | 287,115812
+"2025-12-29 09:18:14" | visualization | save_visualization | cv2.cvtColor | 4,907608
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 69,020987
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | detect_outer_circle | gradient | 10,557175
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | detect_outer_circle | threshold_extract | 281,117916
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | detect_outer_circle | voting | 8,522272
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_peaks | 3,361464
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | detect_outer_circle | total | 305,558443
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 23,739100
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 47,381401
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 32,802105
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 38,794041
+"2025-12-29 09:18:14" | visualization | save_visualization | plt.imsave | 8,115053
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | program | uforklart_tid | 35,642624
+"2025-12-29 09:18:14" | Elektronisk skive.jpg | program | total_tid | 563,961744

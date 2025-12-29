@@ -1,0 +1,17 @@
+Debug output for detect_outer_circle
+Image: Elektronisk skive.jpg
+Downscaled size: 704×528
+Scale factor: 1.0000
+
+Candidate edge points: 12000
+Pairs sampled: 40000
+Pairs rejected as parallel: 3999
+Pairs rejected by distance: 3115
+Pairs rejected as out-of-bounds: 7035
+Valid votes cast: 25851
+Peak location: (253, 245), accumulator max: 10255.90
+
+Final center (downscaled): (252.55, 244.69)
+Final center (original): (252.52, 243.97)
+Final radius (downscaled): 265.45
+Final radius (original): 265.45

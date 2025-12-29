@@ -24,6 +24,7 @@ def get_config():
         # Filer og kataloger
         'visualization_dir': Path("Visualiseringer"),
         'log_file_kronologisk': "ytelse_kronologisk.txt",
+        'debug_file': "debug_detect_outer_circle.txt",
         
         # Visualisering - Farger (BGR format)
         'color_green': (0, 255, 0),       # Grønn for contours/sirkler
@@ -53,10 +54,10 @@ def get_config():
         'outer_circle_mag_percentile': 60.0,        # Percentile for edge threshold
         'outer_circle_filter_angle_deg': 2.0,       # Filter gradients within ±N degrees of horizontal/vertical
         'outer_circle_max_edge_points': 12000,      # Maks antall edge points
-        'outer_circle_rmin_frac': 0.25,             # Minimum radius fraction
-        'outer_circle_rmax_frac': 0.55,              # Maximum radius fraction
-        'outer_circle_t_steps': 9,                  # Antall t-verdier for voting
-        'outer_circle_center_win': 5,               # Vindu for subpixel center refinement
+        'outer_circle_center_win': 5,               # Halvbredde for subpixel center refinement (win=5 => 11×11 vindu)
+        'outer_circle_center_pairs': 40000,          # Antall random par for intersection-of-normals voting
+        'outer_circle_parallel_eps': 0.15,           # Reject pairs if abs(cross) < this (for numerical stability)
+        'outer_circle_max_center_distance_frac': 0.8,  # Max distance from image center (None to disable)
         'outer_circle_align_min': 0.7,              # Minimum radial alignment
         'outer_circle_r_bin_px': 1.0,               # Bin width for radius histogram
         'outer_circle_r_smooth_sigma': 2.0,         # Smoothing sigma for radius histogram
@@ -387,58 +388,125 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
         w = w[indices]
     log_operation_time(filename, "detect_outer_circle", "threshold_extract", time.time() - start_threshold)
     
-    # 5) Center voting
+    # 5) Center voting using intersection-of-normals
     start_voting = time.time()
-    acc = np.zeros((new_h, new_w), dtype=np.float32)
+    accf = np.zeros((new_h, new_w), dtype=np.float32)
     
-    rmin = cfg['outer_circle_rmin_frac'] * min(new_h, new_w)
-    rmax = cfg['outer_circle_rmax_frac'] * min(new_h, new_w)
-    t_steps = cfg['outer_circle_t_steps']
-    t_values = np.linspace(rmin, rmax, t_steps)
+    # Debug statistics (collect in list, write to file at end)
+    debug_lines = []
+    n_candidates = len(x)
+    if debug:
+        debug_lines.append(f"Candidate edge points: {n_candidates}")
     
-    for t in t_values:
-        # Vote both directions (inward and outward)
-        # For a dark circle on light background: gradient points outward (away from center)
-        # For a light circle on dark background: gradient points inward (toward center)
-        # We vote in both directions to handle both cases
-        cx1 = x - t * u[:, 0]  # Vote in direction opposite to gradient (toward center for dark circle)
-        cy1 = y - t * u[:, 1]
-        cx2 = x + t * u[:, 0]  # Vote in gradient direction (away from center for dark circle)
-        cy2 = y + t * u[:, 1]
-        
-        # Round to integers
-        cx1_int = np.round(cx1).astype(int)
-        cy1_int = np.round(cy1).astype(int)
-        cx2_int = np.round(cx2).astype(int)
-        cy2_int = np.round(cy2).astype(int)
-        
-        # Filter out-of-bounds votes (ignore instead of clipping)
-        valid1 = (cx1_int >= 0) & (cx1_int < new_w) & (cy1_int >= 0) & (cy1_int < new_h)
-        valid2 = (cx2_int >= 0) & (cx2_int < new_w) & (cy2_int >= 0) & (cy2_int < new_h)
-        
-        # Only vote for valid positions
-        if np.any(valid1):
-            idx1 = cy1_int[valid1] * new_w + cx1_int[valid1]
-            w1 = w[valid1]
-            acc_flat = acc.flatten()
-            np.add.at(acc_flat, idx1, w1)
-            acc = acc_flat.reshape((new_h, new_w))
-        
-        if np.any(valid2):
-            idx2 = cy2_int[valid2] * new_w + cx2_int[valid2]
-            w2 = w[valid2]
-            acc_flat = acc.flatten()
-            np.add.at(acc_flat, idx2, w2)
-            acc = acc_flat.reshape((new_h, new_w))
+    # Sample random pairs
+    M = cfg['outer_circle_center_pairs']
+    rng = np.random.default_rng(42)
+    
+    # Generate random pairs (i != j)
+    i_indices = rng.integers(0, n_candidates, size=M)
+    j_indices = rng.integers(0, n_candidates, size=M)
+    # Ensure i != j
+    same_mask = i_indices == j_indices
+    j_indices[same_mask] = (j_indices[same_mask] + 1) % n_candidates
+    
+    if debug:
+        debug_lines.append(f"Pairs sampled: {M}")
+    
+    # Extract pairs
+    x1, y1 = x[i_indices], y[i_indices]
+    x2, y2 = x[j_indices], y[j_indices]
+    ux1, uy1 = u[i_indices, 0], u[i_indices, 1]
+    ux2, uy2 = u[j_indices, 0], u[j_indices, 1]
+    w1, w2 = w[i_indices], w[j_indices]
+    
+    # Compute cross product for parallel check
+    cross = ux1 * uy2 - uy1 * ux2
+    parallel_eps = cfg['outer_circle_parallel_eps']
+    valid_parallel = np.abs(cross) >= parallel_eps
+    
+    n_rejected_parallel = np.sum(~valid_parallel)
+    if debug:
+        debug_lines.append(f"Pairs rejected as parallel: {n_rejected_parallel}")
+    
+    # Filter to valid pairs
+    x1 = x1[valid_parallel]
+    y1 = y1[valid_parallel]
+    x2 = x2[valid_parallel]
+    y2 = y2[valid_parallel]
+    ux1 = ux1[valid_parallel]
+    uy1 = uy1[valid_parallel]
+    ux2 = ux2[valid_parallel]
+    uy2 = uy2[valid_parallel]
+    w1 = w1[valid_parallel]
+    w2 = w2[valid_parallel]
+    cross = cross[valid_parallel]
+    
+    # Solve for intersection: L1(s) = p1 + s*u1, L2(t) = p2 + t*u2
+    # System: [u1x -u2x] [s] = [x2-x1]
+    #         [u1y -u2y] [t]   [y2-y1]
+    # Solution: s = ((x2-x1)*u2y - (y2-y1)*u2x) / cross
+    dx = x2 - x1
+    dy = y2 - y1
+    s = (dx * uy2 - dy * ux2) / cross
+    
+    # Intersection point
+    cx = x1 + s * ux1
+    cy = y1 + s * uy1
+    
+    # Optional: filter by distance from image center
+    max_dist_frac = cfg.get('outer_circle_max_center_distance_frac', None)
+    if max_dist_frac is not None:
+        img_center_x = new_w / 2.0
+        img_center_y = new_h / 2.0
+        dist_from_center = np.sqrt((cx - img_center_x)**2 + (cy - img_center_y)**2)
+        max_dist = max_dist_frac * np.hypot(new_w, new_h)
+        valid_distance = dist_from_center <= max_dist
+        cx = cx[valid_distance]
+        cy = cy[valid_distance]
+        w1 = w1[valid_distance]
+        w2 = w2[valid_distance]
+        n_rejected_distance = np.sum(~valid_distance)
+        if debug:
+            debug_lines.append(f"Pairs rejected by distance: {n_rejected_distance}")
+    
+    # Round to integer pixel coordinates
+    cx_int = np.round(cx).astype(int)
+    cy_int = np.round(cy).astype(int)
+    
+    # Filter out-of-bounds (DO NOT clip)
+    valid_bounds = (cx_int >= 0) & (cx_int < new_w) & (cy_int >= 0) & (cy_int < new_h)
+    n_rejected_bounds = np.sum(~valid_bounds)
+    if debug:
+        debug_lines.append(f"Pairs rejected as out-of-bounds: {n_rejected_bounds}")
+    
+    cx_int = cx_int[valid_bounds]
+    cy_int = cy_int[valid_bounds]
+    vote_weights = np.minimum(w1[valid_bounds], w2[valid_bounds])  # Use min(w1, w2)
+    
+    # Vote using bincount
+    if len(cx_int) > 0:
+        idx = cy_int * new_w + cx_int
+        accf_flat = accf.flatten()
+        np.add.at(accf_flat, idx, vote_weights)
+        accf = accf_flat.reshape((new_h, new_w))
+    
+    n_valid_votes = len(cx_int)
+    if debug:
+        debug_lines.append(f"Valid votes cast: {n_valid_votes}")
     
     # Find peak
-    peak_idx = np.argmax(acc)
+    peak_idx = np.argmax(accf)
     peak_y = peak_idx // new_w
     peak_x = peak_idx % new_w
     c_hat = (peak_x, peak_y)
+    acc_max = accf[peak_y, peak_x]
+    if debug:
+        debug_lines.append(f"Peak location: ({peak_x}, {peak_y}), accumulator max: {acc_max:.2f}")
+    
     log_operation_time(filename, "detect_outer_circle", "voting", time.time() - start_voting)
     
     # 6) Subpixel center refinement
+    # win is half-width: win=5 means 11×11 window (2*win+1)
     start_center_refine = time.time()
     win = cfg['outer_circle_center_win']
     x_min = max(0, peak_x - win)
@@ -446,7 +514,7 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
     y_min = max(0, peak_y - win)
     y_max = min(new_h, peak_y + win + 1)
     
-    window = acc[y_min:y_max, x_min:x_max]
+    window = accf[y_min:y_max, x_min:x_max]
     y_grid, x_grid = np.mgrid[y_min:y_max, x_min:x_max]
     
     total_weight = np.sum(window)
@@ -565,14 +633,30 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
     total_time = time.time() - start_total
     log_performance(filename, "detect_outer_circle", "total", total_time)
     
-    # 10) Debug output
+    # 10) Write debug file
+    if debug and len(debug_lines) > 0:
+        debug_filepath = cfg.get('debug_file', 'debug_detect_outer_circle.txt')
+        with open(debug_filepath, 'w', encoding='utf-8') as f:
+            f.write(f"Debug output for detect_outer_circle\n")
+            f.write(f"Image: {filename}\n")
+            f.write(f"Downscaled size: {new_w}×{new_h}\n")
+            f.write(f"Scale factor: {scale:.4f}\n")
+            f.write(f"\n")
+            for line in debug_lines:
+                f.write(f"{line}\n")
+            f.write(f"\nFinal center (downscaled): ({c0x:.2f}, {c0y:.2f})\n")
+            f.write(f"Final center (original): ({cx_orig:.2f}, {cy_orig:.2f})\n")
+            f.write(f"Final radius (downscaled): {r_final:.2f}\n")
+            f.write(f"Final radius (original): {r_orig:.2f}\n")
+    
+    # 11) Debug output
     debug_dict = None
     if debug:
         debug_dict = {
             'downscaled_gray': gray,
             'mag': mag,
             'edge_mask': edge_mask,
-            'accumulator': acc,
+            'accumulator': accf,
             'c_hat': c_hat,
             'c0': (c0x, c0y),
             'radius_histogram': hist_smooth,
