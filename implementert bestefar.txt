@@ -1,10 +1,8 @@
 IMPLEMENTERT:
 
-? Finner ytre kontur, enclosing circle, center
-? Finner indre sirkler
 (Logger tidsbruk og lagrer mellom-bilder)
 
-** Finner ytre poengsirkel og sentrum for blinken
+* Finner sentrum for blinken med RANSAC-aktig metode
 
 
 * Indre poengsirkler er deaktivert
