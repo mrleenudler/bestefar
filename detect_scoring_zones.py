@@ -81,7 +81,8 @@ def get_config():
         'outer_circle_peaks_cluster_px': 3.0,         # Merge peaks closer than this (double edge)
         # Note: outer_circle_pass2_max_rings removed - now uses ALL accepted rings
         'outer_circle_pass2_outer_cut_eps': 2.0,      # Cut points with r > r_outer + eps
-        'outer_circle_ground_truth_center': (251, 244),  # Ground truth center (cx, cy) in original image coords (None to disable) - DEPRECATED, use manual_center_xy
+        'outer_circle_ground_truth_center': (1093, 1940),  # Ground truth center (cx, cy) in original image coords (None to disable) - DEPRECATED, use manual_center_xy
+        # 'outer_circle_ground_truth_center': (251, 244),  # Old ground truth center (previous image)
         'outer_circle_align_min': 0.7,              # Minimum radial alignment
         'outer_circle_r_bin_px': 1.0,               # Bin width for radius histogram
         'outer_circle_r_smooth_sigma': 2.0,         # Smoothing sigma for radius histogram

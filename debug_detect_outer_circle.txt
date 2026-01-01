@@ -42,8 +42,8 @@ Best score: -7.735319
 Steps taken: 11
 m2 before: 99.473747, m2 after: 7.735319
 
-=== Manual center histogram (center=(65.14, 63.32) downscaled) ===
-Ground truth histogram max at bin: 242, radius: 242.50
+=== Manual center histogram (center=(283.65, 503.46) downscaled) ===
+Ground truth histogram max at bin: 255, radius: 255.50
 
 Pass 1 center (downscaled): (286.65, 502.09)
 Pass 2 center (downscaled): (299.49, 506.82)

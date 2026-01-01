@@ -1,25 +1,25 @@
-"2026-01-01 10:37:50" | visualization | save_visualization | cv2.cvtColor | 19,992590
-"2026-01-01 10:37:56" | visualization | save_visualization | plt.imsave | 6197,682142
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | resize | 34,448147
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | preprocess | 5,444765
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | gradient | 34,463644
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | threshold_extract_pass1 | 63,140631
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | voting_pass1 | 11,315823
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | radius_hist_pass1 | 3,166437
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | pass2_selection | 59,726954
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | voting_pass2 | 11,928558
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | center_refine_hillclimb | 109,113693
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | radius_hist_pass2 | 4,643679
-"2026-01-01 10:37:56" | Real 1.jpg | detect_outer_circle | total | 340,496778
-"2026-01-01 10:37:56" | visualization | save_visualization | cv2.cvtColor | 6,799936
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 5230,607748
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 222,496271
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 303,657055
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 89,327335
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 37,991524
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 7,153749
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 8,036613
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 5,185604
-"2026-01-01 10:38:02" | visualization | save_visualization | plt.imsave | 10,133982
-"2026-01-01 10:38:02" | Real 1.jpg | program | uforklart_tid | 568,493366
-"2026-01-01 10:38:02" | Real 1.jpg | program | total_tid | 13044,950247
+"2026-01-01 11:04:41" | visualization | save_visualization | cv2.cvtColor | 13,072014
+"2026-01-01 11:04:47" | visualization | save_visualization | plt.imsave | 5236,999035
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | resize | 27,983427
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | preprocess | 2,730131
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | gradient | 48,698902
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | threshold_extract_pass1 | 638,505459
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | voting_pass1 | 11,893749
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | radius_hist_pass1 | 2,744198
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | pass2_selection | 56,416512
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | voting_pass2 | 13,689041
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | center_refine_hillclimb | 114,002943
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | radius_hist_pass2 | 1,070261
+"2026-01-01 11:04:47" | Real 1.jpg | detect_outer_circle | total | 920,510054
+"2026-01-01 11:04:48" | visualization | save_visualization | cv2.cvtColor | 7,405519
+"2026-01-01 11:04:54" | visualization | save_visualization | plt.imsave | 6289,762020
+"2026-01-01 11:04:54" | visualization | save_visualization | plt.imsave | 223,878145
+"2026-01-01 11:04:54" | visualization | save_visualization | plt.imsave | 301,055908
+"2026-01-01 11:04:54" | visualization | save_visualization | plt.imsave | 135,277748
+"2026-01-01 11:04:55" | visualization | save_visualization | plt.imsave | 47,402143
+"2026-01-01 11:04:55" | visualization | save_visualization | plt.imsave | 8,911133
+"2026-01-01 11:04:55" | visualization | save_visualization | plt.imsave | 7,908106
+"2026-01-01 11:04:55" | visualization | save_visualization | plt.imsave | 6,348848
+"2026-01-01 11:04:55" | visualization | save_visualization | plt.imsave | 10,283709
+"2026-01-01 11:04:55" | Real 1.jpg | program | uforklart_tid | 458,454370
+"2026-01-01 11:04:55" | Real 1.jpg | program | total_tid | 13664,493322
