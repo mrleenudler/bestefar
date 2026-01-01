@@ -1,17 +1,56 @@
 Debug output for detect_outer_circle
-Image: Elektronisk skive.jpg
-Downscaled size: 704×528
-Scale factor: 1.0000
+Image: Real 1.jpg
+Downscaled size: 901×1200
+Scale factor: 0.2595
 
-Candidate edge points: 12000
+=== Pass 1 (coarse center) ===
+Edge points: 12000
 Pairs sampled: 40000
-Pairs rejected as parallel: 3999
-Pairs rejected by distance: 3115
-Pairs rejected as out-of-bounds: 7035
-Valid votes cast: 25851
-Peak location: (253, 245), accumulator max: 10255.90
+Rejected (parallel): 4034
+Rejected (cross_min): 4087
+Rejected (distance): 1414
+Rejected (out-of-bounds): 7042
+Votes cast: 23423
+Peak value: 1904.35
+Coarse center: (286.65, 502.09)
 
-Final center (downscaled): (252.55, 244.69)
-Final center (original): (252.52, 243.97)
-Final radius (downscaled): 265.45
-Final radius (original): 265.45
+=== Pass 1 histogram peaks ===
+Initial peaks found: 17
+After clustering: 9
+Accepted peaks (FWHM + coverage): 1
+  Peak at r=254.50, FWHM=[250.00, 260.00], coverage=0.908
+
+=== Pass 2 point selection ===
+Selected r_outer: 254.50
+Number of accepted rings (all used): 1
+Pass 2 points before band filter: 12000
+Pass 2 points after band filter: 289
+Pairs sampled: 40000
+Rejected (parallel): 4001
+Rejected (cross_min): 6962
+Rejected (distance): 0
+Rejected (out-of-bounds): 0
+Votes cast: 29037
+Peak value: 34614.26
+Precise center: (299.49, 506.82)
+
+=== Center refinement (hillclimb moment) ===
+Start center (rounded): (299, 507)
+Refined center: (288.00, 503.00)
+Displacement: (-11.49, -3.82)
+Best score: -7.735319
+Steps taken: 11
+m2 before: 99.473747, m2 after: 7.735319
+
+=== Manual center histogram (center=(65.14, 63.32) downscaled) ===
+Ground truth histogram max at bin: 242, radius: 242.50
+
+Pass 1 center (downscaled): (286.65, 502.09)
+Pass 2 center (downscaled): (299.49, 506.82)
+Final center (downscaled): (288.00, 503.00)
+Final center (original): (1104.57, 1934.72)
+Final radius (downscaled): 252.50
+Final radius (original): 972.97
+
+Pass 1 histogram max at bin: 254
+Pass 2 histogram max at bin: 252

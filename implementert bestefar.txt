@@ -2,7 +2,7 @@ IMPLEMENTERT:
 
 (Logger tidsbruk og lagrer mellom-bilder)
 
-* Finner sentrum for blinken med RANSAC-aktig metode
+* Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
 
 
 * Indre poengsirkler er deaktivert

@@ -1,14 +1,21 @@
-"2025-12-29 09:21:58" | visualization | save_visualization | cv2.cvtColor | 5,018711
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 46,753407
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | detect_outer_circle | gradient | 12,521982
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | detect_outer_circle | threshold_extract | 23,349762
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | detect_outer_circle | voting | 9,267330
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_peaks | 3,342390
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | detect_outer_circle | total | 50,481319
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 23,890495
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 32,949686
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 28,980494
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 33,482313
-"2025-12-29 09:21:58" | visualization | save_visualization | plt.imsave | 6,643534
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | program | uforklart_tid | 24,760962
-"2025-12-29 09:21:58" | Elektronisk skive.jpg | program | total_tid | 250,961065
+"2025-12-31 16:33:50" | visualization | save_visualization | cv2.cvtColor | 6,532192
+"2025-12-31 16:33:50" | visualization | save_visualization | plt.imsave | 47,123194
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | gradient | 12,731075
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | threshold_extract_pass1 | 29,058218
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | voting_pass1 | 10,813951
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_pass1 | 2,707958
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | pass2_selection | 14,221668
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | voting_pass2 | 10,836840
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | center_refine_hillclimb | 49,073219
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | radius_hist_pass1 | 1,981497
+"2025-12-31 16:33:50" | Elektronisk skive.jpg | detect_outer_circle | total | 135,969639
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 23,607969
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 39,473295
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 36,718845
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 25,580406
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 6,516218
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 7,823944
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 5,658388
+"2025-12-31 16:33:51" | visualization | save_visualization | plt.imsave | 7,118464
+"2025-12-31 16:33:51" | Elektronisk skive.jpg | program | uforklart_tid | 43,148994
+"2025-12-31 16:33:51" | Elektronisk skive.jpg | program | total_tid | 380,726337
