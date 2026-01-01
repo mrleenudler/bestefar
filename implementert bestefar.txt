@@ -2,7 +2,11 @@ IMPLEMENTERT:
 
 (Logger tidsbruk og lagrer mellom-bilder)
 
-* Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
-
+*Greyscale
+*Blur (2 sigma)
+*Downsample
 
 * Indre poengsirkler er deaktivert
+* Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
+	* Bruker gradientene for (ytterste) sirkel og voter på corse center
+* Bruker non maximum suppression på ytterste ring, og least squares på punktsettet for å finne refined center

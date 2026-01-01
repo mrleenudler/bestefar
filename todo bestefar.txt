@@ -3,8 +3,13 @@ Notater til koden:
 
 * Sentrum skal beregnes for kun den ytterste sirkelen, ikke som gjennomsnitt.
 	* Vi kan ikke bruke sirkel-rundt ytterste kontur (hvis det er kulehull i 1-poengs linjen - ikke sant?)
+	* NMS
+
 
 * forsøker gradientmagnitude -> Scharr er best? (anbefalt, men ikke vurdert mtp. kjøretid)
+! Har vi mistet akse-vinkel-filteret for gradientene? Er det redundant, eller eksisterer det fremdeles, eller bør det implementeres?
+
+
 * RANSAC (RAndom SAmple Consensus) ser ut til å være bra for å bestemme sirkelen. -> Utgår til fordel for å finne senter først?
 * Kan polarTransform brukes til å finne de store sirklene? / Kan også finne sirkler med radial alignment når sentrum er funnet
 
@@ -18,9 +23,12 @@ Nedkalering er viktig
 	* Aktuelt med en morfologisk "lukking"?
 
 
-Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødvendig.
+* Kan jeg jobbe med ellipser i stedet for sirkler(bilder tatt på skrå)? Gradienter og least squares burde funke fremdeles? 
+	Histogrammene blir mye bredere, men det skal være mulig å finne toppene med gauss-tilpasning 
+	(Men sirklene kan kanskje ikke identifiseres? Jo, når vi vet det er ellipser, bør det kunne gjøres matematisk). 
 
-* outer_circle_gradient_percentile -> Det ser ut som siste vurdering ikke ble med i beregningen her
+
+Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødvendig.
 
 
 ! Elektronisk skive på <1000px tar ~300ms å finne sirkler for
