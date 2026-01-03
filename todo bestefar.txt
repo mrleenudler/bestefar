@@ -17,6 +17,8 @@ Notater til koden:
 	-> Kan jeg terskle bort omgivelsene?
 	-> Kan jeg croppe til skjerm eller blink?
 
+-> Finne senter: Mulighet: Kan ta utgangspunkt i NMS-sirkelen og finne midtpunktet mellom max(x) og min(x), og deretter ta punktpar for punktpar over en halv sirkel. 
+	Gjennomsnitt av sentrene definerer final center
 
 Nedkalering er viktig
 	* Hvilken nedskalieringsmetode bevarer poengringene best? -> Arealbasert?
@@ -26,6 +28,9 @@ Nedkalering er viktig
 * Kan jeg jobbe med ellipser i stedet for sirkler(bilder tatt på skrå)? Gradienter og least squares burde funke fremdeles? 
 	Histogrammene blir mye bredere, men det skal være mulig å finne toppene med gauss-tilpasning 
 	(Men sirklene kan kanskje ikke identifiseres? Jo, når vi vet det er ellipser, bør det kunne gjøres matematisk). 
+
+* Overgang sort/hvit og hvit/grå (kanten av poengskiven) har hele, tykkere gradientbånd, mens indre poengsirkler har doble gradientbånd. 
+	Må være oppmerksom på at ulike poengskjermer kan ha forskjellige visualiseringer.
 
 
 Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødvendig.

@@ -1,56 +1,25 @@
-Debug output for detect_outer_circle
-Image: Real 1.jpg
-Downscaled size: 901×1200
-Scale factor: 0.2595
-
 === Pass 1 (coarse center) ===
-Edge points: 12000
-Pairs sampled: 40000
-Rejected (parallel): 4034
-Rejected (cross_min): 4087
-Rejected (distance): 1414
-Rejected (out-of-bounds): 7042
-Votes cast: 23423
-Peak value: 1904.35
-Coarse center: (286.65, 502.09)
+Points: 12000
+Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(4034), 'cross_reject': np.int64(4087), 'dist_reject': np.int64(1414), 'oob_reject': np.int64(7042), 'votes_cast': 23423, 'peak_value': 1904.3509521484375}
+Center: (286.65, 502.09)
 
 === Pass 1 histogram peaks ===
-Initial peaks found: 17
-After clustering: 9
-Accepted peaks (FWHM + coverage): 1
+Accepted peaks: 8
   Peak at r=254.50, FWHM=[250.00, 260.00], coverage=0.908
+  Peak at r=229.50, FWHM=[225.00, 236.00], coverage=0.983
+  Peak at r=203.50, FWHM=[199.00, 210.00], coverage=0.975
+  Peak at r=178.50, FWHM=[174.00, 184.00], coverage=0.950
+  Peak at r=153.50, FWHM=[148.00, 159.00], coverage=0.892
+  Peak at r=100.50, FWHM=[96.00, 106.00], coverage=0.925
+  Peak at r=78.50, FWHM=[70.00, 83.00], coverage=0.875
+  Peak at r=75.50, FWHM=[70.00, 83.00], coverage=0.875
 
-=== Pass 2 point selection ===
-Selected r_outer: 254.50
-Number of accepted rings (all used): 1
-Pass 2 points before band filter: 12000
-Pass 2 points after band filter: 289
-Pairs sampled: 40000
-Rejected (parallel): 4001
-Rejected (cross_min): 6962
-Rejected (distance): 0
-Rejected (out-of-bounds): 0
-Votes cast: 29037
-Peak value: 34614.26
-Precise center: (299.49, 506.82)
+=== Pass 2 (precise center) ===
+Points: 2000
+Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(3868), 'cross_reject': np.int64(6727), 'dist_reject': np.int64(0), 'oob_reject': np.int64(1), 'votes_cast': 29404, 'peak_value': 8071.2294921875}
+Center: (279.51, 501.31)
 
-=== Center refinement (hillclimb moment) ===
-Start center (rounded): (299, 507)
-Refined center: (288.00, 503.00)
-Displacement: (-11.49, -3.82)
-Best score: -7.735319
-Steps taken: 11
-m2 before: 99.473747, m2 after: 7.735319
-
-=== Manual center histogram (center=(283.65, 503.46) downscaled) ===
-Ground truth histogram max at bin: 255, radius: 255.50
-
-Pass 1 center (downscaled): (286.65, 502.09)
-Pass 2 center (downscaled): (299.49, 506.82)
-Final center (downscaled): (288.00, 503.00)
-Final center (original): (1104.57, 1934.72)
-Final radius (downscaled): 252.50
-Final radius (original): 972.97
-
-Pass 1 histogram max at bin: 254
-Pass 2 histogram max at bin: 252
+Final center (downscaled): (279.51, 501.31)
+Final center (original): (1077.06, 1931.73)
+Final radius (downscaled): 102.50
+Final radius (original): 394.97

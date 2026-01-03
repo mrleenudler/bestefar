@@ -65,6 +65,11 @@ def get_config():
         'center_refine_max_radius_px': 12,            # Stop if moved too far from start
         'center_refine_use_m4': False,                 # Use m4 moment in score (optional)
         'center_refine_m4_lambda': 0.05,              # Weight for m4 moment if enabled
+        'outermost_ring_refine_enable': False,         # Enable radial variance refinement on outermost ring
+        'outermost_ring_mag_percentile': 75.0,         # Percentile for magnitude threshold in outermost ring
+        'outermost_ring_refine_max_steps': 60,         # Max steps for radial variance refinement
+        'outermost_ring_refine_step_px': 1,            # Step size for refinement
+        'outermost_ring_refine_max_radius_px': 12,     # Max radius from start for refinement
         'manual_center_enable': True,                 # Enable manual center for comparison
         'manual_center_xy': None,                    # Manual center (cx, cy) in downscaled coords (None to disable)
         'outer_circle_center_pairs': 40000,          # Antall random par for intersection-of-normals voting
@@ -306,6 +311,212 @@ def build_radius_histogram(x, y, w, ux, uy, cx, cy, cfg, new_w, new_h, smooth_si
         hist_smooth = np.convolve(hist.astype(np.float32), kernel, mode='same')
     
     return hist_smooth, bin_edges
+
+
+def nms_gradient_magnitude(Gx, Gy, mag):
+    """
+    Non-Maximum Suppression (NMS) on gradient magnitude (Canny-style thinning).
+    
+    Args:
+        Gx, Gy: Gradient components (float32)
+        mag: Gradient magnitude (float32)
+    
+    Returns:
+        mag_nms: Thinned magnitude (same shape, 0 where not local max)
+    """
+    h, w = mag.shape
+    mag_nms = np.zeros_like(mag)
+    
+    # Compute angle in degrees [0, 180)
+    angle = np.arctan2(Gy, Gx) * 180.0 / np.pi
+    angle = np.mod(angle, 180.0)
+    
+    # Quantize to 4 directions: 0, 45, 90, 135
+    # Use intervals: [0, 22.5) and [157.5, 180) -> 0°, [22.5, 67.5) -> 45°, [67.5, 112.5) -> 90°, [112.5, 157.5) -> 135°
+    dir_0 = ((angle >= 0) & (angle < 22.5)) | ((angle >= 157.5) & (angle < 180))
+    dir_45 = (angle >= 22.5) & (angle < 67.5)
+    dir_90 = (angle >= 67.5) & (angle < 112.5)
+    dir_135 = (angle >= 112.5) & (angle < 157.5)
+    
+    # For each direction, compare with neighbors along gradient direction
+    # Direction 0°: compare with left/right neighbors
+    mask_0 = dir_0[1:-1, 1:-1] & (mag[1:-1, 1:-1] >= mag[1:-1, :-2]) & (mag[1:-1, 1:-1] >= mag[1:-1, 2:])
+    mag_nms[1:-1, 1:-1] = np.where(mask_0, mag[1:-1, 1:-1], mag_nms[1:-1, 1:-1])
+    
+    # Direction 45°: compare with diagonal neighbors (top-left / bottom-right)
+    mask_45 = dir_45[1:-1, 1:-1] & (mag[1:-1, 1:-1] >= mag[:-2, :-2]) & (mag[1:-1, 1:-1] >= mag[2:, 2:])
+    mag_nms[1:-1, 1:-1] = np.where(mask_45, mag[1:-1, 1:-1], mag_nms[1:-1, 1:-1])
+    
+    # Direction 90°: compare with top/bottom neighbors
+    mask_90 = dir_90[1:-1, 1:-1] & (mag[1:-1, 1:-1] >= mag[:-2, 1:-1]) & (mag[1:-1, 1:-1] >= mag[2:, 1:-1])
+    mag_nms[1:-1, 1:-1] = np.where(mask_90, mag[1:-1, 1:-1], mag_nms[1:-1, 1:-1])
+    
+    # Direction 135°: compare with diagonal neighbors (top-right / bottom-left)
+    mask_135 = dir_135[1:-1, 1:-1] & (mag[1:-1, 1:-1] >= mag[:-2, 2:]) & (mag[1:-1, 1:-1] >= mag[2:, :-2])
+    mag_nms[1:-1, 1:-1] = np.where(mask_135, mag[1:-1, 1:-1], mag_nms[1:-1, 1:-1])
+    
+    return mag_nms
+
+
+def build_thinned_pointset_outermost_ring(mag_nms, mag_raw, Gx, Gy, c_start, peak_info, cfg, new_w, new_h):
+    """
+    Build thinned point set for outermost ring using NMS.
+    
+    Args:
+        mag_nms: NMS-thinned gradient magnitude
+        mag_raw: Raw gradient magnitude (for pre-thinning visualization)
+        Gx, Gy: Gradient components
+        c_start: Start center (cx, cy) for radius calculation
+        peak_info: List of peak info dicts from Pass 1
+        cfg: Config dict
+        new_w, new_h: Image dimensions
+    
+    Returns:
+        x, y: Point coordinates (numpy arrays)
+        x_pre, y_pre: Point coordinates before thinning (for visualization)
+    """
+    if len(peak_info) == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([])
+    
+    # Select peak with largest radius (not highest amplitude)
+    outermost_peak = max(peak_info, key=lambda p: p['r_peak'])
+    r_peak = outermost_peak['r_peak']
+    r_lo = outermost_peak['r_lo']
+    r_hi = outermost_peak['r_hi']
+    
+    # Expand band with padding
+    pad_px = max(2.0, np.ceil(0.2 * (r_hi - r_lo)))
+    r_lo2 = max(0, r_lo - pad_px)
+    r_hi2 = r_hi + pad_px
+    
+    # Compute radii from start center
+    y_coords, x_coords = np.mgrid[0:new_h, 0:new_w].astype(np.float32)
+    dx = x_coords - c_start[0]
+    dy = y_coords - c_start[1]
+    ri = np.sqrt(dx**2 + dy**2)
+    
+    # Band mask
+    band_mask = (ri >= r_lo2) & (ri <= r_hi2)
+    
+    # Alignment filter
+    eps = 1e-6
+    mag_safe = np.sqrt(Gx**2 + Gy**2) + eps
+    ux = Gx / mag_safe
+    uy = Gy / mag_safe
+    
+    ri_safe = ri + eps
+    vx = dx / ri_safe
+    vy = dy / ri_safe
+    
+    align = np.abs(vx * ux + vy * uy) >= cfg['outer_circle_align_min']
+    
+    # Pre-thinning: magnitude threshold for raw magnitude
+    mag_raw_in_band = mag_raw[band_mask & (mag_raw > 0)]
+    if len(mag_raw_in_band) > 0:
+        t_mag_raw_percentile = cfg.get('outermost_ring_mag_percentile', 75.0)
+        t_mag_raw = np.percentile(mag_raw_in_band, t_mag_raw_percentile)
+        mag_raw_mask = mag_raw >= t_mag_raw
+        keep_pre = band_mask & mag_raw_mask & align
+        y_pre, x_pre = np.where(keep_pre)
+        x_pre = x_pre.astype(np.float32)
+        y_pre = y_pre.astype(np.float32)
+    else:
+        x_pre, y_pre = np.array([]), np.array([])
+    
+    # Post-thinning: magnitude threshold for NMS magnitude
+    mag_nms_in_band = mag_nms[band_mask & (mag_nms > 0)]
+    if len(mag_nms_in_band) == 0:
+        return np.array([]), np.array([]), x_pre, y_pre
+    
+    t_mag_percentile = cfg.get('outermost_ring_mag_percentile', 75.0)
+    t_mag = np.percentile(mag_nms_in_band, t_mag_percentile)
+    
+    # Magnitude mask
+    mag_mask = mag_nms >= t_mag
+    
+    # Combined mask
+    keep = band_mask & mag_mask & align
+    
+    # Extract points
+    y_pts, x_pts = np.where(keep)
+    
+    return x_pts.astype(np.float32), y_pts.astype(np.float32), x_pre, y_pre
+
+
+def refine_center_radial_variance(x, y, c_start, cfg, new_w, new_h):
+    """
+    Refine center using hillclimbing to minimize radial variance.
+    
+    Args:
+        x, y: Point coordinates (numpy arrays)
+        c_start: Start center (cx, cy)
+        cfg: Config dict
+        new_w, new_h: Image dimensions
+    
+    Returns:
+        c_best: (cx, cy) refined center
+        best_variance: best variance achieved
+        steps_taken: number of steps taken
+    """
+    if len(x) == 0:
+        return c_start, float('inf'), 0
+    
+    max_steps = cfg.get('outermost_ring_refine_max_steps', 60)
+    step_px = cfg.get('outermost_ring_refine_step_px', 1)
+    max_radius_px = cfg.get('outermost_ring_refine_max_radius_px', 12)
+    tiny_eps = 1e-12
+    
+    # Start from rounded pixel center
+    c = np.array([round(c_start[0]), round(c_start[1])], dtype=np.float32)
+    c_start_rounded = c.copy()
+    
+    # Compute initial variance
+    dx = x - c[0]
+    dy = y - c[1]
+    ri = np.sqrt(dx**2 + dy**2)
+    r_mean = np.mean(ri)
+    best_variance = np.mean((ri - r_mean)**2)
+    
+    # 8-neighborhood offsets
+    offsets = [(step_px, 0), (-step_px, 0), (0, step_px), (0, -step_px),
+               (step_px, step_px), (-step_px, -step_px), (step_px, -step_px), (-step_px, step_px)]
+    
+    steps_taken = 0
+    for step in range(max_steps):
+        best_neighbor_variance = best_variance
+        best_neighbor = None
+        
+        for dx_offset, dy_offset in offsets:
+            c2 = c + np.array([dx_offset, dy_offset])
+            
+            # Check bounds
+            if c2[0] < 0 or c2[0] >= new_w or c2[1] < 0 or c2[1] >= new_h:
+                continue
+            
+            # Check max radius constraint
+            dist_from_start = np.sqrt((c2[0] - c_start_rounded[0])**2 + (c2[1] - c_start_rounded[1])**2)
+            if dist_from_start > max_radius_px:
+                continue
+            
+            # Compute variance
+            dx2 = x - c2[0]
+            dy2 = y - c2[1]
+            ri2 = np.sqrt(dx2**2 + dy2**2)
+            r_mean2 = np.mean(ri2)
+            variance2 = np.mean((ri2 - r_mean2)**2)
+            
+            if variance2 < best_neighbor_variance:
+                best_neighbor_variance = variance2
+                best_neighbor = c2.copy()
+        
+        if best_neighbor is not None and best_neighbor_variance < best_variance - tiny_eps:
+            c = best_neighbor
+            best_variance = best_neighbor_variance
+            steps_taken += 1
+        else:
+            break  # Local minimum reached
+    
+    return tuple(c), best_variance, steps_taken
 
 
 def center_refine_score_moment(hist_smooth, cfg):
@@ -1032,15 +1243,54 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
     else:
         c2x_ref, c2y_ref = c1x_pass2, c1y_pass2  # No refinement, use pass 2 center
     
-    # Final center for output
+    # Final center for output (may be further refined with radial variance)
     c_finalx, c_finaly = c2x_ref, c2y_ref
+    
+    # Optional: Refine with radial variance on thinned outermost ring point set
+    mag_nms = None
+    x_thin, y_thin = np.array([]), np.array([])
+    x_pre, y_pre = np.array([]), np.array([])
+    if cfg.get('outermost_ring_refine_enable', False) and len(peak_info) > 0:
+        start_nms = time.time()
+        # Apply NMS to gradient magnitude
+        mag_nms = nms_gradient_magnitude(Gx, Gy, mag_raw)
+        log_operation_time(filename, "detect_outer_circle", "nms", time.time() - start_nms)
+        
+        # Build thinned point set for outermost ring
+        start_pointset = time.time()
+        x_thin, y_thin, x_pre, y_pre = build_thinned_pointset_outermost_ring(
+            mag_nms, mag_raw, Gx, Gy, (c_finalx, c_finaly), peak_info, cfg, new_w, new_h
+        )
+        log_operation_time(filename, "detect_outer_circle", "build_thinned_pointset", time.time() - start_pointset)
+        
+        if len(x_thin) > 0:
+            start_var_refine = time.time()
+            c_var_ref, var_ref, steps_var = refine_center_radial_variance(
+                x_thin, y_thin, (c_finalx, c_finaly), cfg, new_w, new_h
+            )
+            
+            if debug:
+                debug_lines.append(f"\n=== Outermost ring refinement (radial variance) ===")
+                debug_lines.append(f"Start center: ({c_finalx:.2f}, {c_finaly:.2f})")
+                debug_lines.append(f"Refined center: ({c_var_ref[0]:.2f}, {c_var_ref[1]:.2f})")
+                debug_lines.append(f"Displacement: ({c_var_ref[0] - c_finalx:.2f}, {c_var_ref[1] - c_finaly:.2f})")
+                debug_lines.append(f"Best variance: {var_ref:.6f}")
+                debug_lines.append(f"Steps taken: {steps_var}")
+                debug_lines.append(f"Thinned points: {len(x_thin)}")
+            
+            log_operation_time(filename, "detect_outer_circle", "radial_variance_refine", time.time() - start_var_refine)
+            c_finalx, c_finaly = c_var_ref[0], c_var_ref[1]
+        else:
+            if debug:
+                debug_lines.append(f"\n=== Outermost ring refinement (radial variance) ===")
+                debug_lines.append(f"No thinned points found, skipping refinement")
     
     # 9) Radius estimation for Pass 2 (using final refined center)
     start_radius_pass2 = time.time()
-    # Use pass 2 point set (x2, y2, u2, w2) and refined center c2 (c0x, c0y)
+    # Use pass 2 point set (x2, y2, u2, w2) and final refined center c_final
     # Compute radii and alignment
-    dx2 = x2 - c0x  # c0x, c0y is now c2 (refined center)
-    dy2 = y2 - c0y
+    dx2 = x2 - c_finalx
+    dy2 = y2 - c_finaly
     ri2 = np.sqrt(dx2**2 + dy2**2)
     
     # Radial alignment
@@ -1135,8 +1385,8 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
     r_final = (bin_edges2[peak_idx] + bin_edges2[peak_idx + 1]) / 2
     
     # 10) Map back to original coordinates
-    cx_orig = c0x / scale
-    cy_orig = c0y / scale
+    cx_orig = c_finalx / scale
+    cy_orig = c_finaly / scale
     r_orig = r_final / scale
     
     total_time = time.time() - start_total
@@ -1168,6 +1418,7 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
         debug_dict = {
             'downscaled_gray': gray,
             'mag': mag_raw,
+            'mag_nms': mag_nms,
             'accumulator_pass1': accf_pass1,
             'accumulator_pass2': accf_pass2,
             'c0_pass1': (c0x_pass1, c0y_pass1),  # Pass 1 voting center
@@ -1179,7 +1430,9 @@ def detect_outer_circle(img: np.ndarray, cfg: dict, debug: bool = False,
             'radius_histogram_pass2_gt': hist2_gt_smooth,  # Ground truth histogram
             'bin_edges_pass1': bin_edges1,
             'bin_edges_pass2': bin_edges2,
-            'scale': scale
+            'scale': scale,
+            'thinned_points': (x_thin, y_thin) if len(x_thin) > 0 else None,  # Thinned point set
+            'pre_thinning_points': (x_pre, y_pre) if len(x_pre) > 0 else None  # Points before thinning
         }
     
     return (cx_orig, cy_orig, r_orig, debug_dict)
@@ -1304,6 +1557,30 @@ if __name__ == "__main__":
                 for i, h in enumerate(hist2_gt_norm[:400]):
                     cv2.line(hist_img2_gt, (i, 199), (i, 199 - h), 255, 1)
             save_visualization(hist_img2_gt, "10_Radius_histogram_Pass2_GroundTruth", 10)
+        
+        # Visualiser punktsett før tynning (pre-thinning)
+        if 'pre_thinning_points' in debug_dict and debug_dict['pre_thinning_points'] is not None:
+            x_pre, y_pre = debug_dict['pre_thinning_points']
+            if len(x_pre) > 0:
+                gray_copy = debug_dict['downscaled_gray'].copy()
+                if len(gray_copy.shape) == 2:
+                    gray_copy = cv2.cvtColor(gray_copy, cv2.COLOR_GRAY2BGR)
+                # Draw points as small circles
+                for i in range(len(x_pre)):
+                    cv2.circle(gray_copy, (int(x_pre[i]), int(y_pre[i])), 1, (0, 255, 0), -1)
+                save_visualization(gray_copy, "11_Pointset_PreThinning", 11)
+        
+        # Visualiser punktsett etter tynning (NMS)
+        if 'thinned_points' in debug_dict and debug_dict['thinned_points'] is not None:
+            x_thin, y_thin = debug_dict['thinned_points']
+            if len(x_thin) > 0:
+                gray_copy = debug_dict['downscaled_gray'].copy()
+                if len(gray_copy.shape) == 2:
+                    gray_copy = cv2.cvtColor(gray_copy, cv2.COLOR_GRAY2BGR)
+                # Draw points as small circles
+                for i in range(len(x_thin)):
+                    cv2.circle(gray_copy, (int(x_thin[i]), int(y_thin[i])), 1, (0, 0, 255), -1)
+                save_visualization(gray_copy, "12_Pointset_PostThinning_NMS", 12)
     
     # Beregn total tid og uforklart tid
     program_total_time = time.time() - program_start_time
