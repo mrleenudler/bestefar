@@ -13,6 +13,7 @@ Accepted peaks: 8
   Peak at r=100.50, FWHM=[96.00, 106.00], coverage=0.925
   Peak at r=78.50, FWHM=[70.00, 83.00], coverage=0.875
   Peak at r=75.50, FWHM=[70.00, 83.00], coverage=0.875
+r_pass1_peak_px: 254.50
 
 === Pass 2 (precise center) ===
 Points: 2000

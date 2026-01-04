@@ -140,6 +140,7 @@ def log_unaccounted_time(filename, total_time_ms, logged_time_ms):
 def create_pointset_overlay(gray_image, points_xy, color=(0, 255, 0)):
     """
     Create overlay image showing points on grayscale image.
+    Uses direct pixel setting (1 pixel per point) for thin lines.
     
     Args:
         gray_image: Grayscale image
@@ -157,8 +158,16 @@ def create_pointset_overlay(gray_image, points_xy, color=(0, 255, 0)):
     x = points_xy['x']
     y = points_xy['y']
     
-    for i in range(len(x)):
-        cv2.circle(overlay, (int(x[i]), int(y[i])), 1, color, -1)
+    # Create mask from points (direct pixel setting, 1 pixel per point)
+    h, w = gray_image.shape[:2]
+    mask = np.zeros((h, w), dtype=bool)
+    y_coords = y.astype(int)
+    x_coords = x.astype(int)
+    # Filter valid coordinates
+    valid = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
+    mask[y_coords[valid], x_coords[valid]] = True
+    # Set pixels directly
+    overlay[mask] = color
     
     return overlay
 

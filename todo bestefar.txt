@@ -9,6 +9,9 @@ Notater til koden:
 * forsøker gradientmagnitude -> Scharr er best? (anbefalt, men ikke vurdert mtp. kjøretid)
 ! Har vi mistet akse-vinkel-filteret for gradientene? Er det redundant, eller eksisterer det fremdeles, eller bør det implementeres?
 
+* Etter grovsenter er funnet, pårøver vi en polaritets-transform for å se om vi får tydeligere ringer
+* Vurderer en intensitetsutjevning over hele bildet. 
+
 
 * RANSAC (RAndom SAmple Consensus) ser ut til å være bra for å bestemme sirkelen. -> Utgår til fordel for å finne senter først?
 * Kan polarTransform brukes til å finne de store sirklene? / Kan også finne sirkler med radial alignment når sentrum er funnet
@@ -32,6 +35,7 @@ Nedkalering er viktig
 * Overgang sort/hvit og hvit/grå (kanten av poengskiven) har hele, tykkere gradientbånd, mens indre poengsirkler har doble gradientbånd. 
 	Må være oppmerksom på at ulike poengskjermer kan ha forskjellige visualiseringer.
 
+* Må ha logikk for å forkaste bilder som ikke dekker hele skiven.
 
 Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødvendig.
 

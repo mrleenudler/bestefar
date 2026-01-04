@@ -83,23 +83,44 @@ def build_thinned_pointset_outermost_ring(mag_nms, mag_raw, gx, gy, c_start, pea
     else:
         points_pre = None
     
-    # Post-thinning: magnitude threshold for NMS magnitude
-    mag_nms_in_band = mag_nms[band_mask & (mag_nms > 0)]
-    if len(mag_nms_in_band) == 0:
-        return None, points_pre
+    # Post-thinning: hysteresis thresholding on NMS magnitude
+    high_p = cfg.get('outermost_ring_hyst_high_percentile', 85.0)
+    low_f = cfg.get('outermost_ring_hyst_low_frac', 0.50)
     
-    t_mag_percentile = cfg.get('outermost_ring_mag_percentile', 75.0)
-    t_mag = np.percentile(mag_nms_in_band, t_mag_percentile)
+    edge_mask, strong_mask, weak_mask, (t_high, t_low) = nms.hysteresis_on_mag(
+        mag_nms, band_mask, align, high_p, low_f
+    )
     
-    # Magnitude mask
-    mag_mask = mag_nms >= t_mag
+    # Check if edge_mask has enough points
+    min_pixels = cfg.get('outermost_ring_hyst_min_pixels', 200)
+    n_edge_pixels = np.sum(edge_mask)
     
-    # Combined mask
-    keep = band_mask & mag_mask & align
+    if n_edge_pixels < min_pixels:
+        # Fallback: use simple threshold (old method)
+        mag_nms_in_band = mag_nms[band_mask & (mag_nms > 0)]
+        if len(mag_nms_in_band) > 0:
+            t_mag_percentile = cfg.get('outermost_ring_mag_percentile', 75.0)
+            t_mag = np.percentile(mag_nms_in_band, t_mag_percentile)
+            edge_mask = band_mask & (mag_nms >= t_mag) & align
+            # Update masks for debug (set strong=weak=edge_mask for fallback)
+            strong_mask = edge_mask
+            weak_mask = np.zeros_like(edge_mask)
+            t_high = t_low = float(t_mag)
+        else:
+            return None, points_pre
     
-    # Extract points
-    y_pts, x_pts = np.where(keep)
-    points_refine = {'x': x_pts.astype(np.float32), 'y': y_pts.astype(np.float32)}
+    # Extract points from edge_mask
+    y_pts, x_pts = np.where(edge_mask)
+    points_refine = {
+        'x': x_pts.astype(np.float32),
+        'y': y_pts.astype(np.float32),
+        # Store hysteresis masks and thresholds for debug
+        '_hyst_edge_mask': edge_mask,
+        '_hyst_strong_mask': strong_mask,
+        '_hyst_weak_mask': weak_mask,
+        '_hyst_thresholds': (t_high, t_low),
+        '_hyst_used_fallback': (n_edge_pixels < min_pixels)
+    }
     
     return points_refine, points_pre
 
@@ -154,7 +175,20 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
         points1, c0_pass1, points1['mag'], {'ux': points1['ux'], 'uy': points1['uy']}, cfg
     )
     hist1_s = histogram.smooth_hist(hist1, cfg['outer_circle_r_smooth_sigma'])
+    
+    # Store r_pass1_peak_px (highest peak radius from pass 1 histogram, BEFORE FWHM/coverage filtering)
+    # Use argmax directly on smoothed histogram - this is the highest peak value
+    r_pass1_peak_px = None
+    r_pass1_peak_idx = None
+    if len(hist1_s) > 0:
+        # Simply use argmax - the bin with highest value (highest peak)
+        # This is determined BEFORE any FWHM or coverage filtering
+        r_pass1_peak_idx = int(np.argmax(hist1_s))
+        r_pass1_peak_px = float((bin_edges1[r_pass1_peak_idx] + bin_edges1[r_pass1_peak_idx + 1]) / 2)
+    
+    # Now find accepted peaks (which uses FWHM and coverage filtering)
     accepted_peaks = histogram.select_accepted_peaks(points1, c0_pass1, hist1_s, bin_edges1, cfg)
+    
     debug_tools.log_operation_time(filename, "detect_outer_circle", "pass1", time.time() - start_pass1)
     
     if debug:
@@ -162,6 +196,8 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
         debug_lines.append(f"Accepted peaks: {len(accepted_peaks)}")
         for info in accepted_peaks:
             debug_lines.append(f"  Peak at r={info['r_peak']:.2f}, FWHM=[{info['r_lo']:.2f}, {info['r_hi']:.2f}], coverage={info['coverage']:.3f}")
+        if r_pass1_peak_px is not None:
+            debug_lines.append(f"r_pass1_peak_px: {r_pass1_peak_px:.2f}")
     
     # 3) Pass 2: Precise center
     start_pass2 = time.time()
@@ -217,35 +253,37 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
         # Select peak with largest radius (outermost ring)
         outermost_peak_info = max(accepted_peaks, key=lambda p: p['r_peak'])
         
-        # Compute NMS only for the outermost ring band
+        # Compute NMS (always, for visualization)
         start_nms = time.time()
         mag_nms = nms.nms_gradient_magnitude(gx, gy, mag_raw)
         debug_tools.log_operation_time(filename, "detect_outer_circle", "nms", time.time() - start_nms)
-    
-    if cfg.get('outermost_ring_refine_enable', False) and mag_nms is not None and outermost_peak_info is not None:
         
+        # Always build thinned pointset for visualization (hysteresis)
         start_pointset = time.time()
         # Pass only the outermost peak (not all accepted peaks)
         points_refine, points_pre = build_thinned_pointset_outermost_ring(
             mag_nms, mag_raw, gx, gy, c_final, [outermost_peak_info], cfg
         )
         debug_tools.log_operation_time(filename, "detect_outer_circle", "build_thinned_pointset", time.time() - start_pointset)
+    
+    # Refinement (only if enabled)
+    if cfg.get('outermost_ring_refine_enable', False) and points_refine is not None and len(points_refine['x']) > 0:
+        # Check if fallback was used
+        if points_refine.get('_hyst_used_fallback', False) and debug:
+            debug_lines.append(f"WARNING: Hysteresis gave too few points ({np.sum(points_refine['_hyst_edge_mask']) if '_hyst_edge_mask' in points_refine else 0}), using fallback threshold")
         
-        if points_refine is not None and len(points_refine['x']) > 0:
-            start_refine = time.time()
-            c_ref, var_ref, steps_var = refine.refine_center_radial_variance(c_final, points_refine, cfg)
-            debug_tools.log_operation_time(filename, "detect_outer_circle", "radial_variance_refine", time.time() - start_refine)
-            c_final = c_ref
-            if debug:
-                debug_lines.append(f"\n=== Outermost ring refinement (radial variance) ===")
-                debug_lines.append(f"Start center: ({c1_pass2[0]:.2f}, {c1_pass2[1]:.2f})")
-                debug_lines.append(f"Refined center: ({c_final[0]:.2f}, {c_final[1]:.2f})")
-                debug_lines.append(f"Displacement: ({c_final[0] - c1_pass2[0]:.2f}, {c_final[1] - c1_pass2[1]:.2f})")
-                debug_lines.append(f"Best variance: {var_ref:.6f}, Steps: {steps_var}")
-        else:
-            if debug:
-                debug_lines.append(f"\n=== Outermost ring refinement (radial variance) ===")
-                debug_lines.append(f"No thinned points found, skipping refinement")
+        # Use clean points_refine (without debug fields) for refinement
+        points_refine_clean = {'x': points_refine['x'], 'y': points_refine['y']}
+        start_refine = time.time()
+        c_ref, var_ref, steps_var = refine.refine_center_radial_variance(c_final, points_refine_clean, cfg)
+        debug_tools.log_operation_time(filename, "detect_outer_circle", "radial_variance_refine", time.time() - start_refine)
+        c_final = c_ref
+        if debug:
+            debug_lines.append(f"\n=== Outermost ring refinement (radial variance) ===")
+            debug_lines.append(f"Start center: ({c1_pass2[0]:.2f}, {c1_pass2[1]:.2f})")
+            debug_lines.append(f"Refined center: ({c_final[0]:.2f}, {c_final[1]:.2f})")
+            debug_lines.append(f"Displacement: ({c_final[0] - c1_pass2[0]:.2f}, {c_final[1] - c1_pass2[1]:.2f})")
+            debug_lines.append(f"Best variance: {var_ref:.6f}, Steps: {steps_var}")
     
     # 5) Final radius
     start_radius = time.time()
@@ -280,9 +318,30 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
             )
             hist2_gt_s = histogram.smooth_hist(hist2_gt, cfg['outer_circle_r_smooth_sigma'])
         
+        # Extract hysteresis masks from points_refine if available
+        hyst_edge_mask = None
+        hyst_strong_mask = None
+        hyst_weak_mask = None
+        hyst_thresholds = None
+        points_refine_clean = None
+        
+        if points_refine is not None:
+            # Extract debug fields
+            hyst_edge_mask = points_refine.get('_hyst_edge_mask')
+            hyst_strong_mask = points_refine.get('_hyst_strong_mask')
+            hyst_weak_mask = points_refine.get('_hyst_weak_mask')
+            hyst_thresholds = points_refine.get('_hyst_thresholds')
+            # Clean points_refine for actual use (remove debug fields)
+            points_refine_clean = {
+                'x': points_refine['x'],
+                'y': points_refine['y']
+            }
+        
         debug_dict = {
             'downscaled_gray': gray,
             'downscaled_blur': blur,  # Smoothed grayscale for NMS overlay
+            'r_pass1_peak_px': r_pass1_peak_px,  # Pass 1 peak radius in pixels (for polar prototype)
+            'r_pass1_peak_idx': r_pass1_peak_idx,  # Index of highest peak in pass 1 histogram
             'mag': mag_raw,
             'mag_nms': mag_nms,  # NMS computed only for outermost ring
             'outermost_peak_info': outermost_peak_info,  # For NMS visualization
@@ -299,8 +358,12 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
             'bin_edges_pass2': bin_edges2,
             'scale': scale,
             'accepted_peaks': accepted_peaks,
-            'thinned_points': points_refine,
-            'pre_thinning_points': points_pre
+            'thinned_points': points_refine_clean,
+            'pre_thinning_points': points_pre,
+            'outermost_edge_mask_hyst': hyst_edge_mask.astype(np.uint8) * 255 if hyst_edge_mask is not None else None,
+            'outermost_edge_mask_strong': hyst_strong_mask.astype(np.uint8) * 255 if hyst_strong_mask is not None else None,
+            'outermost_edge_mask_weak': hyst_weak_mask.astype(np.uint8) * 255 if hyst_weak_mask is not None else None,
+            'outermost_hyst_thresholds': hyst_thresholds
         }
         
         # Write debug file
@@ -381,12 +444,20 @@ if __name__ == "__main__":
             mag_norm = (mag / (np.max(mag) + 1e-6) * 255).astype(np.uint8)
             debug_tools.save_visualization(mag_norm, "04_Gradient_magnitude", 4, config['visualization_dir'])
         
-        # NMS overlay (green on smoothed grayscale) - only for outermost ring FWHM band
-        if 'mag_nms' in debug_dict and debug_dict['mag_nms'] is not None and 'outermost_peak_info' in debug_dict and debug_dict['outermost_peak_info'] is not None:
+        # NMS + Hysteresis overlay (green on smoothed grayscale)
+        blur_img = debug_dict.get('downscaled_blur', debug_dict['downscaled_gray'])
+        base = cv2.cvtColor(blur_img, cv2.COLOR_GRAY2BGR)
+        
+        if 'outermost_edge_mask_hyst' in debug_dict and debug_dict['outermost_edge_mask_hyst'] is not None:
+            # Use hysteresis edge mask if available
+            edge_mask = debug_dict['outermost_edge_mask_hyst'] > 0
+            base[edge_mask] = (0, 255, 0)
+            debug_tools.save_visualization(base, "09_NMS_Hysterese_overlay_green", 9, config['visualization_dir'])
+        elif 'mag_nms' in debug_dict and debug_dict['mag_nms'] is not None and 'outermost_peak_info' in debug_dict and debug_dict['outermost_peak_info'] is not None:
+            # Fallback: show NMS points within FWHM band of outermost ring
             mag_nms = debug_dict['mag_nms']
             peak_info = debug_dict['outermost_peak_info']
-            blur_img = debug_dict.get('downscaled_blur', debug_dict['downscaled_gray'])
-            base = cv2.cvtColor(blur_img, cv2.COLOR_GRAY2BGR)
+            c0 = debug_dict['c0_pass1']
             
             # Get FWHM band for outermost ring
             r_lo = peak_info['r_lo']
@@ -394,9 +465,6 @@ if __name__ == "__main__":
             pad_px = max(2.0, np.ceil(0.2 * (r_hi - r_lo)))
             r_lo2 = max(0, r_lo - pad_px)
             r_hi2 = r_hi + pad_px
-            
-            # Get center (use c0_pass1 for consistency with Pass 1 histogram)
-            c0 = debug_dict['c0_pass1']
             
             # Compute radii from center
             h, w = blur_img.shape
@@ -410,8 +478,6 @@ if __name__ == "__main__":
             
             # NMS points within the band only
             m = (mag_nms > 0) & band_mask
-            
-            # Set NMS pixels to green (BGR)
             base[m] = (0, 255, 0)
             debug_tools.save_visualization(base, "09_NMS_overlay_green", 9, config['visualization_dir'])
         
@@ -436,15 +502,21 @@ if __name__ == "__main__":
             debug_tools.save_visualization(acc2_colored, "06_Accumulator_Pass2_vote_white_final_green", 6, config['visualization_dir'])
         
         # Histograms
-        def draw_histogram(hist, max_len=400):
+        def draw_histogram(hist, max_len=400, peak_idx=None):
             hist_img = np.zeros((200, max_len), dtype=np.uint8)
             if len(hist) > 0:
                 hist_norm = (hist / (np.max(hist) + 1e-6) * 199).astype(int)
                 for i, h in enumerate(hist_norm[:max_len]):
                     cv2.line(hist_img, (i, 199), (i, 199 - h), 255, 1)
+                
+                # Draw vertical line at peak if provided
+                if peak_idx is not None and 0 <= peak_idx < len(hist_norm) and peak_idx < max_len:
+                    cv2.line(hist_img, (peak_idx, 0), (peak_idx, 199), 128, 1)  # Gray vertical line
             return hist_img
         
-        debug_tools.save_visualization(draw_histogram(debug_dict['radius_histogram_pass1']), "07_Radius_histogram_Pass1", 7, config['visualization_dir'])
+        # Draw pass 1 histogram with peak marker
+        peak_idx_pass1 = debug_dict.get('r_pass1_peak_idx')
+        debug_tools.save_visualization(draw_histogram(debug_dict['radius_histogram_pass1'], peak_idx=peak_idx_pass1), "07_Radius_histogram_Pass1", 7, config['visualization_dir'])
         debug_tools.save_visualization(draw_histogram(debug_dict['radius_histogram_pass2']), "09_Radius_histogram_Pass2_Refined", 9, config['visualization_dir'])
         
         if debug_dict.get('radius_histogram_pass2_gt') is not None:
@@ -452,12 +524,127 @@ if __name__ == "__main__":
         
         # Point sets
         if debug_dict.get('pre_thinning_points') is not None:
-            overlay = debug_tools.create_pointset_overlay(debug_dict['downscaled_gray'], debug_dict['pre_thinning_points'], (0, 255, 0))
+            # Show pre-thinning points as direct pixel overlay (1 pixel per pixel)
+            blur_img = debug_dict.get('downscaled_blur', debug_dict['downscaled_gray'])
+            overlay = cv2.cvtColor(blur_img, cv2.COLOR_GRAY2BGR)
+            pre_points = debug_dict['pre_thinning_points']
+            # Create mask from points
+            h, w = blur_img.shape
+            pre_mask = np.zeros((h, w), dtype=bool)
+            y_coords = pre_points['y'].astype(int)
+            x_coords = pre_points['x'].astype(int)
+            # Filter valid coordinates
+            valid = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
+            pre_mask[y_coords[valid], x_coords[valid]] = True
+            # Set pixels directly (green)
+            overlay[pre_mask] = (0, 255, 0)
             debug_tools.save_visualization(overlay, "11_Pointset_PreThinning", 11, config['visualization_dir'])
         
-        if debug_dict.get('thinned_points') is not None:
-            overlay = debug_tools.create_pointset_overlay(debug_dict['downscaled_gray'], debug_dict['thinned_points'], (0, 0, 255))
-            debug_tools.save_visualization(overlay, "12_Pointset_PostThinning_NMS", 12, config['visualization_dir'])
+        # NMS + Hysteresis result (points after thinning and hysteresis) - always show if available
+        if 'outermost_edge_mask_hyst' in debug_dict and debug_dict['outermost_edge_mask_hyst'] is not None:
+            # Show hysteresis edge mask as points overlay on smoothed grayscale
+            blur_img = debug_dict.get('downscaled_blur', debug_dict['downscaled_gray'])
+            overlay = cv2.cvtColor(blur_img, cv2.COLOR_GRAY2BGR)
+            edge_mask = debug_dict['outermost_edge_mask_hyst'] > 0
+            # Set pixels directly (1 pixel per pixel, no circles)
+            overlay[edge_mask] = (0, 255, 0)  # Green (BGR)
+            debug_tools.save_visualization(overlay, "12_Pointset_NMS_Hysterese", 12, config['visualization_dir'])
+        
+        # Polar transform (debug visualization only)
+        if config.get('polar_debug_enable', False) and debug_dict:
+            import time as time_module
+            
+            # Find center to use for polar transform
+            center = None
+            center_name = None
+            if 'c0_pass1' in debug_dict and debug_dict['c0_pass1'] is not None:
+                center = debug_dict['c0_pass1']
+                center_name = 'c0_pass1'
+            elif 'c1_pass2_vote' in debug_dict and debug_dict['c1_pass2_vote'] is not None:
+                center = debug_dict['c1_pass2_vote']
+                center_name = 'c1_pass2_vote'
+            
+            if center is not None:
+                # Get image to transform (use downscaled gray)
+                gray_img = debug_dict.get('downscaled_gray')
+                if gray_img is None:
+                    gray_img = debug_dict.get('downscaled_blur')
+                
+                if gray_img is not None:
+                    cx, cy = float(center[0]), float(center[1])
+                    
+                    # Find r_max
+                    r_max = None
+                    # Try to get outer circle radius from accepted peaks
+                    if 'accepted_peaks' in debug_dict and debug_dict['accepted_peaks']:
+                        # Use the outermost peak radius
+                        outermost_peak = max(debug_dict['accepted_peaks'], key=lambda p: p.get('r_peak', 0))
+                        r_outer = outermost_peak.get('r_peak', 0)
+                        if r_outer > 0:
+                            r_max = config['polar_r_max_frac'] * r_outer
+                    
+                    # Fallback: use image dimensions
+                    if r_max is None or r_max <= 0:
+                        h, w = gray_img.shape
+                        r_max = config['polar_r_max_frac'] * min(h, w) * 0.5
+                    
+                    # Determine interpolation flag
+                    inter_flag = cv2.INTER_LINEAR if config.get('polar_interpolation', 'linear') == 'linear' else cv2.INTER_NEAREST
+                    
+                    # Perform polar transform
+                    theta_samples = config.get('polar_theta_samples', 720)
+                    r_samples = config.get('polar_r_samples', 600)
+                    dsize = (theta_samples, r_samples)  # (width, height) = (theta, radius)
+                    
+                    start_polar = time_module.perf_counter()
+                    polar = cv2.warpPolar(
+                        gray_img,
+                        dsize,
+                        center=(cx, cy),
+                        maxRadius=r_max,
+                        flags=cv2.WARP_POLAR_LINEAR | inter_flag
+                    )
+                    polar_time_ms = (time_module.perf_counter() - start_polar) * 1000.0
+                    
+                    # Log timing (filename is available in __main__ scope)
+                    debug_tools.log_operation_time(
+                        filename,
+                        "detect_outer_circle",
+                        f"polar_transform (theta={theta_samples}, r={r_samples}, r_max={r_max:.1f}, center={center_name})",
+                        polar_time_ms / 1000.0
+                    )
+                    
+                    # Save visualization
+                    filename_polar = f"14_14_Polar_gray_center_{int(cx)}_{int(cy)}_rmax_{int(r_max)}_theta_{theta_samples}_r_{r_samples}"
+                    debug_tools.save_visualization(polar, filename_polar, 14, config['visualization_dir'])
+        
+        # Polar hysteresis debug prototype (isolated, does not affect main pipeline)
+        if config.get('polar_hyst_debug_enable', False):
+            import polar_hysterese_debug
+            
+            # Get center from debug_dict (prefer c0_pass1, fallback to c1_pass2_vote or image center)
+            center_xy = None
+            if 'c0_pass1' in debug_dict and debug_dict['c0_pass1'] is not None:
+                center_xy = debug_dict['c0_pass1']
+            elif 'c1_pass2_vote' in debug_dict and debug_dict['c1_pass2_vote'] is not None:
+                center_xy = debug_dict['c1_pass2_vote']
+            
+            # Pass accepted_peaks and r_pass1_peak_px to cfg
+            cfg_with_peaks = config.copy()
+            if 'accepted_peaks' in debug_dict:
+                cfg_with_peaks['accepted_peaks'] = debug_dict['accepted_peaks']
+            if 'r_pass1_peak_px' in debug_dict and debug_dict['r_pass1_peak_px'] is not None:
+                cfg_with_peaks['r_pass1_peak_px'] = debug_dict['r_pass1_peak_px']
+                print(f"DEBUG: Passing r_pass1_peak_px={debug_dict['r_pass1_peak_px']:.2f} to polar prototype")
+            
+            # Run prototype
+            polar_hysterese_debug.run(
+                img,
+                center_xy,
+                config['visualization_dir'],
+                cfg_with_peaks,
+                filename=filename
+            )
     
     # Flush logs
     debug_tools.flush_log_buffer(log_file)

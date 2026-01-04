@@ -5,8 +5,10 @@ IMPLEMENTERT:
 *Greyscale
 *Blur (2 sigma)
 *Downsample
+- Forsøkte global intensitetsutjevning. Det forsterket gradientene utenfor blinken, og svekket de inni. Metoden bør ikke brukes.
+*Scharr(?) for gradienter
 
 * Indre poengsirkler er deaktivert
 * Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
-	* Bruker gradientene for (ytterste) sirkel og voter på corse center
+	* Bruker gradientene for (ytterste) sirkel og voter på course center
 * Bruker non maximum suppression på ytterste ring, og least squares på punktsettet for å finne refined center

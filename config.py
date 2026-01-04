@@ -58,9 +58,27 @@ DEFAULT_CONFIG = {
     'outer_circle_peaks_cluster_px': 3.0,       # Merge peaks closer than this (double edge)
     'outer_circle_pass2_outer_cut_eps': 2.0,     # Cut points with r > r_outer + eps
     
+    # Polar transform (debug visualization only)
+    'polar_debug_enable': True,                   # Enable polar transform visualization
+    'polar_r_max_frac': 1.10,                     # Max radius as fraction of outer circle radius (or min(half_width, half_height))
+    'polar_theta_samples': 720,                  # Columns (angle resolution)
+    'polar_r_samples': 600,                       # Rows (radius resolution)
+    'polar_interpolation': 'linear',              # 'nearest' or 'linear'
+    
+    # Polar hysteresis debug prototype (isolated, does not affect main pipeline)
+    'polar_hyst_debug_enable': True,            # Enable polar hysteresis debug prototype
+    'polar_band_halfwidth_px': 10,              # Half-bandwidth in pixels for initial search (±10px in radius direction)
+    # Legacy parameters (kept for backward compatibility, not used in ridge tracking)
+    'polar_band_width': 10,                       # Radius band width around peak (in bins) - deprecated
+    'polar_hyst_high_percentile': 98.0,          # High threshold percentile for hysteresis - deprecated
+    'polar_hyst_low_frac': 0.5,                  # Low threshold = low_frac * high threshold - deprecated
+    
     # NMS and radial variance refinement
     'outermost_ring_refine_enable': False,       # Enable radial variance refinement on outermost ring
-    'outermost_ring_mag_percentile': 75.0,       # Percentile for magnitude threshold in outermost ring
+    'outermost_ring_mag_percentile': 75.0,       # Percentile for magnitude threshold in outermost ring (pre-thinning visualization only)
+    'outermost_ring_hyst_high_percentile': 70.0, # Strong threshold percentile for hysteresis (within band) - lower than pre-thinning since mag_nms is already thinned
+    'outermost_ring_hyst_low_frac': 0.40,       # Low threshold = low_frac * high threshold
+    'outermost_ring_hyst_min_pixels': 200,      # Minimum pixels in edge_mask, else fallback
     'outermost_ring_refine_max_steps': 60,       # Max steps for radial variance refinement
     'outermost_ring_refine_step_px': 1,          # Step size for refinement
     'outermost_ring_refine_max_radius_px': 12,   # Max radius from start for refinement
