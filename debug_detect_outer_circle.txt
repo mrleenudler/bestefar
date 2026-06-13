@@ -4,23 +4,21 @@ Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(4034), 'cross
 Center: (286.65, 502.09)
 
 === Pass 1 histogram peaks ===
-Accepted peaks: 8
-  Peak at r=254.50, FWHM=[250.00, 260.00], coverage=0.908
-  Peak at r=229.50, FWHM=[225.00, 236.00], coverage=0.983
-  Peak at r=203.50, FWHM=[199.00, 210.00], coverage=0.975
+Accepted peaks: 6
+  Peak at r=255.50, FWHM=[251.00, 259.00], coverage=0.900
+  Peak at r=230.50, FWHM=[225.00, 235.00], coverage=0.983
+  Peak at r=204.50, FWHM=[199.00, 209.00], coverage=0.975
   Peak at r=178.50, FWHM=[174.00, 184.00], coverage=0.950
-  Peak at r=153.50, FWHM=[148.00, 159.00], coverage=0.892
-  Peak at r=100.50, FWHM=[96.00, 106.00], coverage=0.925
-  Peak at r=78.50, FWHM=[70.00, 83.00], coverage=0.875
-  Peak at r=75.50, FWHM=[70.00, 83.00], coverage=0.875
-r_pass1_peak_px: 254.50
+  Peak at r=100.50, FWHM=[97.00, 106.00], coverage=0.883
+  Peak at r=77.50, FWHM=[70.00, 83.00], coverage=0.875
+r_pass1_peak_px: 255.50
 
 === Pass 2 (precise center) ===
-Points: 2000
-Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(3868), 'cross_reject': np.int64(6727), 'dist_reject': np.int64(0), 'oob_reject': np.int64(1), 'votes_cast': 29404, 'peak_value': 8071.2294921875}
-Center: (279.51, 501.31)
+Points: 1695
+Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(3866), 'cross_reject': np.int64(6742), 'dist_reject': np.int64(0), 'oob_reject': np.int64(0), 'votes_cast': 29392, 'peak_value': 8616.25}
+Center: (282.21, 504.80)
 
-Final center (downscaled): (279.51, 501.31)
-Final center (original): (1077.06, 1931.73)
-Final radius (downscaled): 102.50
-Final radius (original): 394.97
+Final center (downscaled): (282.21, 504.80)
+Final center (original): (1087.45, 1945.17)
+Final radius (downscaled): 257.50
+Final radius (original): 992.23

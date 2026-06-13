@@ -1,0 +1,80 @@
+Grovsenter: (1087.45, 1945.17), r=992.23
+iter 0: delta=99.59px, 8 ringer, korreksjon=(6.56, -4.38)
+iter 1: delta=98.48px, 10 ringer, korreksjon=(1.43, -0.91)
+iter 2: delta=98.41px, 10 ringer, korreksjon=(0.26, -0.13)
+Ringer (verdi: radius): 1: 984.3, 2: 887.3, 3: 788.4, 4: 689.6, 5: 591.1, 6: 492.6, 7: 391.1, 8: 295.8, 9: 197.0, 10: 98.5
+R10=98.11px, delta=98.55px, senter=(1095.70, 1939.75)
+perspektiv: rms 3.44 -> 0.27px, dc=(-1.56,-0.76), l=(9.15e-06,3.44e-06), skew=0.0068, akse=-0.0082
+iter 0: delta=97.46px, 10 ringer, korreksjon=(-1.03, -0.55)
+iter 1: delta=97.45px, 9 ringer, korreksjon=(-0.63, -0.11)
+iter 2: delta=97.87px, 10 ringer, korreksjon=(-0.04, -0.02)
+Ringer (verdi: radius): 1: 980.1, 2: 883.3, 3: 785.0, 4: 686.7, 5: 588.6, 6: 490.5, 7: 389.5, 8: 294.7, 9: 196.3, 10: 98.2
+R10=97.82px, delta=98.11px, senter=(1095.57, 1939.82)
+Hough: 68 kandidater (markor_r=40.2px)
+  forkastet (1095,1939)
+  forkastet (1037,1927)
+  forkastet (1047,1969)
+  forkastet (1205,2051)
+  forkastet (1257,1917)
+  forkastet (1431,1875)
+  forkastet (953,2001)
+  forkastet (1151,1931)
+  forkastet (851,1995)
+  forkastet (1063,1895)
+  forkastet (1059,2093)
+  forkastet (1135,1987)
+  forkastet (845,1899)
+  forkastet (1101,1877)
+  forkastet (1337,1987)
+  forkastet (1745,1959)
+  forkastet (1019,1805)
+  forkastet (833,1927)
+  forkastet (1065,2485)
+  forkastet (867,1827)
+  forkastet (1043,1791)
+  forkastet (1139,2093)
+  forkastet (1065,1485)
+  forkastet (1055,1293)
+  forkastet (1133,1897)
+  forkastet (1639,1967)
+  forkastet (1113,1781)
+  forkastet (1075,2875)
+  forkastet (1085,2099)
+  forkastet (1111,1013)
+  forkastet (1107,1681)
+  forkastet (1043,2189)
+  forkastet (651,1921)
+  forkastet (553,1921)
+  forkastet (359,1921)
+  forkastet (1069,1793)
+  forkastet (1131,2481)
+  forkastet (1087,2753)
+  forkastet (1151,2191)
+  forkastet (1093,2171)
+  forkastet (1125,1187)
+  forkastet (1293,1145)
+  forkastet (507,2209)
+  forkastet (433,1657)
+  forkastet (651,1969)
+  forkastet (1927,1899)
+  forkastet (865,2829)
+  forkastet (249,2307)
+  forkastet (1035,1011)
+  forkastet (825,1573)
+  forkastet (1099,2495)
+  forkastet (745,2711)
+  forkastet (1323,1817)
+  forkastet (1361,2539)
+  forkastet (1973,2215)
+  forkastet (1361,1239)
+Treff etter validering/dedup: 10
+  (1253.2, 1991.0) type=outline score=0.60
+  (1091.0, 1984.1) type=filled score=0.55
+  (994.6, 2074.0) type=filled score=0.55
+  (899.1, 1943.2) type=filled score=0.54
+  (938.2, 1823.1) type=filled score=0.54
+  (883.1, 1879.7) type=filled score=0.53
+  (985.8, 1838.8) type=filled score=0.52
+  (940.0, 1775.8) type=filled score=0.52
+  (1444.7, 1963.3) type=filled score=0.51
+  (1080.2, 2022.9) type=filled score=0.37

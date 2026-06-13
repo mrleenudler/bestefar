@@ -65,9 +65,14 @@ DEFAULT_CONFIG = {
     'polar_r_samples': 600,                       # Rows (radius resolution)
     'polar_interpolation': 'linear',              # 'nearest' or 'linear'
     
-    # Polar hysteresis debug prototype (isolated, does not affect main pipeline)
-    'polar_hyst_debug_enable': True,            # Enable polar hysteresis debug prototype
-    'polar_band_halfwidth_px': 10,              # Half-bandwidth in pixels for initial search (±10px in radius direction)
+    # Polar hysteresis debug prototype (erstattet av rings.py multiring-raffinering;
+    # kan slås på for debug, men er treg og mindre presis)
+    'polar_hyst_debug_enable': False,           # Enable polar hysteresis debug prototype
+    'polar_band_halfwidth_px': 20,              # Half-bandwidth in pixels for radius band (±20px in radius direction)
+    'polar_ridge_start_row': 0,                 # Starting row for ridge tracking (0 = top)
+    # Viterbi/DP ridge tracking parameters
+    'polar_viterbi_smooth_weight': 1.0,         # λ_smooth: penalty for jumps between rows (higher = smoother)
+    'polar_viterbi_curve_weight': 0.5,          # λ_curve: penalty for curvature/drift (higher = straighter)
     # Legacy parameters (kept for backward compatibility, not used in ridge tracking)
     'polar_band_width': 10,                       # Radius band width around peak (in bins) - deprecated
     'polar_hyst_high_percentile': 98.0,          # High threshold percentile for hysteresis - deprecated
@@ -83,6 +88,53 @@ DEFAULT_CONFIG = {
     'outermost_ring_refine_step_px': 1,          # Step size for refinement
     'outermost_ring_refine_max_radius_px': 12,   # Max radius from start for refinement
     
+    # Ringkalibrering og senterraffinering (rings.py)
+    'ring_calib_enable': True,
+    'ring_theta_samples': 720,            # Vinkelsamples i polartransform
+    'ring_rho_sigma': 3.0,                # Glatting langs radius (orig-px) - smelter sammen dobbeltkanter
+    'ring_r_max_frac': 1.06,              # r_max = frac * estimert ytterring-radius
+    'ring_peak_min_frac': 0.12,           # Min topphøyde i radialprofil (andel av max)
+    'ring_peak_min_sep_frac': 0.4,        # Min toppavstand (andel av ringavstand)
+    'ring_fit_max_resid_frac': 0.06,      # Maks residual i progresjonsfit (andel av delta).
+                                          # Må romme systematikk fra linsedistorsjon/strekpolaritet (~+-3-4px),
+                                          # men forkaste støytopper i markørklyngen (>30px avvik)
+    'ring_value_outermost': 1,            # Poengverdi for ytterste synlige ring
+    'ring_refine_iters': 4,               # Iterasjoner for senterraffinering
+    'ring_refine_min_coverage': 0.5,      # Min andel gyldige vinkler per ring
+    'ring_harm_reject_rounds': 3,         # Outlier-rejection-runder i harmonisk fit
+    'ring_harm_reject_sigma': 2.5,        # Outlier-terskel (sigma)
+
+    # Treffdeteksjon (hits.py)
+    'hit_marker_radius_frac': 0.41,       # Markørradius som andel av ringavstand (80px dia / 98px delta)
+    'hit_dot_radius_frac': 0.105,         # Senterprikk-radius som andel av ringavstand
+    'hit_search_r_max_frac': 1.05,        # Søk innenfor frac * R1
+    'hit_hough_dp': 2.0,                  # Hough akkumulator-nedskalering
+    'hit_hough_param1': 120,              # Canny høy terskel for Hough
+    'hit_hough_param2': 30,               # Hough akkumulator-terskel
+    'hit_min_dist_frac': 0.6,             # Min senteravstand mellom treff (andel av markørradius)
+    'hit_validate_min_score': 0.15,       # Min mønster-score for å godta kandidat
+
+    # Kvalitetsport: forkast bilder uten gyldig poengskive (rings.validate_calibration)
+    'gate_min_delta_px': 25.0,            # Min ringavstand i px (ekte foto: 60-115; støy: <20)
+    'gate_min_rings': 4,                  # Min antall tilpassede ringer (4 jevnt fordelte
+                                          # konsentriske ringer er allerede en sterk signatur;
+                                          # skråfoto kan mangle de svakeste ringene før retting)
+    'gate_max_resid_frac': 0.12,          # Maks avvik fra jevn ringfordeling (andel av ringavstand)
+    'gate_require_hits': True,            # Forkast bilder der ingen treff blir funnet
+
+    # Perspektivretting (perspektiv.py)
+    'persp_rectify_enable': True,         # Rett opp perspektiv før treff/poeng
+    'persp_n_theta': 180,                 # Punkter per ring i homografi-tilpasningen
+    'ring_recal_iters': 3,                # Kalibreringsiterasjoner etter retting
+
+    # Poengberegning (scoring.py)
+    'score_use_local_rings': True,        # Bruk lokal ringgeometri ved treffets vinkel (perspektiv)
+    'score_gauge_frac_of_delta': 0.14,    # Poenggrense utenfor ringstrek-SENTERLINJEN: ringstreken tegnes
+                                          # innenfor sonen, så grensen er strekens ytterkant (~halv strekbredde,
+                                          # ~5px) + halv kaliber (~9px). Kalibrert mot displayverdiene i Real 1;
+                                          # bør etterprøves med flere bilder
+    'score_round_mode': 'truncate',       # 'truncate' (offisiell) eller 'nearest'
+
     # Ground truth (for debug only, does not affect algorithm)
     'manual_center_enable': True,                # Enable manual center for comparison
     'manual_center_xy': None,                    # Manual center (cx, cy) in downscaled coords (None to disable)

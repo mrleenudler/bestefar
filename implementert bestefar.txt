@@ -7,8 +7,64 @@ IMPLEMENTERT:
 *Downsample
 - Forsøkte global intensitetsutjevning. Det forsterket gradientene utenfor blinken, og svekket de inni. Metoden bør ikke brukes.
 *Scharr(?) for gradienter
+* Polartransform
+* Tegner ridge på gradentene til ytterste sirkel i polartasnform-
+* FORSØKER Å TILPASSE SINUSOID TIL RIDGE FOR JUSTERING AV SENTRUM
 
 * Indre poengsirkler er deaktivert
 * Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
 	* Bruker gradientene for (ytterste) sirkel og voter på course center
 * Bruker non maximum suppression på ytterste ring, og least squares på punktsettet for å finne refined center
+
+RUNDE 3 (treff og poeng):
+* rings.py: Ringkalibrering i polart domene på originaloppløsning.
+	- Gradienter beregnes på det lille polarbildet (radiell Sobel) - raskt og presist
+	- Radialprofil -> autokorrelasjon gir ringavstand -> robust fit av ekvidistant progresjon
+	- Finner alle 10 poengringer i Real 1.jpg (delta=98.4px, R10=99.3px)
+* Senterraffinering: harmonisk fit r(theta) per ring over FLERE ringer (k=1-leddet = senterfeil),
+	indre ringer vektes opp. Erstatter Viterbi-prototypen (polar_hyst_debug_enable=False):
+	~20x raskere og mer presis (~2-3px mot fasit, var ~10px)
+* hits.py: Treffdeteksjon med HoughCircles (markørradius skalert fra ringavstand)
+	+ mønstervalidering (fylt markør / konturmarkør for siste skudd) med persentilstatistikk
+	(robust mot overlappende markører) + vinkeldekning av rand (fjerner falske positive)
+	+ senterprikk-raffinering (treffsenter ~1-2px mot fasit)
+* scoring.py: Desimalpoeng s = 10 + (R10 + gauge - d)/delta, avkortet til tidel (offisiell regel).
+	- gauge = 0.10*delta (halv kaliber + halv strekbredde, skala-invariant)
+	- Lokal ringgeometri ved treffets vinkel kompenserer perspektiv
+* validate_real1.py: Validering mot fasit fra displayet:
+	10/10 treff funnet, 10/10 poeng innenfor +-0.1, sum heltall 88 = display (S-10)
+* Total kjøretid ~7.7s (var ~30.7s)
+
+RUNDE 4 (perspektivretting):
+* Diagnose: ringenes tilsynelatende senter driver med radius (ring 10: -2px, ring 1: +7px)
+	og elliptisiteten vokser lineært med radius -> klassisk perspektivsignatur.
+	Hver ring passet sin harmoniske modell til <1px rmse - geometrimodellen var flaskehalsen.
+* perspektiv.py: Homografi med 6 frie parametre (senter, vanishing line, skew, akseforhold)
+	tilpasses slik at HELE ringfamilien blir konsentriske sirkler (scipy least_squares
+	på punkter fra ringenes harmoniske fit). Radiell rms: 3.7px -> 0.3px.
+	Bildet rettes med warpPerspective, alt (rekalibrering, treff, poeng) gjøres i rettet ramme.
+* Senter mot fasit: (+0.0, +2.1)px (var (+2.4, +2.5))
+* Alle 10 ringer inkl. sort/hvit-overgangen (6-7-grensen) er nå med i kalibreringen
+	(perspektivfeilen var det som dyttet den ut av comb-fitet før).
+	'ring_fit_max_resid_frac' løsnet til 0.06 for å romme svak linsedistorsjon (~+-3px kvadratisk rest).
+* Treffraffinering fikset for display-pikselrutenett: glatt -> ekstremum -> lokal sentroid
+	(global sentroid ble fortynnet av rutenettet og nådde ikke prikken fra skjeve Hough-kandidater).
+	Validering gjøres KUN i raffinert posisjon (begge polariteter prøves).
+* Gauge rekalibrert: 0.14*delta (strekens YTTERKANT + halv kaliber, ikke senterlinjen).
+* Visualisering: ringkurver transformeres tilbake gjennom homografien (følger perspektivet).
+* Resultat: 9/10 desimalpoeng EKSAKT lik displayet, 1 på -0.1. Sum desimal 92.5 (fasit 92.6),
+	sum heltall 88 = display. Treffposisjoner 0.1-4px fra fasit.
+
+RUNDE 5 (kvalitetsport):
+* rings.validate_calibration: forkaster bilder uten gyldig poengskive i stedet for å gjette.
+	Krav: ringavstand >= 25px, >= 4 tilpassede ringer, jevn ringfordeling (maks 12% avvik),
+	R10 > 0. Kjøres etter første kalibrering (rask exit) og på endelig kalibrering.
+* Forkaster også bilder der ingen treff blir funnet ('gate_require_hits', kan slås av).
+	NB: en uskutt serie forkastes dermed også - revurder etter felttesting.
+* run_tests.py: batch-kjøring av Test2-Test14 -> Visualiseringer/TestN_Treff_og_poeng.png.
+	Etter portene: kun Test10 (ekte Kongsberg-foto med skudd) analyseres;
+	alt annet forkastes med klar begrunnelse.
+* KJENT FEIL (utsatt til etter felttesting): Test10 gir 49 poeng, displayet viser 45.
+	Skiva har annen ringgeometri (ring 1 på 11*delta, indre tier-ring synlig) og det nyeste
+	skuddets konturmarkør bommes ved mindre markørstørrelse -> trolig én falsk + én mistet.
+	Løses med skiveprofiler (pkt 2) og panel-kryssjekk (pkt 4) fra anbefalingslisten.

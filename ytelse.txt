@@ -1,11 +1,11 @@
-polar_ridge: mag+nms=168.96ms warp=6.66ms H+peak=1.46ms ridge=16.77ms total=286.33ms
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | preprocess | 51,867723
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | pass1 | 134,389162
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | pass2 | 64,246655
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | nms | 138,889313
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | build_thinned_pointset | 160,766363
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | radius_estimation | 1,218796
-"2026-01-04 13:24:56" | Real 1 | detect_outer_circle | total | 566,308737
-"2026-01-04 13:24:58" | Real 1 | detect_outer_circle | polar_transform (theta=720, r=600, r_max=280,0, center=c0_pass1) | 3,390400
-"2026-01-04 13:24:58" | Real 1 | polar_ridge_debug | total | 286,329500
-"2026-01-04 13:24:58" | Real 1 | program | uforklart_tid | 3167,276779
+"2026-06-12 13:27:25" | Real 1 | detect_outer_circle | preprocess | 53,969145
+"2026-06-12 13:27:26" | Real 1 | detect_outer_circle | pass1 | 1000,404119
+"2026-06-12 13:27:26" | Real 1 | detect_outer_circle | pass2 | 47,549963
+"2026-06-12 13:27:26" | Real 1 | detect_outer_circle | nms | 105,886936
+"2026-06-12 13:27:26" | Real 1 | detect_outer_circle | build_thinned_pointset | 112,254858
+"2026-06-12 13:27:26" | Real 1 | detect_outer_circle | total | 1329,427242
+"2026-06-12 13:27:28" | Real 1 | detect_outer_circle | polar_transform (theta=720, r=600, r_max=281,1, center=c0_pass1) | 5,011900
+"2026-06-12 13:27:28" | Real 1 | analyze_target | ring_calibration | 184,530258
+"2026-06-12 13:27:28" | Real 1 | analyze_target | perspective_rectify | 297,816753
+"2026-06-12 13:27:29" | Real 1 | analyze_target | hit_detection | 396,627903
+"2026-06-12 13:27:30" | Real 1 | program | uforklart_tid | 3212,556974

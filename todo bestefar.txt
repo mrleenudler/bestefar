@@ -1,4 +1,38 @@
 Notater til koden:
+(Sentrum for "Real 1" er: (1094, 1937) Kulediameter: 80px, Diameter kulesenter: 20-21px)
+Hit coordinates: 
+(1089,1983)
+(984,1837)
+(1251,1991)
+(993,2074)
+(897,1942)
+(881,1879)
+(940,1774)
+(1443,1962)
+(935,1823)
+(1079,2019)
+
+
+
+
+Notater til Clopus:
+* Kulediameter + kulesenter diameter
+* Bilder kan variere i størrelse med ulike kamera. 
+* ringene kan variare i størrelse med kameraavstand fra skjermen.
+* 88 poeng tar ikke hensyn til desimalene -> målet for presisjon er på tidels poeng
+* Bildet er piksler av piksler. Beregning av skjermpixler kan kanskje brukes til å raffinere resultatet.
+* Anbefaler at ulike hovedsteg av algoritmen legges i forskjellige filer
+(* Vurder nedskalering for bedre effektivitet)
+	* oppdater input kuledata
+	* mm er ikke et relevanat mål
+	* phase 2 != 88p
+	* use a venv
+Runde 2:
+* Skille mellom indre(sort) og ytre (hvit) poengsone
+	* kjører i powershell, ikke bash
+
+
+-> Treffene bør kontrolleres mot poengene (om effektivt) til slutt, for å se om noen er feil/glemt.
 
 
 * Sentrum skal beregnes for kun den ytterste sirkelen, ikke som gjennomsnitt.
@@ -41,3 +75,5 @@ Greyscaling; det ser ut som programmet konverterer til RGB, det synes meg unødv
 
 
 ! Elektronisk skive på <1000px tar ~300ms å finne sirkler for
+	
+

@@ -15,6 +15,10 @@ import points
 import nms
 import refine
 import debug_tools
+import rings
+import hits as hits_mod
+import scoring
+import perspektiv
 
 
 def build_thinned_pointset_outermost_ring(mag_nms, mag_raw, gx, gy, c_start, peak_info, cfg):
@@ -381,6 +385,155 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
     return (cx_orig, cy_orig, r_orig, debug_dict)
 
 
+def analyze_target(img_bgr, cfg, debug=False, filename="unknown",
+                   center0=None, r_est=None):
+    """
+    Full analyse: senter -> ringkalibrering -> perspektivretting ->
+    rekalibrering -> treffdeteksjon -> poeng.
+
+    Args:
+        img_bgr: Input bilde (BGR), originaloppløsning
+        cfg: Konfigurasjonsdictionary
+        debug: Om debug-tekst skal samles
+        filename: Filnavn for logging
+        center0, r_est: Valgfritt startsenter og ytterring-radius
+            (hopper over grovdeteksjonen hvis gitt)
+
+    Returns:
+        dict med:
+            'calib': endelig kalibrering (i rektifisert ramme hvis H)
+            'H': homografi original -> rektifisert (eller None)
+            'center_orig': kalibrert senter i originalkoordinater
+            'hits': detekterte treff (koordinater i analyse-rammen)
+            'results': poengliste, med 'x_orig'/'y_orig' i originalkoordinater
+            'sum_decimal', 'sum_integer', 'debug_lines'
+    """
+    debug_lines = []
+
+    # 1) Grovsenter og ytterring fra gradient-voting
+    if center0 is None or r_est is None:
+        cx0, cy0, r0, _ = detect_outer_circle(img_bgr, cfg, debug=False, filename=filename)
+    else:
+        cx0, cy0 = center0
+        r0 = r_est
+    debug_lines.append(f"Grovsenter: ({cx0:.2f}, {cy0:.2f}), r={r0:.2f}")
+
+    gray = preprocess.to_gray(img_bgr)
+
+    # 2) Ringkalibrering + senterraffinering (polar, multiring)
+    start = time.time()
+    calib = rings.calibrate_and_refine(gray, (cx0, cy0), r0, cfg, debug_lines=debug_lines)
+    debug_tools.log_operation_time(filename, "analyze_target", "ring_calibration", time.time() - start)
+    if calib is None:
+        raise ValueError("Bilde forkastet: fant ingen poengringer")
+    ok, reason = rings.validate_calibration(calib, cfg)
+    if not ok:
+        raise ValueError(f"Bilde forkastet: ingen gyldig poengskive ({reason})")
+
+    # 3) Perspektivretting: gjør ringfamilien konsentrisk-sirkulær
+    H = None
+    if cfg.get('persp_rectify_enable', True):
+        start = time.time()
+        fit = perspektiv.fit_rectification(calib, cfg, debug_lines=debug_lines)
+        if fit is not None:
+            H, params, rms = fit
+            gray = perspektiv.warp_image(gray, H)
+            # Rekalibrer i rektifisert ramme (senteret er nå nesten riktig)
+            c_rect = perspektiv.transform_points([calib['center']], H)[0]
+            r_rect = max(calib['ring_radii_px'])
+            cfg_recal = cfg.copy()
+            cfg_recal['ring_refine_iters'] = cfg.get('ring_recal_iters', 3)
+            calib2 = rings.calibrate_and_refine(
+                gray, (c_rect[0], c_rect[1]), r_rect, cfg_recal, debug_lines=debug_lines)
+            ok2 = calib2 is not None and rings.validate_calibration(calib2, cfg)[0]
+            if ok2:
+                calib = calib2
+            else:
+                debug_lines.append("ADVARSEL: rekalibrering etter retting feilet, "
+                                   "bruker original kalibrering uten retting")
+                H = None
+                gray = preprocess.to_gray(img_bgr)
+        debug_tools.log_operation_time(filename, "analyze_target", "perspective_rectify", time.time() - start)
+
+    # 4) Treffdeteksjon (i analyse-rammen)
+    start = time.time()
+    hit_list = hits_mod.detect_hits(gray, calib, cfg, debug_lines=debug_lines)
+    debug_tools.log_operation_time(filename, "analyze_target", "hit_detection", time.time() - start)
+
+    # Forkast bilder uten treff: en skive det skal leses poeng fra har
+    # markører. (NB: en uskutt serie vil også forkastes - revurder etter
+    # felttesting hvis det er et reelt brukstilfelle.)
+    if cfg.get('gate_require_hits', True) and len(hit_list) == 0:
+        raise ValueError("Bilde forkastet: ingen treff funnet på skiva")
+
+    # 5) Poengberegning (avstander i analyse-rammen)
+    results, sum_dec, sum_int = scoring.score_hits(
+        [(t['x'], t['y']) for t in hit_list], calib, cfg)
+
+    # 6) Koordinater tilbake til originalbildet
+    if H is not None and len(results) > 0:
+        pts = perspektiv.transform_points_inverse(
+            [(res['x'], res['y']) for res in results], H)
+        for res, (xo, yo) in zip(results, pts):
+            res['x_orig'], res['y_orig'] = float(xo), float(yo)
+    else:
+        for res in results:
+            res['x_orig'], res['y_orig'] = res['x'], res['y']
+    if H is not None:
+        center_orig = perspektiv.transform_points_inverse([calib['center']], H)[0]
+        center_orig = (float(center_orig[0]), float(center_orig[1]))
+    else:
+        center_orig = calib['center']
+
+    return {
+        'calib': calib,
+        'H': H,
+        'center_orig': center_orig,
+        'hits': hit_list,
+        'results': results,
+        'sum_decimal': sum_dec,
+        'sum_integer': sum_int,
+        'debug_lines': debug_lines,
+    }
+
+
+def visualize_analysis(img_bgr, analysis, cfg):
+    """
+    Tegn kalibrerte ringer, senter og treff med poeng på ORIGINALBILDET.
+    Ringene tegnes som sirkler i den rektifiserte rammen og transformeres
+    tilbake, slik at de følger perspektivet i bildet.
+    """
+    vis = img_bgr.copy()
+    calib = analysis['calib']
+    H = analysis.get('H')
+    cx, cy = calib['center']
+
+    theta = np.linspace(0.0, 2.0 * np.pi, 360)
+    for r in calib['ring_radii_px']:
+        pts = np.column_stack([cx + r * np.cos(theta), cy + r * np.sin(theta)])
+        if H is not None:
+            pts = perspektiv.transform_points_inverse(pts, H)
+        cv2.polylines(vis, [pts.round().astype(np.int32)], isClosed=True,
+                      color=cfg['color_green'], thickness=1)
+
+    cox, coy = analysis['center_orig']
+    cv2.drawMarker(vis, (int(round(cox)), int(round(coy))), cfg['color_magenta'],
+                   cv2.MARKER_CROSS, 40, 3)
+
+    # Treff med poeng (originalkoordinater)
+    marker_r = int(round(cfg.get('hit_marker_radius_frac', 0.41) * calib['delta_px']))
+    for res in analysis['results']:
+        p = (int(round(res['x_orig'])), int(round(res['y_orig'])))
+        cv2.circle(vis, p, marker_r, cfg['color_red'], cfg['circle_thickness'])
+        cv2.circle(vis, p, 3, cfg['color_red'], -1)
+        cv2.putText(vis, f"{res['decimal']:.1f}", (p[0] + marker_r + 4, p[1] + 8),
+                    cfg['font'], 1.2, cfg['color_blue'], 3)
+
+    cv2.putText(vis, f"Sum: {analysis['sum_integer']} ({analysis['sum_decimal']:.1f})",
+                (40, 80), cfg['font'], 2.0, cfg['color_blue'], 4)
+    return vis
+
+
 if __name__ == "__main__":
     # CLI / Debug runner
     import sys
@@ -425,14 +578,16 @@ if __name__ == "__main__":
     
     # Run detection
     cx, cy, r, debug_dict = detect_outer_circle(img, config, debug=True, filename=filename)
-    
+    # Ta vare på resultatet: cx/cy gjenbrukes som løkkevariabler i debug-blokkene under
+    cx_det, cy_det, r_det = cx, cy, r
+
     print(f"Funnet ytterste sirkel: sentrum=({cx:.2f}, {cy:.2f}), radius={r:.2f}")
     
-    # Visualize result
+    # Visualize result (gradient voting coarse center)
     result = img.copy()
     center = (int(cx), int(cy))
     cv2.circle(result, center, config['circle_center_size'], config['color_red'], -1)
-    debug_tools.save_visualization(result, "02_Resultat_detect_outer_circle", 2, config['visualization_dir'])
+    debug_tools.save_visualization(result, "02_Gradient_voting_coarse_center", 2, config['visualization_dir'])
     
     # Visualize debug artifacts
     if debug_dict:
@@ -618,17 +773,19 @@ if __name__ == "__main__":
                     filename_polar = f"14_14_Polar_gray_center_{int(cx)}_{int(cy)}_rmax_{int(r_max)}_theta_{theta_samples}_r_{r_samples}"
                     debug_tools.save_visualization(polar, filename_polar, 14, config['visualization_dir'])
         
-        # Polar hysteresis debug prototype (isolated, does not affect main pipeline)
+        # Polar hysteresis debug prototype - NOW INTEGRATED TO CORRECT CENTER
         if config.get('polar_hyst_debug_enable', False):
             import polar_hysterese_debug
-            
-            # Get center from debug_dict (prefer c0_pass1, fallback to c1_pass2_vote or image center)
+
+            # Get center from debug_dict (prefer c_final, then c1_pass2_vote, then c0_pass1)
             center_xy = None
-            if 'c0_pass1' in debug_dict and debug_dict['c0_pass1'] is not None:
-                center_xy = debug_dict['c0_pass1']
+            if 'c_final' in debug_dict and debug_dict['c_final'] is not None:
+                center_xy = debug_dict['c_final']
             elif 'c1_pass2_vote' in debug_dict and debug_dict['c1_pass2_vote'] is not None:
                 center_xy = debug_dict['c1_pass2_vote']
-            
+            elif 'c0_pass1' in debug_dict and debug_dict['c0_pass1'] is not None:
+                center_xy = debug_dict['c0_pass1']
+
             # Pass accepted_peaks and r_pass1_peak_px to cfg
             cfg_with_peaks = config.copy()
             if 'accepted_peaks' in debug_dict:
@@ -636,16 +793,63 @@ if __name__ == "__main__":
             if 'r_pass1_peak_px' in debug_dict and debug_dict['r_pass1_peak_px'] is not None:
                 cfg_with_peaks['r_pass1_peak_px'] = debug_dict['r_pass1_peak_px']
                 print(f"DEBUG: Passing r_pass1_peak_px={debug_dict['r_pass1_peak_px']:.2f} to polar prototype")
-            
-            # Run prototype
-            polar_hysterese_debug.run(
+
+            # Run prototype and get corrected center
+            center_corrected_polar = polar_hysterese_debug.run(
                 img,
                 center_xy,
                 config['visualization_dir'],
                 cfg_with_peaks,
                 filename=filename
             )
+
+            # Update final center with polar-corrected center
+            if center_corrected_polar is not None:
+                print(f"POLAR CENTER CORRECTION: ({center_xy[0]:.2f}, {center_xy[1]:.2f}) -> ({center_corrected_polar[0]:.2f}, {center_corrected_polar[1]:.2f})")
+                print(f"  Displacement: dx={center_corrected_polar[0] - center_xy[0]:.2f}, dy={center_corrected_polar[1] - center_xy[1]:.2f}")
+
+                # Update cx, cy, r with corrected center (map back to original coordinates)
+                cx = center_corrected_polar[0] / debug_dict['scale']
+                cy = center_corrected_polar[1] / debug_dict['scale']
+
+                # Update debug_dict with polar-corrected center
+                debug_dict['c_polar_corrected'] = center_corrected_polar
+
+                # Visualize polar-corrected center on original image
+                result_polar = img.copy()
+                cv2.circle(result_polar, (int(cx), int(cy)), config['circle_center_size'], (255, 0, 255), -1)  # Magenta
+                debug_tools.save_visualization(result_polar, "13_13_Center_after_polar_correction", 13, config['visualization_dir'])
     
+    # --- Ringkalibrering, perspektivretting, treffdeteksjon og poeng ---
+    print("\nKalibrerer ringer og detekterer treff...")
+    try:
+        analysis = analyze_target(img, config, filename=filename,
+                                  center0=(cx_det, cy_det), r_est=r_det)
+    except ValueError as e:
+        print(f"ANALYSE FEILET: {e}")
+        analysis = None
+
+    if analysis is not None:
+        calib = analysis['calib']
+        cox, coy = analysis['center_orig']
+        print(f"Kalibrert senter (original): ({cox:.2f}, {coy:.2f}), "
+              f"delta={calib['delta_px']:.2f}px, R10={calib['R10_px']:.2f}px, "
+              f"rektifisert={'ja' if analysis['H'] is not None else 'nei'}")
+        print(f"\n{'#':>3} {'x':>7} {'y':>7} {'d_px':>7} {'poeng':>6}")
+        for i, res in enumerate(analysis['results'], 1):
+            print(f"{i:3d} {res['x_orig']:7.1f} {res['y_orig']:7.1f} "
+                  f"{res['distance']:7.1f} {res['decimal']:6.1f}")
+        print(f"\nAntall treff: {len(analysis['results'])}")
+        print(f"Sum desimal: {analysis['sum_decimal']:.1f}   "
+              f"Sum heltall: {analysis['sum_integer']}")
+
+        vis = visualize_analysis(img, analysis, config)
+        debug_tools.save_visualization(vis, "15_Treff_og_poeng", 15, config['visualization_dir'])
+
+        # Skriv analyse-debug til fil
+        with open(config.get('debug_file_analysis', 'debug_analyse_treff.txt'), 'w', encoding='utf-8') as f:
+            f.write('\n'.join(analysis['debug_lines']))
+
     # Flush logs
     debug_tools.flush_log_buffer(log_file)
     
