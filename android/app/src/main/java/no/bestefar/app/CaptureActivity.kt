@@ -112,24 +112,28 @@ class CaptureActivity : AppCompatActivity() {
         val probe = autoCapture.feed(bytes, image.width, image.height, y.rowStride)
         image.close()
 
-        Log.d(TAG, "probe roi=%b skarp=%.0f klippLo=%.3f klippHi=%.3f dekning=%.2f stabil=%b kval=%b knips=%b"
+        Log.d(TAG, "probe roi=%b skarp=%.0f klippLo=%.3f klippHi=%.3f dekning=%.2f str=%.2f stabil=%b kval=%b knips=%b"
             .format(probe.roiFound, probe.sharpness, probe.clipLoFrac, probe.clipHiFrac,
-                    probe.coverage, probe.stable, probe.qualityOk, probe.shouldCapture))
+                    probe.coverage, probe.roiWidthFrac, probe.stable, probe.qualityOk,
+                    probe.shouldCapture))
 
         runOnUiThread {
-            debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f\n" +
-                              "stabil=%b kval=%b")
+            debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f str=%.2f\n" +
+                              "stabil=%b kval=%b storrelse=%b")
                 .format(probe.roiFound, probe.sharpness, probe.clipLoFrac,
-                        probe.clipHiFrac, probe.coverage, probe.stable, probe.qualityOk)
+                        probe.clipHiFrac, probe.coverage, probe.roiWidthFrac,
+                        probe.stable, probe.qualityOk, probe.sizeOk)
             statusText.text = when {
                 !probe.roiFound -> getString(R.string.status_searching)
+                !probe.sizeOk -> getString(R.string.status_closer)
                 !probe.qualityOk -> getString(R.string.status_quality)
                 !probe.stable -> getString(R.string.status_hold_still)
                 else -> getString(R.string.status_capturing)
             }
-            // Ramme-gloed naar begge kriterier er inne
+            // Ramme-gloed naar alle kriterier er inne (holdevinduet fylles)
             findViewById<android.view.View>(R.id.scanFrame).setBackgroundResource(
-                if (probe.stable && probe.qualityOk) R.drawable.scan_frame_active
+                if (probe.stable && probe.qualityOk && probe.sizeOk)
+                    R.drawable.scan_frame_active
                 else R.drawable.scan_frame)
         }
         if (probe.shouldCapture && capturing.compareAndSet(false, true)) {

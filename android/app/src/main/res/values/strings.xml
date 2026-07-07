@@ -4,6 +4,7 @@
     <string name="start">Start</string>
     <string name="ok">OK</string>
     <string name="status_searching">Finner skjermen …</string>
+    <string name="status_closer">Gå nærmere — fyll rammen</string>
     <string name="status_quality">Hold kamera nærmere / bedre lys</string>
     <string name="status_hold_still">Hold i ro …</string>
     <string name="status_capturing">Knipser!</string>

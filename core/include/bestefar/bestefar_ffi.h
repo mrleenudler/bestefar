@@ -66,13 +66,14 @@ int32_t bf_analyze(const BfImage* image, int64_t timestamp_ms, BfResult* out);
  * UKALIBRERTE startverdier og skal kalibreres mot faktisk maskinvare. */
 
 typedef struct BfAutoCaptureParams {
-    int32_t stability_frames;        /* UKALIBRERT, default 8 */
-    double  stability_max_move_frac; /* UKALIBRERT, default 0.01 (av diagonal) */
-    double  min_sharpness;           /* UKALIBRERT, default 80.0 (Laplacian-varians) */
-    double  max_clip_lo_frac;        /* UKALIBRERT, default 0.10 */
-    double  max_clip_hi_frac;        /* UKALIBRERT, default 0.05 */
-    double  min_coverage;            /* UKALIBRERT, default 0.98 */
-    double  frame_margin_frac;       /* UKALIBRERT, default 0.03 */
+    int32_t stability_frames;        /* default 24 (~0.8 s holdevindu) */
+    double  stability_max_move_frac; /* default 0.01 (av diagonal) */
+    double  min_sharpness;           /* default 40.0 (Laplacian-varians) */
+    double  max_clip_lo_frac;        /* default 0.30 */
+    double  max_clip_hi_frac;        /* default 0.20 */
+    double  min_coverage;            /* default 0.80 */
+    double  min_roi_width_frac;      /* UKALIBRERT, default 0.45: krev stor nok skjerm */
+    double  frame_margin_frac;       /* default 0.02 */
     int32_t probe_max_side;          /* default 480 */
 } BfAutoCaptureParams;
 
@@ -86,6 +87,8 @@ typedef struct BfFrameProbe {
     int32_t stable;              /* stabilitetskriteriet oppfylt naa */
     int32_t quality_ok;          /* kvalitetskriteriet oppfylt naa */
     int32_t should_capture;      /* begge kriterier oppfylt over vinduet -> knips! */
+    double  roi_width_frac;      /* ROI-bredde / framebredde (stoerrelsesmaal) */
+    int32_t size_ok;             /* stoerrelseskriteriet oppfylt naa */
 } BfFrameProbe;
 
 typedef struct BfAutoCapture BfAutoCapture;   /* opaque tilstandsmaskin */

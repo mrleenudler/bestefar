@@ -100,6 +100,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->max_clip_lo_frac = d.max_clip_lo_frac;
     out->max_clip_hi_frac = d.max_clip_hi_frac;
     out->min_coverage = d.min_coverage;
+    out->min_roi_width_frac = d.min_roi_width_frac;
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
 }
@@ -113,6 +114,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.max_clip_lo_frac = p->max_clip_lo_frac;
         ac->params.max_clip_hi_frac = p->max_clip_hi_frac;
         ac->params.min_coverage = p->min_coverage;
+        ac->params.min_roi_width_frac = p->min_roi_width_frac;
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
     }
@@ -232,9 +234,16 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
                              pr.coverage >= p.min_coverage;
         out->quality_ok = quality ? 1 : 0;
 
-        // KRITERIUM 1: stabilitet — ROI-boksen i ro over N frames
+        // KRITERIUM 3: stoerrelse — apparatet maa fylle nok av framen.
+        // (Liten skjerm gir lav ringavstand i px -> daarlig kalibrering/score.)
+        out->roi_width_frac = static_cast<double>(pr.roi_box.width) / gray.cols;
+        const bool size_ok = out->roi_width_frac >= p.min_roi_width_frac;
+        out->size_ok = size_ok ? 1 : 0;
+
+        // KRITERIUM 1: stabilitet — ROI-boksen i ro over N frames.
+        // Holdevinduet krever kvalitet OG stoerrelse gjennom hele vinduet.
         ac->history.push_back(pr.roi_box);
-        ac->quality_history.push_back(quality);
+        ac->quality_history.push_back(quality && size_ok);
         while (static_cast<int>(ac->history.size()) > p.stability_frames) {
             ac->history.pop_front();
             ac->quality_history.pop_front();

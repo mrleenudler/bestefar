@@ -154,12 +154,19 @@ struct Config {
 //   en lys hvit skjerm. Verdiene skal fortsatt finkalibreres mot maalte
 //   probe-verdier (live-overlay paa capture-skjermen viser dem).
 struct AutoCaptureParams {
-    int    stability_frames        = 8;     // antall paafoelgende frames
+    // 24 frames (~0.8 s @ 30 fps): felttest viste at 8 utloeste for raskt
+    // (daarlig UX + brukeren rekker ikke aa komponere). Rammen gloeder
+    // groent gjennom hele holdevinduet.
+    int    stability_frames        = 24;
     double min_sharpness           = 40.0;  // Laplacian-varians i ROI (<40 = reelt uskarpt)
     double stability_max_move_frac = 0.01;  // maks hjoerneflytt per frame (andel av diagonal)
     double max_clip_lo_frac        = 0.30;  // maks andel piksler i moerkeste bin
     double max_clip_hi_frac        = 0.20;  // maks andel piksler i lyseste bin
     double min_coverage            = 0.80;  // andel av ROI-boks innenfor frame m/margin
+    // Krav om stoerrelse: felttest (app_C4) viste at liten skjerm i bildet
+    // gir ~35-40px ringavstand -> faerre kalibrerte ringer + systematisk
+    // desimalskift. Apparat-ROI maa dekke en god andel av framebredden.
+    double min_roi_width_frac      = 0.45;  // UKALIBRERT: ROI-bredde / framebredde
     double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };

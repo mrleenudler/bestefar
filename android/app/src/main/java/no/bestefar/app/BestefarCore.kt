@@ -51,6 +51,8 @@ object BestefarCore {
         val stable: Boolean,
         val qualityOk: Boolean,
         val shouldCapture: Boolean,
+        val roiWidthFrac: Double,
+        val sizeOk: Boolean,
     )
 
     fun analyze(data: ByteArray, width: Int, height: Int, stride: Int,
@@ -88,6 +90,8 @@ object BestefarCore {
                 stable = v[5] > 0.5,
                 qualityOk = v[6] > 0.5,
                 shouldCapture = v[7] > 0.5,
+                roiWidthFrac = v[10],
+                sizeOk = v[11] > 0.5,
             )
         }
 
