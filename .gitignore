@@ -14,6 +14,8 @@ core/build/
 android/.gradle/
 android/local.properties
 android/app/build/
+android/app/.cxx/
 android/build/
+android_studio_prosess.txt
 backend/bestefar.db
 backend/__pycache__/

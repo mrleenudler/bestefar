@@ -1,6 +1,8 @@
+// AGP 9+ har INNEBYGD Kotlin — org.jetbrains.kotlin.android skal IKKE brukes.
+// kotlinOptions{} er erstattet av kotlin.compilerOptions{}; jvmTarget arver
+// android.compileOptions.targetCompatibility, saa den trengs ikke her.
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -40,9 +42,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
 }
 
