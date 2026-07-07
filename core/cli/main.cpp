@@ -6,6 +6,7 @@
 #include <opencv2/imgcodecs.hpp>
 
 #include "bestefar/analyze.h"
+#include "bestefar/bestefar_ffi.h"
 #include "../src/outer_circle.h"
 #include "../src/preprocess.h"
 #include "../src/rings.h"
@@ -63,6 +64,25 @@ int main(int argc, char** argv) {
     if (argc >= 3 && std::strcmp(argv[2], "--debug") == 0) {
         bestefar::Config dcfg;
         debug_stages(img, dcfg);
+    }
+    if (argc >= 3 && std::strcmp(argv[2], "--probe") == 0) {
+        // Kjoer FrameProbe paa et stillbilde: validerer auto-capture-gatene
+        // mot ekte apparatfoto (C-settet) uten telefon.
+        cv::Mat gray;
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+        BfImage bimg{gray.data, gray.cols, gray.rows,
+                     static_cast<int32_t>(gray.step), BF_FMT_GRAY8};
+        BfAutoCapture* ac = bf_autocapture_create(nullptr);
+        BfFrameProbe probe;
+        bf_autocapture_feed(ac, &bimg, &probe);
+        bf_autocapture_destroy(ac);
+        std::fprintf(stderr,
+                     "PROBE roi=%d skarp=%.0f lo=%.3f hi=%.3f dek=%.2f "
+                     "str=%.2f bull=%.2f kval=%d storrelse=%d\n",
+                     probe.roi_found, probe.sharpness, probe.clip_lo_frac,
+                     probe.clip_hi_frac, probe.coverage, probe.screen_width_frac,
+                     probe.bull_width_frac, probe.quality_ok, probe.size_ok);
+        return 0;
     }
     if (argc >= 3 && std::strcmp(argv[2], "--outeronly") == 0) {
         bestefar::Config dcfg;

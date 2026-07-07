@@ -18,7 +18,10 @@ struct ProbeInternals {
 
 // Bull-maal: stoerste SOLIDE moerke komponent inne i skjerm-blobben.
 // Morfologisk aapning fjerner tynne strukturer (ringlinjer, tall,
-// tabellstreker) foerst, saa den solide svarte senterdisken vinner.
+// tabellstreker). Komponenter som beroerer boks-kanten hoppes over:
+// det er den moerke bezelen/omgivelsen som omslutter skjermen inne i
+// den akse-justerte boksen (verifisert paa C-settet: uten dette maaltes
+// bezelen, ikke bullen). Bullen ligger alltid i det indre.
 static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
                                 int frame_width) {
     if (blob_box.width < 8 || blob_box.height < 8) return 0.0;
@@ -31,10 +34,20 @@ static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
     const int num = cv::connectedComponentsWithStats(dark, labels, stats, centroids, 8);
     int best_area = 0, best_w = 0;
     for (int l = 1; l < num; ++l) {
+        const int x = stats.at<int32_t>(l, cv::CC_STAT_LEFT);
+        const int y = stats.at<int32_t>(l, cv::CC_STAT_TOP);
+        const int w = stats.at<int32_t>(l, cv::CC_STAT_WIDTH);
+        const int h = stats.at<int32_t>(l, cv::CC_STAT_HEIGHT);
+        if (x == 0 || y == 0 || x + w == region.cols || y + h == region.rows)
+            continue;   // beroerer kanten -> bezel/omgivelse, ikke bull
+        // NB: INGEN form-filter her. Forsoekt (fyllgrad/aspekt for aa skille
+        // bull fra moerke kabinetter i monitor-testing) - det FORKASTET C3/C7:
+        // en fullskutt bull er full av HVITE markoerhull og feiler ethvert
+        // soliditetskrav. Ekte ytelse > testoppsett-artefakter (brukerkrav).
         const int area = stats.at<int32_t>(l, cv::CC_STAT_AREA);
         if (area > best_area) {
             best_area = area;
-            best_w = stats.at<int32_t>(l, cv::CC_STAT_WIDTH);
+            best_w = w;
         }
     }
     return static_cast<double>(best_w) / frame_width;
