@@ -165,8 +165,10 @@ struct AutoCaptureParams {
     double min_coverage            = 0.80;  // andel av ROI-boks innenfor frame m/margin
     // Krav om stoerrelse: felttest (app_C4) viste at liten skjerm i bildet
     // gir ~35-40px ringavstand -> faerre kalibrerte ringer + systematisk
-    // desimalskift. Apparat-ROI maa dekke en god andel av framebredden.
-    double min_roi_width_frac      = 0.45;  // UKALIBRERT: ROI-bredde / framebredde
+    // desimalskift. Apparat-ROI maa dekke mesteparten av framebredden
+    // (0.45 var for slapt - brukeren vil ha rammen FYLT; juster mot str= i
+    // debug-overlayet hvis 0.80 viser seg vanskelig aa naa).
+    double min_roi_width_frac      = 0.80;  // ROI-bredde / framebredde
     double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };

@@ -49,6 +49,19 @@ PORT-LAERDOMMER (IKKE GJENTA FEILSOEKINGEN):
   6. Auto-capture: FrameProbe (kontrast-ROI+skarphet+eksponering+dekning) +
      tilstandsmaskin. ALLE terskler UKALIBRERTE (kravspec-krav).
 
+FELTTEST PAA TELEFON (2026-07-07, paagaar):
+  Appen kjoerer paa telefon (16 kB-fiks: CameraX 1.5.1 + compileSdk 36).
+  Rapportert: treff mangler / desimalfeil (test = fotografere testbilder fra
+  PC-skjerm - moire/glare er mistenkt, MEN ogsaa rotasjonsbug funnet og fikset:
+  toBitmap() ignorerer rotationDegrees -> kjernen fikk 90-graders roterte bilder).
+  Auto-capture broet etter CameraX 1.5-oppgradering - IKKE loest blindt;
+  instrumentert i stedet: eksplisitt YUV_420_888 (1.5-default-mistanke),
+  live probe-verdier paa capture-skjermen + logcat-tag BestefarCapture.
+  Alle captures lagres naa: JPEG -> Pictures/Bestefar (galleri),
+  JSON-sidecar -> Android/data/no.bestefar.app/files/captures/.
+  FEILSOEKINGSLOOP: hent bilder fra telefon -> kjoer core\build\bestefar_cli.exe
+  paa dem / Python-pipeline -> sammenlign. Neste: bruker tester ny build.
+
 MPI-FIRKANT-BESLUTNING (2026-07-05): IKKE wiret inn i porten. Kravspec §3
 deprioriterer den; egne maalinger viser offset<=0.15*delta paa ALLE C-bilder
 (inkl. C3 med faktisk skjult treff) => ~0 marginalverdi naa. aux-utvidelses-

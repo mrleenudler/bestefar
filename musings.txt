@@ -2,13 +2,29 @@ First: Delete old outputs
 
 Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
 
+Testing with the app: 
+I'm testing by photographing the test images from my computer screen.
+The verdict is as of now, that not all hits are identified, and many hits have decimal errors in their score. 
+
+I think we need to save the images captured and analyze them. 
+
+Also, the capture screen is a bit unfriendly. The frame should be 4:3, as the apparatus screen. 
+IMHO we should encourage the image being taken horizontally, for better resolution. 
+When the capture is taken, we can make the frame glow with a massige of "hold still", and the classic brief white flash on the screen when the image is captured. 
+
+The good news is that the algo is very efficient, and there is no annoying delay to speak of.
+
+Interesting. After your 16kB fix, the auto-capture is broken.
+
+------------------------------------------------------------
+
+Notes about the cluster center square: Ignored for now. 
 
 There is now more variability in the accuracy of the square. 
 Some are idintified with ebtter precision, and some with worse thatn the previous run. 
 C6 is misidentified, a half square too low, which is weired, since there is no lower horizontal bar distractor there, and the top bare is clearly visible. 
 It might have been the side bars that gave a too strong signal. 
 The detection outputs, I can't gain much insight out of, unfortunately. They are kind of messy. Can you explain what the colored min() image is showing?
-
 
 
   1. Structural validation of top-N candidates (your "check several candidates until one matches"): at wide ROI, take the top few min(V,H) peaks and accept
@@ -26,5 +42,5 @@ Output: Same, + visuals I sohould  verify. Don't trust your own vision.
 -----------------
 
 For later: 
-Efficiency improvement: Remove double crop/skew correction.
-Identify cluster center square for inferring hidden hits. (i progress)
+Efficiency improvement: Remove double crop/skew correction. (Probably not necessary)
+Identify cluster center square for inferring hidden hits. (in progress)

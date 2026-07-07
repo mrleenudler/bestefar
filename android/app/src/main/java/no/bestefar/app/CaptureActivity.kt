@@ -163,7 +163,7 @@ class CaptureActivity : AppCompatActivity() {
 
                 val name = "bestefar_" + SimpleDateFormat("yyyyMMdd_HHmmss",
                                                           Locale.US).format(Date(ts))
-                saveJpegToGallery(jpeg, name)
+                val galleryUri = saveJpegToGallery(jpeg, name)
 
                 // Dekod + roter til visningsorientering FOER analyse:
                 // toBitmap()/dekoding tar IKKE hensyn til rotationDegrees.
@@ -181,6 +181,23 @@ class CaptureActivity : AppCompatActivity() {
                     buf.array(), bmp.width, bmp.height, bmp.rowBytes,
                     BestefarCore.FMT_RGBA8, ts)
                 saveResultSidecar(name, result, rotation)
+
+                // Doep om galleri-bildet med fasiten, saa antall treff + sum
+                // er synlig rett i galleriet (JSON-sidecaren er vanskelig aa
+                // naa uten adb).
+                if (galleryUri != null) {
+                    val verdict = if (result.isOk)
+                        "${result.hits.size}treff_sum${result.sumInteger}"
+                    else "avvist${result.status}"
+                    try {
+                        contentResolver.update(galleryUri, ContentValues().apply {
+                            put(MediaStore.Images.Media.DISPLAY_NAME,
+                                "${name}_$verdict.jpg")
+                        }, null, null)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "kunne ikke doepe om galleri-bilde", e)
+                    }
+                }
 
                 startActivity(Intent(this@CaptureActivity, ResultActivity::class.java)
                     .putExtra(ResultActivity.EXTRA_STATUS, result.status)
@@ -200,9 +217,10 @@ class CaptureActivity : AppCompatActivity() {
         })
     }
 
-    /** Lagre raa JPEG i galleriet (Pictures/Bestefar) — hentbar via Filer/adb. */
-    private fun saveJpegToGallery(jpeg: ByteArray, name: String) {
-        try {
+    /** Lagre raa JPEG i galleriet (Pictures/Bestefar). Returnerer URI (for
+     *  omdoeping med analyse-fasit etterpaa) eller null. */
+    private fun saveJpegToGallery(jpeg: ByteArray, name: String): android.net.Uri? {
+        return try {
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, "$name.jpg")
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
@@ -216,8 +234,10 @@ class CaptureActivity : AppCompatActivity() {
                 contentResolver.openOutputStream(uri)?.use { it.write(jpeg) }
                 Log.i(TAG, "lagret $name.jpg i Pictures/Bestefar")
             }
+            uri
         } catch (e: Exception) {
             Log.e(TAG, "kunne ikke lagre bilde", e)
+            null
         }
     }
 
