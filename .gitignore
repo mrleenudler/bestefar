@@ -17,5 +17,11 @@ android/app/build/
 android/app/.cxx/
 android/build/
 android_studio_prosess.txt
+
+# Signering: ALDRI sjekk inn noekler/passord (mister du keystoren kan
+# appen ikke oppdateres under samme identitet - ta backup utenfor repoet!)
+android/bestefar-release.keystore
+android/keystore.properties
+dist/
 backend/bestefar.db
 backend/__pycache__/

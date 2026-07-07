@@ -1,8 +1,18 @@
 // AGP 9+ har INNEBYGD Kotlin — org.jetbrains.kotlin.android skal IKKE brukes.
 // kotlinOptions{} er erstattet av kotlin.compilerOptions{}; jvmTarget arver
 // android.compileOptions.targetCompatibility, saa den trengs ikke her.
+import java.util.Properties
+
 plugins {
     id("com.android.application")
+}
+
+// Release-signering: noekler/passord lever i android/keystore.properties +
+// android/bestefar-release.keystore - begge GITIGNORERT. Ta backup av begge
+// utenfor repoet; mistes keystoren kan appen ikke oppdateres paa enheter.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -34,9 +44,23 @@ android {
         }
     }
 
+    signingConfigs {
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (keystoreProps.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
