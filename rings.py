@@ -32,8 +32,12 @@ def warp_polar_gray(gray, center, r_max, r_samples, theta_samples):
 
 
 def radial_gradient_abs(P, sigma_rho):
-    """Absolutt radiell gradient av polarbildet (Sobel langs rho-aksen)."""
-    Pb = cv2.GaussianBlur(P, (0, 0), sigmaX=sigma_rho, sigmaY=1.0)
+    """Absolutt radiell gradient av polarbildet (Sobel langs rho-aksen).
+    sigma_rho<=0 => ingen glatting langs radius (kun Sobel ksize=3)."""
+    if sigma_rho and sigma_rho > 0:
+        Pb = cv2.GaussianBlur(P, (0, 0), sigmaX=sigma_rho, sigmaY=1.0)
+    else:
+        Pb = P
     g = cv2.Sobel(Pb, cv2.CV_32F, 1, 0, ksize=3)
     return np.abs(g)
 
@@ -141,6 +145,103 @@ def fit_ring_progression(peak_rho, delta0, cfg):
     }
 
 
+def fit_equidistant_comb(H, cfg):
+    """
+    Robust ekvidistant ring-comb (v2).
+
+    Idé (etter brukerens 'fyll opp nedenfra'): bruk TOPOGRAFISK PROMINENS for å
+    velge robuste topper (persistens - hvor høyt 'vannet' stiger før en øy
+    smelter inn i en høyere). Tilpass så en ekvidistant comb med TAK på antall
+    ringer (<= comb_max_rings), forankret på de sterke ytre toppene. Score =
+    sum av forklart topp-prominens, minus straff for hoppede sterke topper
+    (oktav-for-stor) og tomme tenner (for-liten avstand), vektet med spenn.
+    Returnerer dict kompatibel med fit_ring_progression eller None.
+    """
+    from scipy.signal import find_peaks
+    from scipy.ndimage import gaussian_filter1d
+    H = np.asarray(H, dtype=np.float64)
+    n = len(H)
+    if n < 10 or H.max() <= 0:
+        return None
+
+    # Glatt profilen slik at hver ring blir ÉN topp: dobbeltkanter (~strekbredde)
+    # og skjev-duppeltopper (~0.45*avstand) smelter sammen. Bredden er en andel
+    # av radien (skala-invariant, uavhengig av oktav-utsatt autokorrelasjon).
+    sm = cfg.get('comb_smooth_frac', 0.02) * n
+    if sm >= 0.5:
+        H = gaussian_filter1d(H, sm)
+
+    prom_min = cfg.get('comb_prom_frac', 0.04) * float(H.max())
+    d_rough = estimate_spacing_autocorr(H, max(4, int(0.02 * n)), int(0.30 * n)) or 40.0
+    min_dist = max(int(cfg.get('comb_min_dist_bins', 6)),
+                   int(cfg.get('comb_min_dist_frac', 0.35) * d_rough))
+    pk, props = find_peaks(H, prominence=prom_min, distance=min_dist)
+    if len(pk) < cfg.get('comb_min_rings', 4):
+        return None
+    pk = pk.astype(np.float64)
+    prom = props['prominences'].astype(np.float64)
+
+    # ignorer senter-klynge (markører/kors)
+    keep = pk > cfg.get('comb_inner_ignore_frac', 0.04) * n
+    pk, prom = pk[keep], prom[keep]
+    if len(pk) < cfg.get('comb_min_rings', 4):
+        return None
+
+    strong_thr = cfg.get('comb_strong_frac', 0.5) * float(prom.max())
+    strong = pk[prom >= strong_thr]
+    r_out = float(strong.max()) if len(strong) else float(pk.max())
+    r_in = float(pk.min())
+
+    max_teeth = int(cfg.get('comb_max_rings', 11))
+    min_rings = int(cfg.get('comb_min_rings', 4))
+    delta_min = max(cfg.get('comb_delta_min_bins', 25.0), r_out / max_teeth)
+    delta_max = r_out / min_rings
+    if delta_max <= delta_min:
+        return None
+
+    med_prom = float(np.median(prom))
+    w_empty = cfg.get('comb_empty_penalty', 0.5)
+    w_skip = cfg.get('comb_skip_penalty', 1.0)
+    tol_frac = cfg.get('comb_tol_frac', 0.18)
+    best = None
+    for delta in np.arange(delta_min, delta_max + 1e-9, 1.0):
+        tol = tol_frac * delta
+        phases = np.unique(np.round(pk % delta))
+        for phase in phases:
+            kmax = int((r_out - phase) / delta)
+            if kmax + 1 > max_teeth or kmax + 1 < min_rings:
+                continue
+            teeth = phase + np.arange(0, kmax + 1) * delta
+            teeth = teeth[teeth >= 0.4 * delta]
+            if len(teeth) < min_rings:
+                continue
+            explained = 0.0
+            n_empty = 0
+            used = np.zeros(len(pk), dtype=bool)
+            for t in teeth:
+                d = np.abs(pk - t)
+                j = int(np.argmin(d))
+                if d[j] <= tol:
+                    explained += prom[j]
+                    used[j] = True
+                else:
+                    n_empty += 1
+            skipped = float(prom[(~used) & (prom >= strong_thr)].sum())
+            span = (teeth[-1] - teeth[0]) / (r_out - r_in + 1e-9)
+            score = (explained - w_empty * n_empty * med_prom - w_skip * skipped)
+            score *= (0.5 + 0.5 * min(span, 1.0))
+            if best is None or score > best[0]:
+                best = (score, float(delta), float(phase), teeth.copy())
+
+    if best is None:
+        return None
+    _, delta, phase, teeth = best
+    rho = teeth[::-1].astype(np.float64)               # ytterst først
+    k = np.round((rho[0] - rho) / delta).astype(int)
+    return {'a': float(rho[0]), 'delta': float(delta),
+            'k': k, 'inlier': np.ones(len(rho), dtype=bool), 'rho': rho}
+
+
 def _fit_harmonics(theta, x, w, n_reject_rounds, reject_sigma):
     """
     Robust LSQ av x(theta) = C + B1 sin + D1 cos + B2 sin2 + D2 cos2.
@@ -221,8 +322,22 @@ def calibrate_and_refine(gray, center0, r_outer_est, cfg, debug_lines=None):
     sigma_rho = cfg.get('ring_rho_sigma', 3.0)
     n_iters = cfg.get('ring_refine_iters', 4)
 
+    pre_sigma = cfg.get('ring_pre_blur_sigma', 0.0)
+    if pre_sigma > 0:
+        gray = cv2.GaussianBlur(gray, (0, 0), pre_sigma)  # demp moiré/aliasing
+
     center = (float(center0[0]), float(center0[1]))
-    r_max = cfg.get('ring_r_max_frac', 1.06) * float(r_outer_est)
+    base_r_max = cfg.get('ring_r_max_frac', 1.06) * float(r_outer_est)
+    if cfg.get('ring_generous_rmax', True):
+        # Generøs r_max: ta med de hvite ytre ringene selv om grov-radius bommer
+        # innover. Begrens til nær bildekant. Aldri mindre enn standard.
+        h_, w_ = gray.shape
+        r_edge = min(center[0], w_ - center[0], center[1], h_ - center[1])
+        r_max = max(base_r_max,
+                    min(cfg.get('ring_generous_mult', 2.6) * float(r_outer_est),
+                        cfg.get('ring_generous_edge_frac', 0.95) * r_edge))
+    else:
+        r_max = base_r_max
     r_samples = int(round(r_max))  # ~1 px per rho-bin
     rho_scale = r_max / r_samples
 
@@ -232,21 +347,27 @@ def calibrate_and_refine(gray, center0, r_outer_est, cfg, debug_lines=None):
         G = radial_gradient_abs(P, sigma_rho)
         H = G.mean(axis=0)
 
-        # Avstandsestimat + topper
-        delta0 = estimate_spacing_autocorr(
-            H, min_lag=int(0.03 * r_samples), max_lag=int(0.35 * r_samples))
-        if delta0 is None:
-            log(f"iter {it}: autokorrelasjon feilet")
-            return None
-        peaks = find_profile_peaks(
-            H, cfg.get('ring_peak_min_frac', 0.12),
-            min_sep=max(3, int(cfg.get('ring_peak_min_sep_frac', 0.4) * delta0)))
-        # Ignorer topper helt inntil senteret (senterkors/markørklynge)
-        peaks = [p for p in peaks if p[0] > 0.4 * delta0]
-        fit = fit_ring_progression([p[0] for p in peaks], delta0, cfg)
-        if fit is None:
-            log(f"iter {it}: progresjonstilpasning feilet ({len(peaks)} topper)")
-            return None
+        # Ring-comb: ny prominens/ekvidistant-modell (v2) eller gammel progresjon
+        if cfg.get('ring_comb_v2', False):
+            fit = fit_equidistant_comb(H, cfg)
+            if fit is None:
+                log(f"iter {it}: comb-v2 fant ingen ekvidistant ring-comb")
+                return None
+        else:
+            delta0 = estimate_spacing_autocorr(
+                H, min_lag=int(0.03 * r_samples), max_lag=int(0.35 * r_samples))
+            if delta0 is None:
+                log(f"iter {it}: autokorrelasjon feilet")
+                return None
+            peaks = find_profile_peaks(
+                H, cfg.get('ring_peak_min_frac', 0.12),
+                min_sep=max(3, int(cfg.get('ring_peak_min_sep_frac', 0.4) * delta0)))
+            # Ignorer topper helt inntil senteret (senterkors/markørklynge)
+            peaks = [p for p in peaks if p[0] > 0.4 * delta0]
+            fit = fit_ring_progression([p[0] for p in peaks], delta0, cfg)
+            if fit is None:
+                log(f"iter {it}: progresjonstilpasning feilet ({len(peaks)} topper)")
+                return None
 
         # Per-ring harmonisk tilpasning -> senterkorreksjon
         band_frac = 0.25 if it == 0 else 0.15
@@ -320,6 +441,20 @@ def calibrate_and_refine(gray, center0, r_outer_est, cfg, debug_lines=None):
     A = np.column_stack([np.ones_like(v_arr), (10.0 - v_arr)])
     coef, *_ = np.linalg.lstsq(A, r_arr, rcond=None)
     R10_px, delta_fit = float(coef[0]), float(coef[1])
+
+    # Absolutt verdi-forankring: "ytterste detekterte ring = ring 1" feiler når
+    # ring 1 er svak/avskåret (da er ytterste egentlig ring 2). Fysisk invariant:
+    # innerste poengring (10) ligger ~én ringavstand fra senteret -> R10 ~= delta.
+    # Velg heltalls-forskyvning av ringverdiene som bringer R10 nærmest delta.
+    if cfg.get('ring_anchor_R10_eq_delta', True) and delta_fit > 1e-6:
+        ratio = cfg.get('ring_R10_over_delta', 1.0)
+        off = int(round(ratio - R10_px / delta_fit))
+        if off != 0:
+            ring_values = [v + off for v in ring_values]
+            ring_radii = list(ring_radii)
+            ring_harm = [(v + off, b, rm, cv) for (v, b, rm, cv) in ring_harm]
+            R10_px = R10_px + off * delta_fit
+            log(f"verdi-forankring: forskjøv ringverdier med {off:+d} (R10~=delta)")
 
     log(f"Ringer (verdi: radius): " +
         ", ".join(f"{v}: {r:.1f}" for v, r in zip(ring_values, ring_radii)))

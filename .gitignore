@@ -1,3 +1,18 @@
 .venv/
 .Bestefar/
 .vscode/
+Testsett/
+Visualiseringer/
+__pycache__/
+Real 1.jpg
+Real 1 med senter markert.jpg
+.claude/
+
+# Mobil-port: byggeartefakter
+core/build/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+backend/bestefar.db
+backend/__pycache__/

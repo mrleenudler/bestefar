@@ -57,7 +57,7 @@ Runde 2:
 -> Finne senter: Mulighet: Kan ta utgangspunkt i NMS-sirkelen og finne midtpunktet mellom max(x) og min(x), og deretter ta punktpar for punktpar over en halv sirkel. 
 	Gjennomsnitt av sentrene definerer final center
 
-Nedkalering er viktig
+Nedskalering er viktig
 	* Hvilken nedskalieringsmetode bevarer poengringene best? -> Arealbasert?
 	* Aktuelt med en morfologisk "lukking"?
 

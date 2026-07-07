@@ -1,0 +1,30 @@
+First: Delete old outputs
+
+Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
+
+
+There is now more variability in the accuracy of the square. 
+Some are idintified with ebtter precision, and some with worse thatn the previous run. 
+C6 is misidentified, a half square too low, which is weired, since there is no lower horizontal bar distractor there, and the top bare is clearly visible. 
+It might have been the side bars that gave a too strong signal. 
+The detection outputs, I can't gain much insight out of, unfortunately. They are kind of messy. Can you explain what the colored min() image is showing?
+
+
+
+  1. Structural validation of top-N candidates (your "check several candidates until one matches"): at wide ROI, take the top few min(V,H) peaks and accept
+  the one that actually has three evenly-spaced ridges in both orientations (verifiable from the column/row profiles). Rings and numerals fail that structural
+  test even when their NCC is comparable — so this gives a clean accept/reject and stabilizes C4's leave-one-out. This is the principled fix for both soft
+  spots.
+Yeah, let's try this.
+  2. Reframe around the offset: since location is already trustworthy, use square_centre − detected-centroid directly as the hidden-hit trigger, with only a
+  light "is a square present at all" gate. Simpler, but needs that presence gate to avoid hallucinating an offset on unshot/single-shot targets.
+Not really sure what you mean here. Can you elaborate?
+
+
+Output: Same, + visuals I sohould  verify. Don't trust your own vision.
+
+-----------------
+
+For later: 
+Efficiency improvement: Remove double crop/skew correction.
+Identify cluster center square for inferring hidden hits. (i progress)

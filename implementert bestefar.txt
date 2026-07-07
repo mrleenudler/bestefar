@@ -9,11 +9,9 @@ IMPLEMENTERT:
 *Scharr(?) for gradienter
 * Polartransform
 * Tegner ridge på gradentene til ytterste sirkel i polartasnform-
-* FORSØKER Å TILPASSE SINUSOID TIL RIDGE FOR JUSTERING AV SENTRUM
+* Tilpasser sinusoid til polarbilde for justering av senter og skew
 
-* Indre poengsirkler er deaktivert
-* Finner sentrum for blinken med RANSAC-aktig metode -> BRITTLE!
-	* Bruker gradientene for (ytterste) sirkel og voter på course center
+* Bruker gradientene for (ytterste) sirkel og voter på course center
 * Bruker non maximum suppression på ytterste ring, og least squares på punktsettet for å finne refined center
 
 RUNDE 3 (treff og poeng):

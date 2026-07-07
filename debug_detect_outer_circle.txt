@@ -1,24 +1,27 @@
 === Pass 1 (coarse center) ===
 Points: 12000
-Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(4034), 'cross_reject': np.int64(4087), 'dist_reject': np.int64(1414), 'oob_reject': np.int64(7042), 'votes_cast': 23423, 'peak_value': 1904.3509521484375}
-Center: (286.65, 502.09)
+Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(4140), 'cross_reject': np.int64(3995), 'dist_reject': np.int64(1409), 'oob_reject': np.int64(5787), 'votes_cast': 24669, 'peak_value': 1628.53564453125}
+Center: (495.34, 383.27)
 
 === Pass 1 histogram peaks ===
-Accepted peaks: 6
-  Peak at r=255.50, FWHM=[251.00, 259.00], coverage=0.900
-  Peak at r=230.50, FWHM=[225.00, 235.00], coverage=0.983
-  Peak at r=204.50, FWHM=[199.00, 209.00], coverage=0.975
-  Peak at r=178.50, FWHM=[174.00, 184.00], coverage=0.950
-  Peak at r=100.50, FWHM=[97.00, 106.00], coverage=0.883
-  Peak at r=77.50, FWHM=[70.00, 83.00], coverage=0.875
-r_pass1_peak_px: 255.50
+Accepted peaks: 9
+  Peak at r=364.50, FWHM=[361.00, 369.00], coverage=0.883
+  Peak at r=329.50, FWHM=[324.00, 335.00], coverage=0.992
+  Peak at r=293.50, FWHM=[288.00, 298.00], coverage=0.992
+  Peak at r=256.50, FWHM=[251.00, 262.00], coverage=0.992
+  Peak at r=219.50, FWHM=[215.00, 224.00], coverage=0.983
+  Peak at r=183.50, FWHM=[178.00, 188.00], coverage=0.950
+  Peak at r=145.50, FWHM=[141.00, 149.00], coverage=0.908
+  Peak at r=108.50, FWHM=[104.00, 116.00], coverage=0.892
+  Peak at r=73.50, FWHM=[68.00, 80.00], coverage=0.833
+r_pass1_peak_px: 364.50
 
 === Pass 2 (precise center) ===
-Points: 1695
-Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(3866), 'cross_reject': np.int64(6742), 'dist_reject': np.int64(0), 'oob_reject': np.int64(0), 'votes_cast': 29392, 'peak_value': 8616.25}
-Center: (282.21, 504.80)
+Points: 3351
+Voting stats: {'sampled_pairs': 40000, 'parallel_reject': np.int64(3899), 'cross_reject': np.int64(6608), 'dist_reject': np.int64(0), 'oob_reject': np.int64(14), 'votes_cast': 29479, 'peak_value': 3372.500244140625}
+Center: (499.19, 379.34)
 
-Final center (downscaled): (282.21, 504.80)
-Final center (original): (1087.45, 1945.17)
-Final radius (downscaled): 257.50
-Final radius (original): 992.23
+Final center (downscaled): (499.19, 379.34)
+Final center (original): (1091.97, 829.80)
+Final radius (downscaled): 366.50
+Final radius (original): 801.72

@@ -19,6 +19,7 @@ import rings
 import hits as hits_mod
 import scoring
 import perspektiv
+import screen
 
 
 def build_thinned_pointset_outermost_ring(mag_nms, mag_raw, gx, gy, c_start, peak_info, cfg):
@@ -388,7 +389,44 @@ def detect_outer_circle(img_bgr, cfg, debug=False, filename="unknown"):
 def analyze_target(img_bgr, cfg, debug=False, filename="unknown",
                    center0=None, r_est=None):
     """
-    Full analyse: senter -> ringkalibrering -> perspektivretting ->
+    Skjermdeteksjon-frontend + kjerneanalyse.
+
+    Hvis aktivert (og uten eksternt oppgitt startsenter): finn skjermen, rett
+    perspektiv og beskjær, kjør analysen på det rettede skjermbildet, og kartlegg
+    resultatene tilbake til originalfotoets koordinater. Faller tilbake til hele
+    originalbildet hvis skjerm ikke finnes eller den rettede analysen forkastes.
+    """
+    if cfg.get('screen_rectify_enable', True) and center0 is None and r_est is None:
+        screen_res = screen.rectify_to_screen(img_bgr, cfg, debug_lines=[])
+        if screen_res is not None:
+            warped, M_screen = screen_res[0], screen_res[1]
+            try:
+                out = _analyze_core(warped, cfg, debug=debug, filename=filename)
+                c = perspektiv.transform_points_inverse([out['center_orig']], M_screen)[0]
+                out['center_orig'] = (float(c[0]), float(c[1]))
+                for res in out['results']:
+                    p = perspektiv.transform_points_inverse(
+                        [(res['x_orig'], res['y_orig'])], M_screen)[0]
+                    res['x_orig'], res['y_orig'] = float(p[0]), float(p[1])
+                out['M_screen'] = M_screen
+                out['debug_lines'].insert(0, "Skjerm rektifisert og beskåret")
+                return out
+            except ValueError:
+                if not cfg.get('analyze_screen_fallback', True):
+                    raise  # ikke fall tilbake -> forkast (krev gyldig skjermutklipp)
+                # ellers: fall tilbake til hele originalbildet
+    out = _analyze_core(img_bgr, cfg, debug=debug, filename=filename,
+                        center0=center0, r_est=r_est)
+    out['M_screen'] = None
+    return out
+
+
+def _analyze_core(img_bgr, cfg, debug=False, filename="unknown",
+                  center0=None, r_est=None):
+    """
+    Kjerneanalyse på et gitt bilde. Koordinater ('center_orig', 'x_orig'/'y_orig')
+    er i rammen til img_bgr som sendes inn.
+    Steg: senter -> ringkalibrering -> perspektivretting ->
     rekalibrering -> treffdeteksjon -> poeng.
 
     Args:
@@ -506,15 +544,33 @@ def visualize_analysis(img_bgr, analysis, cfg):
     vis = img_bgr.copy()
     calib = analysis['calib']
     H = analysis.get('H')
+    M_screen = analysis.get('M_screen')
     cx, cy = calib['center']
 
+    # Tegn HELE det ekstrapolerte ringsettet 1-10 (R(v)=R10+(10-v)*delta), ikke
+    # bare de detekterte. Ring 1 (ytterst) magenta, detekterte ringer grønt,
+    # ekstrapolerte (ikke detektert) cyan - uten svart ramme (lettere a lese).
+    R10 = calib['R10_px']; dlt = calib['delta_px']
+    detected = set(int(round(v)) for v in calib['ring_values'])
+    cyan = (255, 255, 0)
     theta = np.linspace(0.0, 2.0 * np.pi, 360)
-    for r in calib['ring_radii_px']:
+    for v in range(1, 11):
+        r = R10 + (10 - v) * dlt
+        if r <= 0:
+            continue
         pts = np.column_stack([cx + r * np.cos(theta), cy + r * np.sin(theta)])
         if H is not None:
-            pts = perspektiv.transform_points_inverse(pts, H)
+            pts = perspektiv.transform_points_inverse(pts, H)        # -> arbeidsramme
+        if M_screen is not None:
+            pts = perspektiv.transform_points_inverse(pts, M_screen)  # -> originalfoto
+        if v == 1:
+            col = cfg['color_magenta']
+        elif v in detected:
+            col = cfg['color_green']
+        else:
+            col = cyan
         cv2.polylines(vis, [pts.round().astype(np.int32)], isClosed=True,
-                      color=cfg['color_green'], thickness=1)
+                      color=col, thickness=3)
 
     cox, coy = analysis['center_orig']
     cv2.drawMarker(vis, (int(round(cox)), int(round(coy))), cfg['color_magenta'],

@@ -14,6 +14,9 @@ senterprikk-raffinering.
 import cv2
 import numpy as np
 
+import circles as circle_det
+import overlap as overlap_mod
+
 
 def _annulus_percentile(gray, cx, cy, r_in, r_out, q):
     """Intensitets-persentil q i annulus [r_in, r_out] rundt (cx, cy)."""
@@ -153,6 +156,18 @@ def _refine_on_dot(gray, cx, cy, dot_r, marker_type):
     return float(x0 + np.sum(xx * wgt) / s), float(y0 + np.sum(yy * wgt) / s)
 
 
+def _refine_white(gray, x, y, marker_r, dot_r):
+    """Raffiner hvit-sone-kandidat: velg polaritet etter prikken (filled = moerk
+    senterprikk, outline = lys senterprikk) og sentrer paa den."""
+    disc = _annulus_percentile(gray, x, y, marker_r * 0.35, marker_r * 0.75, 50)
+    dot = _annulus_percentile(gray, x, y, 0.0, dot_r * 0.7, 50)
+    mtype = 'filled' if (disc is not None and dot is not None and dot <= disc) else 'outline'
+    rx, ry = _refine_on_dot(gray, x, y, dot_r, mtype)
+    if np.hypot(rx - x, ry - y) > dot_r * 1.5:
+        rx, ry = x, y
+    return rx, ry, mtype
+
+
 def detect_hits(gray, calib, cfg, debug_lines=None):
     """
     Finn alle treffmarkører.
@@ -172,11 +187,55 @@ def detect_hits(gray, calib, cfg, debug_lines=None):
 
     cx0, cy0 = calib['center']
     delta = calib['delta_px']
-    r1 = max(calib['ring_radii_px']) if calib['ring_radii_px'] else 10 * delta
-    search_r = cfg.get('hit_search_r_max_frac', 1.05) * r1
+    R10 = calib['R10_px']
+    # Soeke-ROI helt UT til utenfor ytterste poengring (verdi 1). Bruk comb-en
+    # (ekstrapolert: R10 + 9*delta), ikke bare ytterste DETEKTERTE ring - den ligger
+    # ofte lenger inne, slik at ROI-grensen ellers havner inni 1-poengsbaandet.
+    r_ring1 = R10 + 9.0 * delta
+    search_r = cfg.get('hit_search_r_max_frac', 1.05) * r_ring1
 
     marker_r = cfg.get('hit_marker_radius_frac', 0.41) * delta
     dot_r = cfg.get('hit_dot_radius_frac', 0.105) * delta
+
+    # Enhetlig stemme-detektor over HELE skiva (erstatter HoughCircles + det
+    # separate hvit-sone-passet). Retnings-gatingen fjerner de konsentriske
+    # poengringene (ogsaa de svarte i bull), saa markorene staar igjen overalt.
+    if cfg.get('hit_unified_detector', False):
+        inner_r = cfg.get('hit_unified_inner_frac', 0.0) * delta
+        circ = circle_det.detect_circles(gray, (cx0, cy0), search_r, marker_r, dot_r,
+                                          cfg, inner_r=inner_r)
+        hits = []
+        for (X, Y, vscore) in circ:
+            rx, ry, mtype = _refine_white(gray, X, Y, marker_r, dot_r)
+            hits.append({'x': rx, 'y': ry, 'type': mtype,
+                         'score': float(vscore), 'hough_r': marker_r})
+        log(f"Enhetlig stemme-detektor: {len(circ)} kandidater (markor_r={marker_r:.1f}px)")
+        min_dist = cfg.get('hit_min_dist_frac', 0.6) * marker_r
+        hits.sort(key=lambda t: -t['score'])
+        kept = []
+        for t in hits:
+            if all(np.hypot(t['x'] - k['x'], t['y'] - k['y']) >= min_dist for k in kept):
+                kept.append(t)
+        log(f"Treff etter dedup: {len(kept)}")
+        for t in kept:
+            log(f"  ({t['x']:.1f}, {t['y']:.1f}) type={t['type']} score={t['score']:.2f}")
+        # Overlapp-pass maa kjore ogsaa etter enhetlig detektor
+        if cfg.get('hit_overlap_pass', True):
+            extra = overlap_mod.find_overlap_hits(gray, kept, calib, cfg)
+            if extra:
+                log(f"Overlapp-pass (enhetlig): {len(extra)} nye kandidater funnet")
+                for e in extra:
+                    log(f"  ({e['x']:.1f}, {e['y']:.1f}) ncc={e['score']:.2f}")
+                kept.extend(extra)
+        # Sentrum-sveip: template-scan over bull-sonen for radialt undertrykte treff
+        if cfg.get('hit_center_scan', True):
+            extra = overlap_mod.find_center_hits(gray, kept, calib, cfg)
+            if extra:
+                log(f"Sentrum-sveip: {len(extra)} nye kandidater funnet")
+                for e in extra:
+                    log(f"  ({e['x']:.1f}, {e['y']:.1f}) ncc={e['score']:.2f}")
+                kept.extend(extra)
+        return kept
 
     h, w = gray.shape
     x0 = max(0, int(cx0 - search_r)); x1 = min(w, int(cx0 + search_r) + 1)
@@ -224,6 +283,23 @@ def detect_hits(gray, calib, cfg, debug_lines=None):
             continue
         hits.append(best)
 
+    # Hvit-sone-pass: maalrettet sirkeldetektor (circles.py) for de svake graa
+    # markorene i lyssonen som Hough ikke foreslaar. Stemme-gating (kompletthet +
+    # stoerrelse + retning) er validering nok; vi raffinerer kun senter + polaritet.
+    if cfg.get('hit_white_zone_pass', True):
+        inner_r = cfg.get('hit_white_inner_frac', 3.4) * delta
+        # Den globale circ_acc_blur_frac er senket til 0.06 for at den enhetlige
+        # detektoren skal skille tette bull-klynger; det over-detekterer i hvit-
+        # sonen. Denne (eldre, naa superseded) stien bruker sin egen hoeyere blur.
+        cfg_white = dict(cfg, circ_acc_blur_frac=cfg.get('hit_white_blur_frac', 0.12))
+        circ = circle_det.detect_circles(gray, (cx0, cy0), search_r, marker_r, dot_r,
+                                          cfg_white, inner_r=inner_r)
+        for (X, Y, vscore) in circ:
+            rx, ry, mtype = _refine_white(gray, X, Y, marker_r, dot_r)
+            hits.append({'x': rx, 'y': ry, 'type': mtype,
+                         'score': float(vscore), 'hough_r': marker_r})
+        log(f"Hvit-sone-pass: {len(circ)} kandidater (innenfor {inner_r:.0f}px ekskludert)")
+
     # Dedupliser: behold høyest score innen min avstand
     min_dist = cfg.get('hit_min_dist_frac', 0.6) * marker_r
     hits.sort(key=lambda t: -t['score'])
@@ -231,6 +307,24 @@ def detect_hits(gray, calib, cfg, debug_lines=None):
     for t in hits:
         if all(np.hypot(t['x'] - k['x'], t['y'] - k['y']) >= min_dist for k in kept):
             kept.append(t)
+
+    # Overlapp-pass: template-matching for delvis-skjulte treff naer eksisterende.
+    # Trigges kun hvis antall treff < hit_overlap_trigger (default 10).
+    if cfg.get('hit_overlap_pass', True):
+        extra = overlap_mod.find_overlap_hits(gray, kept, calib, cfg)
+        if extra:
+            log(f"Overlapp-pass: {len(extra)} nye kandidater funnet")
+            for e in extra:
+                log(f"  ({e['x']:.1f}, {e['y']:.1f}) ncc={e['score']:.2f}")
+            kept.extend(extra)
+    # Sentrum-sveip: template-scan over bull-sonen for radialt undertrykte treff
+    if cfg.get('hit_center_scan', True):
+        extra = overlap_mod.find_center_hits(gray, kept, calib, cfg)
+        if extra:
+            log(f"Sentrum-sveip: {len(extra)} nye kandidater funnet")
+            for e in extra:
+                log(f"  ({e['x']:.1f}, {e['y']:.1f}) ncc={e['score']:.2f}")
+            kept.extend(extra)
 
     log(f"Treff etter validering/dedup: {len(kept)}")
     for t in kept:
