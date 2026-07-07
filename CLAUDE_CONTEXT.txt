@@ -1,0 +1,253 @@
+====================================================================
+PROSJEKT-KONTEKST FOR MODELL ETTER /compact ELLER /clear
+Oppdater filen naar ny info dukker opp. Dato: 2026-07-06
+====================================================================
+
+PROSJEKT: Bestefar
+Maalet: CV-pipeline for aa score bilder av Kongsberg elektronisk skyteskive (DFS 100m).
+Kode ligger i: C:\Users\mrlee\Desktop\Bestefar\
+
+=====================================================================
+MOBIL-PORT (2026-07-05/06) - C++-KJERNE VERIFISERT 10/10
+=====================================================================
+Kravspec: kravspec.md. Arkitektur: docs/ARCHITECTURE.md. Layout:
+  core/     C++17-port av CV-pipelinen (KUN produksjonsstiene; doedkode som
+            Hough-treff/ring_comb_v2/outermost_refine er IKKE portert)
+  android/  Kotlin+CameraX+JNI-skjelett (3 skjermer; bygges i Android Studio,
+            trenger OpenCV Android SDK, se android/README.md)
+  ios/      stub (C-headeren er kontrakten)
+  backend/  FastAPI-skjelett: /v1/stats, /v1/failed-analyses, /v1/research
+            (forskning strukturelt adskilt, samtykke-gatet, TODO(eier)-felter)
+
+BYGG/VERIFISER C++-KJERNEN (desktop, MSYS2):
+  $env:PATH = "C:\tools\msys64\mingw64\bin;" + $env:PATH
+  cmake -S core -B core\build -G Ninja -DCMAKE_BUILD_TYPE=Release
+  cmake --build core\build
+  .venv\Scripts\python.exe verify_cset_cpp.py     # ORACLE for porten: 10/10 PASS
+  (pacman-pakker installert: mingw-w64-x86_64-opencv/cmake/ninja)
+
+PORT-LAERDOMMER (IKKE GJENTA FEILSOEKINGEN):
+  1. C++ 10/10 kraevde TO dokumenterte avvik fra Python-referansen:
+     a) outer_circle: Python subsampler 12000 punkter + 40k stemme-par ->
+        senterestimatet er et LOTTERI (+-10px mellom trekk; Pythons numpy-seed
+        vinner tilfeldigvis paa alle C-bildene - bevist: Pythons egen vote paa
+        et annet subsample bommet 13px). C++: max_edge_points=0 (ALLE punkter)
+        + 1M par -> konvergert populasjonsestimat. Fikset C2/C4/C6/C9/C10-
+        kalibreringsfeil i ett grep.
+     b) NCC-terskler (overlap 0.10->0.25, senter 0.40->0.60) rekalibrert til
+        C++-implementasjonens maalte fordeling: ekte C3-overlapp=0.47,
+        FP=0.12; ekte C10-sentertreff=0.95, FP=0.40. (Python-fordelingen er
+        annerledes pga template-kilde/ramme/OpenCV-versjon.)
+  2. Feilsoekingsmetode som funket: dump C++-crop -> kjoer PYTHON-stadier paa
+     den -> binaersoek i stadiekjeden. CLI-flagg: --debug, --dumpcrop,
+     --outeronly, --votetest. Env: BF_DEBUG_RINGS/OUTER/HITS, BF_VOTE_SEED/PAIRS.
+  3. C++-porten fant C10s undertrykte sentertreff (NCC 0.95) som Python-punktet
+     "senter-treff i C10 undertrykt" gjaldt - det er naa LOEST i porten.
+  4. Ytelse desktop: 2.5-3.3 s/bilde (engangsanalyse, ok for mobil-v1).
+  5. FFI: core/include/bestefar/bestefar_ffi.h (ren C). JNI-protokoll =
+     flat double[] - holdes i synk med BestefarCore.kt.
+  6. Auto-capture: FrameProbe (kontrast-ROI+skarphet+eksponering+dekning) +
+     tilstandsmaskin. ALLE terskler UKALIBRERTE (kravspec-krav).
+
+MPI-FIRKANT-BESLUTNING (2026-07-05): IKKE wiret inn i porten. Kravspec §3
+deprioriterer den; egne maalinger viser offset<=0.15*delta paa ALLE C-bilder
+(inkl. C3 med faktisk skjult treff) => ~0 marginalverdi naa. aux-utvidelses-
+punkt i AnalyzeResult tillater ettermontering. Referanse: _vis_mpi_square.py.
+
+VENV - KRITISK (DENNE FELLA KOSTET EN HEL SESJON):
+  Bruk ALLTID: .venv\Scripts\python.exe <script>
+  IKKE 'python', IKKE 'py', IKKE 'python3' -- paa denne maskinen peker de til
+  Microsoft Store-stubben (krasjer med "Python was not found") ELLER til en
+  tolk UTEN cv2/scipy ("ModuleNotFoundError: No module named 'cv2'").
+  .Bestefar\Scripts\python.exe finnes ogsaa men mangler scipy -> krasjer.
+  SYMPTOM naar dette glemmes: du "kjoerer" et vis-script, sier til bruker at
+  fila er oppdatert, men INGENTING skrives (kommandoen feilet). Bruker ser den
+  GAMLE fila og sier "failed to show an alternate output" / "identical to old".
+  Sonnet gikk i denne fella gjentatte ganger i forrige sesjon. Sjekk ALLTID at
+  et script faktisk printet forventet output ("Lagret -> ...") foer du melder OK.
+
+NOEKKELFILER:
+  config.py          - alle parametere
+  Bestefar.py        - analyze_target() hoved-pipeline
+  rings.py           - ringkalibrering
+  hits.py            - treffdeteksjon
+  circles.py         - stemme-detektor (erstatter HoughCircles)
+  scoring.py         - poengberegning
+  verify_cset.py     - ORACLE: kjoer dette for aa sjekke regrersjon
+  hits_truth.txt     - fasit fra Kongsberg-panelene (C1-C10)
+  inspect_circles.py - genererer mellomprodukt-montasjer
+
+KJOER ALLTID FOERST (ett kommando, regrsjonstest):
+  .venv\Scripts\python.exe verify_cset.py
+  Forventer: 8/9 PASS (C10 forkastet = ok, C3 FAIL pga overlappende treff)
+
+NOEKKELPIPELINE:
+  foto -> screen.py (finn/rektifiser skjerm) -> rings.py (kalibrering)
+  -> circles.py (stemmedeteksjon, HELE skiva) -> scoring.py -> desimalpoeng
+
+DETEKTORBESLUTNINGER (IKKE ANGRE UTEN DATA):
+  - hit_unified_detector: True  -- circles.py over HELE skiva, HoughCircles fjernet
+  - circ_median_passes: 2       -- enkelt pass klarer ikke LED-rutenettet (testet)
+  - circ_pre_gauss_frac: 0.0    -- gauss+1xmedian = like bra paa lette bilder MEN
+                                    dropper C3-count fra 8->8 (ikke 10). Ikke antatt
+                                    bedre enn 2x median ennaae (ikke implementert)
+  - circ_acc_blur_frac: 0.06    -- 0.12 smeltet nabotopper i tette klynger
+  - circ_center_exempt_frac: 0.0 -- 1.5 lagde falsk 10-er paa ALLE bilder
+  - circ_radial_reject: 0.80    -- NOEDVENDIG; stoerrelsesgating alene stopper ikke
+                                    poengringene (bevist med sweep, IKKE endre)
+
+NAEVAERENDE C-SETT STATUS (2026-07-02): 10/10 PASS paa verify_cset.py!
+  Alle C1-C10 bestaar antall+sum. C3 9/9, C10 5/5 (mae 0.08). Beste noensinne.
+  LOESNINGEN: kant-snapping (screen_refine_gradient_lines) - se SKJERMDETEKSJON.
+  MERK: C3-fasiten viser 9 treff (ikke 10) - den fullstendig skjulte 10.5-eren
+  er ikke i fasiten, saa 9/9 er full score her.
+
+=====================================================================
+SKJERMDETEKSJON & C10 CROP-FEIL (hovedtema siste sesjoner)
+=====================================================================
+PIPELINE (screen.py, alt paa nedskalert 480px gray, sigma=3.5 blur):
+  _apparatus_roi   -> kontrast-ROI (lokalt std-kart) saa segmentering ikke lekker
+                      ut i bakgrunn (gress/betong/gjenskinn)
+  _screen_blob     -> hysterese-terskling inne i ROI, morph-close, stoerste komp.
+  [konveks innhylling]  <- valgfritt, se under
+  _rough_quad      -> approxPolyDP -> 4 hjoerner (TL,TR,BR,BL)
+  _refine_from_contour -> per side: IRLS-vektet linjetilpasning (Huber init ->
+                      Tukey redescending som NULLER uteliggere). Hjoerner =
+                      linjeskjaeringer. Krever sterk rett kant ellers forkast.
+  rectify_to_screen -> perspektivwarp til rektangel.
+
+C10-PROBLEMET (rotaarsak):
+  Blob-en LEKKER ved nedre-venstre hjoerne (BL) inn i apparatkassen/scoreboard.
+  De lekkede punktene er en SAMMENHENGENDE stripe (ikke spredte uteliggere), saa
+  Tukey klarer ikke nulle dem -> bunn- og venstrelinja skyves UTOVER -> BL-hjoerne
+  havner UTENFOR skjermen -> cropen blir skjev -> ringene blir ELLIPTISKE.
+  Hvorfor elliptiske ringer dreper senter-voting: sirkelnormaler konvergerer til
+  ETT punkt (skarp akkumulatortopp); ellipsenormaler divergerer (kaustikk/evolute,
+  bred spredning) og rektangulaere scoreboard-hjoerner samler stemmer paa FALSKE
+  topper -> detect_outer_circle laaser paa feil sted -> flat polarprofil -> 0 ringer.
+
+LOESNINGEN PAA C10 (2026-07-02) - KANT-SNAPPING:
+  Blob->rough->grov linje er BARE en startgjetning. Etter grov linjetilpasning
+  lar _snap_line_to_edge hver side "vandre" mot den ekte skjermkanten:
+   - skanner vinkelrett paa linja innenfor et baand
+   - per skann-linje: velg det YTTERSTE punktet (lengst fra skjermsenteret) som
+     fortsatt er STERK gradient (>= screen_snap_strong_frac * skann-toppen) OG
+     peker paa tvers av kanten (retningsport screen_snap_dir_cos)
+   - robust re-tilpasning (_fit_line_robust), re-sentreres, 4 iterasjoner
+   - sikkerhetsgrense: forkast snap som flytter et hjoerne > 0.25*diagonal
+  HVORFOR "ytterste-sterke" og ikke "sterkeste" (argmax): argmax laaste C2/C4 paa
+  INDRE sterke gradienter (poengringer/UI-delelinje) -> skjev crop -> ingen ringer.
+  Bezelen er utenfor ROI, saa innenfor ROI ER skjermkanten den ytterste sterke.
+  Glare ligger utenfor men er diffus/svak -> faller under styrke-gulvet.
+  Foerste forsoek (ren argmax) fikset C10 men brakk C2+C4; ytterste-sterke fikset
+  alle tre samtidig -> 10/10.
+  FLAGG: screen_refine_gradient_lines True, screen_snap_iters 4,
+         screen_snap_band_frac 0.045, screen_snap_dir_cos 0.5,
+         screen_snap_end_skip_frac 0.08, screen_snap_strong_frac 0.6.
+  A/B-probe: _probe_snap_full.py (full pipeline) og _probe_snap_ab.py (crop+sirkel).
+
+FLAGG LAGT TIL (config.py, screen-seksjon ~linje 215):
+  screen_blob_open_frac    0.0   Morfologisk aapning paa blob (kutter smale broer).
+                                 0.03 knakk C7/C8/C9 (kuttet ekte skjerm). AV.
+  screen_side_outer_tol_frac 0.0 Klipp konturpunkter for langt UTENFOR grov side.
+                                 0.06 fikser C10 men knekker C1; 0.10 motsatt. Ingen
+                                 enkelt verdi funket for baade C10 og C1. AV.
+  screen_blob_convex_hull  True  Erstatt blob-kontur med konveks innhylling FOER
+                                 rough/refine. Fyller konkaviteten fra den smale
+                                 bro-lekkasjen. FIKSER C10 (r=336, riktig senter),
+                                 forbedrer C1/C4. MEN C9 har en EKTE konkavitet
+                                 (MENY-knapp/moerkt gap) som hull-en fyller feil ->
+                                 senter vandrer til (2867,2358) r=1026 = pipeline-feil.
+  analyze_screen_fallback  False (var True). True MASKERTE ekte ytelse ved aa falle
+                                 tilbake til helbilde naar cropen feilet. Skal vaere
+                                 False saa vi ser den ekte cropen. run_cset.py /
+                                 verify_cset.py setter den eksplisitt.
+
+GRADIENT-RETNINGS-ALIGN: forsoekt (screen_contract_align_weight) -> forkastet.
+  Gradientretning for stoeyete i 480px sigma=3.5-bilde, knakk mange bilder.
+
+OPUS' FORSLAG (musings.txt) - ikke implementert:
+  Ikke la ringsenteret vaere gissel for skjermhjoernene. Alternativer:
+  (a) kjoer gradient-voting/Hough DIREKTE paa originalen og la den finne beste
+      elliptiske senter (konsentriske sirkler -> felles projektivt senter), eller
+  (b) bruk den moerke sentrale "10"-skiva som anker (tyngdepunkt av moerk blob) -
+      mest robuste enkeltstruktur i bildet. Dette var visstnok vaar gamle fallback;
+      bruker spoer hvorfor den ble forlatt (uavklart).
+
+VIS-SCRIPT (Visualiseringer/outputs/):
+  _vis_cset_screen.py       BLOB|GROVT|GRADIENT|RAFFINERT|CROP for C1-C10.
+       FELLE: dette scriptet kaller _screen_blob/_rough_quad/_refine DIREKTE og
+       omgaar detect_screen_quad. Hull-steget maatte derfor DUPLISERES inn i
+       make_row (etter panel 1) for at montasjen skal vise hull-effekten.
+       Panel 1 viser RAA blob (foer hull); panel 2-5 bruker hull-kontur.
+  _vis_cset_outer_circle.py gradient|votemap+sirkel|raw+sirkel paa cropen.
+  _vis_c10_ringcalib.py     crop-rute (feil) vs helbilde-rute (riktig) for C10.
+  _probe_outer_tol.py       sweeper screen_side_outer_tol_frac over C-settet.
+
+MPI-FIRKANT (midtpunkt-markor) - PAAGAAR 2026-07-04:
+  Displayet tegner en liten firkant m/kryss (+) i treffgruppas MPI (mean point of
+  impact = tyngdepunkt av ALLE skudd). Invertert overlegg (motsatt farge av bakgrunn).
+  Maal: bruk den til aa finne SKJULTE treff: square_senter - tyngdepunkt(detekterte
+  treff) peker mot skjult treff (=0 naar alle er funnet).
+  Geometri (maalt paa C-sett): side = 53px = 1/sqrt(2)*markordiameter (innskrevet i
+  markorsirkel) = 0.58*delta. Strekbredde ~7px = 0.077*delta. Akse-justert i crop.
+  DETEKSJON (i _vis_mpi_square.py, config mpi_*): POLARITETS-INVARIANT i gradient-
+  domenet (inversjon bevarer kanter). Orientert min(V,H):
+    - Rv=|Gx| matches mot 3 vertikale barer (Tv), Rh=|Gy| mot 3 horisontale (Th)
+    - score = min(NCC_V, NCC_H)  -> krever BEGGE orienteringer, dreper ring+tall-
+      falske topper som vinner paa vertikaler alene
+    - presis senter via tyngdepunkt av kolonne/rad-profil (linje-rygger)
+  STATUS: alle 10 C-bilder lokaliseres RIKTIG paa tyngdepunktet (d_seed <=17px) med
+  VID ROI (mpi_search_r_frac=2.0). Men NCC-score modest (0.24-0.36).
+  FUNN (ikke gjenta):
+    - Radiell gradient-avstoying (som circles.py) er SKADELIG her: firkantens EGNE
+      akse-justerte kanter naer ringsenteret ser radielle ut og undertrykkes ->
+      d_seed 200px+. mpi_radial_reject skal vaere False.
+    - Plain |grad| NCC (foerste forsoek) ga falske fjern-topper paa C4/C10 ved vid
+      ROI; orientert min(V,H) fikset det.
+    - Rings er hoved-konkurrenten: konsentriske ringer gir |Gx|/|Gy|-respons som
+      delvis matcher bar-templatene (se Cset_mpi_maps.png). Kan ikke fjernes med
+      radiell gating. Derfor modest score.
+    - C4 (tett gruppe, sloppy crop): riktig lokalisert men lavest score (0.236) og
+      LOO-skjoer (hopper 212px naar ett treff droppes).
+  FORSOEK 2026-07-05 (approach 1 = strukturell validering): MISLYKTES som
+  diskriminator. 3-jevnt-spredte-rygger-i-begge-orienteringer scorer LIKE hoyt
+  eller HOEYERE paa TALL (8/9 ved ~1delta radius: mange korte H+V-streker) og
+  konsentriske ringer. struct@ekte-firkant 0.22-0.45 overlapper struct@feil-tall
+  0.38-0.52. Re-rangering paa struct flyttet deteksjonen til tall -> IKKE bruk
+  struct til aa velge kandidat; behold kun som rapportert diagnostikk.
+  DET SOM VIRKER: orientert min(V,H) argmax + linje-refine lokaliserer firkanten
+  <=17px paa alle 10 (fulle treff). LOO-robust 9/10; C4 (svakest signal comb=0.236,
+  tett gruppe) hoppet 212px.
+  MAP-PRIOR (mpi_prior_sigma_frac=0.6*delta Gauss om tyngdepunkt): comb*prior ->
+  d_seed <=10px alle, C4-LOO fikset (212->2px). MEN: prior gjoer at deteksjonen
+  TRACKER tyngdepunktet (LOO-spredning 20-86px paa C2/C5/C6/C7/C9) -> undergraver
+  UAVHENGIGHETEN vi trenger for aa maale offset (square-senter minus tyngdepunkt).
+  KJERNESPENNING (uloest): firkantens gradient-signal er ISOLERT for svakt/tvetydig
+  (comb 0.24-0.36, ikke moenster-separerbart fra tall/ringer). Prior gir robusthet
+  men faar detektoren til aa ekko tyngdepunktet -> kan ikke se skjulte treff.
+  NESTE (bruker-beslutning): (a) svakt/ingen prior + aksepter C4-skjoerhet, bruk
+  offset+comb som confidence; (b) revurder om firkanten er verdt det vs. direkte
+  skjult-treff-soek via overlap.py; (c) smalere ROI (~1delta) som mellomting.
+  SCRIPT: _vis_mpi_square.py (overlegg Cset_mpi_square.png + mellomsteg
+  Cset_mpi_maps.png), _probe_mpi.py (NCC+robusthet-tabell).
+
+GJENVAERENDE ARBEID (prioritert):
+  1. LOEST 2026-07-02: C10 CROP via kant-snapping (10/10). Se over.
+  2. C3 overlap - morfologisk template-matching for delvis-skjulte treff. Trigges
+     kun hvis antall_treff < 10. Maal: finne 10.6. Template = ytre annulus 0.5-1.1*
+     marker_r fra isolert rent treff. Se musings.txt.
+  3. g10-gauss (gauss_frac=0.10 + 1x median): bruker vurderer, ikke impl.
+  4. Fjern dobbel de-skew/kalibrering (screen-crop + perspektivkorreksjon
+     overlapper; inspect_hits.py dupliserer prep()).
+  5. Forsok circles-detektoren paa HELE maalet (ikke bare ytre ringer).
+  6. Senter-treff i C10 er undertrykt - loeses senere.
+
+VIKTIGE FELLER:
+  - 'circles' variabel i hits.py skygger over circles-modulen -> 'import circles as circle_det'
+  - ring_rho_sigma: 1.2 (fjerne det dropper C3-kalibrering)
+  - Real 1.jpg er IKKE lenger referanse/gate (viser ikke full skjerm). Bruk C-sett.
+  - console er cp1252 - unngaa non-ASCII (lambda, delta-symbol) i print-setninger
+  - Det er TO venvs: .Bestefar\ (ufullstendig) og .venv\ (riktig)
+
+OUTPUT-MAPPE: Visualiseringer/outputs/ (slett ved start av ny sesjon)

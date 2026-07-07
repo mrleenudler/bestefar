@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bestefar</string>
+    <string name="start">Start</string>
+    <string name="ok">OK</string>
+    <string name="status_searching">Finner skjermen …</string>
+    <string name="status_quality">Hold kamera nærmere / bedre lys</string>
+    <string name="status_hold_still">Hold i ro …</string>
+    <string name="status_capturing">Knipser!</string>
+    <string name="result_hits">%1$d treff</string>
+    <string name="result_sum">Sum: %1$.1f (%2$d)</string>
+    <string name="result_confidence">Konfidens: %1$.2f</string>
+    <string name="result_rejected">Analysen ble avvist (kode %1$d).\nPrøv igjen med bedre lys/vinkel.</string>
+</resources>
