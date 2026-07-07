@@ -118,11 +118,11 @@ class CaptureActivity : AppCompatActivity() {
                     probe.shouldCapture))
 
         runOnUiThread {
-            debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f str=%.2f\n" +
-                              "stabil=%b kval=%b storrelse=%b")
+            debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f\n" +
+                              "str=%.2f bull=%.2f stabil=%b kval=%b storrelse=%b")
                 .format(probe.roiFound, probe.sharpness, probe.clipLoFrac,
                         probe.clipHiFrac, probe.coverage, probe.screenWidthFrac,
-                        probe.stable, probe.qualityOk, probe.sizeOk)
+                        probe.bullWidthFrac, probe.stable, probe.qualityOk, probe.sizeOk)
             statusText.text = when {
                 !probe.roiFound -> getString(R.string.status_searching)
                 !probe.sizeOk -> getString(R.string.status_closer)

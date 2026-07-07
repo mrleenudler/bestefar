@@ -53,6 +53,7 @@ object BestefarCore {
         val shouldCapture: Boolean,
         val screenWidthFrac: Double,
         val sizeOk: Boolean,
+        val bullWidthFrac: Double,
     )
 
     fun analyze(data: ByteArray, width: Int, height: Int, stride: Int,
@@ -92,6 +93,7 @@ object BestefarCore {
                 shouldCapture = v[7] > 0.5,
                 screenWidthFrac = v[10],
                 sizeOk = v[11] > 0.5,
+                bullWidthFrac = v[12],
             )
         }
 

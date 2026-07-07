@@ -13,7 +13,32 @@ struct ProbeInternals {
     bool roi_found = false;
     cv::Rect roi_box;      // skjerm-blobbens boks (geometri: stoerrelse/dekning)
     double sharpness = 0, clip_lo = 0, clip_hi = 0, coverage = 0;
+    double bull_frac = 0;  // bull-bredde / framebredde (presisjonsmaal)
 };
+
+// Bull-maal: stoerste SOLIDE moerke komponent inne i skjerm-blobben.
+// Morfologisk aapning fjerner tynne strukturer (ringlinjer, tall,
+// tabellstreker) foerst, saa den solide svarte senterdisken vinner.
+static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
+                                int frame_width) {
+    if (blob_box.width < 8 || blob_box.height < 8) return 0.0;
+    cv::Mat region = gray(blob_box);
+    cv::Mat dark;
+    cv::threshold(region, dark, 0, 255, cv::THRESH_BINARY_INV + cv::THRESH_OTSU);
+    cv::morphologyEx(dark, dark, cv::MORPH_OPEN,
+                     cv::getStructuringElement(cv::MORPH_ELLIPSE, {5, 5}));
+    cv::Mat labels, stats, centroids;
+    const int num = cv::connectedComponentsWithStats(dark, labels, stats, centroids, 8);
+    int best_area = 0, best_w = 0;
+    for (int l = 1; l < num; ++l) {
+        const int area = stats.at<int32_t>(l, cv::CC_STAT_AREA);
+        if (area > best_area) {
+            best_area = area;
+            best_w = stats.at<int32_t>(l, cv::CC_STAT_WIDTH);
+        }
+    }
+    return static_cast<double>(best_w) / frame_width;
+}
 
 // Kjerne-proben: nedskaler -> normaliser -> kontrast-ROI -> skjerm-blob ->
 // metrikker. VIKTIG (felttest 2026-07-07): stoerrelse/dekning maales paa den
@@ -42,6 +67,7 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     if (!blob_box) return out;   // ingen opplyst skjerm av meningsfull stoerrelse
     out.roi_found = true;
     out.roi_box = *blob_box;
+    out.bull_frac = measure_bull_frac(gray, *blob_box, gray.cols);
 
     // Skarphet: Laplacian-varians INNE i ROI (fokusmaal)
     cv::Mat lap;
@@ -111,6 +137,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->max_clip_hi_frac = d.max_clip_hi_frac;
     out->min_coverage = d.min_coverage;
     out->min_screen_width_frac = d.min_screen_width_frac;
+    out->min_bull_width_frac = d.min_bull_width_frac;
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
 }
@@ -125,6 +152,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.max_clip_hi_frac = p->max_clip_hi_frac;
         ac->params.min_coverage = p->min_coverage;
         ac->params.min_screen_width_frac = p->min_screen_width_frac;
+        ac->params.min_bull_width_frac = p->min_bull_width_frac;
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
     }
@@ -244,10 +272,14 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
                              pr.coverage >= p.min_coverage;
         out->quality_ok = quality ? 1 : 0;
 
-        // KRITERIUM 3: stoerrelse - skjermblobben maa fylle nok av framen.
-        // (Liten skjerm gir lav ringavstand i px -> daarlig kalibrering/score.)
+        // KRITERIUM 3: stoerrelse - BAADE skjermblobben (fyll rammen) OG
+        // bullen (maalskiva selv; presisjonen avhenger av ringavstand i px,
+        // og bull ~= 5.7*delta). Bull-kravet fanger monitor-testingens
+        // dobbel-indireksjon: opplyst skjerm stor, apparat-i-bildet lite.
         out->screen_width_frac = static_cast<double>(pr.roi_box.width) / gray.cols;
-        const bool size_ok = out->screen_width_frac >= p.min_screen_width_frac;
+        out->bull_width_frac = pr.bull_frac;
+        const bool size_ok = out->screen_width_frac >= p.min_screen_width_frac &&
+                             pr.bull_frac >= p.min_bull_width_frac;
         out->size_ok = size_ok ? 1 : 0;
 
         // KRITERIUM 1: stabilitet - blob-boksen i ro over N frames.

@@ -169,6 +169,12 @@ struct AutoCaptureParams {
     // tastatur/apparatramme og slapp gjennom bittesmaa skjermer, felttest
     // 2026-07-07). 0.90 ~= skjermen fyller skannerrammen (som har margin).
     double min_screen_width_frac   = 0.90;  // skjermblob-bredde / framebredde
+    // Krav om MAALSKIVE-stoerrelse: bullens (svart senterdisk) bredde er
+    // direkte proporsjonal med ringavstanden (bull ~= 5.7*delta), som er det
+    // presisjonen faktisk avhenger av. Fanger ogsaa dobbel-indireksjonen i
+    // monitor-testing (opplyst skjerm stor, men apparat-i-bildet lite).
+    // Geometri: delta>=50px paa 4000px-still => bull >= ~0.07; god margin 0.10.
+    double min_bull_width_frac     = 0.10;  // UKALIBRERT: bull-bredde / framebredde
     double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };

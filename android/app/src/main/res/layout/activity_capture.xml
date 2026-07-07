@@ -15,7 +15,7 @@
         android:id="@+id/scanFrame"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="24dp"
+        android:layout_margin="8dp"
         android:background="@drawable/scan_frame"
         app:layout_constraintDimensionRatio="4:3"
         app:layout_constraintBottom_toBottomOf="parent"

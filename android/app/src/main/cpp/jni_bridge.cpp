@@ -63,10 +63,10 @@ Java_no_bestefar_app_BestefarCore_nativeAutoCaptureDestroy(JNIEnv*, jobject, jlo
     bf_autocapture_destroy(reinterpret_cast<BfAutoCapture*>(handle));
 }
 
-// feed(handle, yPlane, w, h, stride) -> double[12]:
+// feed(handle, yPlane, w, h, stride) -> double[13]:
 // [roi_found, sharpness, clip_lo, clip_hi, coverage, stable, quality_ok,
-//  should_capture, quad_x0, quad_y0, screen_width_frac, size_ok]
-// (holdes i synk med BestefarCore.kt)
+//  should_capture, quad_x0, quad_y0, screen_width_frac, size_ok,
+//  bull_width_frac]  (holdes i synk med BestefarCore.kt)
 JNIEXPORT jdoubleArray JNICALL
 Java_no_bestefar_app_BestefarCore_nativeAutoCaptureFeed(JNIEnv* env, jobject,
                                                         jlong handle, jbyteArray yPlane,
@@ -77,14 +77,15 @@ Java_no_bestefar_app_BestefarCore_nativeAutoCaptureFeed(JNIEnv* env, jobject,
     bf_autocapture_feed(reinterpret_cast<BfAutoCapture*>(handle), &img, &probe);
     env->ReleaseByteArrayElements(yPlane, buf, JNI_ABORT);
 
-    const jdouble v[12] = {
+    const jdouble v[13] = {
         static_cast<jdouble>(probe.roi_found), probe.sharpness,
         probe.clip_lo_frac, probe.clip_hi_frac, probe.coverage,
         static_cast<jdouble>(probe.stable), static_cast<jdouble>(probe.quality_ok),
         static_cast<jdouble>(probe.should_capture), probe.quad[0], probe.quad[1],
-        probe.screen_width_frac, static_cast<jdouble>(probe.size_ok)};
-    jdoubleArray out = env->NewDoubleArray(12);
-    env->SetDoubleArrayRegion(out, 0, 12, v);
+        probe.screen_width_frac, static_cast<jdouble>(probe.size_ok),
+        probe.bull_width_frac};
+    jdoubleArray out = env->NewDoubleArray(13);
+    env->SetDoubleArrayRegion(out, 0, 13, v);
     return out;
 }
 
