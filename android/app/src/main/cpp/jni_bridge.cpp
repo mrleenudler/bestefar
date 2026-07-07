@@ -65,7 +65,7 @@ Java_no_bestefar_app_BestefarCore_nativeAutoCaptureDestroy(JNIEnv*, jobject, jlo
 
 // feed(handle, yPlane, w, h, stride) -> double[12]:
 // [roi_found, sharpness, clip_lo, clip_hi, coverage, stable, quality_ok,
-//  should_capture, quad_x0, quad_y0, roi_width_frac, size_ok]
+//  should_capture, quad_x0, quad_y0, screen_width_frac, size_ok]
 // (holdes i synk med BestefarCore.kt)
 JNIEXPORT jdoubleArray JNICALL
 Java_no_bestefar_app_BestefarCore_nativeAutoCaptureFeed(JNIEnv* env, jobject,
@@ -82,7 +82,7 @@ Java_no_bestefar_app_BestefarCore_nativeAutoCaptureFeed(JNIEnv* env, jobject,
         probe.clip_lo_frac, probe.clip_hi_frac, probe.coverage,
         static_cast<jdouble>(probe.stable), static_cast<jdouble>(probe.quality_ok),
         static_cast<jdouble>(probe.should_capture), probe.quad[0], probe.quad[1],
-        probe.roi_width_frac, static_cast<jdouble>(probe.size_ok)};
+        probe.screen_width_frac, static_cast<jdouble>(probe.size_ok)};
     jdoubleArray out = env->NewDoubleArray(12);
     env->SetDoubleArrayRegion(out, 0, 12, v);
     return out;

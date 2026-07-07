@@ -1,6 +1,6 @@
-// Auto-capture: FrameProbe (per-frame kvalitet/ROI) + trigger-tilstandsmaskin.
-// Kravspec §4: stabilitet og bildekvalitet er LOGISK UAVHENGIGE kriterier.
-// Gjenbruker kontrast-ROI-en fra screen-modulen (kravspec §4 "Gjenbruk").
+﻿// Auto-capture: FrameProbe (per-frame kvalitet/ROI) + trigger-tilstandsmaskin.
+// Kravspec 4: stabilitet og bildekvalitet er LOGISK UAVHENGIGE kriterier.
+// Gjenbruker kontrast-ROI-en fra screen-modulen (kravspec 4 "Gjenbruk").
 #include <deque>
 
 #include "bestefar/bestefar_ffi.h"
@@ -11,11 +11,15 @@ namespace bestefar {
 
 struct ProbeInternals {
     bool roi_found = false;
-    cv::Rect roi_box;
+    cv::Rect roi_box;      // skjerm-blobbens boks (geometri: stoerrelse/dekning)
     double sharpness = 0, clip_lo = 0, clip_hi = 0, coverage = 0;
 };
 
-// Kjerne-proben: nedskaler -> normaliser -> kontrast-ROI -> metrikker.
+// Kjerne-proben: nedskaler -> normaliser -> kontrast-ROI -> skjerm-blob ->
+// metrikker. VIKTIG (felttest 2026-07-07): stoerrelse/dekning maales paa den
+// OPPLYSTE SKJERM-BLOBBEN, ikke paa kontrast-ROI-en - ROI-en omfatter hele
+// apparatet/laptopen (tastatur+ramme er ogsaa hoey kontrast) og passerte
+// stoerrelseskravet selv naar selve skjermen var bitteliten i bildet.
 static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCaptureParams& p,
                                   const Config& cfg) {
     ProbeInternals out;
@@ -30,8 +34,14 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     cv::Mat norm = normalize_stretch(gray, cfg);
     cv::Mat roi = apparatus_roi(norm, cfg);
     if (roi.empty()) return out;
+
+    // Skjerm-blob (samme segmentering som analysen bruker)
+    cv::Mat grayb;
+    cv::GaussianBlur(norm, grayb, cv::Size(0, 0), cfg.screen_blur_sigma);
+    auto blob_box = screen_blob_box(grayb, cfg, roi);
+    if (!blob_box) return out;   // ingen opplyst skjerm av meningsfull stoerrelse
     out.roi_found = true;
-    out.roi_box = cv::boundingRect(roi);
+    out.roi_box = *blob_box;
 
     // Skarphet: Laplacian-varians INNE i ROI (fokusmaal)
     cv::Mat lap;
@@ -100,7 +110,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->max_clip_lo_frac = d.max_clip_lo_frac;
     out->max_clip_hi_frac = d.max_clip_hi_frac;
     out->min_coverage = d.min_coverage;
-    out->min_roi_width_frac = d.min_roi_width_frac;
+    out->min_screen_width_frac = d.min_screen_width_frac;
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
 }
@@ -114,7 +124,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.max_clip_lo_frac = p->max_clip_lo_frac;
         ac->params.max_clip_hi_frac = p->max_clip_hi_frac;
         ac->params.min_coverage = p->min_coverage;
-        ac->params.min_roi_width_frac = p->min_roi_width_frac;
+        ac->params.min_screen_width_frac = p->min_screen_width_frac;
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
     }
@@ -149,7 +159,7 @@ cv::Mat bf_image_to_gray(const BfImage* img) {
         case BF_FMT_BGR8:  cv::cvtColor(wrapped, gray, cv::COLOR_BGR2GRAY); return gray;
         case BF_FMT_RGBA8: cv::cvtColor(wrapped, gray, cv::COLOR_RGBA2GRAY); return gray;
         case BF_FMT_NV21: {
-            // NV21: Y-plan foerst — Y ER graabildet
+            // NV21: Y-plan foerst - Y ER graabildet
             const cv::Mat y(img->height, img->width, CV_8UC1,
                             const_cast<uint8_t*>(img->data),
                             static_cast<size_t>(img->stride));
@@ -234,13 +244,13 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
                              pr.coverage >= p.min_coverage;
         out->quality_ok = quality ? 1 : 0;
 
-        // KRITERIUM 3: stoerrelse — apparatet maa fylle nok av framen.
+        // KRITERIUM 3: stoerrelse - skjermblobben maa fylle nok av framen.
         // (Liten skjerm gir lav ringavstand i px -> daarlig kalibrering/score.)
-        out->roi_width_frac = static_cast<double>(pr.roi_box.width) / gray.cols;
-        const bool size_ok = out->roi_width_frac >= p.min_roi_width_frac;
+        out->screen_width_frac = static_cast<double>(pr.roi_box.width) / gray.cols;
+        const bool size_ok = out->screen_width_frac >= p.min_screen_width_frac;
         out->size_ok = size_ok ? 1 : 0;
 
-        // KRITERIUM 1: stabilitet — ROI-boksen i ro over N frames.
+        // KRITERIUM 1: stabilitet - blob-boksen i ro over N frames.
         // Holdevinduet krever kvalitet OG stoerrelse gjennom hele vinduet.
         ac->history.push_back(pr.roi_box);
         ac->quality_history.push_back(quality && size_ok);

@@ -22,4 +22,10 @@ std::optional<ScreenRect> rectify_to_screen(const cv::Mat& img_bgr, const Config
 cv::Mat apparatus_roi(const cv::Mat& gray_norm, const Config& cfg);
 cv::Mat normalize_stretch(const cv::Mat& gray, const Config& cfg);
 
+// Omsluttende boks for den OPPLYSTE skjerm-blobben (hysterese-segmentering
+// inne i ROI) — auto-capture maaler stoerrelse paa SKJERMEN, ikke paa
+// kontrast-ROI-en (som blaaser seg opp paa tastatur/ramme o.l.).
+std::optional<cv::Rect> screen_blob_box(const cv::Mat& gray_blur, const Config& cfg,
+                                        const cv::Mat& roi);
+
 } // namespace bestefar

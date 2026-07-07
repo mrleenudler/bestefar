@@ -163,12 +163,12 @@ struct AutoCaptureParams {
     double max_clip_lo_frac        = 0.30;  // maks andel piksler i moerkeste bin
     double max_clip_hi_frac        = 0.20;  // maks andel piksler i lyseste bin
     double min_coverage            = 0.80;  // andel av ROI-boks innenfor frame m/margin
-    // Krav om stoerrelse: felttest (app_C4) viste at liten skjerm i bildet
-    // gir ~35-40px ringavstand -> faerre kalibrerte ringer + systematisk
-    // desimalskift. Apparat-ROI maa dekke mesteparten av framebredden
-    // (0.45 var for slapt - brukeren vil ha rammen FYLT; juster mot str= i
-    // debug-overlayet hvis 0.80 viser seg vanskelig aa naa).
-    double min_roi_width_frac      = 0.80;  // ROI-bredde / framebredde
+    // Krav om stoerrelse: liten skjerm i bildet gir lav ringavstand i px ->
+    // faerre kalibrerte ringer + systematisk desimalskift. Maales paa den
+    // OPPLYSTE SKJERM-BLOBBEN (ikke kontrast-ROI-en, som blaaser seg opp paa
+    // tastatur/apparatramme og slapp gjennom bittesmaa skjermer, felttest
+    // 2026-07-07). 0.90 ~= skjermen fyller skannerrammen (som har margin).
+    double min_screen_width_frac   = 0.90;  // skjermblob-bredde / framebredde
     double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };

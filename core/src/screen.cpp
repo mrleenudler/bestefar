@@ -367,6 +367,13 @@ std::optional<Quad> refine_from_contour(const std::vector<cv::Point2f>& contour,
 
 } // namespace
 
+std::optional<cv::Rect> screen_blob_box(const cv::Mat& gray_blur, const Config& cfg,
+                                        const cv::Mat& roi) {
+    auto contour = screen_blob(gray_blur, cfg, roi, nullptr);
+    if (!contour) return std::nullopt;
+    return cv::boundingRect(*contour);
+}
+
 cv::Mat normalize_stretch(const cv::Mat& gray, const Config& cfg) {
     std::vector<float> v;
     v.reserve(gray.total());

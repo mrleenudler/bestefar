@@ -1,4 +1,4 @@
-package no.bestefar.app
+﻿package no.bestefar.app
 
 import android.Manifest
 import android.content.ContentValues
@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * stillbilde -> lagring (galleri + JSON-sidecar) -> analyse -> ResultActivity.
  *
  * Laast til LANDSKAP: apparatskjermen er 4:3 liggende, saa liggende foto gir
- * best oppløsning paa selve skiva. Rammen i overlayet er 4:3.
+ * best opploesning paa selve skiva. Rammen i overlayet er 4:3.
  *
  * Alle capture-bilder lagres (Pictures/Bestefar + sidecar-JSON i app-mappen)
  * slik at feilanalyser kan hentes ut og kjoeres mot desktop-oraklet.
@@ -106,7 +106,7 @@ class CaptureActivity : AppCompatActivity() {
                        "pixelStride=${image.planes[0].pixelStride} " +
                        "rowStride=${image.planes[0].rowStride}")
         }
-        // Y-planet ER graabildet — det er alt FrameProbe trenger
+        // Y-planet ER graabildet - det er alt FrameProbe trenger
         val y = image.planes[0]
         val bytes = ByteArray(y.buffer.remaining()).also { y.buffer.get(it) }
         val probe = autoCapture.feed(bytes, image.width, image.height, y.rowStride)
@@ -114,14 +114,14 @@ class CaptureActivity : AppCompatActivity() {
 
         Log.d(TAG, "probe roi=%b skarp=%.0f klippLo=%.3f klippHi=%.3f dekning=%.2f str=%.2f stabil=%b kval=%b knips=%b"
             .format(probe.roiFound, probe.sharpness, probe.clipLoFrac, probe.clipHiFrac,
-                    probe.coverage, probe.roiWidthFrac, probe.stable, probe.qualityOk,
+                    probe.coverage, probe.screenWidthFrac, probe.stable, probe.qualityOk,
                     probe.shouldCapture))
 
         runOnUiThread {
             debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f str=%.2f\n" +
                               "stabil=%b kval=%b storrelse=%b")
                 .format(probe.roiFound, probe.sharpness, probe.clipLoFrac,
-                        probe.clipHiFrac, probe.coverage, probe.roiWidthFrac,
+                        probe.clipHiFrac, probe.coverage, probe.screenWidthFrac,
                         probe.stable, probe.qualityOk, probe.sizeOk)
             statusText.text = when {
                 !probe.roiFound -> getString(R.string.status_searching)
@@ -154,7 +154,7 @@ class CaptureActivity : AppCompatActivity() {
         ic.takePicture(analysisExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 val ts = System.currentTimeMillis()
-                // Raa JPEG-bytes (plan 0 for JPEG-format) — lagres UENDRET,
+                // Raa JPEG-bytes (plan 0 for JPEG-format) - lagres UENDRET,
                 // saa PC-analysen ser noeyaktig det kjernen saa.
                 val jb = image.planes[0].buffer
                 val jpeg = ByteArray(jb.remaining()).also { jb.get(it) }
