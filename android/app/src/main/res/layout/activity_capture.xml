@@ -31,12 +31,13 @@
         android:alpha="0"
         android:background="#FFFFFF" />
 
-    <!-- Live probe-verdier: feilsoeking + kalibrering av UKALIBRERTE terskler -->
+    <!-- Live probe-verdier: feilsoeking + kalibrering av tersklene.
+         Helt inntil venstre kant; toppmargin klarerer status-linja/notch. -->
     <TextView
         android:id="@+id/debugText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
+        android:layout_marginTop="56dp"
         android:background="#66000000"
         android:fontFamily="monospace"
         android:padding="6dp"

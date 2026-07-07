@@ -146,16 +146,21 @@ struct Config {
     bool   score_truncate            = true;   // 'truncate' (offisiell regel)
 };
 
-// Auto-capture-parametre (kravspec §4). ALLE terskler er UKALIBRERTE
-// startverdier — de SKAL kalibreres mot faktisk maskinvare, ikke stoles på.
+// Auto-capture-parametre (kravspec §4). Startverdiene under er FOERSTE
+// KALIBRERINGSPASS (2026-07-07, felttest paa telefon): de opprinnelige
+// tersklene gjorde kvalitetskriteriet nesten uoppnaaelig —
+//   min_coverage=0.98 kolliderte med ROI-ens egen 6%-dilatasjon (boksen
+//   naar nesten alltid 3%-marginen), og klipp-takene var for stramme for
+//   en lys hvit skjerm. Verdiene skal fortsatt finkalibreres mot maalte
+//   probe-verdier (live-overlay paa capture-skjermen viser dem).
 struct AutoCaptureParams {
-    int    stability_frames        = 8;     // UKALIBRERT: antall paafoelgende frames
-    double stability_max_move_frac = 0.01;  // UKALIBRERT: maks hjoerneflytt per frame (andel av frame-diagonal)
-    double min_sharpness           = 80.0;  // UKALIBRERT: Laplacian-varians i ROI
-    double max_clip_lo_frac        = 0.10;  // UKALIBRERT: maks andel piksler i moerkeste bin
-    double max_clip_hi_frac        = 0.05;  // UKALIBRERT: maks andel piksler i lyseste bin
-    double min_coverage            = 0.98;  // UKALIBRERT: andel av quad innenfor frame m/margin
-    double frame_margin_frac       = 0.03;  // UKALIBRERT: margin mot framekant
+    int    stability_frames        = 8;     // antall paafoelgende frames
+    double min_sharpness           = 40.0;  // Laplacian-varians i ROI (<40 = reelt uskarpt)
+    double stability_max_move_frac = 0.01;  // maks hjoerneflytt per frame (andel av diagonal)
+    double max_clip_lo_frac        = 0.30;  // maks andel piksler i moerkeste bin
+    double max_clip_hi_frac        = 0.20;  // maks andel piksler i lyseste bin
+    double min_coverage            = 0.80;  // andel av ROI-boks innenfor frame m/margin
+    double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };
 
