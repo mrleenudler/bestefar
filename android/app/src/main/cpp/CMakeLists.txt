@@ -12,3 +12,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../../core
 
 add_library(bestefar_jni SHARED jni_bridge.cpp)
 target_link_libraries(bestefar_jni PRIVATE bestefar_core log)
+
+# 16 kB-sidestoerrelse (Android 15+): NDK r28+ alignerer som standard, men vi
+# setter flagget eksplisitt saa kravet ikke avhenger av NDK-versjonen.
+target_link_options(bestefar_jni PRIVATE "-Wl,-z,max-page-size=16384")

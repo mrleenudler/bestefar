@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "no.bestefar.app"
-    compileSdk = 34
+    compileSdk = 36   // CameraX 1.5.x krever compileSdk >= 35
 
     defaultConfig {
         applicationId = "no.bestefar.app"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
 
@@ -46,7 +46,9 @@ android {
 }
 
 dependencies {
-    val camerax = "1.3.4"
+    // 1.3.x sin libimage_processing_util_jni.so er IKKE 16 kB-alignet
+    // (installasjonsfeil paa Android 15+ m/16 kB-kjerne); 1.4.0+ er fikset.
+    val camerax = "1.5.1"
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.camera:camera-core:$camerax")
