@@ -7,6 +7,7 @@ __pycache__/
 Real 1.jpg
 Real 1 med senter markert.jpg
 .claude/
+.idea/
 
 # Mobil-port: byggeartefakter
 core/build/
