@@ -49,6 +49,19 @@ PORT-LAERDOMMER (IKKE GJENTA FEILSOEKINGEN):
   6. Auto-capture: FrameProbe (kontrast-ROI+skarphet+eksponering+dekning) +
      tilstandsmaskin. ALLE terskler UKALIBRERTE (kravspec-krav).
 
+FELTTEST-MILEPAEL (2026-07-07 kveld): FOERSTE EKSAKTE SCORE PAA TELEFON.
+  Capture av C4 fra PC-skjerm (naerbilde, bull=0.61): appen ga 5 treff sum 46
+  = panel-fasit EKSAKT. Desimaler 10.4/9.8/9.5/9.1/9.0 vs fasit
+  10.4/9.8/9.6/9.1/9.0 (en desimal 0.1 av, godt innenfor 0.15-toleransen) -
+  TROSS skjerm-moire. Desktop-CLI paa samme JPEG = identisk resultat =>
+  on-device-kjernen (JNI/bitmap/rotasjon) har full paritet med desktop.
+  Det systematiske +0.3-0.5-desimalskiftet fra tidligere var altsaa REN
+  skala-effekt; borte naar skjermen fyller framen.
+  Fjern-capture trigget via monitor-artefakten (kabinett-som-bull, kjent
+  testspesifikk lekkasje) men ble AVVIST av analysens kvalitetsport
+  (avvist2 = ingen poengringer) - forsvarslagene virker: capture-gatene er
+  heuristikk, analysegaten er den harde porten.
+
 FELTTEST PAA TELEFON (2026-07-07, paagaar):
   Appen kjoerer paa telefon (16 kB-fiks: CameraX 1.5.1 + compileSdk 36).
   Rapportert: treff mangler / desimalfeil (test = fotografere testbilder fra
