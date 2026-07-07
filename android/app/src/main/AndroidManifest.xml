@@ -15,8 +15,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Landskap: apparatskjermen er 4:3 liggende -> best oppløsning -->
         <activity android:name=".CaptureActivity" android:exported="false"
-                  android:screenOrientation="portrait" />
+                  android:screenOrientation="landscape" />
         <activity android:name=".ResultActivity" android:exported="false" />
     </application>
 </manifest>
