@@ -14,7 +14,7 @@ Kjernen bygges av NDK-en via `app/src/main/cpp/CMakeLists.txt`, som inkluderer
 `core/CMakeLists.txt` direkte — samme kode som desktop-verifiseres mot C-settet
 (`verify_cset_cpp.py`, krav 10/10).
 
-## Flyt (UI-iterasjon, bestefar-spec-v0-4.md)
+## Flyt (UI-iterasjon, bestefar_UI_spec-v0-4.md)
 
 Skall med seks faner (Våpen, Avstand, Stilling, Innsikt, Jakt, Meny) og stor
 sentrert «Scan serie»-knapp. Capture-løkka: scan → auto-capture (UKALIBRERTE

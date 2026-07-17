@@ -10,7 +10,8 @@ Kode ligger i: C:\Users\mrlee\Desktop\Bestefar\
 =====================================================================
 MOBIL-PORT (2026-07-05/06) - C++-KJERNE VERIFISERT 10/10
 =====================================================================
-Kravspec: kravspec.md. Arkitektur: docs/ARCHITECTURE.md. Layout:
+Kravspec: bestefar_CV-kjerne_spec.md (tidl. kravspec.md).
+UI-spec: bestefar_UI_spec-v0-4.md. Arkitektur: docs/ARCHITECTURE.md. Layout:
   core/     C++17-port av CV-pipelinen (KUN produksjonsstiene; doedkode som
             Hough-treff/ring_comb_v2/outermost_refine er IKKE portert)
   android/  Kotlin+CameraX+JNI-skjelett (3 skjermer; bygges i Android Studio,

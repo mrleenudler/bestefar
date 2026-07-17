@@ -1,7 +1,9 @@
 # Arkitektur — Målskive-app (Bestefar mobil)
 
 **Status:** Første Fable-iterasjon, 2026-07-05.
-**Underlag:** `kravspec.md`. Dette dokumentet fyller ut valgene kravspec §2 delegerer.
+**Underlag:** `bestefar_CV-kjerne_spec.md` (tidl. `kravspec.md`; omtales som
+«kravspec» i kommentarer og under). Dette dokumentet fyller ut valgene
+kravspec §2 delegerer. UI-laget spesifiseres i `bestefar_UI_spec-v0-4.md`.
 
 ## Repo-layout (monorepo)
 
