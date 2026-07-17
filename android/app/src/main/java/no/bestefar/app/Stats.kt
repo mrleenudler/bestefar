@@ -1,0 +1,184 @@
+package no.bestefar.app
+
+import android.graphics.Color
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
+
+/**
+ * Statistikkjernen for UI-et (spec §8): homogen sirkulær normalspredning om
+ * siktepunktet antas; P(dødelig) = massen innenfor dødelig radius; alt
+ * presenteres i frekvens («9 av 10»), aldri desimaltall (spec §1).
+ */
+object Stats {
+
+    /**
+     * PLASSHOLDER/UKALIBRERT: ringavstand på Kongsberg-skiva i cm per
+     * ringenhet (r_rel=1.0). Må settes fra faktisk skivegeometri.
+     */
+    const val RING_STEP_CM = 2.5
+
+    /**
+     * PLASSHOLDER (spec §10.1): dødelig-sone-radius (minste halvakse, cm) per
+     * art ved bredside. Skal erstattes av kildebelagt tabell.
+     */
+    val LETHAL_RADIUS_CM = mapOf(
+        Species.ELG to 15.0,
+        Species.HJORT to 12.0,
+        Species.VILLREIN to 11.0,
+        Species.RAADYR to 8.0,
+        Species.VILLSVIN to 10.0,
+    )
+
+    /**
+     * PLASSHOLDER: generell jaktstatistikk som forhåndsinformasjon for
+     * stillingsfordeling i felt (øvelsesmotoren, spec §5). Skal erstattes av
+     * BH-materiale.
+     */
+    val HUNT_POSITION_PRIOR = mapOf(
+        Position.LIGGENDE to 0.15,
+        Position.SITTENDE to 0.30,
+        Position.KNESTAENDE to 0.20,
+        Position.STAAENDE to 0.35,
+    )
+
+    fun lethalRadiusCm(species: Species, angle: Angle): Double? =
+        LETHAL_RADIUS_CM[species]?.times(angle.soneFaktor)
+
+    /**
+     * σ̂ (cm, 100 m-ekvivalent) fra skudd på tvers av avstander: radiene
+     * normaliseres vinkelmessig til 100 m før pooling. E[r²]=2σ² for
+     * sirkulær normal. Måles om siktepunktet (senter), ikke MTP (spec §8).
+     */
+    fun sigmaCmAt100(series: List<SeriesRecord>): Double? {
+        val r2 = series.flatMap { s ->
+            s.shots.map { sh ->
+                val rCm = sh.rRel * RING_STEP_CM * (100.0 / s.distanceM)
+                rCm * rCm
+            }
+        }
+        if (r2.isEmpty()) return null
+        return sqrt(r2.average() / 2.0)
+    }
+
+    fun shotCount(series: List<SeriesRecord>) = series.sumOf { it.shots.size }
+
+    /** P(dødelig): masse innenfor radius R ved avstand d, gitt σ@100m. */
+    fun pLethal(sigma100: Double, distanceM: Int, radiusCm: Double): Double {
+        val sigmaD = sigma100 * distanceM / 100.0
+        if (sigmaD <= 0.0) return 1.0
+        return 1.0 - exp(-(radiusCm * radiusCm) / (2.0 * sigmaD * sigmaD))
+    }
+
+    /**
+     * Grovt spenn på P(dødelig) fra estimeringsusikkerheten i σ
+     * (relativ SE ~ 1/√(2n) for radial måling; heuristikk, ikke KI).
+     */
+    fun pLethalSpan(sigma100: Double, n: Int, distanceM: Int, radiusCm: Double): Pair<Double, Double> {
+        val f = 1.0 / sqrt(2.0 * n.coerceAtLeast(1))
+        val pLo = pLethal(sigma100 * (1 + f), distanceM, radiusCm)
+        val pHi = pLethal(sigma100 * (1 - f).coerceAtLeast(0.1), distanceM, radiusCm)
+        return pLo to pHi
+    }
+
+    /**
+     * Maks forsvarlig hold (m): største d der P(skade) <= valgt rate.
+     * P(skade)=exp(-R²/(2σ(d)²)), σ(d)=σ100·d/100 -> løst for d.
+     */
+    fun maxHoldM(sigma100: Double, radiusCm: Double, rateLimit: Double): Int {
+        if (sigma100 <= 0.0) return 999
+        val d = radiusCm * 100.0 / (sigma100 * sqrt(2.0 * ln(1.0 / rateLimit)))
+        return d.toInt()
+    }
+
+    /** Jegerspråk: «~9 av 10» (spec §1). */
+    fun freqText(p: Double): String = when {
+        p >= 0.995 -> "10 av 10"
+        p < 0.05 -> "under 1 av 10"
+        else -> "~${(p * 10).roundToInt()} av 10"
+    }
+
+    /** Frekvens med spenn ved lite data (spec §5: spenn ved tynt grunnlag). */
+    fun freqTextWithSpan(p: Double, pLo: Double, pHi: Double, n: Int): String {
+        val lo = (pLo * 10).roundToInt()
+        val hi = (pHi * 10).roundToInt()
+        return if (n < 30 && lo != hi) "$lo–$hi av 10" else freqText(p)
+    }
+
+    /**
+     * Farge for felles forsvarlighetskriterium: rød->gul->grønn der gult
+     * ligger på brukerens valgte skadeskytingsrate (spec §5).
+     */
+    fun rateColor(pLethal: Double, rateLimit: Double): Int {
+        val threshold = 1.0 - rateLimit
+        val hue = if (pLethal >= threshold) {
+            60f + 60f * ((pLethal - threshold) / (1.0 - threshold)).toFloat()
+        } else {
+            60f * (pLethal / threshold).toFloat()
+        }
+        return Color.HSVToColor(floatArrayOf(hue.coerceIn(0f, 120f), 0.75f, 0.85f))
+    }
+
+    /**
+     * Klikk-forslag (spec §2): gjennomsnittlig offset i cm ved seriens
+     * avstand; vises kun når offsetet er skjelnbart fra støy
+     * (per akse |mean| > ~2σ̂/√n). Krever klikkverdi på optikken.
+     * Returnerer (høyreKlikk, oppKlikk) eller null («innenfor støy»).
+     * theta-konvensjon antas matematisk (x=r·cosθ, y=r·sinθ, y opp) — må
+     * verifiseres mot kjernen ved felttest.
+     */
+    fun clickSuggestion(shots: List<Shot>, distanceM: Int, clickValueCm100: Double): Pair<Int, Int>? {
+        if (shots.size < 3) return null
+        // offset i cm på skiva: rRel -> cm
+        val xs = shots.map { it.rRel * RING_STEP_CM * cos(it.theta) }
+        val ys = shots.map { it.rRel * RING_STEP_CM * sin(it.theta) }
+        val mx = xs.average(); val my = ys.average()
+        val sigma = sqrt((xs.map { (it - mx) * (it - mx) } + ys.map { (it - my) * (it - my) })
+            .average()).coerceAtLeast(0.1)
+        val noise = 2.0 * sigma / sqrt(shots.size.toDouble())
+        if (kotlin.math.abs(mx) <= noise && kotlin.math.abs(my) <= noise) return null
+        // klikkverdi er cm/klikk @100m -> cm/klikk ved d = click*d/100
+        val cmPerClick = clickValueCm100 * distanceM / 100.0
+        val right = (-mx / cmPerClick).roundToInt()
+        val up = (-my / cmPerClick).roundToInt()
+        if (right == 0 && up == 0) return null
+        return right to up
+    }
+
+    /** R95 (cm @ 100 m) og MOA — kun «mer statistikk» (spec §1). */
+    fun r95Cm(sigma100: Double) = sigma100 * sqrt(-2.0 * ln(0.05))
+    fun moa(sigma100: Double): Double {
+        val cmPerMoa100 = 2.908
+        return 2.0 * sigma100 / cmPerMoa100   // ~diameter av 1σ-gruppe i MOA
+    }
+
+    /**
+     * Øvelsesmotoren (spec §5): størst underdekning = jaktprior-andel minus
+     * treningsandel per hovedstilling. Returnerer (stilling, treningsandel,
+     * prior-andel) eller null når gapet er lite eller datagrunnlaget tynt.
+     */
+    fun practiceSuggestion(series: List<SeriesRecord>): Triple<Position, Double, Double>? {
+        val evid = series.filter { it.countsInEvidence }
+        if (evid.size < 3) return null
+        var best: Triple<Position, Double, Double>? = null
+        for (p in Position.hoved) {
+            val trained = evid.count { it.position == p }.toDouble() / evid.size
+            val prior = HUNT_POSITION_PRIOR[p] ?: 0.0
+            val gap = prior - trained
+            if (gap > 0.15 && (best == null || gap > best!!.third - best!!.second)) {
+                best = Triple(p, trained, prior)
+            }
+        }
+        return best
+    }
+
+    /** Vinkling i grader for visning (BH-sirkelen kommer, placeholder-tekst). */
+    fun angleDeg(a: Angle): Int = when (a) {
+        Angle.SIDE -> 90; Angle.SKRAA30 -> 60; Angle.SKRAA60 -> 30
+        Angle.FRONT -> 0; Angle.BAK -> 180
+    }
+}

@@ -14,11 +14,25 @@ Kjernen bygges av NDK-en via `app/src/main/cpp/CMakeLists.txt`, som inkluderer
 `core/CMakeLists.txt` direkte — samme kode som desktop-verifiseres mot C-settet
 (`verify_cset_cpp.py`, krav 10/10).
 
-## Flyt (første iterasjon, kravspec §7)
+## Flyt (UI-iterasjon, bestefar-spec-v0-4.md)
 
-Start → kameraskjerm med skanner-ramme (auto-capture: stabilitet + kvalitet,
-UKALIBRERTE terskler i `core/include/bestefar/config.h` `AutoCaptureParams`)
-→ analyse på enheten → resultatskjerm → OK → Start.
+Skall med seks faner (Våpen, Avstand, Stilling, Innsikt, Jakt, Meny) og stor
+sentrert «Scan serie»-knapp. Capture-løkka: scan → auto-capture (UKALIBRERTE
+terskler i `core/include/bestefar/config.h` `AutoCaptureParams`) → analyse på
+enheten → stillingsprompt → resultatkort (skiveplott, korrigering,
+klikk-forslag) → OK/avslutt økt.
+
+UI-lag (alt i `app/src/main/java/no/bestefar/app/`, programmatiske views):
+
+- `Model.kt` / `Store.kt` — lokal JSON/prefs-persistens (offline-først)
+- `Stats.kt` — P(dødelig), frekvensspråk, maks hold, klikk-forslag.
+  MERK: `RING_STEP_CM` og dødelig-sone-radiene er PLASSHOLDERE (spec §10.1)
+- `MainActivity` — skall/faner; `OktFragment` — hjem/øktflate
+- `InnsiktFragment` — kompetanseoversikt + kapabilitetskart
+- `JaktFragment` / `HuntLogActivity` — jaktmodus + hurtiglogg (3 steg)
+- `ResultActivity` / `SummaryActivity` — resultatkort + øktoppsummering
+- `ProfilActivity` — skytterprofil, våpenkartotek, samtykker, sletting
+- `OnboardingActivity` — tre skjermbilder ved første start
 
 ## Kalibrering av auto-capture
 

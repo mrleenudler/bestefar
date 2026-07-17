@@ -3,13 +3,154 @@
     <string name="app_name">Bestefar</string>
     <string name="start">Start</string>
     <string name="ok">OK</string>
+    <string name="save">Lagre</string>
+    <string name="send">Send</string>
+    <string name="cancel">Avbryt</string>
+    <string name="no_thanks">Nei takk</string>
+    <string name="scan_series">Scan serie</string>
+
+    <!-- Faner -->
+    <string name="tab_vapen">Våpen</string>
+    <string name="tab_avstand">Avstand</string>
+    <string name="tab_stilling">Stilling</string>
+    <string name="tab_innsikt">Innsikt</string>
+    <string name="tab_jakt">Jakt</string>
+    <string name="tab_meny">Meny</string>
+
+    <!-- Capture (eksisterende) -->
     <string name="status_searching">Finner skjermen …</string>
     <string name="status_closer">Gå nærmere — fyll rammen</string>
     <string name="status_quality">Hold kamera nærmere / bedre lys</string>
     <string name="status_hold_still">Hold i ro …</string>
     <string name="status_capturing">Knipser!</string>
+
+    <!-- Resultatkort -->
     <string name="result_hits">%1$d treff</string>
     <string name="result_sum">Sum: %1$.1f (%2$d)</string>
     <string name="result_confidence">Konfidens: %1$.2f</string>
     <string name="result_rejected">Analysen ble avvist (kode %1$d).\nPrøv igjen med bedre lys/vinkel.</string>
+    <string name="result_send_fail">Send bildet til feilanalyse</string>
+    <string name="result_long_term">Langsiktig (%1$s, %2$d m): snitt %3$.1f ± %4$.1f over %5$d serier</string>
+    <string name="result_long_term_none">Første serie i denne stillingen på denne avstanden.</string>
+    <string name="result_click">Klikk-forslag: %1$s</string>
+    <string name="result_click_noise">Innenfor støy — ikke juster.</string>
+    <string name="result_click_missing">Klikkforslag krever klikkverdi på optikken (Meny → Profil).</string>
+    <string name="result_counts">Teller i evidensgrunnlaget</string>
+    <string name="result_counts_not">Benk — teller ikke i kompetanse</string>
+    <string name="result_edit">Korriger skuddmerker</string>
+    <string name="result_end_session">Avslutt økt</string>
+    <string name="correction_title">Korriger poeng</string>
+    <string name="fail_channel_title">Dele korrigeringen?</string>
+    <string name="fail_channel_body">Vil du sende den korrigerte analysen (med bilde) til feilanalysekanalen? Gjelder kun denne innsendingen.</string>
+
+    <!-- Stillingsprompt -->
+    <string name="position_prompt_title">Hvilken stilling skjøt du fra?</string>
+    <string name="position_modifier">Støtte</string>
+    <string name="position_benk">Benk (innskyting)</string>
+
+    <!-- Våpen -->
+    <string name="weapon_confirm_title">Bekreft dagens våpen</string>
+    <string name="ammo_confirm_title">Ammunisjon for %1$s</string>
+    <string name="ammo_hint">F.eks. 6,5×55 Norma 9,1 g</string>
+    <string name="weapon_none">Ingen våpen registrert ennå. Legg til ett — med bare ett våpen velges det automatisk.</string>
+    <string name="weapon_add">Legg til våpen</string>
+    <string name="weapon_manage_hint">Klikkverdi og ammunisjonssplitt endres i våpenkartoteket (Meny → Profil).</string>
+
+    <!-- Avstand -->
+    <string name="distance_title">Avstand</string>
+    <string name="distance_current">Gjeldende avstand: %1$d m</string>
+    <string name="distance_custom_hint">Egendefinert (m)</string>
+    <string name="distance_set">Sett</string>
+
+    <!-- Stilling-fanen -->
+    <string name="stilling_current">Gjeldende: %1$s (%2$s)</string>
+    <string name="stilling_manual">Ikke spør — manuell stilling</string>
+    <string name="stilling_manual_hint">Stillingsprompten etter scan erstattes av valget over.</string>
+
+    <!-- Økt -->
+    <string name="okt_title">Dagens økt</string>
+    <string name="okt_context">%1$s · %2$d m · %3$s</string>
+    <string name="okt_no_series">Ingen serier i dag. Trykk «Scan serie» for å starte.</string>
+    <string name="okt_practice_ok">Sett opp</string>
+    <string name="okt_practice_dismiss">Ikke nå</string>
+
+    <!-- Øktoppsummering -->
+    <string name="summary_title">Øktoppsummering</string>
+    <string name="summary_queue">%1$d usendte opplastinger i kø</string>
+    <string name="summary_no_change">Kompetansebildet oppdateres etter hvert som seriene faller inn i langtidsbildet.</string>
+
+    <!-- Innsikt -->
+    <string name="innsikt_hidden">Innsikt åpner etter første økt denne sesongen.\nSkyt en serie for å komme i gang.</string>
+    <string name="innsikt_competence">Kompetanse</string>
+    <string name="innsikt_map">Kart</string>
+    <string name="innsikt_not_tested">ikke testet</string>
+    <string name="innsikt_fells">Feller rent %1$s</string>
+    <string name="innsikt_max_hold">Maks forsvarlig hold</string>
+    <string name="innsikt_info">Anslaget bygger på hvor mange skudd du har logget; jo flere, jo sikrere. Grensen er skadeskytingsraten du har valgt i profilen.</string>
+    <string name="innsikt_moving_note">Skudd «i bevegelse» er utenfor modellen og vises separat (veikart).</string>
+
+    <!-- Jakt -->
+    <string name="hunt_mode">Jaktmodus</string>
+    <string name="hunt_day_setup">Dagsoppsett</string>
+    <string name="hunt_location">Stedslogging (lagres kun lokalt)</string>
+    <string name="hunt_log_button">Logg jaktskudd</string>
+    <string name="hunt_recent">Siste jaktskudd</string>
+    <string name="hunt_none">Ingen jaktskudd logget.</string>
+    <string name="hunt_step_species">Art</string>
+    <string name="hunt_step_hold">Hold og vinkling</string>
+    <string name="hunt_step_outcome">Utfall</string>
+    <string name="hunt_moving">I bevegelse</string>
+    <string name="hunt_next">Neste</string>
+    <string name="hunt_outcome_lethal_sub">Dyret løp kortere enn ~100 m</string>
+    <string name="hunt_saved">Jaktskudd logget</string>
+    <string name="hunt_followup_title">Forrige jaktskudd (skade)</string>
+    <string name="hunt_followup_body">Hva ble utfallet etter ettersøk?</string>
+    <string name="hunt_followup_later">Vet ikke ennå</string>
+    <string name="hunt_angle_info">Vinkling angis som dyret sett i sirkel (BH-format). Grafikk kommer; velg nærmeste kategori.</string>
+
+    <!-- Samtykke -->
+    <string name="consent_research_title">Bidra til forskning?</string>
+    <string name="consent_research_body">Treningsresultatene dine kan deles pseudonymt med forskningsprosjektet om øvelsesskyting og jaktutfall. Du ser nøyaktig hva som deles, og kan trekke samtykket når som helst i profilen.</string>
+    <string name="consent_hunt_title">Dele jaktdata?</string>
+    <string name="consent_hunt_body">Jaktloggen kan deles pseudonymt til forskning, med stedsoppløsning du velger. Skadedata er alltid private som standard. Avslag endrer ingen funksjonalitet.</string>
+    <string name="consent_yes">Ja</string>
+    <string name="consent_later">Ikke nå</string>
+    <string name="consent_never">Aldri</string>
+    <string name="consent_age_title">Fødselsår (18-årsgrense for forskningssamtykke)</string>
+    <string name="consent_age_denied">Forskningssamtykke krever 18 år. Appen fungerer likt uansett.</string>
+    <string name="birth_year_hint">Fødselsår</string>
+
+    <!-- Meny / profil -->
+    <string name="menu_profile">Profil</string>
+    <string name="menu_history">Historikk</string>
+    <string name="menu_stats">Mer statistikk</string>
+    <string name="menu_help">Hjelp og ikonforklaring</string>
+    <string name="profile_title">Profil</string>
+    <string name="profile_shooter">Skytterprofil</string>
+    <string name="profile_rate">Akseptabel skadeskytingsrate</string>
+    <string name="profile_rate_info">Grensen brukes overalt i appen som ett felles forsvarlighetskriterium. Endring virker umiddelbart.</string>
+    <string name="profile_weapons">Våpenkartotek</string>
+    <string name="profile_click_hint">cm/klikk @ 100 m</string>
+    <string name="profile_ammo_split">Ammunisjonssplitt (egen historikk per ammo)</string>
+    <string name="profile_data">Data og samtykke</string>
+    <string name="profile_granularity">Stedsoppløsning for deling</string>
+    <string name="profile_move">Flytt til ny telefon</string>
+    <string name="profile_move_todo">Kryptert eksportfil kommer i neste iterasjon.</string>
+    <string name="profile_delete">Slett alle data</string>
+    <string name="profile_delete_confirm">Sletter alle lokale data (serier, jaktlogg, profil). Kan ikke angres. Fortsette?</string>
+    <string name="profile_backup_status">Android Auto Backup: aktiv (app-innstilling)</string>
+    <string name="profile_login">Innlogging for backup (Google/Apple/e-post) kommer i neste iterasjon.</string>
+    <string name="skytterlag_hint">Skytterlag</string>
+    <string name="jaktlag_hint">Jaktlag (flere skilles med komma)</string>
+    <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: samme grense brukes i kompetanseoversikten og kapabilitetskartet, så de aldri motsier hverandre.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_next">Neste</string>
+    <string name="onboarding_done">Kom i gang</string>
+    <string name="onboarding_1_title">Kjenn din egen grense</string>
+    <string name="onboarding_1_body">Bestefar måler skyteevnen din på øvelsesbanen og viser hvilke hold og stillinger som er forsvarlige — før jakta, aldri i skuddøyeblikket.</string>
+    <string name="onboarding_2_title">Jegerens språk</string>
+    <string name="onboarding_2_body">Alt vises i frekvens («9 av 10») og med ikoner. Hvert ikon har tekstalternativ og en (i) som forklarer.</string>
+    <string name="onboarding_3_title">Dine data, lokalt</string>
+    <string name="onboarding_3_body">Alt lagres lokalt på telefonen og virker uten dekning. Konto og forskningsdeling er frivillig og kan skrus av og på når som helst.</string>
 </resources>

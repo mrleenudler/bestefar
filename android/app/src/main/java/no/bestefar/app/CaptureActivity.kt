@@ -206,7 +206,13 @@ class CaptureActivity : AppCompatActivity() {
                     .putExtra(ResultActivity.EXTRA_N_HITS, result.hits.size)
                     .putExtra(ResultActivity.EXTRA_CONFIDENCE, result.confidence)
                     .putExtra(ResultActivity.EXTRA_DECIMALS,
-                              result.hits.map { it.decimal }.toDoubleArray()))
+                              result.hits.map { it.decimal }.toDoubleArray())
+                    .putExtra(ResultActivity.EXTRA_INTEGERS,
+                              result.hits.map { it.integer }.toIntArray())
+                    .putExtra(ResultActivity.EXTRA_RREL,
+                              result.hits.map { it.rRel }.toDoubleArray())
+                    .putExtra(ResultActivity.EXTRA_THETA,
+                              result.hits.map { it.theta }.toDoubleArray()))
                 finish()
             }
 

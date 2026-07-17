@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Stedslogging av jaktskudd, valgfri og kun lokal lagring (spec §4) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
     <application
@@ -19,5 +22,9 @@
         <activity android:name=".CaptureActivity" android:exported="false"
                   android:screenOrientation="landscape" />
         <activity android:name=".ResultActivity" android:exported="false" />
+        <activity android:name=".SummaryActivity" android:exported="false" />
+        <activity android:name=".OnboardingActivity" android:exported="false" />
+        <activity android:name=".HuntLogActivity" android:exported="false" />
+        <activity android:name=".ProfilActivity" android:exported="false" />
     </application>
 </manifest>
