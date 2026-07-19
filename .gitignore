@@ -25,3 +25,5 @@ android/keystore.properties
 dist/
 backend/bestefar.db
 backend/__pycache__/
+
+android/.kotlin/

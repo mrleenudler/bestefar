@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Portert fra UI/menu_icon_stats.svg: soyler + forstoerrelsesglass.
+     Hvit-halo-trikset erstattet med avkortede soyler (tintbart, transparent bakgrunn). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="37dp" android:height="24dp"
+    android:viewportWidth="1550" android:viewportHeight="1000">
+    <path android:fillColor="#FF000000" android:pathData="M100,500 h190 v450 h-190 z"/>
+    <path android:fillColor="#FF000000" android:pathData="M390,190 h190 v760 h-190 z"/>
+    <path android:fillColor="#FF000000" android:pathData="M680,390 h190 v560 h-190 z"/>
+    <path android:fillColor="#FF000000" android:pathData="M970,630 h190 v320 h-190 z"/>
+    <path android:fillColor="#FF000000" android:pathData="M1260,660 h190 v290 h-190 z"/>
+    <group>
+        <clip-path android:pathData="M920,340 a145,145 0 1,0 290,0 a145,145 0 1,0 -290,0 z"/>
+        <path android:fillColor="#FF000000" android:pathData="M946.25,250 h237.5 v700 h-237.5 z"/>
+    </group>
+    <path android:fillColor="#00000000" android:strokeColor="#FF000000"
+        android:strokeWidth="56"
+        android:pathData="M865,340 a200,200 0 1,0 400,0 a200,200 0 1,0 -400,0 z"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FF000000"
+        android:strokeWidth="88" android:strokeLineCap="round"
+        android:pathData="M1206,481 L1301,576"/>
+</vector>

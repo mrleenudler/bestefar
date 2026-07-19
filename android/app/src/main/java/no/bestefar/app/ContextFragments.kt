@@ -44,34 +44,45 @@ class VapenFragment : RebuildFragment() {
         content.removeAllViews()
         content.addView(Ui.title(a, getString(R.string.tab_vapen)))
 
+        // «Legg til våpen» øverst (musingsUI); finnes også i Meny
+        content.addView(MaterialButton(a, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.weapon_add)
+            layoutParams = Ui.matchWrap(4, a)
+            setOnClickListener { Dialogs.weaponEdit(a, store, null, false) { rebuild() } }
+        })
+
         val ws = store.weapons()
         if (ws.isEmpty()) {
             content.addView(Ui.body(a, getString(R.string.weapon_none)))
         } else {
             val selectedId = store.selectedWeapon()?.id
             ws.forEach { w ->
-                val rb = RadioButton(a).apply {
+                val row = Ui.row(a)
+                row.addView(android.widget.ImageView(a).apply {
+                    setImageResource(WeaponIcons.res(w.icon))
+                    adjustViewBounds = true
+                    layoutParams = LinearLayout.LayoutParams(
+                        Ui.dp(a, 44), Ui.dp(a, 28))
+                    contentDescription = w.shownName
+                })
+                row.addView(RadioButton(a).apply {
                     textSize = 17f
                     text = buildString {
-                        append(w.name)
+                        append(w.shownName)
                         if (w.ammoSplit && w.ammoName.isNotBlank()) append(" — ${w.ammoName}")
                     }
                     isChecked = w.id == selectedId
-                    setPadding(0, Ui.dp(a, 8), 0, Ui.dp(a, 8))
+                    setPadding(Ui.dp(a, 8), Ui.dp(a, 8), 0, Ui.dp(a, 8))
                     setOnClickListener {
                         store.selectedWeaponId = w.id
                         store.weaponConfirmedDate = LocalDate.now().toString()
                         rebuild()
                     }
-                }
-                content.addView(rb)
+                })
+                content.addView(row)
             }
         }
-        content.addView(MaterialButton(a).apply {
-            text = getString(R.string.weapon_add)
-            layoutParams = Ui.matchWrap(12, a)
-            setOnClickListener { Dialogs.weaponEdit(a, store, null) { rebuild() } }
-        })
         content.addView(Ui.hint(a, getString(R.string.weapon_manage_hint)))
     }
 }

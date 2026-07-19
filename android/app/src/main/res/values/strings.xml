@@ -144,13 +144,59 @@
     <string name="jaktlag_hint">Jaktlag (flere skilles med komma)</string>
     <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: samme grense brukes i kompetanseoversikten og kapabilitetskartet, så de aldri motsier hverandre.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
 
-    <!-- Onboarding -->
-    <string name="onboarding_next">Neste</string>
-    <string name="onboarding_done">Kom i gang</string>
-    <string name="onboarding_1_title">Kjenn din egen grense</string>
-    <string name="onboarding_1_body">Bestefar måler skyteevnen din på øvelsesbanen og viser hvilke hold og stillinger som er forsvarlige — før jakta, aldri i skuddøyeblikket.</string>
-    <string name="onboarding_2_title">Jegerens språk</string>
-    <string name="onboarding_2_body">Alt vises i frekvens («9 av 10») og med ikoner. Hvert ikon har tekstalternativ og en (i) som forklarer.</string>
-    <string name="onboarding_3_title">Dine data, lokalt</string>
-    <string name="onboarding_3_body">Alt lagres lokalt på telefonen og virker uten dekning. Konto og forskningsdeling er frivillig og kan skrus av og på når som helst.</string>
+    <!-- Tutorial (erstatter intro, musingsUI) -->
+    <string name="tutorial_next">Neste</string>
+    <string name="tutorial_done">Ferdig</string>
+    <string name="tutorial_1_title">Scan serie</string>
+    <string name="tutorial_1_body">Den store knappen nederst scanner skiva etter en serie. Sikt kameraet på skjermen og hold rolig — bildet tas automatisk, og du får poeng og treffbilde.</string>
+    <string name="tutorial_2_title">Knappene øverst</string>
+    <string name="tutorial_2_body">Våpen, avstand og stilling er dagens kontekst — appen husker valgene for deg. Jakt-knappen åpner hurtigloggen for jaktskudd.</string>
+    <string name="tutorial_3_title">Innsikt</string>
+    <string name="tutorial_3_body">Etter første økt åpner Innsikt: hvilke hold og stillinger som er forsvarlige for deg, vist i frekvens («9 av 10»).</string>
+    <string name="tutorial_4_title">Meny</string>
+    <string name="tutorial_4_body">I menyen finner du søk, serielogg, optikk-kalkulator, våpenoppsett, profil og hjelp. Denne gjennomgangen kan spilles av igjen derfra.</string>
+
+    <!-- Resultatkort (musingsUI) -->
+    <string name="result_discard">Ikke lagre</string>
+
+    <!-- Våpen-dialog (musingsUI) -->
+    <string name="weapon_display_hint">Visningsnavn (f.eks. «Elgrifla»)</string>
+    <string name="weapon_name_hint">Våpennavn (f.eks. Sauer 100 6,5×55)</string>
+    <string name="weapon_edit">Rediger våpen</string>
+    <string name="weapon_optic">Optikk: %1$s</string>
+    <string name="weapon_optic_choose">Velg / ny optikkprofil</string>
+
+    <!-- Optikkprofil (musingsUI) -->
+    <string name="optic_choose_title">Optikkprofil</string>
+    <string name="optic_new">Ny optikkprofil …</string>
+    <string name="optic_none">Ingen optikk</string>
+    <string name="optic_edit">Rediger optikkprofil</string>
+    <string name="optic_display_hint">Visningsnavn</string>
+    <string name="optic_brand_hint">Merke/modell</string>
+    <string name="optic_click_title">Klikkverdi — velg representasjon</string>
+    <string name="optic_derived_cm">= %1$.2f cm/100 m</string>
+    <string name="optic_advanced">Avansert</string>
+    <string name="optic_smoa">Tårnet bruker forenklet 1 tomme/100 yards (SMOA)</string>
+
+    <!-- Serielogg (musingsUI) -->
+    <string name="serielogg">Serielogg</string>
+    <string name="serielogg_delete">Slett serie</string>
+    <string name="serielogg_avg">snitt %1$.1f</string>
+    <string name="serielogg_empty">Ingen serier scannet ennå.</string>
+    <plurals name="serielogg_delete_confirm">
+        <item quantity="one">Slette 1 serie? Kan ikke angres.</item>
+        <item quantity="other">Slette %d serier? Kan ikke angres.</item>
+    </plurals>
+
+    <!-- Optikk-kalkulator (musingsUI) -->
+    <string name="kalkulator">Optikk-kalkulator</string>
+    <string name="kalk_distance">Avstand (m)</string>
+    <string name="kalk_value">Verdi (korreksjon)</string>
+    <string name="kalk_clicks">Antall klikk per klikkverdi:</string>
+    <string name="kalk_help">Skriv inn en korreksjon, velg enhet, og få omregning til de andre enhetene pluss antall klikk.</string>
+
+    <!-- Søk og meny (musingsUI) -->
+    <string name="search">Søk</string>
+    <string name="search_hint">Søk etter funksjon eller informasjon</string>
+    <string name="menu_tutorial">Tutorial</string>
 </resources>

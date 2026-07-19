@@ -60,15 +60,22 @@ enum class FollowUp(val label: String) {
 
 data class Weapon(
     val id: String,
-    var name: String,
-    var clickValueCm: Double?,   // cm/klikk @ 100 m; null = ukjent -> ingen klikkforslag
+    var name: String,            // våpennavn (modell), f.eks. «Sauer 100 6,5×55»
+    var clickValueCm: Double?,   // legacy: cm/klikk @100m; erstattes av optikkprofil
     var ammoSplit: Boolean,
     var ammoName: String,        // aktiv ammo (metadata når split er av)
+    var displayName: String = "",   // brukerens eget visningsnavn
+    var icon: String = "rifle",     // nøkkel i WeaponIcons
+    var opticId: String? = null,    // kobling til OpticProfile
 ) {
+    val shownName: String get() = displayName.ifBlank { name }
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("name", name)
         put("click", clickValueCm ?: JSONObject.NULL)
         put("ammoSplit", ammoSplit); put("ammo", ammoName)
+        put("displayName", displayName); put("icon", icon)
+        put("opticId", opticId ?: JSONObject.NULL)
     }
     companion object {
         fun fromJson(o: JSONObject) = Weapon(
@@ -77,6 +84,83 @@ data class Weapon(
             clickValueCm = if (o.isNull("click")) null else o.getDouble("click"),
             ammoSplit = o.optBoolean("ammoSplit", false),
             ammoName = o.optString("ammo", ""),
+            displayName = o.optString("displayName", ""),
+            icon = o.optString("icon", "rifle"),
+            opticId = if (o.isNull("opticId")) null else o.optString("opticId"),
+        )
+    }
+}
+
+/** Ikonvalg for våpen (flere kommer; nøkkel persisteres i Weapon.icon). */
+object WeaponIcons {
+    val options = listOf(
+        "rifle" to R.drawable.ic_menu_rifle,
+        "scoped" to R.drawable.ic_weapon_scoped,
+        "simple" to R.drawable.ic_tab_vapen,
+        "target" to R.drawable.ic_weapon_target,
+    )
+    fun res(key: String): Int =
+        options.firstOrNull { it.first == key }?.second ?: R.drawable.ic_menu_rifle
+}
+
+/**
+ * Optikkprofil (musingsUI): navngitt profil som settes opp én gang og velges
+ * fra. Én aktiv representasjon av klikkverdien (MOA / MRAD / cm@100m);
+ * konverteringer til de inaktive vises ikke. SMOA er avansert flagg.
+ */
+data class OpticProfile(
+    val id: String,
+    var displayName: String,
+    var brandModel: String,
+    var repr: String,        // "MOA" | "MRAD" | "CM"
+    var moaValue: Double,    // 1/8, 1/4, 1/2, 1
+    var mradValue: Double,   // 0.1 eller 0.05
+    var cmValue: Double,     // cm/klikk @100m (kun redigerbar under CM)
+    var smoa: Boolean,       // tårnet bruker forenklet 1 tomme/100 yards
+) {
+    /** Effektiv klikkverdi i cm/100m — én kilde til sannhet av gangen. */
+    val clickCmPer100: Double
+        get() = when (repr) {
+            "MOA" -> moaValue * (if (smoa) SMOA_CM_PER_100M else MOA_CM_PER_100M)
+            "MRAD" -> mradValue * 10.0
+            else -> cmValue
+        }
+
+    val reprLabel: String
+        get() = when (repr) {
+            "MOA" -> "${moaLabel(moaValue)} MOA" + if (smoa) " (SMOA)" else ""
+            "MRAD" -> "${"%.2f".format(mradValue).trimEnd('0').trimEnd(',', '.')} mrad"
+            else -> "%.2f cm/100m".format(cmValue)
+        }
+
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id); put("displayName", displayName); put("brandModel", brandModel)
+        put("repr", repr); put("moa", moaValue); put("mrad", mradValue)
+        put("cm", cmValue); put("smoa", smoa)
+    }
+    companion object {
+        /** Ekte MOA: 1,047 tommer/100 yards = 2,908 cm/100 m. */
+        const val MOA_CM_PER_100M = 2.908
+        /** SMOA: 1,000 tomme/100 yards = 2,778 cm/100 m (~4,7 % avvik). */
+        const val SMOA_CM_PER_100M = 2.778
+
+        val MOA_STEPS = listOf(0.125, 0.25, 0.5, 1.0)
+        val MRAD_STEPS = listOf(0.1, 0.05)
+
+        fun moaLabel(v: Double): String = when (v) {
+            0.125 -> "1/8"; 0.25 -> "1/4"; 0.5 -> "1/2"; 1.0 -> "1"
+            else -> "%.3f".format(v)
+        }
+
+        fun fromJson(o: JSONObject) = OpticProfile(
+            id = o.getString("id"),
+            displayName = o.optString("displayName", ""),
+            brandModel = o.optString("brandModel", ""),
+            repr = o.optString("repr", "CM"),
+            moaValue = o.optDouble("moa", 0.25),
+            mradValue = o.optDouble("mrad", 0.1),
+            cmValue = o.optDouble("cm", 1.0),
+            smoa = o.optBoolean("smoa", false),
         )
     }
 }

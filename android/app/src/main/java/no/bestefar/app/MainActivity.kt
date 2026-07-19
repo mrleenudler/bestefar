@@ -1,9 +1,11 @@
 package no.bestefar.app
 
-import android.content.Intent
+import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -14,24 +16,26 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.ImageViewCompat
 import androidx.fragment.app.Fragment
-import android.content.res.ColorStateList
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 
 /**
- * Skall (spec §2): seks faner — Våpen, Avstand, Stilling, Innsikt, Jakt,
- * Meny — pluss stor sentrert «Scan serie»-knapp som starter capture-løkka.
- * Økt-flaten er startvisningen; tilbake-knappen går dit før appen lukkes.
+ * Hovedskall (musingsUI): valgknappene øverst — stående: to rader à tre
+ * (våpen–avstand–jakt / stilling–innsikt–meny); liggende: én rad. Den store
+ * scan-knappen ligger i Økt-flaten (nedre halvdel / full bredde liggende).
+ * Intro-skjermene er erstattet av et tutorial-overlegg.
  */
 class MainActivity : AppCompatActivity() {
 
     private data class Tab(val iconRes: Int, val labelRes: Int, val make: () -> Fragment)
 
+    // Rekkefølge (musingsUI): rad 1 våpen-avstand-jakt, rad 2 stilling-innsikt-meny
     private val tabs = listOf(
-        Tab(R.drawable.ic_tab_vapen, R.string.tab_vapen) { VapenFragment() },
-        Tab(R.drawable.ic_tab_avstand, R.string.tab_avstand) { AvstandFragment() },
-        Tab(R.drawable.ic_tab_stilling, R.string.tab_stilling) { StillingFragment() },
-        Tab(R.drawable.ic_tab_innsikt, R.string.tab_innsikt) { InnsiktFragment() },
-        Tab(R.drawable.ic_tab_jakt, R.string.tab_jakt) { JaktFragment() },
+        Tab(R.drawable.ic_menu_rifle, R.string.tab_vapen) { VapenFragment() },
+        Tab(R.drawable.ic_menu_distance, R.string.tab_avstand) { AvstandFragment() },
+        Tab(R.drawable.ic_menu_moose, R.string.tab_jakt) { JaktFragment() },
+        Tab(R.drawable.ic_menu_position, R.string.tab_stilling) { StillingFragment() },
+        Tab(R.drawable.ic_menu_stats, R.string.tab_innsikt) { InnsiktFragment() },
         Tab(R.drawable.ic_tab_meny, R.string.tab_meny) { MenyFragment() },
     )
 
@@ -39,16 +43,31 @@ class MainActivity : AppCompatActivity() {
     private val tabLabels = mutableListOf<TextView>()
     private var selected = -1   // -1 = Økt-flaten (hjem)
     private lateinit var store: Store
+    private lateinit var root: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
-        if (!store.onboardingDone) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-        }
 
-        val root = FrameLayout(this)
+        root = FrameLayout(this)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+        val landscape =
+            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Ui.themeColor(this@MainActivity,
+                com.google.android.material.R.attr.colorSurfaceVariant))
+        }
+        if (landscape) {
+            bar.addView(buildRow(tabs.indices.toList()))
+        } else {
+            bar.addView(buildRow(listOf(0, 1, 2)))
+            bar.addView(buildRow(listOf(3, 4, 5)))
+        }
+        column.addView(bar, ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val content = FrameLayout(this).apply {
             id = R.id.content_frame
@@ -57,14 +76,30 @@ class MainActivity : AppCompatActivity() {
         }
         column.addView(content)
 
-        val bar = LinearLayout(this).apply {
+        root.addView(column, ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
+        setContentView(root)
+        showHome()
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (selected != -1) showHome() else finish()
+            }
+        })
+
+        if (!store.tutorialSeen) {
+            root.post { showTutorial() }
+        }
+    }
+
+    private fun buildRow(indices: List<Int>): LinearLayout {
+        val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 64))
-            setBackgroundColor(Ui.themeColor(this@MainActivity,
-                com.google.android.material.R.attr.colorSurfaceVariant))
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 60))
         }
-        tabs.forEachIndexed { i, tab ->
+        indices.forEach { i ->
+            val tab = tabs[i]
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
@@ -74,8 +109,9 @@ class MainActivity : AppCompatActivity() {
             }
             val icon = ImageView(this).apply {
                 setImageResource(tab.iconRes)
+                adjustViewBounds = true
                 layoutParams = LinearLayout.LayoutParams(
-                    Ui.dp(this@MainActivity, 24), Ui.dp(this@MainActivity, 24))
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this@MainActivity, 26))
                 contentDescription = getString(tab.labelRes)   // WCAG (spec §9)
             }
             val label = TextView(this).apply {
@@ -84,35 +120,12 @@ class MainActivity : AppCompatActivity() {
             }
             cell.addView(icon); cell.addView(label)
             tabIcons.add(icon); tabLabels.add(label)
-            bar.addView(cell)
+            row.addView(cell)
         }
-        column.addView(bar)
-        root.addView(column, ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT)
-
-        // Stor sentrert scan-knapp (spec §2); kobling til CV-kjernen (spec §11)
-        val fab = ExtendedFloatingActionButton(this).apply {
-            text = getString(R.string.scan_series)
-            setOnClickListener {
-                startActivity(Intent(this@MainActivity, CaptureActivity::class.java))
-            }
-        }
-        root.addView(fab, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        ).apply { bottomMargin = Ui.dp(this@MainActivity, 84) })
-
-        setContentView(root)
-        showHome()
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (selected != -1) showHome() else finish()
-            }
-        })
+        return row
     }
 
-    private fun select(i: Int) {
+    fun select(i: Int) {
         selected = i
         supportFragmentManager.beginTransaction()
             .replace(R.id.content_frame, tabs[i].make())
@@ -120,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         tintTabs()
     }
 
-    private fun showHome() {
+    fun showHome() {
         selected = -1
         supportFragmentManager.beginTransaction()
             .replace(R.id.content_frame, OktFragment())
@@ -130,12 +143,64 @@ class MainActivity : AppCompatActivity() {
 
     private fun tintTabs() {
         val active = Ui.themeColor(this, com.google.android.material.R.attr.colorPrimary)
-        val idle = Color.argb(140, 128, 128, 128)
+        val idle = Ui.themeColor(this, android.R.attr.textColorPrimary)
         tabIcons.forEachIndexed { i, icon ->
             val c = if (i == selected) active else idle
             ImageViewCompat.setImageTintList(icon, ColorStateList.valueOf(c))
             tabLabels[i].setTextColor(c)
         }
+    }
+
+    // ---------- Tutorial (erstatter intro, musingsUI) ----------
+
+    private val tutorialSteps = listOf(
+        R.string.tutorial_1_title to R.string.tutorial_1_body,
+        R.string.tutorial_2_title to R.string.tutorial_2_body,
+        R.string.tutorial_3_title to R.string.tutorial_3_body,
+        R.string.tutorial_4_title to R.string.tutorial_4_body,
+    )
+
+    fun showTutorial() {
+        var idx = 0
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(Color.argb(150, 0, 0, 0))
+            isClickable = true   // sluk klikk mot UI-et bak
+        }
+        val card = MaterialCardView(this).apply {
+            radius = Ui.dp(this@MainActivity, 16).toFloat()
+        }
+        val inner = Ui.col(this, 20)
+        val title = TextView(this).apply { textSize = 20f }
+        val body = TextView(this).apply { textSize = 15f }
+        val next = MaterialButton(this)
+        fun renderStep() {
+            val (t, b) = tutorialSteps[idx]
+            title.setText(t); body.setText(b)
+            next.text = getString(
+                if (idx == tutorialSteps.size - 1) R.string.tutorial_done
+                else R.string.tutorial_next)
+        }
+        next.setOnClickListener {
+            if (idx == tutorialSteps.size - 1) {
+                store.tutorialSeen = true
+                root.removeView(overlay)
+            } else {
+                idx++; renderStep()
+            }
+        }
+        inner.addView(title); inner.addView(body)
+        inner.addView(next, Ui.matchWrap(12, this))
+        card.addView(inner)
+        overlay.addView(card, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER
+        ).apply {
+            leftMargin = Ui.dp(this@MainActivity, 24)
+            rightMargin = Ui.dp(this@MainActivity, 24)
+        })
+        renderStep()
+        root.addView(overlay, ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
     }
 
     override fun onResume() {

@@ -1,6 +1,5 @@
 package no.bestefar.app
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
@@ -11,15 +10,13 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sqrt
 
 /**
- * Resultatkort (spec §2): skudd plottet på skivegjengivelse, poengsum,
- * langsiktig snitt/spredning, klikk-forslag (kun når skjelnbart fra støy),
- * korrigering av skuddmerker, og teller/teller-ikke-status.
- *
- * Flyt: stillingsprompt (med mindre manuell/øvelsesmodus) → dagsbekreftelse
- * av våpen (første serie den dagen) → lagring → kort → ev. samtykkeprompt.
+ * Resultatkort (musingsUI): skive med treffene markert; poengene i stigende
+ * rekkefølge på høyre side, blyant per poeng for korrigering; «Ikke lagre»
+ * til venstre og «OK» til høyre under skiven. Serien lagres først ved OK.
  */
 class ResultActivity : AppCompatActivity() {
 
@@ -38,6 +35,7 @@ class ResultActivity : AppCompatActivity() {
     private lateinit var store: Store
     private lateinit var content: LinearLayout
     private var record: SeriesRecord? = null
+    private var saved = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,10 +49,10 @@ class ResultActivity : AppCompatActivity() {
             return
         }
 
-        // Gjenskaping (rotasjon): ikke prompt/lagre på nytt
+        // Gjenskaping (rotasjon): allerede lagret -> bare vis
         savedInstanceState?.getString("recordId")?.let { id ->
             record = store.allSeries().firstOrNull { it.id == id }
-            if (record != null) { render(); return }
+            if (record != null) { saved = true; render(); return }
         }
 
         val decimals = intent.getDoubleArrayExtra(EXTRA_DECIMALS) ?: doubleArrayOf()
@@ -69,7 +67,7 @@ class ResultActivity : AppCompatActivity() {
         resolvePosition { pos, mod ->
             Dialogs.weaponDayConfirm(this, store) {
                 val w = store.selectedWeapon()
-                val r = SeriesRecord(
+                record = SeriesRecord(
                     id = Store.newId(),
                     ts = System.currentTimeMillis(),
                     weaponId = w?.id,
@@ -79,10 +77,7 @@ class ResultActivity : AppCompatActivity() {
                     modifier = mod,
                     shots = shots,
                 )
-                store.addSeries(r)
-                record = r
                 render()
-                Dialogs.maybeResearchConsent(this, store)
             }
         }
     }
@@ -112,40 +107,70 @@ class ResultActivity : AppCompatActivity() {
                 isEnabled = false
             }
         })
-        content.addView(okButton())
+        content.addView(MaterialButton(this).apply {
+            text = getString(R.string.ok)
+            layoutParams = Ui.matchWrap(8, this@ResultActivity)
+            setOnClickListener { finish() }
+        })
     }
 
     private fun render() {
         val r = record ?: return
         content.removeAllViews()
 
+        // Skive + poengliste (stigende) på høyre side
+        val mainRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         val target = TargetView(this).apply {
             hits = r.shots
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@ResultActivity, 320))
+            layoutParams = LinearLayout.LayoutParams(0,
+                Ui.dp(this@ResultActivity, 300), 1f)
         }
-        content.addView(target)
+        mainRow.addView(target)
 
-        // Sum + korrigerings-blyant (spec §2)
-        val sumRow = Ui.row(this)
-        sumRow.addView(TextView(this).apply {
+        val scoreCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
+        }
+        val ordered = r.shots.withIndex().sortedBy { it.value.decimal }
+        ordered.forEach { (idx, shot) ->
+            val row = Ui.row(this)
+            row.addView(TextView(this).apply {
+                text = "%.1f".format(shot.decimal)
+                textSize = 19f
+                minWidth = Ui.dp(this@ResultActivity, 48)
+            })
+            row.addView(ImageButton(this).apply {
+                setImageResource(R.drawable.ic_edit)
+                background = null
+                contentDescription = getString(R.string.result_edit)
+                setOnClickListener {
+                    Dialogs.shotEdit(this@ResultActivity, shot.decimal) { v ->
+                        r.shots = r.shots.mapIndexed { i, s ->
+                            if (i == idx) s.copy(decimal = v,
+                                integer = floor(v).toInt().coerceAtMost(10)) else s
+                        }
+                        r.corrected = true
+                        if (saved) store.updateSeries(r)
+                        render()
+                    }
+                }
+            })
+            scoreCol.addView(row)
+        }
+        mainRow.addView(scoreCol)
+        content.addView(mainRow)
+
+        content.addView(TextView(this).apply {
             text = "%.1f  (%d)".format(r.sumDecimal, r.sumInteger)
-            textSize = 30f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            textSize = 28f
         })
-        sumRow.addView(ImageButton(this).apply {
-            setImageResource(R.drawable.ic_edit)
-            background = null
-            contentDescription = getString(R.string.result_edit)
-            setOnClickListener { Dialogs.correctionDialog(this@ResultActivity, r, store) { render() } }
-        })
-        content.addView(sumRow)
-
-        content.addView(Ui.body(this,
-            r.shots.joinToString("   ") { "%.1f".format(it.decimal) }))
         val w = store.weapons().firstOrNull { it.id == r.weaponId }
         content.addView(Ui.hint(this,
-            "${r.position.label} (${r.modifier.label}) · ${r.distanceM} m · ${w?.name ?: "—"}"))
+            "${r.position.label} (${r.modifier.label}) · ${r.distanceM} m · " +
+            (w?.shownName ?: "—")))
 
         // Status i evidensgrunnlaget (benk teller ikke, spec §2/§8)
         content.addView(Ui.body(this, getString(
@@ -168,7 +193,7 @@ class ResultActivity : AppCompatActivity() {
         }
 
         // Klikk-forslag (spec §2): kun når offset er skjelnbart fra støy
-        val click = w?.clickValueCm
+        val click = store.clickCmFor(w)
         if (click == null) {
             content.addView(Ui.hint(this, getString(R.string.result_click_missing)))
         } else {
@@ -186,29 +211,43 @@ class ResultActivity : AppCompatActivity() {
             }
         }
 
-        val btnRow = Ui.row(this).apply { gravity = Gravity.END }
+        // «Ikke lagre» venstre, «OK» høyre (musingsUI)
+        val btnRow = Ui.row(this)
         btnRow.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = getString(R.string.result_end_session)
-            setOnClickListener {
-                startActivity(Intent(this@ResultActivity, SummaryActivity::class.java))
-                finish()
-            }
+            text = getString(R.string.result_discard)
+            setOnClickListener { finish() }
         })
-        btnRow.addView(okButton())
-        content.addView(btnRow)
+        btnRow.addView(android.widget.Space(this),
+            LinearLayout.LayoutParams(0, 1, 1f))
+        btnRow.addView(MaterialButton(this).apply {
+            text = getString(R.string.ok)
+            minWidth = Ui.dp(this@ResultActivity, 120)
+            setOnClickListener { saveAndFinish() }
+        })
+        content.addView(btnRow, Ui.matchWrap(12, this))
+    }
+
+    private fun saveAndFinish() {
+        val r = record ?: return finish()
+        if (!saved) {
+            store.addSeries(r)
+            saved = true
+        }
+        val afterConsent = { Dialogs.maybeResearchConsent(this, store) { finish() } }
+        if (r.corrected && !r.sendToFailChannel) {
+            // Korrigerte analyser tilbys feilanalysekanalen (mikrosamtykke, spec §2)
+            Dialogs.failChannelConsent(this) { yes ->
+                if (yes) { r.sendToFailChannel = true; store.updateSeries(r) }
+                afterConsent()
+            }
+        } else {
+            afterConsent()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        record?.let { outState.putString("recordId", it.id) }
-    }
-
-    private fun okButton() = MaterialButton(this).apply {
-        text = getString(R.string.ok)
-        layoutParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = Ui.dp(this@ResultActivity, 8) }
-        setOnClickListener { finish() }
+        if (saved) record?.let { outState.putString("recordId", it.id) }
     }
 }

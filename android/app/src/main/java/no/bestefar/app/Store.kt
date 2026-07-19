@@ -60,6 +60,31 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getString("selectedWeaponId", null)
         set(v) { prefs.edit().putString("selectedWeaponId", v).apply() }
 
+    // ---------- Optikkprofiler ----------
+
+    fun optics(): List<OpticProfile> {
+        val raw = prefs.getString("optics", null) ?: return emptyList()
+        val arr = JSONArray(raw)
+        return (0 until arr.length()).map { OpticProfile.fromJson(arr.getJSONObject(it)) }
+    }
+
+    fun saveOptics(list: List<OpticProfile>) {
+        val arr = JSONArray().apply { list.forEach { put(it.toJson()) } }
+        prefs.edit().putString("optics", arr.toString()).apply()
+    }
+
+    fun addOptic(o: OpticProfile) = saveOptics(optics() + o)
+
+    fun updateOptic(o: OpticProfile) =
+        saveOptics(optics().map { if (it.id == o.id) o else it })
+
+    /** Effektiv klikkverdi for våpen: optikkprofil foran legacy-feltet. */
+    fun clickCmFor(w: Weapon?): Double? {
+        if (w == null) return null
+        val optic = w.opticId?.let { id -> optics().firstOrNull { it.id == id } }
+        return optic?.clickCmPer100 ?: w.clickValueCm
+    }
+
     /** Ett registrert våpen -> automatisk valgt uten prompt (spec §1/§2). */
     fun selectedWeapon(): Weapon? {
         val ws = weapons()
@@ -159,9 +184,10 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getStringSet("huntSpecies", emptySet()) ?: emptySet()
         set(v) { prefs.edit().putStringSet("huntSpecies", v).apply() }
 
-    var onboardingDone: Boolean
-        get() = prefs.getBoolean("onboardingDone", false)
-        set(v) { prefs.edit().putBoolean("onboardingDone", v).apply() }
+    /** Tutorial-overlegg vist (erstatter intro-skjermene, musingsUI). */
+    var tutorialSeen: Boolean
+        get() = prefs.getBoolean("tutorialSeen", false)
+        set(v) { prefs.edit().putBoolean("tutorialSeen", v).apply() }
 
     // ---------- Serier ----------
 
@@ -189,6 +215,13 @@ class Store private constructor(ctx: Context) {
     @Synchronized
     fun updateSeries(r: SeriesRecord) {
         val list = allSeries().map { if (it.id == r.id) r else it }.toMutableList()
+        seriesCache = list
+        writeSeries(list)
+    }
+
+    @Synchronized
+    fun deleteSeries(ids: Collection<String>) {
+        val list = allSeries().filter { it.id !in ids }.toMutableList()
         seriesCache = list
         writeSeries(list)
     }

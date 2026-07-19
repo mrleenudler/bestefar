@@ -1,7 +1,18 @@
 ====================================================================
 PROSJEKT-KONTEKST FOR MODELL ETTER /compact ELLER /clear
-Oppdater filen naar ny info dukker opp. Dato: 2026-07-06
+Oppdater filen naar ny info dukker opp. Dato: 2026-07-19
 ====================================================================
+
+LAERDOMMER / FEIL SOM IKKE SKAL GJENTAS (oppdater fortloepende):
+- Gradle trenger JAVA_HOME satt til Android Studios JBR i ferske shell:
+  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+- APK-er distribueres fra dist\-mappen. Etter assembleRelease MAA ny APK
+  kopieres til dist\Bestefar-<versjon>.apk — 2026-07-17 fikk brukeren
+  gammel APK fordi dist\ ikke ble oppdatert etter bygget.
+- Bump versionCode/versionName i android/app/build.gradle.kts ved hver
+  distribusjon, saa telefonen viser hvilken versjon som faktisk er innstallert.
+- PowerShell 5.1: doble anfoerselstegn INNE i commit-meldinger/argumenter
+  til native exe brekker argument-parsing — unngaa " i git commit -m.
 
 PROSJEKT: Bestefar
 Maalet: CV-pipeline for aa score bilder av Kongsberg elektronisk skyteskive (DFS 100m).

@@ -1,9 +1,13 @@
 package no.bestefar.app
 
+import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
@@ -13,8 +17,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * Økt-flaten (hjem): dagens kontekst, øvelsesforslag som kort (spec §5) og
- * dagens serier. Selve skytingen startes med den store scan-knappen i skallet.
+ * Økt-flaten (hjem): kontekstlinje, øvelsesforslag og dagens serier øverst;
+ * stor scan-knapp — stående: sentrert på nedre halvdel; liggende: full
+ * bredde nederst (musingsUI). Ingen overskrift.
  */
 class OktFragment : Fragment() {
 
@@ -27,8 +32,36 @@ class OktFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View {
-        content = Ui.col(requireContext())
-        return Ui.scroll(requireContext(), content)
+        val a = requireActivity()
+        val root = FrameLayout(a)
+        content = Ui.col(a)
+        root.addView(Ui.scroll(a, content), ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
+
+        val landscape =
+            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val scan = MaterialButton(a).apply {
+            text = getString(R.string.scan_series)
+            textSize = 22f
+            setOnClickListener { startActivity(Intent(a, CaptureActivity::class.java)) }
+        }
+        val h = Ui.dp(a, 84)   // ~50 % større enn forrige knapp
+        val lp = if (landscape) {
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h,
+                Gravity.BOTTOM).apply {
+                leftMargin = Ui.dp(a, 8); rightMargin = Ui.dp(a, 8)
+                bottomMargin = Ui.dp(a, 8)
+            }
+        } else {
+            // Sentrert på nedre halvdel: knappesenter ~3/4 ned på flaten
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, h,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+                bottomMargin = resources.displayMetrics.heightPixels / 4 - h / 2
+            }
+        }
+        if (!landscape) scan.minWidth = Ui.dp(a, 280)
+        root.addView(scan, lp)
+        return root
     }
 
     override fun onResume() {
@@ -41,9 +74,7 @@ class OktFragment : Fragment() {
         val store = Store.get(a)
         content.removeAllViews()
 
-        content.addView(Ui.title(a, getString(R.string.okt_title)))
-
-        val weaponName = store.selectedWeapon()?.name ?: "—"
+        val weaponName = store.selectedWeapon()?.shownName ?: "—"
         val posText = store.practicePosition?.let { "Øvelse: ${it.label}" }
             ?: "${store.currentPosition.label} (${store.currentModifier.label})"
         content.addView(Ui.body(a,
@@ -81,7 +112,6 @@ class OktFragment : Fragment() {
             content.addView(card)
         }
 
-        content.addView(Ui.vspace(a, 8))
         val today = store.seriesToday()
         if (today.isEmpty()) {
             content.addView(Ui.hint(a, getString(R.string.okt_no_series)))
@@ -94,6 +124,11 @@ class OktFragment : Fragment() {
                     "$t · ${s.position.label}$mod · %.1f (%d skudd)"
                         .format(s.sumDecimal, s.shots.size)))
             }
+            content.addView(MaterialButton(a, null,
+                com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                text = getString(R.string.summary_title)
+                setOnClickListener { startActivity(Intent(a, SummaryActivity::class.java)) }
+            })
         }
     }
 }

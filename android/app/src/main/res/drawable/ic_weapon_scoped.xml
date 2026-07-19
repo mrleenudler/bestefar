@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Enkel rifle med kikkertsikte (våpenikon-valg) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000"
+        android:pathData="M1,14 L15,14 L15,11.5 L23,11.5 L23,14 L17,14 L17,16 L12.5,16 L10.5,21 L7.5,21 L9.5,16 L1,16 Z"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="1.4"
+        android:pathData="M8,8.2 a2.6,2.6 0 1,0 5.2,0 a2.6,2.6 0 1,0 -5.2,0 z"/>
+    <path android:fillColor="#FF000000" android:pathData="M10,10.5 h1.2 v2 h-1.2 z"/>
+</vector>

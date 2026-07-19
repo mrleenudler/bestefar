@@ -87,8 +87,8 @@ class ProfilActivity : AppCompatActivity() {
         store.weapons().forEach { w ->
             val row = Ui.row(this)
             val desc = buildString {
-                append(w.name)
-                w.clickValueCm?.let { append(" · %.2f cm/klikk".format(it)) }
+                append(w.shownName)
+                store.clickCmFor(w)?.let { append(" · %.2f cm/klikk".format(it)) }
                 if (w.ammoSplit) append(" · ammosplitt")
                 if (w.ammoName.isNotBlank()) append(" · ${w.ammoName}")
             }
@@ -99,14 +99,18 @@ class ProfilActivity : AppCompatActivity() {
             row.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.borderlessButtonStyle).apply {
                 text = "Endre"
-                setOnClickListener { Dialogs.weaponEdit(this@ProfilActivity, store, w) { rebuild() } }
+                setOnClickListener {
+                    Dialogs.weaponEdit(this@ProfilActivity, store, w, true) { rebuild() }
+                }
             })
             content.addView(row)
         }
         content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.weapon_add)
-            setOnClickListener { Dialogs.weaponEdit(this@ProfilActivity, store, null) { rebuild() } }
+            setOnClickListener {
+                Dialogs.weaponEdit(this@ProfilActivity, store, null, true) { rebuild() }
+            }
         })
 
         // ---------- Data og samtykke ----------

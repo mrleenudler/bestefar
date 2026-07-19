@@ -1,0 +1,66 @@
+
+Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
+
+Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måter som ikke er eksplistitt beskrevet
+
+UI-grafikkelementer ligger i mappen UI
+
+Intro info er cringe og må bort.
+Erstatt med tutorial.
+
+Scan serie knappen skal være 50% større, og sentrert på nedre halvdel av skjermen. 
+Når telefonen ligger, skal valgknappene være øverst, og Scan knappen skal dekke hele telefonens bredde nederst på skjermen.
+Når telefonen står, skal valg-knappene være 3 knapper i to lag øverst på skjermen. 
+Øverste linje skal være våpen - avstand - jakt
+Andre linje skal være stilling - innsikt - meny
+Bruk svg-filene fra UI mappen til ikoner. Implementer en meny knapp.
+Overskriften "Dagens økt" fjernes
+
+Legg til våpen: (Eget valg øverst under "velg våpen" knappen, men også i "Meny")
+Vi skal endre litt på valgene her. 
+Jeg vil ha et visningsnavn øverst, 
+og deretter et valgt ikon (vi skal legge til noen forskjellige)
+Tredje linje blir "Våpennavn" med eksempel, som nå.
+
+OPTIKKPROFIL: implementasjonsspec (oppsummering)
+Profilfelter (øverst):
+
+Visningsnavn (fritekst, brukerens eget navn på profilen)
+Merke/modell (fritekst)
+
+Klikkverdi – valg av aktiv representasjon
+Tre gjensidig utelukkende alternativer (radio button). Brukeren velger én aktiv representasjon; konverteringer til de inaktive vises ikke.
+
+MOA → ekspanderende vertikal liste av knapper når valgt: 1/8, 1/4, 1/2, 1 MOA
+MRAD → ekspanderende vertikal liste av knapper når valgt: 0,1 og 0,05 mrad
+cm/100m → fritekst (redigerbart tallfelt)
+
+Regel for cm-visning: read-only avledet under MOA/MRAD; redigerbart input kun under cm/100m-valget. Én kilde til sannhet av gangen.
+
+Hovedmeny: de tre valgene over med oppgitte dropdown-verdier.
+
+SMOA
+Ikke eget hovedvalg. Ligger i avanserte innstillinger som flagg/avkrysning (f.eks. "tårnet bruker forenklet 1 tomme/100 yards").
+Skal være et valg i optikkalkulatoren.
+Påvirker omregning: ekte MOA = 1,047 tomme/100 yards (2,908 cm/100m); SMOA = 1,000 tomme/100 yards. Ca. 4,7 % forskjell — merkbart på lange hold.
+
+Persistering
+Navngitt profil brukeren setter opp én gang og velger fra – ikke input per økt.
+
+Scan:
+Har vi laget denne?
+Når et resultat er scannet, kommer resultatet opp på skjermen som en skive med treffene markert. 
+På høyre side av skiven er poengene oppført i stigende rekkefølge (desimaltall inkludert). 
+Hvert poeng har en blyant ved siden av, som kan brukes til å endre poengene ved behov. 
+Under skiven er det en "ikke lagre" knapp til venstre, og en "ok" knapp til høyre.
+
+Meny:
+Rediger våpen må være et menyvalg. Fra våpenmenyen skal man også kunneendre/legge til optikk og ammo.
+Optikk-kalkulator: En kalkulator som regner om mellom MOA/MRAD/cm. Undersøk hva en slik kalkulator typisk har behov for, og implementer den. Fullskjerm med x i hjørnet.
+Søk: Fritekst/nøkkelord søk etter funksjonalitet/informasjon
+Serielogg: Alle scannede serier føres opp med bane, dato og tid og gjennomsnittspoeng. Man kan klikke inn på hver enkelt serie for å se resultatet, og det er mulig å slette seriene. To knapper: Slett serie og ok. Trykk-og-hold aktiverer velg-flere funksjon. Da dukker det opp en søppelbøtte øverst i høyre hjørne, og en Avbryt knapp i nederste høyre hjørne.
+
+
+
+
+Kanskje senere: Tips + Kunnskapsbank
