@@ -33,7 +33,9 @@ class ProfilActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
         content = Ui.col(this)
-        setContentView(Ui.scroll(this, content))
+        val scroller = Ui.scroll(this, content)
+        Ui.applyInsets(scroller)
+        setContentView(scroller)
         rebuild()
     }
 
@@ -100,7 +102,7 @@ class ProfilActivity : AppCompatActivity() {
                 com.google.android.material.R.attr.borderlessButtonStyle).apply {
                 text = "Endre"
                 setOnClickListener {
-                    Dialogs.weaponEdit(this@ProfilActivity, store, w, true) { rebuild() }
+                    Dialogs.weaponEdit(this@ProfilActivity, store, w) { rebuild() }
                 }
             })
             content.addView(row)
@@ -109,7 +111,7 @@ class ProfilActivity : AppCompatActivity() {
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.weapon_add)
             setOnClickListener {
-                Dialogs.weaponEdit(this@ProfilActivity, store, null, true) { rebuild() }
+                Dialogs.weaponEdit(this@ProfilActivity, store, null) { rebuild() }
             }
         })
 

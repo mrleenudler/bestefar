@@ -36,6 +36,7 @@ class SerieloggActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
         root = FrameLayout(this)
+        Ui.applyInsets(root)
         setContentView(root)
         renderList()
 

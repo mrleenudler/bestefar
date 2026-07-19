@@ -19,6 +19,25 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
+/** Felles skjelett for programmatiske fragmenter. */
+abstract class RebuildFragment : androidx.fragment.app.Fragment() {
+    protected lateinit var content: LinearLayout
+
+    override fun onCreateView(inflater: android.view.LayoutInflater,
+                              container: ViewGroup?,
+                              savedInstanceState: android.os.Bundle?): android.view.View {
+        content = Ui.col(requireContext())
+        return Ui.scroll(requireContext(), content)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        rebuild()
+    }
+
+    protected abstract fun rebuild()
+}
+
 /**
  * Innsikt (spec §5): kompetanseoversikt (primær) og kapabilitetskart
  * (sekundær) bak segmentkontroll. Skjult til første økt i sesongen.

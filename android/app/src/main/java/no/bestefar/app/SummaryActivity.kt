@@ -14,7 +14,9 @@ class SummaryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val store = Store.get(this)
         val content = Ui.col(this)
-        setContentView(Ui.scroll(this, content))
+        val scroller = Ui.scroll(this, content)
+        Ui.applyInsets(scroller)
+        setContentView(scroller)
 
         content.addView(Ui.title(this, getString(R.string.summary_title)))
 

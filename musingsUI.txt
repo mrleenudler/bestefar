@@ -5,18 +5,117 @@ Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måt
 
 UI-grafikkelementer ligger i mappen UI
 
-Intro info er cringe og må bort.
-Erstatt med tutorial.
+Alle skjermbilder kommer i mer eller mindre konflikt med statuslinjen øverst, og med programlinjen nederst.
+De må alle reskaleres for å ikke komme i klonflikt med disse.
 
-Scan serie knappen skal være 50% større, og sentrert på nedre halvdel av skjermen. 
-Når telefonen ligger, skal valgknappene være øverst, og Scan knappen skal dekke hele telefonens bredde nederst på skjermen.
-Når telefonen står, skal valg-knappene være 3 knapper i to lag øverst på skjermen. 
-Øverste linje skal være våpen - avstand - jakt
-Andre linje skal være stilling - innsikt - meny
-Bruk svg-filene fra UI mappen til ikoner. Implementer en meny knapp.
-Overskriften "Dagens økt" fjernes
 
-Legg til våpen: (Eget valg øverst under "velg våpen" knappen, men også i "Meny")
+
+Sjekk om tutorial vises bare første gang, eller hver gang.
+Skip-knapp
+Velkommen-skjerm
+Tilbakemelding på detalker i tutorial:
+Scan-forklaring omskrives
+Knappene øverst: omskrives
+Innsikt omskrives
+Meny fjernes(?)
+->Vurder UI-støtte av tutorial (på lengre sikt)
+
+
+Hovedskjerm:
+Tekst: "100m liggende (Uten)
+Ingen serier i dag" -> fjernes
+
+Scan serie knappen flyttes litt opp. Er den nå koblet til midten av nederste halvdel av skjermen? 
+Er det toppen av knappen som er forankret der? Det bør i tilfelle være midten av knappen som er forankret der.
+Hvis det ikke er tilfelle, flytt knappen 10% opp.
+
+Ikon-knappene øverst er usynlige. Rendre dem i hvitt motiv på sort bakgrunn, med en tynn ramme i grått rundt her knapp.
+
+Fjern teksten i knappene. Behold bare ikonene.
+
+
+Liggende layout: 
+Layouten er for bred for skjermen. Tar den kanskje ikke hensyn til menylinjen nederst?
+Fiks det, og la knappene krympe til 80% av bredden.
+Når skjermen ligger, la jaktlogg være nest lengst til høyre, ved siden av meny knappen.
+Dvs: Våpen-avstand-stilling-innsikt-jakt-meny
+
+Stående layout:
+Krymp alle knapper til 80% av bredden.
+
+Stilling-meny:
+"Ikke spør" valget: Bytt ut med "Spør etter hver serie" og la den være default checket.
+
+
+Knapper:
+Når en meny er åpen, og knappen trykker igjen, skal menyen lukkes. 
+Menyene for våpen, stilling og avstand skal ikke være fullskjerm, men mer som er dropdown som bare dekker deler av skjermen
+
+Stilling: Trekk menyen til venster side. Stillings-knappene til venstre på menyen, og støtte-knappene til høyre for dem.
+Spør-knappen under, som nå.
+
+Våpen: 
+Fjern henvisning til ammunisjon. Det kan være eget menyvalg
+Fjern også forklarende tekst
+
+Avstand:
+La valgene stables vertikalt. Erstatt Egendefinert med en knapp med X m. Når de klikkes, åpner et tekstfelt (og sett-knappen), der kun tall er tillatt input. 
+Når sett knappen trykkes, vises avstanden i stedet for x. Knappen beholder avstanden sin selv om annen avstand velges. 
+Hvis en tidligere avstand er innstilt, vi den velges og ikke åpne tekstfeltet når den trykkes.
+Hvis den trykkes på ny, åpner tekstfeltet igjen.
+"Gjeldene avstand" teksten fjernes fra meyen, det kommuniseres av highlightingen av knappene.
+
+Jakt:
+Bare Logg jaktskudd knappen vises på denne menyen. 
+Når knappen trykkes, kontrolleres posisjon.
+Dersom posisjon er tilgjengelig, fylles stedsnavn og GPS-koordinater inn automatisk.
+Dersom posisjon ikke er tilgjengelig, åpnes forespørsel om posisjonsinnhenting.
+Brukeren kan velge: tillat, eller fyll inn selv, eller hopp over
+Fyll inn selv er fritekst, og ikke bundet til kartfunksjonalitet.
+Under posisjon kommer knappene for vilt:
+I to rader, Rådyr, Hjort, Elg | Villrein, Villsvin, Annet
+"Annet" åpner en boks for fritekst.
+Under posisjon:
+"Avstand: <tekstboks>m" Maks 4 sifre.
+"Informasjonen kan redigeres i menyen" 
+<Neste> knapp
+Neste side: 
+6 knapper med "Posisjon #" (placeholders) i klokkeform rundt jakt-ikonet
+Under: "Dyret løp <tekstboks>m + "ettersøk" + "bomskudd"
+Under: Knapper: "Avbryt" og "Registrer skudd"
+
+Meny: 
+Fjern "legg til våpen" knappen. Den skal være et valg under "rediger våpen"
+Bytt "Serielogg" med "Serier"
+Flytt "Profil" øverst og "Søk" nederst
+Fjern "Historikk"
+Bytt "Mer statistikk" med "Avansert statistikk"
+Bytt "Hjelp og ikonforklaring" med "Om appen"
+Jeg tror siste knapp er "Tilbake", men det kan jeg ikke lese, på grunn av nederste linje.
+La oss prøve å løse det med å tegne menyen i dropdown format, som de andre, med mindre knapper inntil høyre skjermside.
+Jeg tror ikke vi trenger å implementere scrolling, siden vi fjerner en knapp.
+
+Optikk-kalkulator:
+Kalkulatoren gir ikke mening for meg. 
+Jeg vet ikke helt hvordan man har behov for å bruke den, men jeg foreslår noe slikt:
+"Fra"
+<tekstboks> <valgknapper>
+"Til"
+<tekstboks med inntasting deaktivert, viser omregning + valgt enhet i tekstboksen> <valgknapper>
+La oss diskutere det om det ikke gir mening.
+
+
+"Legg til våpen" meny: 
+Legg til knapp for "Velg optikk" og "Velg ammo"
+Begge utvider menyen nedover med fritekst tekstboks og knapp for "Ikke nå" og "Legg til"
+"Ikke nå" lukker undermenyen.
+"Legg til" lar inntastet info stå igjen, med "bytt optikk/ammo" knapp
+
+"Avbryt" og "Lagre" knappene flyttes nedover ettersom optikk- og ammo menyene åpnes.
+-------------------
+
+TIDLIGERE INSTRUKSJONER FOR REFERANSE: IGNORER.
+
 Vi skal endre litt på valgene her. 
 Jeg vil ha et visningsnavn øverst, 
 og deretter et valgt ikon (vi skal legge til noen forskjellige)

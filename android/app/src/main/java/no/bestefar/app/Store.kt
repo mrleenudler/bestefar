@@ -85,6 +85,11 @@ class Store private constructor(ctx: Context) {
         return optic?.clickCmPer100 ?: w.clickValueCm
     }
 
+    /** Egendefinert avstand på X-knappen (musingsUI); 0 = ikke satt. */
+    var customDistance: Int
+        get() = prefs.getInt("customDistance", 0)
+        set(v) { prefs.edit().putInt("customDistance", v).apply() }
+
     /** Ett registrert våpen -> automatisk valgt uten prompt (spec §1/§2). */
     fun selectedWeapon(): Weapon? {
         val ws = weapons()

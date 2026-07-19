@@ -53,10 +53,11 @@ class OktFragment : Fragment() {
                 bottomMargin = Ui.dp(a, 8)
             }
         } else {
-            // Sentrert på nedre halvdel: knappesenter ~3/4 ned på flaten
+            // Knappesenter i nedre halvdel, flyttet 10 % opp (musingsUI-runde 2)
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, h,
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-                bottomMargin = resources.displayMetrics.heightPixels / 4 - h / 2
+                bottomMargin =
+                    (resources.displayMetrics.heightPixels * 0.35).toInt() - h / 2
             }
         }
         if (!landscape) scan.minWidth = Ui.dp(a, 280)
@@ -74,11 +75,8 @@ class OktFragment : Fragment() {
         val store = Store.get(a)
         content.removeAllViews()
 
-        val weaponName = store.selectedWeapon()?.shownName ?: "—"
-        val posText = store.practicePosition?.let { "Øvelse: ${it.label}" }
-            ?: "${store.currentPosition.label} (${store.currentModifier.label})"
-        content.addView(Ui.body(a,
-            getString(R.string.okt_context, weaponName, store.distanceM, posText)))
+        // Kontekstteksten er fjernet (musingsUI-runde 2) — valgene kommuniseres
+        // av knappene øverst.
 
         // Øvelsesmotoren: popup-forslag som kort, bare ved reelt behov (spec §5)
         val sug = Stats.practiceSuggestion(store.currentSeasonSeries())
@@ -113,9 +111,7 @@ class OktFragment : Fragment() {
         }
 
         val today = store.seriesToday()
-        if (today.isEmpty()) {
-            content.addView(Ui.hint(a, getString(R.string.okt_no_series)))
-        } else {
+        if (today.isNotEmpty()) {
             val fmt = DateTimeFormatter.ofPattern("HH:mm")
             today.sortedByDescending { it.ts }.forEach { s ->
                 val t = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault()).format(fmt)

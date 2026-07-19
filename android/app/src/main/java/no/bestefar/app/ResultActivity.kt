@@ -41,7 +41,9 @@ class ResultActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
         content = Ui.col(this)
-        setContentView(Ui.scroll(this, content))
+        val scroller = Ui.scroll(this, content)
+        Ui.applyInsets(scroller)
+        setContentView(scroller)
 
         val status = intent.getIntExtra(EXTRA_STATUS, BestefarCore.ERROR_INTERNAL)
         if (status != BestefarCore.OK) {

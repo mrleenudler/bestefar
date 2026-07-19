@@ -62,6 +62,18 @@ object Ui {
         return if (c.theme.resolveAttribute(attr, tv, true)) tv.data else Color.BLACK
     }
 
+    /**
+     * Edge-to-edge-fix (musingsUI): targetSdk 35 tegner under status- og
+     * navigasjonslinjen; alle skjermbilder padder rota med systembar-innsets.
+     */
+    fun applyInsets(root: View) {
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { v, wi ->
+            val i = wi.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(i.left, i.top, i.right, i.bottom)
+            wi
+        }
+    }
+
     fun matchWrap(topDp: Int = 0, c: Context? = null): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT).apply {

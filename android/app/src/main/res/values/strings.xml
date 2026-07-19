@@ -144,17 +144,18 @@
     <string name="jaktlag_hint">Jaktlag (flere skilles med komma)</string>
     <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: samme grense brukes i kompetanseoversikten og kapabilitetskartet, så de aldri motsier hverandre.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
 
-    <!-- Tutorial (erstatter intro, musingsUI) -->
+    <!-- Tutorial (velkomst + skip, musingsUI-runde 2) -->
     <string name="tutorial_next">Neste</string>
     <string name="tutorial_done">Ferdig</string>
-    <string name="tutorial_1_title">Scan serie</string>
-    <string name="tutorial_1_body">Den store knappen nederst scanner skiva etter en serie. Sikt kameraet på skjermen og hold rolig — bildet tas automatisk, og du får poeng og treffbilde.</string>
-    <string name="tutorial_2_title">Knappene øverst</string>
-    <string name="tutorial_2_body">Våpen, avstand og stilling er dagens kontekst — appen husker valgene for deg. Jakt-knappen åpner hurtigloggen for jaktskudd.</string>
-    <string name="tutorial_3_title">Innsikt</string>
-    <string name="tutorial_3_body">Etter første økt åpner Innsikt: hvilke hold og stillinger som er forsvarlige for deg, vist i frekvens («9 av 10»).</string>
-    <string name="tutorial_4_title">Meny</string>
-    <string name="tutorial_4_body">I menyen finner du søk, serielogg, optikk-kalkulator, våpenoppsett, profil og hjelp. Denne gjennomgangen kan spilles av igjen derfra.</string>
+    <string name="tutorial_skip">Hopp over</string>
+    <string name="tutorial_1_title">Velkommen</string>
+    <string name="tutorial_1_body">Bestefar måler skyteferdigheten din på elektroniske skiver og viser hva den betyr for jakta. Alt lagres lokalt på telefonen din.</string>
+    <string name="tutorial_2_title">Scan serie</string>
+    <string name="tutorial_2_body">Når du har skutt en serie, trykker du «Scan serie» og peker kameraet mot skjermen på standplass. Bildet tas av seg selv når skiva står stødig i rammen, og poengene leses av for deg.</string>
+    <string name="tutorial_3_title">Dagens oppsett</string>
+    <string name="tutorial_3_body">Ikonknappene øverst åpner raske valg: våpen, avstand og stilling — pluss jaktloggen. Du endrer bare det som er annerledes i dag; appen husker resten.</string>
+    <string name="tutorial_4_title">Innsikt</string>
+    <string name="tutorial_4_body">Etter første økt viser Innsikt hvor langt du feller rent «9 av 10» fra hver stilling — din egen grense for forsvarlige skudd.</string>
 
     <!-- Resultatkort (musingsUI) -->
     <string name="result_discard">Ikke lagre</string>
@@ -199,4 +200,31 @@
     <string name="search">Søk</string>
     <string name="search_hint">Søk etter funksjon eller informasjon</string>
     <string name="menu_tutorial">Tutorial</string>
+    <string name="menu_series">Serier</string>
+    <string name="menu_advanced_stats">Avansert statistikk</string>
+    <string name="menu_about">Om appen</string>
+
+    <!-- Runde 2: avstand, stilling, jakt, kalkulator, våpen-undermenyer -->
+    <string name="distance_x">X m</string>
+    <string name="stilling_ask">Spør etter hver serie</string>
+    <string name="kalk_from">Fra</string>
+    <string name="kalk_to">Til</string>
+    <string name="hunt_position">Posisjon</string>
+    <string name="hunt_pos_allow">Tillat posisjonsinnhenting</string>
+    <string name="hunt_pos_manual">Fyll inn selv</string>
+    <string name="hunt_pos_skip">Hopp over</string>
+    <string name="hunt_distance">Avstand</string>
+    <string name="hunt_edit_hint">Informasjonen kan redigeres i menyen</string>
+    <string name="hunt_ran">Dyret løp</string>
+    <string name="hunt_ettersok">Ettersøk</string>
+    <string name="hunt_bom">Bomskudd</string>
+    <string name="hunt_register">Registrer skudd</string>
+    <string name="hunt_pos_label">Posisjon %1$d</string>
+    <string name="not_now">Ikke nå</string>
+    <string name="add_label">Legg til</string>
+    <string name="details">Detaljer …</string>
+    <string name="weapon_choose_optic">Velg optikk</string>
+    <string name="weapon_choose_ammo">Velg ammo</string>
+    <string name="weapon_switch_optic">Bytt optikk</string>
+    <string name="weapon_switch_ammo">Bytt ammo</string>
 </resources>

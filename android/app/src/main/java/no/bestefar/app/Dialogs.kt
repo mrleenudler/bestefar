@@ -207,12 +207,12 @@ object Dialogs {
     }
 
     /**
-     * Legg til / endre våpen (musingsUI): visningsnavn øverst, deretter
-     * ikonvalg, så våpennavn med eksempel. `full` legger til optikkprofil-
-     * kobling, ammo og ammosplitt (Meny → Rediger våpen).
+     * Legg til / endre våpen (musingsUI-runde 2): visningsnavn, ikonvalg,
+     * våpennavn, deretter «Velg optikk» og «Velg ammo» som utvider menyen
+     * nedover med fritekst + Ikke nå / Legg til. Valgt info blir stående med
+     * bytt-knapp; Avbryt/Lagre ligger alltid nederst og flyttes med.
      */
-    fun weaponEdit(a: Activity, store: Store, existing: Weapon?, full: Boolean,
-                   onDone: () -> Unit) {
+    fun weaponEdit(a: Activity, store: Store, existing: Weapon?, onDone: () -> Unit) {
         val root = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(a, 24), dp(a, 8), dp(a, 24), 0)
@@ -252,36 +252,100 @@ object Dialogs {
         }
         root.addView(name)
 
-        var opticId = existing?.opticId
-        var ammo: EditText? = null
-        var split: android.widget.CheckBox? = null
-        if (full) {
-            val opticLabel = TextView(a).apply { setPadding(0, dp(a, 8), 0, 0) }
-            fun renderOptic() {
-                val o = store.optics().firstOrNull { it.id == opticId }
-                opticLabel.text = a.getString(R.string.weapon_optic,
-                    o?.let { "${it.displayName.ifBlank { it.brandModel }} (${it.reprLabel})" }
-                        ?: "—")
-            }
-            renderOptic()
-            root.addView(opticLabel)
-            root.addView(MaterialButton(a, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = a.getString(R.string.weapon_optic_choose)
-                setOnClickListener {
-                    opticChooser(a, store) { chosen -> opticId = chosen; renderOptic() }
+        // Utvidbare undermenyer for optikk og ammo (musingsUI-runde 2)
+        var opticName = existing?.opticId
+            ?.let { id -> store.optics().firstOrNull { it.id == id } }
+            ?.let { it.displayName.ifBlank { it.brandModel } } ?: ""
+        var ammoName = existing?.ammoName ?: ""
+
+        fun expandable(labelChoose: String, labelSwitch: String, prefix: String,
+                       hintText: String, initial: String,
+                       onValue: (String) -> Unit, onDetails: ((String) -> Unit)?)
+            : LinearLayout {
+            val section = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
+            var value = initial
+            fun render() {
+                section.removeAllViews()
+                if (value.isBlank()) {
+                    val sub = LinearLayout(a).apply {
+                        orientation = LinearLayout.VERTICAL
+                        visibility = android.view.View.GONE
+                    }
+                    val input = EditText(a).apply { hint = hintText }
+                    sub.addView(input)
+                    val row = LinearLayout(a).apply {
+                        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
+                    }
+                    row.addView(MaterialButton(a, null,
+                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                        text = a.getString(R.string.not_now)
+                        setOnClickListener { sub.visibility = android.view.View.GONE }
+                    })
+                    row.addView(MaterialButton(a, null,
+                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                        text = a.getString(R.string.add_label)
+                        setOnClickListener {
+                            val t = input.text.toString().trim()
+                            if (t.isNotEmpty()) { value = t; onValue(t); render() }
+                        }
+                    })
+                    sub.addView(row)
+                    section.addView(MaterialButton(a, null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                        text = labelChoose
+                        setOnClickListener {
+                            sub.visibility = if (sub.visibility == android.view.View.GONE)
+                                android.view.View.VISIBLE else android.view.View.GONE
+                        }
+                    })
+                    section.addView(sub)
+                } else {
+                    section.addView(TextView(a).apply {
+                        text = "$prefix: $value"
+                        textSize = 15f
+                        setPadding(0, dp(a, 8), 0, 0)
+                    })
+                    val row = LinearLayout(a).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                    }
+                    row.addView(MaterialButton(a, null,
+                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                        text = labelSwitch
+                        setOnClickListener { value = ""; onValue(""); render() }
+                    })
+                    if (onDetails != null) {
+                        row.addView(MaterialButton(a, null,
+                            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                            text = a.getString(R.string.details)
+                            setOnClickListener { onDetails(value) }
+                        })
+                    }
+                    section.addView(row)
                 }
-            })
-            ammo = EditText(a).apply {
-                hint = a.getString(R.string.ammo_hint)
-                setText(existing?.ammoName ?: "")
             }
-            split = android.widget.CheckBox(a).apply {
-                text = a.getString(R.string.profile_ammo_split)
-                isChecked = existing?.ammoSplit ?: false
-            }
-            root.addView(ammo); root.addView(split)
+            render()
+            return section
         }
+
+        root.addView(expandable(
+            a.getString(R.string.weapon_choose_optic),
+            a.getString(R.string.weapon_switch_optic),
+            a.getString(R.string.optic_choose_title),
+            a.getString(R.string.optic_brand_hint),
+            opticName,
+            onValue = { opticName = it },
+            onDetails = { current ->
+                val profile = resolveOptic(store, current)
+                opticEdit(a, store, profile) { }
+            }))
+        root.addView(expandable(
+            a.getString(R.string.weapon_choose_ammo),
+            a.getString(R.string.weapon_switch_ammo),
+            "Ammo",
+            a.getString(R.string.ammo_hint),
+            ammoName,
+            onValue = { ammoName = it },
+            onDetails = null))
 
         AlertDialog.Builder(a)
             .setTitle(if (existing == null) R.string.weapon_add else R.string.weapon_edit)
@@ -290,9 +354,10 @@ object Dialogs {
                 val n = name.text.toString().trim()
                 val d = display.text.toString().trim()
                 if (n.isEmpty() && d.isEmpty()) return@setPositiveButton
+                val opticId = if (opticName.isBlank()) null
+                    else resolveOptic(store, opticName).id
                 if (existing == null) {
-                    val w = Weapon(Store.newId(), n, null,
-                        split?.isChecked ?: false, ammo?.text?.toString()?.trim() ?: "",
+                    val w = Weapon(Store.newId(), n, null, false, ammoName,
                         displayName = d, icon = iconKey, opticId = opticId)
                     store.addWeapon(w)
                     if (store.weapons().size == 1) store.selectedWeaponId = w.id
@@ -301,8 +366,7 @@ object Dialogs {
                     existing.displayName = d
                     existing.icon = iconKey
                     existing.opticId = opticId
-                    ammo?.let { existing.ammoName = it.text.toString().trim() }
-                    split?.let { existing.ammoSplit = it.isChecked }
+                    existing.ammoName = ammoName
                     store.updateWeapon(existing)
                 }
                 onDone()
@@ -311,22 +375,18 @@ object Dialogs {
             .show()
     }
 
-    /** Velg blant optikkprofiler, eller opprett/rediger (musingsUI). */
-    fun opticChooser(a: Activity, store: Store, onChosen: (String?) -> Unit) {
-        val optics = store.optics()
-        val items = optics.map {
-            "${it.displayName.ifBlank { it.brandModel }} (${it.reprLabel})"
-        } + a.getString(R.string.optic_new) + a.getString(R.string.optic_none)
-        AlertDialog.Builder(a)
-            .setTitle(R.string.optic_choose_title)
-            .setItems(items.toTypedArray()) { _, i ->
-                when {
-                    i < optics.size -> onChosen(optics[i].id)
-                    i == optics.size -> opticEdit(a, store, null) { onChosen(it.id) }
-                    else -> onChosen(null)
-                }
-            }
-            .show()
+    /**
+     * Fritekst-optikk knyttes til eksisterende profil på navn, ellers
+     * opprettes en minimal profil (uten klikkverdi til den fylles ut).
+     */
+    private fun resolveOptic(store: Store, name: String): OpticProfile {
+        store.optics().firstOrNull {
+            it.displayName.equals(name, ignoreCase = true) ||
+                it.brandModel.equals(name, ignoreCase = true)
+        }?.let { return it }
+        val o = OpticProfile(Store.newId(), name, "", "NONE", 0.25, 0.1, 1.0, false)
+        store.addOptic(o)
+        return o
     }
 
     /**
@@ -403,7 +463,8 @@ object Dialogs {
             moaButtons.forEach { it.alpha = if (it.tag == o.moaValue) 1f else 0.5f }
             mradButtons.forEach { it.alpha = if (it.tag == o.mradValue) 1f else 0.5f }
             o.smoa = smoaBox.isChecked
-            derivedCm.text = a.getString(R.string.optic_derived_cm, o.clickCmPer100)
+            derivedCm.text = o.clickCmPer100
+                ?.let { a.getString(R.string.optic_derived_cm, it) } ?: ""
         }
         radios.forEachIndexed { i, rb ->
             rb.setOnClickListener { o.repr = rb.tag as String; sync() }

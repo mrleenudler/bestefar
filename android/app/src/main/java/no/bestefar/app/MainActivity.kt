@@ -3,6 +3,7 @@ package no.bestefar.app
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -10,58 +11,58 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Space
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.ImageViewCompat
-import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 
 /**
- * Hovedskall (musingsUI): valgknappene øverst — stående: to rader à tre
- * (våpen–avstand–jakt / stilling–innsikt–meny); liggende: én rad. Den store
- * scan-knappen ligger i Økt-flaten (nedre halvdel / full bredde liggende).
- * Intro-skjermene er erstattet av et tutorial-overlegg.
+ * Hovedskall (musingsUI-runde 2): ikonknapper i hvitt på sort med grå ramme,
+ * uten tekst; stående 2×3 (våpen-avstand-jakt / stilling-innsikt-meny),
+ * liggende én rad i rekkefølgen våpen-avstand-stilling-innsikt-jakt-meny.
+ * Våpen/avstand/stilling/jakt/meny åpner som dropdown-paneler (trykk igjen
+ * lukker); Innsikt er fullskjerm. Tutorial-overlegg med velkomst og skip.
  */
 class MainActivity : AppCompatActivity() {
 
-    private data class Tab(val iconRes: Int, val labelRes: Int, val make: () -> Fragment)
-
-    // Rekkefølge (musingsUI): rad 1 våpen-avstand-jakt, rad 2 stilling-innsikt-meny
-    private val tabs = listOf(
-        Tab(R.drawable.ic_menu_rifle, R.string.tab_vapen) { VapenFragment() },
-        Tab(R.drawable.ic_menu_distance, R.string.tab_avstand) { AvstandFragment() },
-        Tab(R.drawable.ic_menu_moose, R.string.tab_jakt) { JaktFragment() },
-        Tab(R.drawable.ic_menu_position, R.string.tab_stilling) { StillingFragment() },
-        Tab(R.drawable.ic_menu_stats, R.string.tab_innsikt) { InnsiktFragment() },
-        Tab(R.drawable.ic_tab_meny, R.string.tab_meny) { MenyFragment() },
+    // Indeks = fane-id brukt av select(): 0 våpen, 1 avstand, 2 jakt,
+    // 3 stilling, 4 innsikt, 5 meny
+    private val tabIcons = listOf(
+        R.drawable.ic_menu_rifle, R.drawable.ic_menu_distance,
+        R.drawable.ic_menu_moose, R.drawable.ic_menu_position,
+        R.drawable.ic_menu_stats, R.drawable.ic_tab_meny,
+    )
+    private val tabLabels = listOf(
+        R.string.tab_vapen, R.string.tab_avstand, R.string.tab_jakt,
+        R.string.tab_stilling, R.string.tab_innsikt, R.string.tab_meny,
     )
 
-    private val tabIcons = mutableListOf<ImageView>()
-    private val tabLabels = mutableListOf<TextView>()
-    private var selected = -1   // -1 = Økt-flaten (hjem)
-    private lateinit var store: Store
+    private val boxDrawables = mutableMapOf<Int, GradientDrawable>()
+    private var openPanel = -1      // -1 = ingen dropdown åpen
+    private var innsiktOpen = false
+    lateinit var store: Store
     private lateinit var root: FrameLayout
+    private lateinit var dropdownWrap: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
 
         root = FrameLayout(this)
+        Ui.applyInsets(root)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
         val landscape =
             resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Ui.themeColor(this@MainActivity,
-                com.google.android.material.R.attr.colorSurfaceVariant))
-        }
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         if (landscape) {
-            bar.addView(buildRow(tabs.indices.toList()))
+            // Jakt nest lengst til høyre (musingsUI)
+            bar.addView(buildRow(listOf(0, 1, 3, 4, 2, 5)))
         } else {
             bar.addView(buildRow(listOf(0, 1, 2)))
             bar.addView(buildRow(listOf(3, 4, 5)))
@@ -69,12 +70,19 @@ class MainActivity : AppCompatActivity() {
         column.addView(bar, ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
 
-        val content = FrameLayout(this).apply {
-            id = R.id.content_frame
+        // Innhold + dropdown-lag under knappraden
+        val stack = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         }
-        column.addView(content)
+        val content = FrameLayout(this).apply { id = R.id.content_frame }
+        stack.addView(content, ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
+        dropdownWrap = FrameLayout(this).apply { visibility = View.GONE }
+        stack.addView(dropdownWrap, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP))
+        column.addView(stack)
 
         root.addView(column, ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
@@ -83,7 +91,11 @@ class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (selected != -1) showHome() else finish()
+                when {
+                    openPanel != -1 -> closeDropdown()
+                    innsiktOpen -> showHome()
+                    else -> finish()
+                }
             }
         })
 
@@ -96,45 +108,96 @@ class MainActivity : AppCompatActivity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 60))
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 56))
         }
         indices.forEach { i ->
-            val tab = tabs[i]
+            // Celle med 10 % luft på hver side -> knapp på 80 % av bredden
             val cell = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0,
                     ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+            }
+            val box = GradientDrawable().apply {
+                setColor(Color.BLACK)
+                setStroke(Ui.dp(this@MainActivity, 1), Color.GRAY)
+                cornerRadius = Ui.dp(this@MainActivity, 10).toFloat()
+            }
+            boxDrawables[i] = box
+            val icon = ImageView(this).apply {
+                setImageResource(tabIcons[i])
+                background = box
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                val p = Ui.dp(this@MainActivity, 8)
+                setPadding(p, p, p, p)
+                ImageViewCompat.setImageTintList(this,
+                    ColorStateList.valueOf(Color.WHITE))
+                contentDescription = getString(tabLabels[i])   // WCAG (spec §9)
                 setOnClickListener { select(i) }
             }
-            val icon = ImageView(this).apply {
-                setImageResource(tab.iconRes)
-                adjustViewBounds = true
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this@MainActivity, 26))
-                contentDescription = getString(tab.labelRes)   // WCAG (spec §9)
-            }
-            val label = TextView(this).apply {
-                text = getString(tab.labelRes)
-                textSize = 11f
-            }
-            cell.addView(icon); cell.addView(label)
-            tabIcons.add(icon); tabLabels.add(label)
+            cell.addView(Space(this), LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.MATCH_PARENT, 0.1f))
+            cell.addView(icon, LinearLayout.LayoutParams(0,
+                Ui.dp(this@MainActivity, 44), 0.8f))
+            cell.addView(Space(this), LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.MATCH_PARENT, 0.1f))
             row.addView(cell)
         }
         return row
     }
 
+    /** Fane-trykk: Innsikt = fullskjerm; andre = dropdown (trykk igjen lukker). */
     fun select(i: Int) {
-        selected = i
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.content_frame, tabs[i].make())
-            .commit()
+        if (i == 4) {
+            closeDropdown()
+            innsiktOpen = true
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.content_frame, InnsiktFragment())
+                .commit()
+            tintTabs()
+            return
+        }
+        if (openPanel == i) { closeDropdown(); return }
+        openDropdown(i)
+    }
+
+    private fun openDropdown(i: Int) {
+        dropdownWrap.removeAllViews()
+        val panel = Panels.build(i, this) { openDropdown(i) }
+        val card = MaterialCardView(this).apply {
+            radius = Ui.dp(this@MainActivity, 12).toFloat()
+            cardElevation = Ui.dp(this@MainActivity, 8).toFloat()
+            addView(panel)
+        }
+        // Stilling trekkes til venstre; meny inntil høyre side (musingsUI)
+        val lp = when (i) {
+            3 -> FrameLayout.LayoutParams(
+                (resources.displayMetrics.widthPixels * 0.80).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START)
+            5 -> FrameLayout.LayoutParams(
+                (resources.displayMetrics.widthPixels * 0.60).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END)
+            else -> FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP)
+        }
+        lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 4), Ui.dp(this, 8), 0)
+        dropdownWrap.addView(card, lp)
+        dropdownWrap.visibility = View.VISIBLE
+        openPanel = i
+        tintTabs()
+    }
+
+    fun closeDropdown() {
+        dropdownWrap.removeAllViews()
+        dropdownWrap.visibility = View.GONE
+        openPanel = -1
         tintTabs()
     }
 
     fun showHome() {
-        selected = -1
+        closeDropdown()
+        innsiktOpen = false
         supportFragmentManager.beginTransaction()
             .replace(R.id.content_frame, OktFragment())
             .commit()
@@ -143,15 +206,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun tintTabs() {
         val active = Ui.themeColor(this, com.google.android.material.R.attr.colorPrimary)
-        val idle = Ui.themeColor(this, android.R.attr.textColorPrimary)
-        tabIcons.forEachIndexed { i, icon ->
-            val c = if (i == selected) active else idle
-            ImageViewCompat.setImageTintList(icon, ColorStateList.valueOf(c))
-            tabLabels[i].setTextColor(c)
+        boxDrawables.forEach { (i, box) ->
+            val selectedTab = if (innsiktOpen && openPanel == -1) 4 else openPanel
+            if (i == selectedTab) {
+                box.setStroke(Ui.dp(this, 2), active)
+            } else {
+                box.setStroke(Ui.dp(this, 1), Color.GRAY)
+            }
         }
     }
 
-    // ---------- Tutorial (erstatter intro, musingsUI) ----------
+    // ---------- Tutorial (velkomst + skip, musingsUI-runde 2) ----------
 
     private val tutorialSteps = listOf(
         R.string.tutorial_1_title to R.string.tutorial_1_body,
@@ -166,6 +231,10 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(Color.argb(150, 0, 0, 0))
             isClickable = true   // sluk klikk mot UI-et bak
         }
+        fun dismiss() {
+            store.tutorialSeen = true
+            root.removeView(overlay)
+        }
         val card = MaterialCardView(this).apply {
             radius = Ui.dp(this@MainActivity, 16).toFloat()
         }
@@ -173,23 +242,28 @@ class MainActivity : AppCompatActivity() {
         val title = TextView(this).apply { textSize = 20f }
         val body = TextView(this).apply { textSize = 15f }
         val next = MaterialButton(this)
+        val skip = MaterialButton(this, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = getString(R.string.tutorial_skip)
+            setOnClickListener { dismiss() }
+        }
         fun renderStep() {
             val (t, b) = tutorialSteps[idx]
             title.setText(t); body.setText(b)
             next.text = getString(
                 if (idx == tutorialSteps.size - 1) R.string.tutorial_done
                 else R.string.tutorial_next)
+            skip.visibility = if (idx == tutorialSteps.size - 1) View.GONE else View.VISIBLE
         }
         next.setOnClickListener {
-            if (idx == tutorialSteps.size - 1) {
-                store.tutorialSeen = true
-                root.removeView(overlay)
-            } else {
-                idx++; renderStep()
-            }
+            if (idx == tutorialSteps.size - 1) dismiss() else { idx++; renderStep() }
         }
         inner.addView(title); inner.addView(body)
-        inner.addView(next, Ui.matchWrap(12, this))
+        val btnRow = Ui.row(this)
+        btnRow.addView(skip)
+        btnRow.addView(Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+        btnRow.addView(next)
+        inner.addView(btnRow, Ui.matchWrap(12, this))
         card.addView(inner)
         overlay.addView(card, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,

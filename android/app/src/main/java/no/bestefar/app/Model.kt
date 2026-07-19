@@ -118,19 +118,25 @@ data class OpticProfile(
     var cmValue: Double,     // cm/klikk @100m (kun redigerbar under CM)
     var smoa: Boolean,       // tårnet bruker forenklet 1 tomme/100 yards
 ) {
-    /** Effektiv klikkverdi i cm/100m — én kilde til sannhet av gangen. */
-    val clickCmPer100: Double
+    /**
+     * Effektiv klikkverdi i cm/100m — én kilde til sannhet av gangen.
+     * null når profilen er opprettet med fritekst uten valgt representasjon
+     * (repr "NONE") — da gis ingen klikkforslag.
+     */
+    val clickCmPer100: Double?
         get() = when (repr) {
             "MOA" -> moaValue * (if (smoa) SMOA_CM_PER_100M else MOA_CM_PER_100M)
             "MRAD" -> mradValue * 10.0
-            else -> cmValue
+            "CM" -> cmValue
+            else -> null
         }
 
     val reprLabel: String
         get() = when (repr) {
             "MOA" -> "${moaLabel(moaValue)} MOA" + if (smoa) " (SMOA)" else ""
             "MRAD" -> "${"%.2f".format(mradValue).trimEnd('0').trimEnd(',', '.')} mrad"
-            else -> "%.2f cm/100m".format(cmValue)
+            "CM" -> "%.2f cm/100m".format(cmValue)
+            else -> "—"
         }
 
     fun toJson(): JSONObject = JSONObject().apply {
@@ -234,6 +240,10 @@ data class HuntRecord(
     val lat: Double? = null,
     val lon: Double? = null,
     val weaponId: String? = null,
+    val placeName: String = "",     // stedsnavn (auto eller fritekst, musingsUI)
+    val speciesOther: String = "",  // fritekst når art = ANNET
+    val ranM: Int? = null,          // «dyret løp X m» (observert feltkriterium)
+    val clockPos: Int? = null,      // vinkling som klokkeposisjon 1–6 (placeholder)
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("ts", ts); put("species", species.name)
@@ -243,6 +253,9 @@ data class HuntRecord(
         put("followUpAsked", followUpAsked)
         put("lat", lat ?: JSONObject.NULL); put("lon", lon ?: JSONObject.NULL)
         put("weaponId", weaponId ?: JSONObject.NULL)
+        put("placeName", placeName); put("speciesOther", speciesOther)
+        put("ranM", ranM ?: JSONObject.NULL)
+        put("clockPos", clockPos ?: JSONObject.NULL)
     }
     companion object {
         fun fromJson(o: JSONObject) = HuntRecord(
@@ -257,6 +270,10 @@ data class HuntRecord(
             lat = if (o.isNull("lat")) null else o.getDouble("lat"),
             lon = if (o.isNull("lon")) null else o.getDouble("lon"),
             weaponId = if (o.isNull("weaponId")) null else o.getString("weaponId"),
+            placeName = o.optString("placeName", ""),
+            speciesOther = o.optString("speciesOther", ""),
+            ranM = if (o.isNull("ranM")) null else o.getInt("ranM"),
+            clockPos = if (o.isNull("clockPos")) null else o.getInt("clockPos"),
         )
     }
 }
