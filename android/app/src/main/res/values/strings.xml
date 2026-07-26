@@ -130,7 +130,7 @@
     <string name="profile_rate">Akseptabel skadeskytingsrate</string>
     <string name="profile_rate_info">Grensen brukes overalt i appen som ett felles forsvarlighetskriterium. Endring virker umiddelbart.</string>
     <string name="profile_weapons">Våpenkartotek</string>
-    <string name="profile_click_hint">cm/klikk @ 100 m</string>
+    <string name="profile_click_hint">cm/klikk på 100 m</string>
     <string name="profile_ammo_split">Ammunisjonssplitt (egen historikk per ammo)</string>
     <string name="profile_data">Data og samtykke</string>
     <string name="profile_granularity">Stedsoppløsning for deling</string>
@@ -147,15 +147,15 @@
     <!-- Tutorial (velkomst + skip, musingsUI-runde 2) -->
     <string name="tutorial_next">Neste</string>
     <string name="tutorial_done">Ferdig</string>
-    <string name="tutorial_skip">Hopp over</string>
+    <string name="tutorial_skip">Avbryt</string>
     <string name="tutorial_1_title">Velkommen</string>
-    <string name="tutorial_1_body">Bestefar måler skyteferdigheten din på elektroniske skiver og viser hva den betyr for jakta. Alt lagres lokalt på telefonen din.</string>
+    <string name="tutorial_1_body">Appen kan scanne resultatene for øvelsesskyting, og hjelper deg med å finne trygt skuddhold på jakt.</string>
     <string name="tutorial_2_title">Scan serie</string>
-    <string name="tutorial_2_body">Når du har skutt en serie, trykker du «Scan serie» og peker kameraet mot skjermen på standplass. Bildet tas av seg selv når skiva står stødig i rammen, og poengene leses av for deg.</string>
-    <string name="tutorial_3_title">Dagens oppsett</string>
-    <string name="tutorial_3_body">Ikonknappene øverst åpner raske valg: våpen, avstand og stilling — pluss jaktloggen. Du endrer bare det som er annerledes i dag; appen husker resten.</string>
+    <string name="tutorial_2_body">Når du har skutt en serie, trykker du «Scan serie» og peker kameraet liggende mot skjermen på standplass. Bildet tas automatisk når skiva står stødig i rammen, og poengene blir registrert.</string>
+    <string name="tutorial_3_title">Velg skytestilling</string>
+    <string name="tutorial_3_body">Når du har scannet skjermen, og poengene er registrert, velger du hvilken skytestilling du brukte for denne serien. Det hjelper deg med å vite hvilken stilling du bør bruke på jakt.</string>
     <string name="tutorial_4_title">Innsikt</string>
-    <string name="tutorial_4_body">Etter første økt viser Innsikt hvor langt du feller rent «9 av 10» fra hver stilling — din egen grense for forsvarlige skudd.</string>
+    <string name="tutorial_4_body">Når du har skutt noen serier, kan du bruke Innsikt-knappen for å se hvilke hold det er trygt å skyte.\n\nNB: Du kan bare få innsikt for stillinger du har brukt på øvelsesskytingen.</string>
 
     <!-- Resultatkort (musingsUI) -->
     <string name="result_discard">Ikke lagre</string>
@@ -199,7 +199,7 @@
     <!-- Søk og meny (musingsUI) -->
     <string name="search">Søk</string>
     <string name="search_hint">Søk etter funksjon eller informasjon</string>
-    <string name="menu_tutorial">Tutorial</string>
+    <string name="menu_tutorial">Hvordan bruke appen</string>
     <string name="menu_series">Serier</string>
     <string name="menu_advanced_stats">Avansert statistikk</string>
     <string name="menu_about">Om appen</string>
@@ -214,7 +214,7 @@
     <string name="hunt_pos_manual">Fyll inn selv</string>
     <string name="hunt_pos_skip">Hopp over</string>
     <string name="hunt_distance">Avstand</string>
-    <string name="hunt_edit_hint">Informasjonen kan redigeres i menyen</string>
+    <string name="hunt_edit_hint">Informasjonen kan redigeres senere i menyen</string>
     <string name="hunt_ran">Dyret løp</string>
     <string name="hunt_ettersok">Ettersøk</string>
     <string name="hunt_bom">Bomskudd</string>
@@ -222,9 +222,160 @@
     <string name="hunt_pos_label">Posisjon %1$d</string>
     <string name="not_now">Ikke nå</string>
     <string name="add_label">Legg til</string>
-    <string name="details">Detaljer …</string>
+    <string name="details">Detaljer</string>
     <string name="weapon_choose_optic">Velg optikk</string>
     <string name="weapon_choose_ammo">Velg ammo</string>
     <string name="weapon_switch_optic">Bytt optikk</string>
     <string name="weapon_switch_ammo">Bytt ammo</string>
+
+    <!-- Runde 3: oppstart, melding, deling, venner, jaktlogg, profil -->
+    <string name="startup_title">Velkommen</string>
+    <string name="startup_info">Bestefar kan scanne resultatene for øvelsesskyting, og hjelper deg med å finne trygt skuddhold på jakt.\n\nDenne appen er i en prøveversjon. Hvis du oppdager problemer, hvis du savner noe, eller hvis ting virker på en irriterende måte, vær så snill å sende oss en melding gjennom meldingstjenesten i menyen.</string>
+    <string name="startup_donate">Vi trenger hjelp til å forbedre appen fra dere. Vil du dele bilder der appen gjør en dårlig jobb?</string>
+    <string name="menu_send_message">Send melding</string>
+    <string name="message_title_hint">Tittel</string>
+    <string name="message_body_hint">Hva vil du fortelle oss?</string>
+    <string name="message_no_email_app">Fant ingen e-postapp. Meldingen kan sendes til mrleenudler@gmail.com.</string>
+
+    <string name="menu_sharing">Deling</string>
+    <string name="sharing_research">Dele med forskning</string>
+    <string name="sharing_friends">Dele med venner</string>
+    <string name="sharing_active">(Aktiv)</string>
+    <string name="sharing_inactive">(Ikke aktiv)</string>
+    <string name="sharing_deactivate">Deaktiver deling</string>
+    <string name="consent_research_join">Delta i forskning</string>
+    <string name="research_pitch">Vi vil gjerne bruke dataene dine til forskning. Med mer kunnskap om jakt og øvelsesskyting ønsker vi å bidra til mindre lidelse for dyrene, og en bedre opplevelse for jegerne.</string>
+    <string name="research_never_shared">Deles aldri:</string>
+    <string name="research_never_userid">BrukerID</string>
+    <string name="research_never_name">Navn</string>
+    <string name="research_i_share">Jeg vil dele:</string>
+    <string name="share_vilt">Vilt</string>
+    <string name="share_dato">Dato</string>
+    <string name="share_posisjon">Posisjon</string>
+    <string name="share_skuddsituasjon">Skuddsituasjon</string>
+    <string name="friend_share_name">Navn/kallenavn</string>
+    <string name="friend_share_shots">Antall øvelsesskudd (totalt og pr. sesong)</string>
+    <string name="friend_share_score">Gjennomsnittlig score (denne/forrige sesong)</string>
+    <string name="friend_share_trend">Utvikling i gjennomsnitt</string>
+    <string name="friend_share_kills">Fellinger (vilttype, kommune)</string>
+
+    <string name="menu_friends">Venner</string>
+    <string name="friends_add">Legg til venn</string>
+    <string name="friends_search">Søk etter bruker</string>
+    <string name="friends_enter_id">Skriv inn bruker-ID</string>
+    <string name="friends_scan_qr">Scan QR-kode</string>
+    <string name="friends_show_qr">Vis min QR-kode</string>
+    <string name="friends_todo">Vennefunksjonen krever konto og nettforbindelse — kommer i en senere versjon.</string>
+    <string name="friends_empty">Ingen venner ennå.</string>
+    <string name="friends_not_findable">«La venner finne meg» er av — skru på i profilen for å bli funnet.</string>
+
+    <string name="hunt_simple">Forenklet visning</string>
+    <string name="hunt_other_hint">Skriv inn vilt</string>
+    <string name="hunt_missing_species">Velg vilt før du går videre.</string>
+    <string name="hunt_missing_clock">Velg dyrets posisjon (1–6) i klokka.</string>
+    <string name="hunt_missing_outcome">Fyll inn hvor langt dyret løp, eller velg Ettersøk eller Bomskudd.</string>
+    <string name="hunt_not_found">Dyret ble ikke funnet</string>
+
+    <string name="profile_nickname_hint">Navn/kallenavn</string>
+    <string name="profile_birth_label">Fødselsår: </string>
+    <string name="profile_add_team">Legg til jaktlag eller skytterlag</string>
+    <string name="profile_findable">La venner finne meg</string>
+    <string name="profile_goal_title">Mitt jaktmål</string>
+    <string name="profile_goal_sub">Skadeskudd — mindre enn:</string>
+    <string name="profile_goal_info">Valget brukes i oversikten som viser hvilke hold det er trygt for deg å skyte på.</string>
+
+    <!-- ============ Runde 4 ============ -->
+    <string name="yes">Ja</string>
+    <string name="no">Nei</string>
+    <string name="change">Endre</string>
+    <string name="close">Lukk</string>
+    <string name="dont_save">Ikke lagre</string>
+
+    <string name="okt_shots_season">%1$d øvelsesskudd denne sesongen</string>
+
+    <!-- Oppstart vindu 2 / bildedeling -->
+    <string name="donate_title">Dele dette bildet?</string>
+    <string name="donate_body">Vi vil gjerne bruke dette bildet til å forbedre appen.</string>
+    <string name="donate_accept">Godta</string>
+    <string name="donate_decline">Avvis</string>
+
+    <!-- OCR-finpussing -->
+    <string name="ocr_mismatch">Appen klarte ikke se treffene riktig. Vil du lagre serien likevel?</string>
+    <string name="ocr_discard">Forkast</string>
+    <string name="ocr_save_screen">Lagre med poengene på skjermen</string>
+
+    <!-- Identiske serier -->
+    <string name="dup_title">Lik en tidligere serie</string>
+    <string name="dup_body">Denne serien ser identisk ut med en du allerede har lagret. Lagre likevel?</string>
+
+    <!-- Innskyting -->
+    <string name="sightin_title">Er våpenet innskutt?</string>
+    <string name="sightin_body">Treffene ligger tydelig skjevt i forhold til spredningen. Er våpenet innskutt?</string>
+    <string name="sightin_registered">Serie registrert</string>
+    <string name="sightin_discarded">Serie forkastet</string>
+    <string name="sightin_savetwo_title">Skal vi lagre de to siste seriene?</string>
+    <string name="sightin_save_anyway">Ja, lagre likevel</string>
+    <string name="sightin_dont_save">Nei, ikke lagre</string>
+
+    <!-- Mitt jaktmål (runde 4) -->
+    <string name="jaktmaal_title">Mitt jaktmål</string>
+    <string name="jaktmaal_current">Mindre enn %1$s er skade- eller bomskudd</string>
+    <string name="jaktmaal_intro">Skade- eller bomskudd — mindre enn:</string>
+    <string name="jaktmaal_option">%1$s</string>
+    <string name="jaktmaal_why">Hvorfor er noen tall røde?</string>
+    <string name="jaktmaal_info">I gjennomsnitt er 1 av 13 skudd mot vilt i Norge enten en bom eller et skadeskudd. Er du bedre enn gjennomsnittet?\n\nI innsikt-menyen blir teksten grønn for de situasjonene du klarer målet ditt.\n\nMen HUSK: Det gjelder bare for dyr som står stille. Dyr som beveger seg er vanskeligere.</string>
+
+    <!-- Tema -->
+    <string name="theme_button">Lys modus</string>
+    <string name="theme_light">Lys modus</string>
+    <string name="theme_dark">Mørk modus</string>
+    <string name="theme_system">Samme som system</string>
+
+    <!-- Profil (runde 4) -->
+    <string name="profile_display_hint">Visningsnavn</string>
+    <string name="profile_advanced">Avanserte innstillinger</string>
+    <string name="profile_weapons_mine">Mine våpen</string>
+
+    <!-- Våpen (runde 4) -->
+    <string name="weapon_model_hint">Våpenmodell</string>
+
+    <!-- Lag (front-end-skjelett) -->
+    <string name="team_create">+ Opprett nytt lag</string>
+    <string name="team_nearby_todo">Lag i nærheten (innen 50 km) listes når kontoen er koblet til nett.</string>
+    <string name="team_role_leader">Jeg er leder</string>
+    <string name="team_role_for_leader">Jeg vil opprette et lag for leder</string>
+    <string name="team_role_ask_leader">Jeg vil be leder opprette et lag</string>
+    <string name="team_name_hint">Lagnavn</string>
+    <string name="team_invite_todo">Invitasjoner sendes når kontoen er koblet til nett.</string>
+
+    <!-- Meny (runde 4) -->
+    <string name="menu_jakt">Jakt</string>
+    <string name="menu_more_stats">Mer statistikk</string>
+
+    <!-- Jakt (runde 4) -->
+    <string name="hunt_view_registered">Se registrerte skudd</string>
+    <string name="hunt_share_research">Del med forskning</string>
+    <string name="hunt_choose_pos">Velg dyrets posisjon</string>
+    <string name="hunt_missing_pos">Velg dyrets posisjon.</string>
+    <string name="hunt_missing_species_distance">Fyll inn både vilt og avstand.</string>
+
+    <!-- Serier (runde 4) -->
+    <string name="serier_season">Denne sesongen</string>
+    <string name="serier_all">Alle</string>
+
+    <!-- Venner (runde 4) -->
+    <string name="friends_edit_alias">Endre visningsnavn</string>
+    <string name="friends_alias_hint">Visningsnavn</string>
+    <string name="friends_data_note">Dette er dataene vennen har valgt å dele med deg.</string>
+    <string name="friends_need_display_name">Du må velge et visningsnavn for å dele resultatene dine med venner</string>
+    <string name="friends_need_display_name_view">Du må dele visningsnavn for å legge til venner</string>
+    <string name="friends_need_share_view">Du må dele visningsnavn for å se vennene dine</string>
+    <string name="friends_dont_share">Ikke del</string>
+    <string name="friend_share_phone">Telefonnummer</string>
+    <string name="friend_share_teams">Jaktlag og skytterlag</string>
+    <string name="friend_share_kommune">Hjemkommune</string>
+
+    <!-- Innsikt (runde 4) -->
+    <string name="innsikt_preview">Her ser du hvilke hold og stillinger som er forsvarlige for deg — brutt ned på stilling, hold og hjelpemidler. Skyt noen serier, så fylles oversikten med dine egne tall.</string>
+    <string name="stats_none">Ingen data denne sesongen.</string>
 </resources>

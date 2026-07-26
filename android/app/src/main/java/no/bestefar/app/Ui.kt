@@ -79,4 +79,61 @@ object Ui {
             ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             if (c != null) topMargin = dp(c, topDp)
         }
+
+    /**
+     * Valg-knapp (musingsUI runde 3): uvalgte = tydelig outlined, valgt =
+     * invertert (fylt). `small` gir mindre, rektangulær variant
+     * (hjelpemidler-knappene).
+     */
+    fun choiceButton(c: Context, label: CharSequence, selected: Boolean,
+                     small: Boolean = false, onClick: () -> Unit):
+        com.google.android.material.button.MaterialButton {
+        val b = if (selected) {
+            com.google.android.material.button.MaterialButton(c)
+        } else {
+            com.google.android.material.button.MaterialButton(c, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle)
+        }
+        b.text = label
+        if (small) {
+            b.textSize = 13f
+            b.cornerRadius = dp(c, 6)
+            b.minHeight = dp(c, 40)
+            b.minimumHeight = dp(c, 40)
+        }
+        b.setOnClickListener { onClick() }
+        return b
+    }
+
+    /** Fritekstfelt: stor forbokstav per default (musingsUI runde 3). */
+    fun capitalize(e: android.widget.EditText) {
+        e.inputType = android.text.InputType.TYPE_CLASS_TEXT or
+            android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+    }
+
+    /** Maks lengde på visningsnavn (musingsUI runde 4). */
+    const val NAME_MAX = 24
+
+    /**
+     * Filter for visningsnavn: begrens lengde og til utskrivbar ASCII, så
+     * navn deles trygt mellom brukere (musingsUI runde 4).
+     */
+    fun nameFilters(): Array<android.text.InputFilter> = arrayOf(
+        android.text.InputFilter.LengthFilter(NAME_MAX),
+        android.text.InputFilter { src, s, e, _, _, _ ->
+            val sb = StringBuilder()
+            for (i in s until e) { val c = src[i]; if (c.code in 32..126) sb.append(c) }
+            if (sb.length == e - s) null else sb
+        })
+
+    /** Tekstboks med synlig ramme (kraftigere visuelt hint enn linje). */
+    fun boxed(e: android.widget.EditText, c: Context) {
+        e.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            setStroke(dp(c, 1), Color.GRAY)
+            cornerRadius = dp(c, 6).toFloat()
+        }
+        val p = dp(c, 8)
+        e.setPadding(p, p, p, p)
+    }
 }

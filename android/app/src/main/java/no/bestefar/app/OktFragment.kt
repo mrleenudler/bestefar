@@ -75,8 +75,12 @@ class OktFragment : Fragment() {
         val store = Store.get(a)
         content.removeAllViews()
 
-        // Kontekstteksten er fjernet (musingsUI-runde 2) — valgene kommuniseres
-        // av knappene øverst.
+        // «## øvelsesskudd denne sesongen» øverst (musingsUI runde 4)
+        content.addView(android.widget.TextView(a).apply {
+            text = getString(R.string.okt_shots_season, store.shotsThisSeason())
+            textSize = 20f
+            setPadding(0, 0, 0, Ui.dp(a, 8))
+        })
 
         // Øvelsesmotoren: popup-forslag som kort, bare ved reelt behov (spec §5)
         val sug = Stats.practiceSuggestion(store.currentSeasonSeries())

@@ -5,161 +5,245 @@ Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måt
 
 UI-grafikkelementer ligger i mappen UI
 
-Alle skjermbilder kommer i mer eller mindre konflikt med statuslinjen øverst, og med programlinjen nederst.
-De må alle reskaleres for å ikke komme i klonflikt med disse.
+--------------------------------------
+NYE IKONER:
+Stillinger: Liggende, sittende, knestående, stående
+Vilt
+--------------------------------------
+
+Jeg har jobbet frem og tilbake med denne listen, og hatt en lagrings-incident, så det er ikke sikkert listen er konsistent.
+Be om avklaringer for inkonsistens før implementering.
+
+OCR på skjermen finpusser resultatene
+Bruk OCR på poengoppføringene til å kontrollere identifiserte treff.
+Dersom avviket er <= 0.2, oppdater viste poeng sømløst, men send fullskala bilde og detekterte poeng til utvikler hvis brukeren har akseptert deling for utvikling
+Dersom avviket er > 0.2, vis OCR-poengene + legg til tekst i poengvisningen: "Appen klarte ikke se treffene riktig. Vil du lagre serien likevel?" Valg: <forkast>, <lagre med poengene på skjermen> 
++ ny skjerm (dersom deling med utvikler ikke er aktivert): "Vi vil gjerne bruke dette bildet til å forbedre appen" valg: <avvis>, <godta>
+
+
+Registreringen av serier (scan) oppleves litt tilfeldig.
+Vi vil at bare liggende bilder godkjennes i gatingen. 
 
 
 
-Sjekk om tutorial vises bare første gang, eller hver gang.
-Skip-knapp
-Velkommen-skjerm
-Tilbakemelding på detalker i tutorial:
-Scan-forklaring omskrives
-Knappene øverst: omskrives
-Innsikt omskrives
-Meny fjernes(?)
+
+Den lilla fargen i layouten er ikke veldig in theme.
+Prøv å bytte til en lys brunfarge.
+
+Omarbeiding av startskjermen:
+Ikoner for våpen, jakt og stilling fjernes, og er kun tilgjengelige i menyen. Stilling kommer bare opp som valg etter hvert scan, og er ikke tilgjengelig fra noen meny.
+Øverst, under ikonene: "## øvelsesskudd denne sesongen"
+Stilling + anlegg promptes etter hvert scan
+Stilling vises som 4 distinkte ikoner vertikalt, med hjelpemidler under, horisontalt.
+anlegg/reim virker som radio-buttons. "uten" fjernes som valg, men valgene kan deaktiveres ved å klikke aktivert knapp på ny.
+Bruk stillingsikonene fra UI mappen.
+
+Meny:
+Meny-ikonet er litt for stort. Krymp med 10%.
+"Profil" -> "Min profil"
+->"Rediger våpen" endres til "Legg til våpen" og legges inn i Profil-menyen under "Avanserte innstillinger"
+
+"Deling" fjernes som egent menyvalg
+
+Venner:
+"la venner finne meg" valget skal også være tilgjengelig her, under "legg til venner" knappen
+Vennene ligger som knapper i alfabetisk rekkefølge under valget. 
+Knappen viser antall øvelsesskudd (hvis delt) og visningsnavn
+Når knappen trykkes, vises en oversikt over alle data denne vennen har delt.
+I oversikten vises visningsnavnet øverst med valg "endre\visningsnavn"
+Endret visningsnavn vil vises i vennelisten
+I den enkelte vennens oversikt, vises endret visningsnavn, men originalt visningsnavn i parentes.
+Vi må sette en cap på antall tegn for visningsnavn, både personlig/originalt, og endret. Og kanskje begrense til ASCII?
+Dine egne delingsalternativer vises under vennelisten som en liste med checkboxer. 
+Visningsnavn er perma-checket. De andre er unchecked pr default.
+
+"Avansert statitikk" fjernes fra menyen og legges nederst i Innsikt-menyen.
+Bytt navn til "Mer statistikk"
+
+"Serier" endres til "Mine serier"
+->Valg: "Denne sesongen" / "Alle" (Radio valg)
+
+"Send melding" -> "Gi tilbakemelding til utvikler"
+
+"Om appen" fjernes, og erstattes av en oppstartsmelding første gang appen brukes.
+Dersom oppstartsmeldingen endres i senere versjoner, vises den på nytt.
+Behold bare de to første avsnittene av teksten.
+Vindu 2: "Vi trenger hjelp til å forbedre appen fra dere. Vil du dele bilder der appen gjør en dårlig jobb? <Nei takk>, <Godkjenn>
+
+Funksjonalitet for optikk, ammunisjon og optikk-kalkulator fjernes.
+Kommenter ut koden, og noter at det er fjernet for å forenkle brukeropplevelsen, og fordi behovet er marginalt.
+
+Om appen: 
+"Velkommen"
+"Appen kan scanne resultatene for øvelsesskyting, og hjelper deg med å finne trygt skuddhold på jakt"
+"Scan serie"
+behold som før
+"Velg skytestilling" (stillingsikon)
+"Når du har scannet skjermen, og poengene er registrert, velger du hvilken skytestilling du brukte for denne serien.
+Det hjelper deg med å vite hvilken stilling du bør bruke på jakt"
+"Innsikt" 
+"Når du har skutt noen serier, kan du bruke (innsikt ikon) knappen for å se hvilke hold det er trygt å skyte.
+\n
+NB: Du kan bare få innsikt for stillinger du har brukt på øvelsesskytingen."
+
+
+Profil endres:
+Øverst til høyre, på linje med "Profil": "Lys modus". Hvis man klikker på den, sår man opp valg mellom <lys modus><mørk modus><Samme som system>
+"Navn/Kallenavn" -> Visningsnavn
+Fødselsår: gates fra 2 til 120 år
+Dersom brukeren velger å dele data med venner, men ikke har skrevet et visningsnavn, åpnes en dialog:
+"Du må velge et visningsnavn for å dele resultatene dine med venner"
+<tekstboks> "Visningsnavn"
+<Ikke del><Lagre>
+"Legg til skytterlag/jaktlag" -> "Legg til jaktlag eller skytterlag"
+Når knappen trykkes, brukes posisjonsdata til å liste opp inntil 20 lag innen 50km radius. Lagene sorteres etter avstand.
+De 3 nærmeste lagene, uavhengig av avstand, skal alltid listes. 
+Over listen av lag, er det en knapp "+ Opprett nytt lag"
+Når den trykkes, gir 3 valg:
+"Jeg er leder"
+-> "Inviter medlemmer fra kontaktliste"
+-> "Legg til medlem med epost eller telefonnummer" (Vi gjør begge i ett tekstfelt, og identifiserer(ogm validerer) om det er epost eller telefonnummer som er tastet inn. Kan vi også gi tilbakemelding om invitasjonen feilet i å leveres?)
+"Jeg vil opprette et lag for leder"
+-> "Inviter medlemmer fra kontaktliste"
+-> "Legg til medlem med epost eller telefonnummer"
+-> checkbox for leder blant de inviterte (Det kan være flere ledere)
+"Jeg vil be leder opprette et lag"
+-> "Inviter leder fra kontaktlisten"
+-> "Legg til leder med epost eller telefonnummer"
+## Invitasjonsfunksjon
+Del app via ACTION_SEND-intent (ingen kontakttillatelse) med redirect-URL i 
+EXTRA_TEXT; server leser User-Agent og sender til riktig butikk (Play/App Store). 
+Samme redirect-URL kan brukes til QR-kode for e-post-invitasjon.
+Mitt jaktmål i Profil: 
+"Mindre enn ## er skade- eller bomskudd" <Endre> (Ja, vi har endret ordlyden av pedagogiske årsaker)
+(i) Samme som for Mitt Jaktmål dialogen under
+Fjern "Dele med venner" som knapp fra Profil. La valget bare ligge i vennelisten. 
+Hvis ingen info er delt når "Legg til venn" klikkes, åpnes delingsdialogen, med "Visningsnavn" checket.
+Hvis "avbryt" klikkes, Åpnes en dialog "Du må dele visningsnavn for å legge til venner" <ok>
+Dersom <Deaktiver deling> velges på et senere tidspunkt, blir hele vennelisten grå, og oppdateres ikke, og kan ikke interageres med. Hvis en venn da klikkes, kommer dialogen "Du må dele visningsnavn for å se vennene dine" <ok>
+"Deaktiver deling" knappen virker ikke nå. Den må unchecke alle boksene og lagre.
+"Avanserte innstillinger"
+Våpenkartotek flyttes fra Profil inn i Avanserte innstillinger som "Mine våpen"
+"Legg til våpen": "Våpennavn" endres til "Våpenmodell" (uten eksempel)
+"Flytt til ny telefon" og "Slett alle data" flyttes hit.
+
+
+Venner: 
+Deling: 
+Fjernes som menyvalg. Inngår i Profil/Venner
+Legg til alternativ: Telefonnummer. Når nummer er delt, vises ring og sms ikon på vedkommende i navnelisten.
+Legg til alternativ: "Jaktlag og skytterlag"
+Legg til alternativ Hjemkommune (Dette hjelper brukere å søke opp hverandre)
+Dine lag vises i vennelisten, og venner som tilhører ett av dine lag vises under disse, slightly offset.
+Venner du ikke deler et lag med, vises under lagene. 
+Lagene er sortert etter størrelse pr default, men <pil opp/pil ned> åpner flytt / flytt ned alternativ for laget.
+
+
+Mitt jaktmål: 
+Presenteres: Etter at de har skutt tre serier.
+Skal fortsatt eksistere i "min profil"
+Nye alternativer
+1 av 7
+1 av 13 (nasjonalt gjennomsnitt), erstatter 1av10
+1 av 20
+1 av 50
+(i) hvorfor noen tall røde?
+"I gjennomsnitt er 1 av 13 skudd mot vilt i Norge enten en bom eller et skadeskudd"
+"Er du bedre enn gjennomsnittet?"
+"\nI innsikt-menyen blir teksten grønn for de situasjonene du klarer målet ditt"
+"\nMen HUSK: Det gjelder bare for dyr som står stille. Dyr som beveger seg er vanskeligere"
+
+
+-> Serier blir ikke lagret (I det minste ikke overført ved oppdateringer)
+-> Hvis appen slettes og reinstalleres i stedet for å oppdateres, slettes brukerdata. Kan vi beholde dem lokalt?
+
+Identiske serier bør få varsel om at de er like, og spørsmål om de skal lagres eller ikke.
+
+
+Det forekommer at det identifiseres flere skudd enn reelt(?)(Erfaring fra felt)
+-> Kommer det av bevegelse i kameraet og multippel eksponering eller noe annet? Kan vi identifisere problemet og fikse det?
+
+
+Serier må kunne slettes: (Menyvalg: serier)
+Klikk-og-hold for å velge flere serier
+Serier kan slettes når man klikkser seg inn på dem
+
+Innsikt: Låse opp innsikt før serier er skutt 
+(Det viser hva den gjør, og vi kan vurdere den visuelt)
+Brytes ned på stilling, hold, anlegg/reim/begge
+[Flere instruksjoner]
+
+Innskyting: I starten av sesongen, og før førstegangs bruk, informeres brukeren om at de må skyte inn våpenet før de begynner å sacnne serier.
+Analyser sesongens første serie: Dersom det er en tydelig feilkalibrering (cluster center vs spredning) åpnes dialog: "Er våpenet innskutt? <Ja><Nei>. <Ja> -> "Serie registrert"; <Nei> -> "Serie forkastet"
+Senere i sesongen: Samme funksjonalitet, men bare hvis dagens to første serier har omtrent samme bias. <Nei> -> "Skal vi lagre de to siste seriene?" <Ja, lagre likevel><Nei, ikke lagre>
+Alternativ "benk" for stilling fjernes
+
+Scan serie: Velg stilling(ikon) etter hver scan. Valget viser også hvor mange skudd du har skutt med hver stilling. 
+Stilingene vises vertikalt under hverandre.
+Under stillingene vises horisontalt
+
+Menyoppføring: "Jakt"
+To knapper: 
+"Registrer jaktskudd": 
+Når knappen trykkes, skal ikke scan-knappen vises, bare "Logg jaktskudd" knappen. 
+Datoen skal ha format "3. mars 2026" -> Lag en kalender datovelger med dages dato forhåndsvalgt.
+Checkboxen øverst skal endres fra "Forenklet visning" til "Del med forskning"
+Den er checket eller unchecket ihht tidligere valg. 
+Hvis den er unchecked, vises forenklet visning.
+"Informasjonen kan..." flyttes under <neste>
+toast ber om både vilt og avstand dersom det ikke er fyllt inn
+Dersom "Annet" vilt velges, flyttes markøren til tekstboksen, og "Del med forskning" deaktiveres
+Posisjonsklokka erstattes av 3 silhuetter av valgt vilt.
+Vi mangler foreløpig mange av viltfigurene. Bruk hjorten på alle sammen.
+"Velg dyrets posisjon" skrives over silhuettene.
+"Dyret løp ca <tekstboks>m"
+
+Telefonens tilbake knapp må bare gå ett menyvalg tilbake, ikke helt til hovedskjermen.
+"Se registrerte skudd"
+Viser en liste med vilt-ikon, Stedsnavn og dato for hvert registrerte skudd
+Når et element er valgt vises pil høyre/venstre for å bla gjennom oppføringene.
+Oppføringene skal ikke loope rundt. Bare én pil vises for første og siste element.
+
+Skjermtastaturet kommer noen ganger delvis i konflikt med med menyen. 
+Det betyr at alle menyer som dekker mer enn halve skjermen, må være scrollbare. 
+Implementer det.
+
+(i):
+Hvilke elementer skal ha informasjonsikon? (Ikke svar på denne, det er utviklers jobb å bestemme)
+
+Oppdater Bestefar_UI_spec til å stemme med endringene.
+Skriv en backend_spec.md
+Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
+
+Mer arbeid med intro/veiledning:
+
+Jegeropplæring.no har masse artikler som kan forenkles til korte faktasnutter i appen, og lenkes til.(Ikke implementer denne nå)
+
+
+?Kan vi koble opp mot statens app? Jegerprofil? (Ikke implementer denne nå)
+
+
+----------------------------------------------------
+Alt nedenfor er gamle instruksjoner og skal ignoreres
+------------------------------------------------------
+
+
+TODO: Resultatskjerm fra scan
+TODO: Søk og bakenforliggende funksjons- og kunnskapsartikler
+TODO: Avansert statistikk
+TODO: Implementere vennefunksjon
+TODO: Implementere innsamling av forskningsdata
+TODO: Eksporter/flytt/backup data/konto
+
+
+Lage Velkommen-skjerm ?
 ->Vurder UI-støtte av tutorial (på lengre sikt)
 
 
-Hovedskjerm:
-Tekst: "100m liggende (Uten)
-Ingen serier i dag" -> fjernes
-
-Scan serie knappen flyttes litt opp. Er den nå koblet til midten av nederste halvdel av skjermen? 
-Er det toppen av knappen som er forankret der? Det bør i tilfelle være midten av knappen som er forankret der.
-Hvis det ikke er tilfelle, flytt knappen 10% opp.
-
-Ikon-knappene øverst er usynlige. Rendre dem i hvitt motiv på sort bakgrunn, med en tynn ramme i grått rundt her knapp.
-
-Fjern teksten i knappene. Behold bare ikonene.
-
-
-Liggende layout: 
-Layouten er for bred for skjermen. Tar den kanskje ikke hensyn til menylinjen nederst?
-Fiks det, og la knappene krympe til 80% av bredden.
-Når skjermen ligger, la jaktlogg være nest lengst til høyre, ved siden av meny knappen.
-Dvs: Våpen-avstand-stilling-innsikt-jakt-meny
-
-Stående layout:
-Krymp alle knapper til 80% av bredden.
-
-Stilling-meny:
-"Ikke spør" valget: Bytt ut med "Spør etter hver serie" og la den være default checket.
-
-
-Knapper:
-Når en meny er åpen, og knappen trykker igjen, skal menyen lukkes. 
-Menyene for våpen, stilling og avstand skal ikke være fullskjerm, men mer som er dropdown som bare dekker deler av skjermen
-
-Stilling: Trekk menyen til venster side. Stillings-knappene til venstre på menyen, og støtte-knappene til høyre for dem.
-Spør-knappen under, som nå.
-
-Våpen: 
-Fjern henvisning til ammunisjon. Det kan være eget menyvalg
-Fjern også forklarende tekst
-
-Avstand:
-La valgene stables vertikalt. Erstatt Egendefinert med en knapp med X m. Når de klikkes, åpner et tekstfelt (og sett-knappen), der kun tall er tillatt input. 
-Når sett knappen trykkes, vises avstanden i stedet for x. Knappen beholder avstanden sin selv om annen avstand velges. 
-Hvis en tidligere avstand er innstilt, vi den velges og ikke åpne tekstfeltet når den trykkes.
-Hvis den trykkes på ny, åpner tekstfeltet igjen.
-"Gjeldene avstand" teksten fjernes fra meyen, det kommuniseres av highlightingen av knappene.
-
-Jakt:
-Bare Logg jaktskudd knappen vises på denne menyen. 
-Når knappen trykkes, kontrolleres posisjon.
-Dersom posisjon er tilgjengelig, fylles stedsnavn og GPS-koordinater inn automatisk.
-Dersom posisjon ikke er tilgjengelig, åpnes forespørsel om posisjonsinnhenting.
-Brukeren kan velge: tillat, eller fyll inn selv, eller hopp over
-Fyll inn selv er fritekst, og ikke bundet til kartfunksjonalitet.
-Under posisjon kommer knappene for vilt:
-I to rader, Rådyr, Hjort, Elg | Villrein, Villsvin, Annet
-"Annet" åpner en boks for fritekst.
-Under posisjon:
-"Avstand: <tekstboks>m" Maks 4 sifre.
-"Informasjonen kan redigeres i menyen" 
-<Neste> knapp
-Neste side: 
-6 knapper med "Posisjon #" (placeholders) i klokkeform rundt jakt-ikonet
-Under: "Dyret løp <tekstboks>m + "ettersøk" + "bomskudd"
-Under: Knapper: "Avbryt" og "Registrer skudd"
-
-Meny: 
-Fjern "legg til våpen" knappen. Den skal være et valg under "rediger våpen"
-Bytt "Serielogg" med "Serier"
-Flytt "Profil" øverst og "Søk" nederst
-Fjern "Historikk"
-Bytt "Mer statistikk" med "Avansert statistikk"
-Bytt "Hjelp og ikonforklaring" med "Om appen"
-Jeg tror siste knapp er "Tilbake", men det kan jeg ikke lese, på grunn av nederste linje.
-La oss prøve å løse det med å tegne menyen i dropdown format, som de andre, med mindre knapper inntil høyre skjermside.
-Jeg tror ikke vi trenger å implementere scrolling, siden vi fjerner en knapp.
-
-Optikk-kalkulator:
-Kalkulatoren gir ikke mening for meg. 
-Jeg vet ikke helt hvordan man har behov for å bruke den, men jeg foreslår noe slikt:
-"Fra"
-<tekstboks> <valgknapper>
-"Til"
-<tekstboks med inntasting deaktivert, viser omregning + valgt enhet i tekstboksen> <valgknapper>
-La oss diskutere det om det ikke gir mening.
-
-
-"Legg til våpen" meny: 
-Legg til knapp for "Velg optikk" og "Velg ammo"
-Begge utvider menyen nedover med fritekst tekstboks og knapp for "Ikke nå" og "Legg til"
-"Ikke nå" lukker undermenyen.
-"Legg til" lar inntastet info stå igjen, med "bytt optikk/ammo" knapp
-
-"Avbryt" og "Lagre" knappene flyttes nedover ettersom optikk- og ammo menyene åpnes.
--------------------
-
-TIDLIGERE INSTRUKSJONER FOR REFERANSE: IGNORER.
-
-Vi skal endre litt på valgene her. 
-Jeg vil ha et visningsnavn øverst, 
-og deretter et valgt ikon (vi skal legge til noen forskjellige)
-Tredje linje blir "Våpennavn" med eksempel, som nå.
-
-OPTIKKPROFIL: implementasjonsspec (oppsummering)
-Profilfelter (øverst):
-
-Visningsnavn (fritekst, brukerens eget navn på profilen)
-Merke/modell (fritekst)
-
-Klikkverdi – valg av aktiv representasjon
-Tre gjensidig utelukkende alternativer (radio button). Brukeren velger én aktiv representasjon; konverteringer til de inaktive vises ikke.
-
-MOA → ekspanderende vertikal liste av knapper når valgt: 1/8, 1/4, 1/2, 1 MOA
-MRAD → ekspanderende vertikal liste av knapper når valgt: 0,1 og 0,05 mrad
-cm/100m → fritekst (redigerbart tallfelt)
-
-Regel for cm-visning: read-only avledet under MOA/MRAD; redigerbart input kun under cm/100m-valget. Én kilde til sannhet av gangen.
-
-Hovedmeny: de tre valgene over med oppgitte dropdown-verdier.
-
-SMOA
-Ikke eget hovedvalg. Ligger i avanserte innstillinger som flagg/avkrysning (f.eks. "tårnet bruker forenklet 1 tomme/100 yards").
-Skal være et valg i optikkalkulatoren.
-Påvirker omregning: ekte MOA = 1,047 tomme/100 yards (2,908 cm/100m); SMOA = 1,000 tomme/100 yards. Ca. 4,7 % forskjell — merkbart på lange hold.
-
-Persistering
-Navngitt profil brukeren setter opp én gang og velger fra – ikke input per økt.
-
-Scan:
-Har vi laget denne?
+Scan: (Implementert?)
 Når et resultat er scannet, kommer resultatet opp på skjermen som en skive med treffene markert. 
 På høyre side av skiven er poengene oppført i stigende rekkefølge (desimaltall inkludert). 
 Hvert poeng har en blyant ved siden av, som kan brukes til å endre poengene ved behov. 
 Under skiven er det en "ikke lagre" knapp til venstre, og en "ok" knapp til høyre.
+(Er det implementert?)
 
-Meny:
-Rediger våpen må være et menyvalg. Fra våpenmenyen skal man også kunneendre/legge til optikk og ammo.
-Optikk-kalkulator: En kalkulator som regner om mellom MOA/MRAD/cm. Undersøk hva en slik kalkulator typisk har behov for, og implementer den. Fullskjerm med x i hjørnet.
-Søk: Fritekst/nøkkelord søk etter funksjonalitet/informasjon
-Serielogg: Alle scannede serier føres opp med bane, dato og tid og gjennomsnittspoeng. Man kan klikke inn på hver enkelt serie for å se resultatet, og det er mulig å slette seriene. To knapper: Slett serie og ok. Trykk-og-hold aktiverer velg-flere funksjon. Da dukker det opp en søppelbøtte øverst i høyre hjørne, og en Avbryt knapp i nederste høyre hjørne.
-
-
-
-
-Kanskje senere: Tips + Kunnskapsbank

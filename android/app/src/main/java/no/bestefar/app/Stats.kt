@@ -123,30 +123,56 @@ object Stats {
         return Color.HSVToColor(floatArrayOf(hue.coerceIn(0f, 120f), 0.75f, 0.85f))
     }
 
-    /**
-     * Klikk-forslag (spec §2): gjennomsnittlig offset i cm ved seriens
-     * avstand; vises kun når offsetet er skjelnbart fra støy
-     * (per akse |mean| > ~2σ̂/√n). Krever klikkverdi på optikken.
-     * Returnerer (høyreKlikk, oppKlikk) eller null («innenfor støy»).
-     * theta-konvensjon antas matematisk (x=r·cosθ, y=r·sinθ, y opp) — må
-     * verifiseres mot kjernen ved felttest.
+    /*
+     * FJERNET i runde 4 (musingsUI): klikk-forslag krevde optikk-klikkverdi.
+     * Optikk-/ammo-/kalkulator-funksjonaliteten er tatt ut for å forenkle
+     * brukeropplevelsen (behovet vurderes som marginalt). Beholdes utkommentert
+     * som referanse til når/hvis optikk gjeninnføres.
+     *
+     * fun clickSuggestion(shots, distanceM, clickValueCm100): Pair<Int,Int>? {
+     *     ... gjennomsnittlig offset i cm, gated på > ~2σ̂/√n, delt på klikkverdi
+     * }
      */
-    fun clickSuggestion(shots: List<Shot>, distanceM: Int, clickValueCm100: Double): Pair<Int, Int>? {
-        if (shots.size < 3) return null
-        // offset i cm på skiva: rRel -> cm
+
+    /**
+     * Innskytingssjekk (musingsUI runde 4): en tydelig feilkalibrering viser
+     * seg som at gruppas *senter* (bias) ligger langt fra siktepunktet
+     * sammenlignet med *spredningen*. Skalafritt forhold, så robust mot at
+     * RING_STEP_CM er en plassholder. Returnerer (biasCm, spreadCm).
+     */
+    fun biasAndSpread(shots: List<Shot>): Pair<Double, Double> {
+        if (shots.isEmpty()) return 0.0 to 0.0
         val xs = shots.map { it.rRel * RING_STEP_CM * cos(it.theta) }
         val ys = shots.map { it.rRel * RING_STEP_CM * sin(it.theta) }
         val mx = xs.average(); val my = ys.average()
-        val sigma = sqrt((xs.map { (it - mx) * (it - mx) } + ys.map { (it - my) * (it - my) })
-            .average()).coerceAtLeast(0.1)
-        val noise = 2.0 * sigma / sqrt(shots.size.toDouble())
-        if (kotlin.math.abs(mx) <= noise && kotlin.math.abs(my) <= noise) return null
-        // klikkverdi er cm/klikk @100m -> cm/klikk ved d = click*d/100
-        val cmPerClick = clickValueCm100 * distanceM / 100.0
-        val right = (-mx / cmPerClick).roundToInt()
-        val up = (-my / cmPerClick).roundToInt()
-        if (right == 0 && up == 0) return null
-        return right to up
+        val bias = sqrt(mx * mx + my * my)
+        val spread = sqrt((xs.indices.sumOf {
+            (xs[it] - mx) * (xs[it] - mx) + (ys[it] - my) * (ys[it] - my)
+        } / shots.size))
+        return bias to spread
+    }
+
+    /** Bias-vektor (cm) — brukes til å sammenligne to seriers skjevhet. */
+    fun biasVector(shots: List<Shot>): Pair<Double, Double> {
+        if (shots.isEmpty()) return 0.0 to 0.0
+        return shots.map { it.rRel * RING_STEP_CM * cos(it.theta) }.average() to
+            shots.map { it.rRel * RING_STEP_CM * sin(it.theta) }.average()
+    }
+
+    /** Tydelig feilkalibrering: senteret ligger godt utenfor egen spredning. */
+    fun looksMiscalibrated(shots: List<Shot>): Boolean {
+        if (shots.size < 3) return false
+        val (bias, spread) = biasAndSpread(shots)
+        return bias > 1.5 * spread.coerceAtLeast(0.1) && bias > 2.0 * RING_STEP_CM
+    }
+
+    /** To serier har «omtrent samme bias» (samme retning og størrelse). */
+    fun similarBias(a: List<Shot>, b: List<Shot>): Boolean {
+        val (ax, ay) = biasVector(a)
+        val (bx, by) = biasVector(b)
+        val d = sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by))
+        val mag = (sqrt(ax * ax + ay * ay) + sqrt(bx * bx + by * by)) / 2.0
+        return mag > 2.0 * RING_STEP_CM && d < 0.5 * mag
     }
 
     /** R95 (cm @ 100 m) og MOA — kun «mer statistikk» (spec §1). */

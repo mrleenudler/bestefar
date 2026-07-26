@@ -29,6 +29,7 @@ class SerieloggActivity : AppCompatActivity() {
     private var selectionMode = false
     private val selected = mutableSetOf<String>()
     private var detail: SeriesRecord? = null
+    private var seasonOnly = true   // «Denne sesongen» / «Alle» (musingsUI r4)
 
     private val fmt = DateTimeFormatter.ofPattern("d.M.yy HH:mm")
 
@@ -62,7 +63,7 @@ class SerieloggActivity : AppCompatActivity() {
         val content = Ui.col(this)
 
         val header = Ui.row(this)
-        header.addView(Ui.title(this, getString(R.string.serielogg)).apply {
+        header.addView(Ui.title(this, getString(R.string.menu_series)).apply {
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
@@ -77,7 +78,21 @@ class SerieloggActivity : AppCompatActivity() {
         }
         content.addView(header)
 
-        val all = store.allSeries().sortedByDescending { it.ts }
+        // Denne sesongen / Alle (musingsUI runde 4)
+        val toggle = Ui.row(this)
+        toggle.addView(Ui.choiceButton(this, getString(R.string.serier_season), seasonOnly) {
+            if (!seasonOnly) { seasonOnly = true; renderList() }
+        }.apply { layoutParams = LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+            marginEnd = Ui.dp(this@SerieloggActivity, 6) } })
+        toggle.addView(Ui.choiceButton(this, getString(R.string.serier_all), !seasonOnly) {
+            if (seasonOnly) { seasonOnly = false; renderList() }
+        }.apply { layoutParams = LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
+        content.addView(toggle)
+
+        val source = if (seasonOnly) store.currentSeasonSeries() else store.allSeries()
+        val all = source.sortedByDescending { it.ts }
         if (all.isEmpty()) {
             content.addView(Ui.hint(this, getString(R.string.serielogg_empty)))
         }
@@ -165,8 +180,9 @@ class SerieloggActivity : AppCompatActivity() {
             textSize = 26f
         })
         val w = store.weapons().firstOrNull { it.id == s.weaponId }
+        val mod = if (s.modifier != PosModifier.UTEN) " (${s.modifier.label})" else ""
         content.addView(Ui.hint(this,
-            "${s.position.label} (${s.modifier.label}) · ${s.distanceM} m · " +
+            "${s.position.label}$mod · ${s.distanceM} m · " +
             (w?.shownName ?: "—") + if (s.corrected) " · korrigert" else ""))
 
         val btnRow = Ui.row(this)

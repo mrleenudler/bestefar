@@ -8,22 +8,33 @@ import org.json.JSONObject
  * bevisst for v1 (spec §10.3); flyttes til ressurser ved i18n.
  */
 
-enum class Position(val label: String) {
-    LIGGENDE("Liggende"),
-    SITTENDE("Sittende"),
-    KNESTAENDE("Knestående"),
-    STAAENDE("Stående"),
-    BENK("Benk");   // egen inngang ved innskyting; teller ikke i kompetanse
+/**
+ * Skytestillinger (musingsUI runde 4): «benk» fjernet — innskyting håndteres
+ * nå av kalibreringssjekk på sesongens første serie. Egne ikoner fra UI-mappen.
+ */
+enum class Position(val label: String, val iconRes: Int) {
+    LIGGENDE("Liggende", R.drawable.ic_stilling_liggende),
+    SITTENDE("Sittende", R.drawable.ic_stilling_sittende),
+    KNESTAENDE("Knestående", R.drawable.ic_stilling_knestaaende),
+    STAAENDE("Stående", R.drawable.ic_stilling_staaende);
 
     companion object {
-        val hoved = listOf(LIGGENDE, SITTENDE, KNESTAENDE, STAAENDE)
+        val hoved = entries.toList()
         fun of(n: String?) = entries.firstOrNull { it.name == n } ?: LIGGENDE
     }
 }
 
+/**
+ * Hjelpemidler (musingsUI runde 4): anlegg/reim virker som radio-toggler;
+ * «uten» er ikke lenger et eget valg, men den deaktiverte tilstanden (klikk
+ * aktiv knapp på ny for å slå av).
+ */
 enum class PosModifier(val label: String) {
     UTEN("Uten"), ANLEGG("Anlegg"), REIM("Reim");
-    companion object { fun of(n: String?) = entries.firstOrNull { it.name == n } ?: UTEN }
+    companion object {
+        val valgbare = listOf(ANLEGG, REIM)
+        fun of(n: String?) = entries.firstOrNull { it.name == n } ?: UTEN
+    }
 }
 
 enum class Species(val label: String) {
@@ -67,6 +78,7 @@ data class Weapon(
     var displayName: String = "",   // brukerens eget visningsnavn
     var icon: String = "rifle",     // nøkkel i WeaponIcons
     var opticId: String? = null,    // kobling til OpticProfile
+    val ammoOptions: MutableList<String> = mutableListOf(),  // registrert ammo
 ) {
     val shownName: String get() = displayName.ifBlank { name }
 
@@ -76,18 +88,28 @@ data class Weapon(
         put("ammoSplit", ammoSplit); put("ammo", ammoName)
         put("displayName", displayName); put("icon", icon)
         put("opticId", opticId ?: JSONObject.NULL)
+        put("ammoOptions", JSONArray().apply { ammoOptions.forEach { put(it) } })
     }
     companion object {
-        fun fromJson(o: JSONObject) = Weapon(
-            id = o.getString("id"),
-            name = o.getString("name"),
-            clickValueCm = if (o.isNull("click")) null else o.getDouble("click"),
-            ammoSplit = o.optBoolean("ammoSplit", false),
-            ammoName = o.optString("ammo", ""),
-            displayName = o.optString("displayName", ""),
-            icon = o.optString("icon", "rifle"),
-            opticId = if (o.isNull("opticId")) null else o.optString("opticId"),
-        )
+        fun fromJson(o: JSONObject): Weapon {
+            val opts = mutableListOf<String>()
+            o.optJSONArray("ammoOptions")?.let { arr ->
+                for (i in 0 until arr.length()) opts.add(arr.getString(i))
+            }
+            val ammo = o.optString("ammo", "")
+            if (opts.isEmpty() && ammo.isNotBlank()) opts.add(ammo)
+            return Weapon(
+                id = o.getString("id"),
+                name = o.getString("name"),
+                clickValueCm = if (o.isNull("click")) null else o.getDouble("click"),
+                ammoSplit = o.optBoolean("ammoSplit", false),
+                ammoName = ammo,
+                displayName = o.optString("displayName", ""),
+                icon = o.optString("icon", "rifle"),
+                opticId = if (o.isNull("opticId")) null else o.optString("opticId"),
+                ammoOptions = opts,
+            )
+        }
     }
 }
 
@@ -196,8 +218,8 @@ data class SeriesRecord(
 ) {
     val sumDecimal get() = shots.sumOf { it.decimal }
     val sumInteger get() = shots.sumOf { it.integer }
-    /** Benk teller ikke i evidensgrunnlaget (spec §2, §8). */
-    val countsInEvidence get() = position != Position.BENK
+    /** Alle øvelsesserier teller nå (benk fjernet, musingsUI runde 4). */
+    val countsInEvidence get() = true
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("ts", ts)
@@ -274,6 +296,70 @@ data class HuntRecord(
             speciesOther = o.optString("speciesOther", ""),
             ranM = if (o.isNull("ranM")) null else o.getInt("ranM"),
             clockPos = if (o.isNull("clockPos")) null else o.getInt("clockPos"),
+        )
+    }
+}
+
+/**
+ * Venn (musingsUI runde 4). FRONT-END-SKJELETT: ekte data hentes fra backend
+ * (se backend_spec.md). `nickAlias` er brukerens redigerte visningsnavn;
+ * `displayName` er vennens eget. Tallfeltene er delt statistikk (kan mangle).
+ */
+data class Friend(
+    val id: String,
+    val displayName: String,
+    var nickAlias: String = "",
+    val teamIds: List<String> = emptyList(),
+    val phone: String? = null,
+    val homeKommune: String? = null,
+    val shotsTotal: Int? = null,
+    val shotsSeason: Int? = null,
+) {
+    val shownName: String get() = nickAlias.ifBlank { displayName }
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id); put("displayName", displayName); put("nickAlias", nickAlias)
+        put("teamIds", JSONArray().apply { teamIds.forEach { put(it) } })
+        put("phone", phone ?: JSONObject.NULL)
+        put("homeKommune", homeKommune ?: JSONObject.NULL)
+        put("shotsTotal", shotsTotal ?: JSONObject.NULL)
+        put("shotsSeason", shotsSeason ?: JSONObject.NULL)
+    }
+    companion object {
+        fun fromJson(o: JSONObject): Friend {
+            val teams = mutableListOf<String>()
+            o.optJSONArray("teamIds")?.let { arr ->
+                for (i in 0 until arr.length()) teams.add(arr.getString(i))
+            }
+            return Friend(
+                id = o.getString("id"),
+                displayName = o.getString("displayName"),
+                nickAlias = o.optString("nickAlias", ""),
+                teamIds = teams,
+                phone = if (o.isNull("phone")) null else o.optString("phone"),
+                homeKommune = if (o.isNull("homeKommune")) null else o.optString("homeKommune"),
+                shotsTotal = if (o.isNull("shotsTotal")) null else o.optInt("shotsTotal"),
+                shotsSeason = if (o.isNull("shotsSeason")) null else o.optInt("shotsSeason"),
+            )
+        }
+    }
+}
+
+/** Jakt-/skytterlag (musingsUI runde 4). FRONT-END-SKJELETT, jf. backend_spec.md. */
+data class Team(
+    val id: String,
+    val name: String,
+    val memberCount: Int = 1,
+    var sortOrder: Int = 0,
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id); put("name", name); put("memberCount", memberCount)
+        put("sortOrder", sortOrder)
+    }
+    companion object {
+        fun fromJson(o: JSONObject) = Team(
+            id = o.getString("id"), name = o.getString("name"),
+            memberCount = o.optInt("memberCount", 1),
+            sortOrder = o.optInt("sortOrder", 0),
         )
     }
 }

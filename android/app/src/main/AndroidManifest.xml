@@ -8,8 +8,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
     <application
+        android:name=".BestefarApp"
         android:label="@string/app_name"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar"
+        android:theme="@style/Theme.Bestefar"
         android:allowBackup="true">
 
         <activity android:name=".MainActivity" android:exported="true">
@@ -18,14 +19,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Landskap: apparatskjermen er 4:3 liggende -> best oppløsning -->
+        <!-- Landskap: apparatskjermen er 4:3 liggende -> best oppløsning.
+             sensorLandscape: roterer mellom begge liggende retninger saa
+             tekst aldri blir opp-ned (musingsUI runde 3) -->
         <activity android:name=".CaptureActivity" android:exported="false"
-                  android:screenOrientation="landscape" />
+                  android:screenOrientation="sensorLandscape" />
         <activity android:name=".ResultActivity" android:exported="false" />
         <activity android:name=".SummaryActivity" android:exported="false" />
         <activity android:name=".HuntLogActivity" android:exported="false" />
         <activity android:name=".ProfilActivity" android:exported="false" />
         <activity android:name=".SerieloggActivity" android:exported="false" />
-        <activity android:name=".KalkulatorActivity" android:exported="false" />
+        <activity android:name=".VennerActivity" android:exported="false" />
+        <activity android:name=".JaktActivity" android:exported="false" />
+        <activity android:name=".RegistrerteSkuddActivity" android:exported="false" />
+        <!-- KalkulatorActivity fjernet i runde 4 (optikk-funksjonalitet
+             kommentert ut for aa forenkle) -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
     </application>
 </manifest>

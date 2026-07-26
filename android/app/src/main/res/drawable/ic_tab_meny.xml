@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Hamburger, tett viewport (musingsUI runde 3) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FF000000"
-        android:pathData="M4,6 L20,6 L20,8 L4,8 Z M4,11 L20,11 L20,13 L4,13 Z M4,16 L20,16 L20,18 L4,18 Z"/>
+    android:width="31dp" android:height="24dp"
+    android:viewportWidth="17" android:viewportHeight="13">
+    <group android:translateX="-3.5" android:translateY="-5.5">
+        <path android:fillColor="#FF000000"
+            android:pathData="M4,6 L20,6 L20,8 L4,8 Z M4,11 L20,11 L20,13 L4,13 Z M4,16 L20,16 L20,18 L4,18 Z"/>
+    </group>
 </vector>

@@ -194,6 +194,60 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getBoolean("tutorialSeen", false)
         set(v) { prefs.edit().putBoolean("tutorialSeen", v).apply() }
 
+    /**
+     * Versjon av oppstartsmeldingen som er sett. Endres teksten (STARTUP_MSG_VERSION
+     * bumpes), vises den på nytt (musingsUI runde 4).
+     */
+    var startupMsgSeenVersion: Int
+        get() = prefs.getInt("startupMsgSeenVersion", 0)
+        set(v) { prefs.edit().putInt("startupMsgSeenVersion", v).apply() }
+
+    /** Tema: "system" | "light" | "dark" (musingsUI runde 4). */
+    var themeMode: String
+        get() = prefs.getString("themeMode", "system") ?: "system"
+        set(v) { prefs.edit().putString("themeMode", v).apply(); BestefarApp.applyTheme(v) }
+
+    /** «Mitt jaktmål» tilbys etter tre serier (musingsUI runde 4). */
+    var jaktmaalPromptSeen: Boolean
+        get() = prefs.getBoolean("jaktmaalPromptSeen", false)
+        set(v) { prefs.edit().putBoolean("jaktmaalPromptSeen", v).apply() }
+
+    var rateChosen: Boolean
+        get() = prefs.getBoolean("rateChosen", false)
+        set(v) { prefs.edit().putBoolean("rateChosen", v).apply() }
+
+    var nickname: String
+        get() = prefs.getString("nickname", "") ?: ""
+        set(v) { prefs.edit().putString("nickname", v).apply() }
+
+    /** «La venner finne meg», default av (musingsUI runde 3). */
+    var findable: Boolean
+        get() = prefs.getBoolean("findable", false)
+        set(v) { prefs.edit().putBoolean("findable", v).apply() }
+
+    /** Delingsvalg mot forskning (Vilt/Dato/Posisjon/Skuddsituasjon). */
+    var researchShare: Set<String>
+        get() = prefs.getStringSet("researchShare", emptySet()) ?: emptySet()
+        set(v) { prefs.edit().putStringSet("researchShare", v).apply() }
+
+    /** Delingsvalg mot venner. */
+    var friendShare: Set<String>
+        get() = prefs.getStringSet("friendShare", emptySet()) ?: emptySet()
+        set(v) { prefs.edit().putStringSet("friendShare", v).apply() }
+
+    var friendShareActive: Boolean
+        get() = prefs.getBoolean("friendShareActive", false)
+        set(v) { prefs.edit().putBoolean("friendShareActive", v).apply() }
+
+    /**
+     * Deling av «bilder der appen gjør en dårlig jobb» til utvikler
+     * (oppstartsmelding vindu 2, musingsUI runde 4). "" = ikke spurt.
+     */
+    var shareDevImages: String
+        get() = prefs.getString("shareDevImages", "") ?: ""
+        set(v) { prefs.edit().putString("shareDevImages", v).apply() }
+    val shareDevImagesActive: Boolean get() = shareDevImages == "ja"
+
     // ---------- Serier ----------
 
     @Synchronized
@@ -246,6 +300,17 @@ class Store private constructor(ctx: Context) {
         }
     }
 
+    /** Antall øvelsesskudd denne sesongen (startskjerm-teller, musingsUI r4). */
+    fun shotsThisSeason(): Int = currentSeasonSeries().sumOf { it.shots.size }
+
+    /** Antall serier skutt fra hver stilling denne sesongen (stillingsvalg). */
+    fun seriesCountByPosition(): Map<Position, Int> =
+        currentSeasonSeries().groupingBy { it.position }.eachCount()
+
+    /** Sesongens serier for ett våpen, kronologisk (innskytingssjekk). */
+    fun seasonSeriesForWeapon(weaponId: String?): List<SeriesRecord> =
+        currentSeasonSeries().filter { it.weaponId == weaponId }.sortedBy { it.ts }
+
     // ---------- Jaktlogg ----------
 
     @Synchronized
@@ -278,6 +343,35 @@ class Store private constructor(ctx: Context) {
 
     private fun writeHunts(list: List<HuntRecord>) =
         huntFile.writeText(JSONArray().apply { list.forEach { put(it.toJson()) } }.toString())
+
+    // ---------- Venner og lag (FRONT-END-SKJELETT, jf. backend_spec.md) ----------
+
+    fun friends(): List<Friend> {
+        val raw = prefs.getString("friends", null) ?: return emptyList()
+        val arr = JSONArray(raw)
+        return (0 until arr.length()).map { Friend.fromJson(arr.getJSONObject(it)) }
+    }
+
+    fun saveFriends(list: List<Friend>) {
+        prefs.edit().putString("friends",
+            JSONArray().apply { list.forEach { put(it.toJson()) } }.toString()).apply()
+    }
+
+    fun addFriend(f: Friend) = saveFriends(friends() + f)
+    fun updateFriend(f: Friend) = saveFriends(friends().map { if (it.id == f.id) f else it })
+
+    fun teams(): List<Team> {
+        val raw = prefs.getString("teams", null) ?: return emptyList()
+        val arr = JSONArray(raw)
+        return (0 until arr.length()).map { Team.fromJson(arr.getJSONObject(it)) }
+    }
+
+    fun saveTeams(list: List<Team>) {
+        prefs.edit().putString("teams",
+            JSONArray().apply { list.forEach { put(it.toJson()) } }.toString()).apply()
+    }
+
+    fun addTeam(t: Team) = saveTeams(teams() + t)
 
     /** Sletting: lokal wipe (spec §6). Sletteanmodning via pseudonym-ID kommer med backend. */
     @Synchronized

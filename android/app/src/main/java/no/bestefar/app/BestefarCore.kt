@@ -75,12 +75,18 @@ object BestefarCore {
         )
     }
 
-    /** Auto-capture-tilstandsmaskin. Kall destroy() naar ferdig. */
+    /**
+     * Auto-capture-tilstandsmaskin. Kall destroy() naar ferdig.
+     * feed() og close() er synkronisert: analyse-traaden kan ligge i feed()
+     * naar activityen destrueres (tilbake-knapp under scan) — foer krasjet
+     * det med IllegalStateException / use-after-free.
+     */
     class AutoCapture : AutoCloseable {
         private var handle: Long = nativeAutoCaptureCreate()
 
-        fun feed(yPlane: ByteArray, width: Int, height: Int, stride: Int): FrameProbe {
-            check(handle != 0L)
+        @Synchronized
+        fun feed(yPlane: ByteArray, width: Int, height: Int, stride: Int): FrameProbe? {
+            if (handle == 0L) return null
             val v = nativeAutoCaptureFeed(handle, yPlane, width, height, stride)
             return FrameProbe(
                 roiFound = v[0] > 0.5,
@@ -97,6 +103,7 @@ object BestefarCore {
             )
         }
 
+        @Synchronized
         override fun close() {
             if (handle != 0L) {
                 nativeAutoCaptureDestroy(handle)

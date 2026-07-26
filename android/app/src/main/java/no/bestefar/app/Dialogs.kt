@@ -18,10 +18,66 @@ object Dialogs {
 
     private fun dp(a: Activity, v: Int) = (v * a.resources.displayMetrics.density).toInt()
 
+    /** «Mitt jaktmål»-rater (musingsUI runde 4). 1 av 13 = nasjonalt snitt. */
+    val JAKTMAAL_RATES = listOf(
+        0.143 to "1 av 7",
+        0.077 to "1 av 13",
+        0.05 to "1 av 20",
+        0.02 to "1 av 50",
+    )
+
+    fun rateLabel(rate: Double): String =
+        JAKTMAAL_RATES.minByOrNull { kotlin.math.abs(it.first - rate) }?.second ?: "1 av 13"
+
     /**
-     * Stillingsprompt etter skivescan (spec §2): fire hovedstillinger med
-     * modifikator-chips (uten/anlegg/reim, siste huskes per stilling) +
-     * Benk som egen inngang.
+     * «Mitt jaktmål» (musingsUI runde 4): velg akseptabel andel skade-/bomskudd.
+     * Tilbys etter tre serier og finnes i Min profil. (i) forklarer fargebruken.
+     */
+    fun jaktmaalDialog(a: Activity, store: Store, onDone: () -> Unit) {
+        val root = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(a, 24), dp(a, 8), dp(a, 24), 0)
+        }
+        root.addView(TextView(a).apply {
+            text = a.getString(R.string.jaktmaal_intro)
+            textSize = 15f
+        })
+        val group = android.widget.RadioGroup(a)
+        JAKTMAAL_RATES.forEach { (rate, label) ->
+            group.addView(android.widget.RadioButton(a).apply {
+                text = a.getString(R.string.jaktmaal_option, label)
+                textSize = 17f
+                isChecked = store.rateChosen &&
+                    kotlin.math.abs(store.rateLimit - rate) < rate * 0.1
+                setOnClickListener { store.rateLimit = rate; store.rateChosen = true }
+            })
+        }
+        root.addView(group)
+        root.addView(MaterialButton(a, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = a.getString(R.string.jaktmaal_why)
+            setOnClickListener {
+                AlertDialog.Builder(a)
+                    .setMessage(R.string.jaktmaal_info)
+                    .setPositiveButton(R.string.ok, null).show()
+            }
+        })
+        AlertDialog.Builder(a)
+            .setTitle(R.string.jaktmaal_title)
+            .setView(androidx.core.widget.NestedScrollView(a).apply { addView(root) })
+            .setPositiveButton(R.string.save) { _, _ ->
+                store.rateChosen = true; onDone()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onDone() }
+            .setOnCancelListener { onDone() }
+            .show()
+    }
+
+    /**
+     * Stillingsprompt etter skivescan (musingsUI runde 4): fire stillinger
+     * vertikalt med egne ikoner og antall skudd skutt med hver, hjelpemidler
+     * (anlegg/reim) horisontalt under som radio-toggler («uten» = deaktivert,
+     * klikk aktiv knapp på ny for å slå av). Ingen benk lenger.
      */
     fun positionSheet(a: Activity, store: Store, onChosen: (Position, PosModifier) -> Unit) {
         val sheet = BottomSheetDialog(a)
@@ -34,107 +90,87 @@ object Dialogs {
             textSize = 20f
         })
 
-        val chips = ChipGroup(a).apply { isSingleSelection = true }
-        var selectedPos = store.currentPosition.takeIf { it != Position.BENK } ?: Position.LIGGENDE
-        val modChips = PosModifier.entries.map { m ->
-            Chip(a).apply {
-                text = m.label; isCheckable = true; tag = m
-            }
-        }
-        modChips.forEach { chips.addView(it) }
-        fun syncMods() {
-            val remembered = store.lastModifier(selectedPos)
-            modChips.forEach { it.isChecked = it.tag == remembered }
-        }
+        var selectedPos = store.currentPosition
+        var selectedMod = store.lastModifier(selectedPos)
+        val counts = store.seriesCountByPosition()
 
-        val posButtons = Position.hoved.map { p ->
-            MaterialButton(a).apply {
-                text = p.label
-                tag = p
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 56)
-                ).apply { topMargin = dp(a, 8) }
-            }
-        }
-        fun styleButtons() {
-            posButtons.forEach { b -> b.alpha = if (b.tag == selectedPos) 1f else 0.55f }
-        }
-        posButtons.forEach { b ->
-            b.setOnClickListener {
-                selectedPos = b.tag as Position
-                styleButtons(); syncMods()
-            }
-            root.addView(b)
-        }
+        lateinit var refresh: () -> Unit
 
+        val posCol = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
+        val modRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(posCol)
         root.addView(TextView(a).apply {
             text = a.getString(R.string.position_modifier)
-            setPadding(0, dp(a, 12), 0, 0)
+            setPadding(0, dp(a, 12), 0, dp(a, 4))
         })
-        root.addView(chips)
+        root.addView(modRow)
 
-        val row = LinearLayout(a).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
-            setPadding(0, dp(a, 12), 0, 0)
+        refresh = {
+            posCol.removeAllViews()
+            Position.hoved.forEach { p ->
+                val n = counts[p] ?: 0
+                val label = "${p.label}   ($n skudd)"
+                val b = Ui.choiceButton(a, label, p == selectedPos) {
+                    selectedPos = p
+                    selectedMod = store.lastModifier(p)
+                    refresh()
+                }
+                b.icon = androidx.core.content.ContextCompat.getDrawable(a, p.iconRes)
+                b.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                b.layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 52)
+                ).apply { topMargin = dp(a, 6) }
+                posCol.addView(b)
+            }
+            modRow.removeAllViews()
+            PosModifier.valgbare.forEach { m ->
+                modRow.addView(Ui.choiceButton(a, m.label, selectedMod == m) {
+                    // Klikk aktiv -> av (UTEN); ellers velg
+                    selectedMod = if (selectedMod == m) PosModifier.UTEN else m
+                    refresh()
+                }.apply {
+                    layoutParams = LinearLayout.LayoutParams(0,
+                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginEnd = dp(a, 6)
+                    }
+                })
+            }
         }
-        row.addView(MaterialButton(a, null,
-            com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = a.getString(R.string.position_benk)
-            setOnClickListener {
-                sheet.dismiss()
-                onChosen(Position.BENK, PosModifier.ANLEGG)
-            }
-        })
-        row.addView(MaterialButton(a).apply {
-            text = a.getString(R.string.ok)
-            setOnClickListener {
-                val mod = modChips.firstOrNull { it.isChecked }?.tag as? PosModifier
-                    ?: PosModifier.UTEN
-                store.setLastModifier(selectedPos, mod)
-                store.currentPosition = selectedPos
-                store.currentModifier = mod
-                sheet.dismiss()
-                onChosen(selectedPos, mod)
-            }
-        })
-        root.addView(row)
+        refresh()
 
-        styleButtons(); syncMods()
-        sheet.setContentView(root)
+        root.addView(MaterialButton(a).apply {
+            text = a.getString(R.string.ok)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(a, 16) }
+            setOnClickListener {
+                store.setLastModifier(selectedPos, selectedMod)
+                store.currentPosition = selectedPos
+                store.currentModifier = selectedMod
+                sheet.dismiss()
+                onChosen(selectedPos, selectedMod)
+            }
+        })
+
+        sheet.setContentView(androidx.core.widget.NestedScrollView(a).apply {
+            addView(root)
+        })
         sheet.setCancelable(false)
         sheet.show()
     }
 
-    /** Dagsbekreftelse av våpen (+ ammo ved split) — én gang per dag (spec §2). */
+    /** Dagsbekreftelse av våpen — én gang per dag (spec §2). Ammo fjernet i r4. */
     fun weaponDayConfirm(a: Activity, store: Store, onDone: () -> Unit) {
         val ws = store.weapons()
         if (ws.size <= 1 || !store.weaponNeedsDayConfirm()) { onDone(); return }
-        val names = ws.map { it.name }.toTypedArray()
+        val names = ws.map { it.shownName }.toTypedArray()
         var idx = ws.indexOfFirst { it.id == store.selectedWeaponId }.coerceAtLeast(0)
         AlertDialog.Builder(a)
             .setTitle(R.string.weapon_confirm_title)
             .setSingleChoiceItems(names, idx) { _, i -> idx = i }
             .setPositiveButton(R.string.ok) { _, _ ->
-                val w = ws[idx]
-                store.selectedWeaponId = w.id
+                store.selectedWeaponId = ws[idx].id
                 store.weaponConfirmedDate = LocalDate.now().toString()
-                if (w.ammoSplit) confirmAmmo(a, store, w, onDone) else onDone()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun confirmAmmo(a: Activity, store: Store, w: Weapon, onDone: () -> Unit) {
-        val input = EditText(a).apply {
-            setText(w.ammoName)
-            hint = a.getString(R.string.ammo_hint)
-        }
-        AlertDialog.Builder(a)
-            .setTitle(a.getString(R.string.ammo_confirm_title, w.name))
-            .setView(input)
-            .setPositiveButton(R.string.ok) { _, _ ->
-                w.ammoName = input.text.toString().trim()
-                store.updateWeapon(w)
                 onDone()
             }
             .setCancelable(false)
@@ -193,24 +229,129 @@ object Dialogs {
             .show()
     }
 
-    /** Jaktsamtykke ved første bruk av jaktloggen (spec §7). */
+    /**
+     * «Delta i forskning» ved første bruk av jaktloggen (musingsUI runde 3);
+     * etterpå fortsetter flyten til Logg jaktskudd uansett svar.
+     */
     fun maybeHuntConsent(a: Activity, store: Store, onDone: () -> Unit) {
         if (store.consentHunt != "") { onDone(); return }
-        AlertDialog.Builder(a)
-            .setTitle(R.string.consent_hunt_title)
-            .setMessage(R.string.consent_hunt_body)
-            .setPositiveButton(R.string.consent_yes) { _, _ -> store.consentHunt = "ja"; onDone() }
-            .setNegativeButton(R.string.consent_later) { _, _ -> store.consentHunt = "senere"; onDone() }
-            .setNeutralButton(R.string.consent_never) { _, _ -> store.consentHunt = "aldri"; onDone() }
-            .setCancelable(false)
-            .show()
+        researchSharingDialog(a, store, onDone)
     }
 
     /**
-     * Legg til / endre våpen (musingsUI-runde 2): visningsnavn, ikonvalg,
-     * våpennavn, deretter «Velg optikk» og «Velg ammo» som utvider menyen
-     * nedover med fritekst + Ikke nå / Legg til. Valgt info blir stående med
-     * bytt-knapp; Avbryt/Lagre ligger alltid nederst og flyttes med.
+     * Delingsvalg mot forskning (musingsUI runde 3): pitch, låste
+     * «deles aldri»-punkter og checkboxer for hva som deles.
+     */
+    fun researchSharingDialog(a: Activity, store: Store, onDone: () -> Unit) {
+        val root = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(a, 24), dp(a, 8), dp(a, 24), 0)
+        }
+        root.addView(TextView(a).apply {
+            text = a.getString(R.string.research_pitch)
+            textSize = 15f
+        })
+        root.addView(TextView(a).apply {
+            text = a.getString(R.string.research_never_shared)
+            textSize = 15f
+            setPadding(0, dp(a, 12), 0, 0)
+        })
+        // Tomme, låste checkboxer for det som aldri deles
+        listOf(R.string.research_never_userid, R.string.research_never_name).forEach {
+            root.addView(android.widget.CheckBox(a).apply {
+                setText(it); isChecked = false; isEnabled = false
+            })
+        }
+        root.addView(TextView(a).apply {
+            text = a.getString(R.string.research_i_share)
+            textSize = 15f
+            setPadding(0, dp(a, 12), 0, 0)
+        })
+        val items = listOf("Vilt" to R.string.share_vilt, "Dato" to R.string.share_dato,
+            "Posisjon" to R.string.share_posisjon,
+            "Skuddsituasjon" to R.string.share_skuddsituasjon)
+        val boxes = items.map { (key, res) ->
+            android.widget.CheckBox(a).apply {
+                setText(res)
+                isChecked = key in store.researchShare
+                tag = key
+            }
+        }
+        boxes.forEach { root.addView(it) }
+
+        val dialog = AlertDialog.Builder(a)
+            .setTitle(R.string.consent_research_join)
+            .setView(android.widget.ScrollView(a).apply { addView(root) })
+            .setPositiveButton(R.string.save) { _, _ ->
+                store.researchShare = boxes.filter { it.isChecked }
+                    .map { it.tag as String }.toSet()
+                store.consentHunt = "ja"
+                onDone()
+            }
+            .setNegativeButton(R.string.consent_later) { _, _ ->
+                store.consentHunt = "senere"; onDone()
+            }
+            .setNeutralButton(R.string.consent_never) { _, _ ->
+                store.consentHunt = "aldri"; onDone()
+            }
+            .create()
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.show()
+    }
+
+    /**
+     * Delingsvalg mot venner (musingsUI runde 4): visningsnavn er perma-delt;
+     * øvrige er unchecked default. Avbryt -> «Du må dele visningsnavn …».
+     */
+    fun friendSharingDialog(a: Activity, store: Store, onDone: () -> Unit = {}) {
+        val root = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(a, 24), dp(a, 8), dp(a, 24), 0)
+        }
+        root.addView(TextView(a).apply {
+            text = a.getString(R.string.research_i_share); textSize = 15f
+        })
+        root.addView(android.widget.CheckBox(a).apply {
+            setText(R.string.friend_share_name); isChecked = true; isEnabled = false
+        })
+        val items = listOf(
+            "Skudd" to R.string.friend_share_shots,
+            "Score" to R.string.friend_share_score,
+            "Utvikling" to R.string.friend_share_trend,
+            "Fellinger" to R.string.friend_share_kills,
+            "Telefon" to R.string.friend_share_phone,
+            "Lag" to R.string.friend_share_teams,
+            "Hjemkommune" to R.string.friend_share_kommune)
+        val boxes = items.map { (key, res) ->
+            android.widget.CheckBox(a).apply {
+                setText(res); isChecked = key in store.friendShare; tag = key
+            }
+        }
+        boxes.forEach { root.addView(it) }
+        val dialog = AlertDialog.Builder(a)
+            .setTitle(R.string.sharing_friends)
+            .setView(androidx.core.widget.NestedScrollView(a).apply { addView(root) })
+            .setPositiveButton(R.string.save) { _, _ ->
+                store.friendShare = boxes.filter { it.isChecked }
+                    .map { it.tag as String }.toSet() + "Navn"
+                store.friendShareActive = true
+                onDone()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                AlertDialog.Builder(a)
+                    .setMessage(R.string.friends_need_display_name_view)
+                    .setPositiveButton(R.string.ok, null).show()
+            }
+            .create()
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.show()
+    }
+
+    /**
+     * Legg til / endre våpen (musingsUI runde 4): visningsnavn, ikonvalg og
+     * våpenmodell. Optikk og ammunisjon er FJERNET for å forenkle
+     * brukeropplevelsen (behovet vurdert som marginalt); se OpticProfile /
+     * KalkulatorActivity for utkommentert referanse.
      */
     fun weaponEdit(a: Activity, store: Store, existing: Weapon?, onDone: () -> Unit) {
         val root = LinearLayout(a).apply {
@@ -219,8 +360,9 @@ object Dialogs {
         }
         val display = EditText(a).apply {
             hint = a.getString(R.string.weapon_display_hint)
-            setText(existing?.displayName ?: "")
         }
+        Ui.capitalize(display)
+        display.setText(existing?.displayName ?: "")
         root.addView(display)
 
         var iconKey = existing?.icon ?: "rifle"
@@ -247,266 +389,50 @@ object Dialogs {
         root.addView(iconRow)
 
         val name = EditText(a).apply {
-            hint = a.getString(R.string.weapon_name_hint)
-            setText(existing?.name ?: "")
+            hint = a.getString(R.string.weapon_model_hint)
         }
+        Ui.capitalize(name)
+        name.setText(existing?.name ?: "")
         root.addView(name)
 
-        // Utvidbare undermenyer for optikk og ammo (musingsUI-runde 2)
-        var opticName = existing?.opticId
-            ?.let { id -> store.optics().firstOrNull { it.id == id } }
-            ?.let { it.displayName.ifBlank { it.brandModel } } ?: ""
-        var ammoName = existing?.ammoName ?: ""
-
-        fun expandable(labelChoose: String, labelSwitch: String, prefix: String,
-                       hintText: String, initial: String,
-                       onValue: (String) -> Unit, onDetails: ((String) -> Unit)?)
-            : LinearLayout {
-            val section = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
-            var value = initial
-            fun render() {
-                section.removeAllViews()
-                if (value.isBlank()) {
-                    val sub = LinearLayout(a).apply {
-                        orientation = LinearLayout.VERTICAL
-                        visibility = android.view.View.GONE
-                    }
-                    val input = EditText(a).apply { hint = hintText }
-                    sub.addView(input)
-                    val row = LinearLayout(a).apply {
-                        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
-                    }
-                    row.addView(MaterialButton(a, null,
-                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                        text = a.getString(R.string.not_now)
-                        setOnClickListener { sub.visibility = android.view.View.GONE }
-                    })
-                    row.addView(MaterialButton(a, null,
-                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                        text = a.getString(R.string.add_label)
-                        setOnClickListener {
-                            val t = input.text.toString().trim()
-                            if (t.isNotEmpty()) { value = t; onValue(t); render() }
-                        }
-                    })
-                    sub.addView(row)
-                    section.addView(MaterialButton(a, null,
-                        com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                        text = labelChoose
-                        setOnClickListener {
-                            sub.visibility = if (sub.visibility == android.view.View.GONE)
-                                android.view.View.VISIBLE else android.view.View.GONE
-                        }
-                    })
-                    section.addView(sub)
-                } else {
-                    section.addView(TextView(a).apply {
-                        text = "$prefix: $value"
-                        textSize = 15f
-                        setPadding(0, dp(a, 8), 0, 0)
-                    })
-                    val row = LinearLayout(a).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                    }
-                    row.addView(MaterialButton(a, null,
-                        com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                        text = labelSwitch
-                        setOnClickListener { value = ""; onValue(""); render() }
-                    })
-                    if (onDetails != null) {
-                        row.addView(MaterialButton(a, null,
-                            com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                            text = a.getString(R.string.details)
-                            setOnClickListener { onDetails(value) }
-                        })
-                    }
-                    section.addView(row)
-                }
-            }
-            render()
-            return section
-        }
-
-        root.addView(expandable(
-            a.getString(R.string.weapon_choose_optic),
-            a.getString(R.string.weapon_switch_optic),
-            a.getString(R.string.optic_choose_title),
-            a.getString(R.string.optic_brand_hint),
-            opticName,
-            onValue = { opticName = it },
-            onDetails = { current ->
-                val profile = resolveOptic(store, current)
-                opticEdit(a, store, profile) { }
-            }))
-        root.addView(expandable(
-            a.getString(R.string.weapon_choose_ammo),
-            a.getString(R.string.weapon_switch_ammo),
-            "Ammo",
-            a.getString(R.string.ammo_hint),
-            ammoName,
-            onValue = { ammoName = it },
-            onDetails = null))
-
-        AlertDialog.Builder(a)
+        val dialog = AlertDialog.Builder(a)
             .setTitle(if (existing == null) R.string.weapon_add else R.string.weapon_edit)
-            .setView(android.widget.ScrollView(a).apply { addView(root) })
+            .setView(androidx.core.widget.NestedScrollView(a).apply { addView(root) })
             .setPositiveButton(R.string.save) { _, _ ->
                 val n = name.text.toString().trim()
                 val d = display.text.toString().trim()
                 if (n.isEmpty() && d.isEmpty()) return@setPositiveButton
-                val opticId = if (opticName.isBlank()) null
-                    else resolveOptic(store, opticName).id
+                val savedId: String
                 if (existing == null) {
-                    val w = Weapon(Store.newId(), n, null, false, ammoName,
-                        displayName = d, icon = iconKey, opticId = opticId)
+                    val w = Weapon(Store.newId(), n, null, false, "",
+                        displayName = d, icon = iconKey)
                     store.addWeapon(w)
-                    if (store.weapons().size == 1) store.selectedWeaponId = w.id
+                    savedId = w.id
                 } else {
                     existing.name = n
                     existing.displayName = d
                     existing.icon = iconKey
-                    existing.opticId = opticId
-                    existing.ammoName = ammoName
                     store.updateWeapon(existing)
+                    savedId = existing.id
                 }
+                // Lagret våpen blir valgt våpen (musingsUI runde 3)
+                store.selectedWeaponId = savedId
                 onDone()
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+        // Klikk utenfor skal ikke lukke; kun Lagre/Avbryt/tilbake (runde 3)
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.show()
     }
 
-    /**
-     * Fritekst-optikk knyttes til eksisterende profil på navn, ellers
-     * opprettes en minimal profil (uten klikkverdi til den fylles ut).
+    /*
+     * OPTIKK-FUNKSJONALITET FJERNET (musingsUI runde 4).
+     * opticEdit(), opticChooser(), resolveOptic() og clickValueLabel() er tatt
+     * ut sammen med optikk-kalkulatoren for å forenkle brukeropplevelsen.
+     * OpticProfile-modellen og Store.optics()/clickCmFor() beholdes utkommentert
+     * i bruk, slik at funksjonaliteten kan gjeninnføres uten datatap.
      */
-    private fun resolveOptic(store: Store, name: String): OpticProfile {
-        store.optics().firstOrNull {
-            it.displayName.equals(name, ignoreCase = true) ||
-                it.brandModel.equals(name, ignoreCase = true)
-        }?.let { return it }
-        val o = OpticProfile(Store.newId(), name, "", "NONE", 0.25, 0.1, 1.0, false)
-        store.addOptic(o)
-        return o
-    }
-
-    /**
-     * Optikkprofil-editor (musingsUI-spec): visningsnavn + merke/modell,
-     * radio for aktiv representasjon (MOA/MRAD/cm@100m) med ekspanderende
-     * verdiliste; cm read-only avledet under MOA/MRAD; SMOA under avansert.
-     */
-    fun opticEdit(a: Activity, store: Store, existing: OpticProfile?,
-                  onDone: (OpticProfile) -> Unit) {
-        val o = existing ?: OpticProfile(Store.newId(), "", "", "MOA",
-            0.25, 0.1, 1.0, false)
-        val root = LinearLayout(a).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(a, 24), dp(a, 8), dp(a, 24), 0)
-        }
-        val display = EditText(a).apply {
-            hint = a.getString(R.string.optic_display_hint)
-            setText(o.displayName)
-        }
-        val brand = EditText(a).apply {
-            hint = a.getString(R.string.optic_brand_hint)
-            setText(o.brandModel)
-        }
-        root.addView(display); root.addView(brand)
-        root.addView(TextView(a).apply {
-            text = a.getString(R.string.optic_click_title)
-            setPadding(0, dp(a, 12), 0, 0)
-        })
-
-        val derivedCm = TextView(a).apply { alpha = 0.7f }
-        val cmInput = EditText(a).apply {
-            hint = a.getString(R.string.profile_click_hint)
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(if (o.repr == "CM") o.cmValue.toString() else "")
-        }
-        val smoaBox = android.widget.CheckBox(a).apply {
-            text = a.getString(R.string.optic_smoa)
-            isChecked = o.smoa
-        }
-
-        val radios = listOf("MOA" to "MOA", "MRAD" to "MRAD", "CM" to "cm/100m")
-            .map { (key, label) ->
-                android.widget.RadioButton(a).apply { text = label; tag = key }
-            }
-        val moaButtons = OpticProfile.MOA_STEPS.map { v ->
-            MaterialButton(a, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = "${OpticProfile.moaLabel(v)} MOA"; tag = v
-            }
-        }
-        val mradButtons = OpticProfile.MRAD_STEPS.map { v ->
-            MaterialButton(a, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = "%.2f mrad".format(v).replace('.', ','); tag = v
-            }
-        }
-        val moaList = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
-        moaButtons.forEach { moaList.addView(it, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)) }
-        val mradList = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
-        mradButtons.forEach { mradList.addView(it, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)) }
-
-        fun sync() {
-            radios.forEach { it.isChecked = it.tag == o.repr }
-            moaList.visibility = if (o.repr == "MOA") android.view.View.VISIBLE
-                else android.view.View.GONE
-            mradList.visibility = if (o.repr == "MRAD") android.view.View.VISIBLE
-                else android.view.View.GONE
-            cmInput.visibility = if (o.repr == "CM") android.view.View.VISIBLE
-                else android.view.View.GONE
-            derivedCm.visibility = if (o.repr == "CM") android.view.View.GONE
-                else android.view.View.VISIBLE
-            moaButtons.forEach { it.alpha = if (it.tag == o.moaValue) 1f else 0.5f }
-            mradButtons.forEach { it.alpha = if (it.tag == o.mradValue) 1f else 0.5f }
-            o.smoa = smoaBox.isChecked
-            derivedCm.text = o.clickCmPer100
-                ?.let { a.getString(R.string.optic_derived_cm, it) } ?: ""
-        }
-        radios.forEachIndexed { i, rb ->
-            rb.setOnClickListener { o.repr = rb.tag as String; sync() }
-            root.addView(rb)
-            when (i) {
-                0 -> root.addView(moaList)
-                1 -> root.addView(mradList)
-                2 -> root.addView(cmInput)
-            }
-        }
-        moaButtons.forEach { b ->
-            b.setOnClickListener { o.moaValue = b.tag as Double; sync() }
-        }
-        mradButtons.forEach { b ->
-            b.setOnClickListener { o.mradValue = b.tag as Double; sync() }
-        }
-        root.addView(derivedCm)
-        root.addView(TextView(a).apply {
-            text = a.getString(R.string.optic_advanced)
-            setPadding(0, dp(a, 12), 0, 0)
-        })
-        root.addView(smoaBox)
-        smoaBox.setOnCheckedChangeListener { _, _ -> sync() }
-        sync()
-
-        AlertDialog.Builder(a)
-            .setTitle(if (existing == null) R.string.optic_new else R.string.optic_edit)
-            .setView(android.widget.ScrollView(a).apply { addView(root) })
-            .setPositiveButton(R.string.save) { _, _ ->
-                o.displayName = display.text.toString().trim()
-                o.brandModel = brand.text.toString().trim()
-                if (o.repr == "CM") {
-                    o.cmValue = cmInput.text.toString().replace(',', '.')
-                        .toDoubleOrNull() ?: o.cmValue
-                }
-                o.smoa = smoaBox.isChecked
-                if (existing == null) store.addOptic(o) else store.updateOptic(o)
-                onDone(o)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
 
     /**
      * Korrigering av ett skuddmerke (musingsUI: blyant per poenglinje):

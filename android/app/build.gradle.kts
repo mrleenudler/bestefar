@@ -23,8 +23,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 6
+        versionName = "0.6"
 
         externalNativeBuild {
             cmake {
@@ -81,4 +81,7 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$camerax")
     implementation("androidx.camera:camera-view:$camerax")
     implementation("com.google.android.material:material:1.12.0")
+    // On-device OCR: leser skjermens poengtall for aa kontrollere de
+    // detekterte treffene (musingsUI runde 4). Bundlet latinsk modell.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }

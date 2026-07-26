@@ -2,8 +2,11 @@ package no.bestefar.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.DatePickerDialog
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.location.Geocoder
 import android.location.LocationManager
 import android.os.Bundle
@@ -24,22 +27,23 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
- * Jaktlogg (musingsUI-runde 2), to sider:
- *  1) posisjon (auto/fritekst/hopp over) → vilt (2 rader) → avstand → Neste
- *  2) vinkling som «Posisjon 1–6» i klokkeform rundt jaktikonet →
- *     «Dyret løp X m» / Ettersøk / Bomskudd → Avbryt / Registrer skudd.
+ * Jaktlogg (musingsUI runde 4), to sider:
+ *  1) «Del med forskning»-checkbox (av = forenklet visning) → vilt → posisjon
+ *     (rød pin) → avstand → Neste. Kalender-datovelger, dagens dato forhåndsvalgt.
+ *  2) tre silhuetter av valgt vilt for «Velg dyrets posisjon» → «Dyret løp ca
+ *     X m» → Ettersøk/Bomskudd → Avbryt / Registrer skudd.
  */
 class HuntLogActivity : AppCompatActivity() {
 
     private lateinit var store: Store
     private lateinit var root: FrameLayout
 
-    // Side 1-tilstand
     private var lat: Double? = null
     private var lon: Double? = null
     private var placeName: String = ""
@@ -47,13 +51,17 @@ class HuntLogActivity : AppCompatActivity() {
     private var speciesOther: String = ""
     private var distanceM: Int? = null
     private var posAsked = false
+    private var shareResearch = false
+    private var selectedDate: LocalDate = LocalDate.now()
+    private var posSel: Int? = null           // 1=front, 2=side, 3=skrå
 
-    // Side 2-tilstand
-    private var clockPos: Int? = null
+    private val dateFmt = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale("no"))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
+        // «Del med forskning» reflekterer tidligere valg (musingsUI runde 4)
+        shareResearch = store.consentHunt == "ja"
         root = FrameLayout(this)
         Ui.applyInsets(root)
         setContentView(root)
@@ -75,7 +83,6 @@ class HuntLogActivity : AppCompatActivity() {
                 ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
         } catch (_: Exception) { null } ?: return
         lat = loc.latitude; lon = loc.longitude
-        // Stedsnavn er best-effort (Geocoder trenger ofte nett)
         Thread {
             try {
                 @Suppress("DEPRECATION")
@@ -85,10 +92,7 @@ class HuntLogActivity : AppCompatActivity() {
                     it.subAdminArea ?: it.locality ?: it.adminArea
                 } ?: ""
                 runOnUiThread {
-                    if (name.isNotBlank() && placeName.isBlank()) {
-                        placeName = name
-                        page1()
-                    }
+                    if (name.isNotBlank() && placeName.isBlank()) { placeName = name; page1() }
                 }
             } catch (_: Exception) { }
         }.start()
@@ -113,12 +117,12 @@ class HuntLogActivity : AppCompatActivity() {
 
     private fun manualPlaceDialog() {
         val input = EditText(this).apply { hint = getString(R.string.hunt_position) }
+        Ui.capitalize(input)
         AlertDialog.Builder(this)
             .setTitle(R.string.hunt_pos_manual)
             .setView(input)
             .setPositiveButton(R.string.ok) { _, _ ->
-                placeName = input.text.toString().trim()
-                page1()
+                placeName = input.text.toString().trim(); page1()
             }
             .show()
     }
@@ -127,107 +131,180 @@ class HuntLogActivity : AppCompatActivity() {
                                             results: IntArray) {
         super.onRequestPermissionsResult(code, perms, results)
         if (code == 3 && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            tryFetchLocation()
-            page1()
+            tryFetchLocation(); page1()
         }
     }
 
     // ---------- Side 1 ----------
 
-    private fun page1() {
-        val content = Ui.col(this)
-
-        val posText = when {
-            placeName.isNotBlank() && lat != null ->
-                "$placeName (%.4f, %.4f)".format(lat, lon)
-            placeName.isNotBlank() -> placeName
-            lat != null -> "%.4f, %.4f".format(lat, lon)
-            else -> "—"
-        }
-        content.addView(Ui.body(this, "${getString(R.string.hunt_position)}: $posText"))
-        if (lat == null && placeName.isBlank()) {
-            if (!hasLocationPermission()) askForPosition()
-            content.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                text = getString(R.string.hunt_pos_manual)
-                setOnClickListener { manualPlaceDialog() }
-            })
-        }
-
-        // Avstandsfeltet opprettes før viltknappene så innholdet kan bevares
-        // når siden tegnes på nytt ved artsvalg
-        val distInput = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(4))
-            minWidth = Ui.dp(this@HuntLogActivity, 80)
-            setText(distanceM?.toString() ?: "")
-        }
-
-        // Vilt i to rader: Rådyr, Hjort, Elg | Villrein, Villsvin, Annet
-        val speciesRows = listOf(
+    private fun speciesButtons(otherInput: EditText, content: LinearLayout,
+                               distInput: EditText?) {
+        listOf(
             listOf(Species.RAADYR, Species.HJORT, Species.ELG),
             listOf(Species.VILLREIN, Species.VILLSVIN, Species.ANNET),
-        )
-        val otherInput = EditText(this).apply {
-            hint = Species.ANNET.label
-            setText(speciesOther)
-            visibility = if (species == Species.ANNET) View.VISIBLE else View.GONE
-        }
-        speciesRows.forEach { rowSpecies ->
+        ).forEach { rowSpecies ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             rowSpecies.forEach { s ->
-                row.addView(MaterialButton(this, null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                    text = s.label
-                    alpha = if (species == s) 1f else 0.55f
+                row.addView(Ui.choiceButton(this, s.label, species == s) {
+                    species = s
+                    speciesOther = otherInput.text.toString().trim()
+                    distInput?.let { distanceM = it.text.toString().toIntOrNull() }
+                    // «Annet» -> markør i tekstboks + deaktiver forskningsdeling
+                    if (s == Species.ANNET) shareResearch = false
+                    page1()
+                    if (s == Species.ANNET) {
+                        otherInput.requestFocus()
+                        otherInput.setSelection(otherInput.text.length)
+                    }
+                }.apply {
                     layoutParams = LinearLayout.LayoutParams(0,
                         Ui.dp(this@HuntLogActivity, 56), 1f).apply {
                         setMargins(Ui.dp(this@HuntLogActivity, 2), Ui.dp(this@HuntLogActivity, 2),
                             Ui.dp(this@HuntLogActivity, 2), Ui.dp(this@HuntLogActivity, 2))
-                    }
-                    setOnClickListener {
-                        species = s
-                        speciesOther = otherInput.text.toString().trim()
-                        distanceM = distInput.text.toString().toIntOrNull()
-                        page1()
                     }
                 })
             }
             content.addView(row)
         }
         content.addView(otherInput)
+    }
 
-        // Avstand: maks 4 sifre
-        val distRow = Ui.row(this)
-        distRow.addView(TextView(this).apply {
-            text = "${getString(R.string.hunt_distance)}: "
-            textSize = 16f
+    private fun dateButton(): MaterialButton = MaterialButton(this, null,
+        com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+        text = selectedDate.format(dateFmt)
+        layoutParams = Ui.matchWrap(4, this@HuntLogActivity)
+        setOnClickListener {
+            DatePickerDialog(this@HuntLogActivity, { _, y, m, d ->
+                selectedDate = LocalDate.of(y, m + 1, d)
+                text = selectedDate.format(dateFmt)
+            }, selectedDate.year, selectedDate.monthValue - 1,
+                selectedDate.dayOfMonth).show()
+        }
+    }
+
+    private fun page1() {
+        val content = Ui.col(this)
+
+        content.addView(android.widget.CheckBox(this).apply {
+            text = getString(R.string.hunt_share_research)
+            isChecked = shareResearch
+            isEnabled = species != Species.ANNET
+            setOnCheckedChangeListener { _, on -> shareResearch = on; page1() }
         })
-        distRow.addView(distInput)
-        distRow.addView(TextView(this).apply { text = " m"; textSize = 16f })
-        content.addView(distRow)
 
-        content.addView(Ui.hint(this, getString(R.string.hunt_edit_hint)))
+        val otherInput = EditText(this).apply {
+            hint = getString(R.string.hunt_other_hint)
+            visibility = if (species == Species.ANNET) View.VISIBLE else View.GONE
+        }
+        Ui.capitalize(otherInput)
+        Ui.boxed(otherInput, this)
+        otherInput.setText(speciesOther)
 
-        content.addView(MaterialButton(this).apply {
-            text = getString(R.string.hunt_next)
-            layoutParams = Ui.matchWrap(12, this@HuntLogActivity)
-                .apply { height = Ui.dp(this@HuntLogActivity, 56) }
-            setOnClickListener {
-                speciesOther = otherInput.text.toString().trim()
-                distanceM = distInput.text.toString().toIntOrNull()
-                if (species == null) {
-                    Toast.makeText(this@HuntLogActivity,
-                        getString(R.string.hunt_step_species), Toast.LENGTH_SHORT).show()
-                } else {
-                    page2()
+        content.addView(dateButton())
+        speciesButtons(otherInput, content, null)
+
+        if (!shareResearch) {
+            // Forenklet visning: dato + vilt + Lagre/Avbryt (musingsUI runde 4)
+            val btnRow = Ui.row(this)
+            btnRow.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                text = getString(R.string.cancel)
+                setOnClickListener { finish() }
+            })
+            btnRow.addView(Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+            btnRow.addView(MaterialButton(this).apply {
+                text = getString(R.string.save)
+                setOnClickListener {
+                    speciesOther = otherInput.text.toString().trim()
+                    if (species == null) {
+                        Toast.makeText(this@HuntLogActivity,
+                            R.string.hunt_missing_species, Toast.LENGTH_LONG).show()
+                    } else saveSimple()
                 }
+            })
+            content.addView(btnRow, Ui.matchWrap(16, this))
+        } else {
+            val distInput = EditText(this).apply {
+                inputType = InputType.TYPE_CLASS_NUMBER
+                filters = arrayOf(InputFilter.LengthFilter(4))
+                minWidth = Ui.dp(this@HuntLogActivity, 90)
+                setText(distanceM?.toString() ?: "")
             }
-        })
+            Ui.boxed(distInput, this)
+
+            // Posisjon under viltknappene, med rød pin (musingsUI runde 3/4)
+            val posText = when {
+                placeName.isNotBlank() && lat != null -> "$placeName (%.4f, %.4f)".format(lat, lon)
+                placeName.isNotBlank() -> placeName
+                lat != null -> "%.4f, %.4f".format(lat, lon)
+                else -> "—"
+            }
+            val posRow = Ui.row(this)
+            posRow.addView(ImageView(this).apply {
+                setImageResource(R.drawable.ic_pin)
+                layoutParams = LinearLayout.LayoutParams(
+                    Ui.dp(this@HuntLogActivity, 24), Ui.dp(this@HuntLogActivity, 24))
+                contentDescription = getString(R.string.hunt_position)
+            })
+            posRow.addView(TextView(this).apply { text = " $posText"; textSize = 16f })
+            content.addView(posRow, Ui.matchWrap(8, this))
+            if (lat == null && placeName.isBlank()) {
+                if (!hasLocationPermission()) askForPosition()
+                content.addView(MaterialButton(this, null,
+                    com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                    text = getString(R.string.hunt_pos_manual)
+                    setOnClickListener { manualPlaceDialog() }
+                })
+            }
+
+            val distRow = Ui.row(this)
+            distRow.addView(TextView(this).apply {
+                text = "${getString(R.string.hunt_distance)}: "; textSize = 17f
+            })
+            distRow.addView(distInput)
+            distRow.addView(TextView(this).apply { text = " m"; textSize = 17f })
+            content.addView(distRow, Ui.matchWrap(8, this))
+
+            content.addView(MaterialButton(this).apply {
+                text = getString(R.string.hunt_next)
+                layoutParams = Ui.matchWrap(12, this@HuntLogActivity)
+                    .apply { height = Ui.dp(this@HuntLogActivity, 56) }
+                setOnClickListener {
+                    speciesOther = otherInput.text.toString().trim()
+                    distanceM = distInput.text.toString().toIntOrNull()
+                    // Toast ber om både vilt og avstand (musingsUI runde 4)
+                    if (species == null || distanceM == null) {
+                        Toast.makeText(this@HuntLogActivity,
+                            R.string.hunt_missing_species_distance, Toast.LENGTH_LONG).show()
+                    } else page2()
+                }
+            })
+            // «Informasjonen kan redigeres senere» UNDER Neste (musingsUI runde 4)
+            content.addView(TextView(this).apply {
+                text = getString(R.string.hunt_edit_hint)
+                textSize = 15f; alpha = 0.75f
+                setPadding(0, Ui.dp(this@HuntLogActivity, 6), 0, 0)
+            })
+        }
 
         root.removeAllViews()
         root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
+    }
+
+    private fun tsForDate(): Long =
+        selectedDate.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    /** Forenklet logging: dato + vilt, lagres som felling (dødelig). */
+    private fun saveSimple() {
+        store.addHunt(HuntRecord(
+            id = Store.newId(), ts = tsForDate(),
+            species = species ?: Species.ANNET, distanceM = 0,
+            angle = Angle.SIDE, moving = false, outcome = Outcome.DOEDELIG,
+            weaponId = store.selectedWeapon()?.id, speciesOther = speciesOther,
+        ))
+        Toast.makeText(this, R.string.hunt_saved, Toast.LENGTH_SHORT).show()
+        finish()
     }
 
     // ---------- Side 2 ----------
@@ -235,68 +312,76 @@ class HuntLogActivity : AppCompatActivity() {
     private fun page2() {
         val content = Ui.col(this)
 
-        // «Posisjon 1–6» i klokkeform rundt jaktikonet (vinkling-placeholder)
-        val clockWrap = FrameLayout(this).apply {
-            layoutParams = Ui.matchWrap(0, this@HuntLogActivity)
-                .apply { height = Ui.dp(this@HuntLogActivity, 300) }
+        content.addView(Ui.body(this, getString(R.string.hunt_choose_pos)))
+        // Tre silhuetter av valgt vilt (hjort brukes på alle inntil videre)
+        val silRow = Ui.row(this).apply { gravity = Gravity.CENTER }
+        val sils = listOf(
+            1 to R.drawable.ic_hjort_front,
+            2 to R.drawable.ic_hjort_side,
+            3 to R.drawable.ic_hjort_skraa)
+        sils.forEach { (pos, res) ->
+            val iv = ImageView(this).apply {
+                setImageResource(res)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                val p = Ui.dp(this@HuntLogActivity, 6)
+                setPadding(p, p, p, p)
+                background = GradientDrawable().apply {
+                    cornerRadius = Ui.dp(this@HuntLogActivity, 8).toFloat()
+                    setStroke(Ui.dp(this@HuntLogActivity, 2),
+                        if (posSel == pos)
+                            Ui.themeColor(this@HuntLogActivity,
+                                com.google.android.material.R.attr.colorPrimary)
+                        else Color.TRANSPARENT)
+                }
+                layoutParams = LinearLayout.LayoutParams(0,
+                    Ui.dp(this@HuntLogActivity, 130), 1f)
+                setOnClickListener { posSel = pos; page2() }
+            }
+            silRow.addView(iv)
         }
-        clockWrap.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_menu_moose)
-            adjustViewBounds = true
-        }, FrameLayout.LayoutParams(Ui.dp(this, 110), Ui.dp(this, 72), Gravity.CENTER))
-        val radius = Ui.dp(this, 110).toFloat()
-        (1..6).forEach { p ->
-            val angle = Math.toRadians((p - 1) * 60.0 - 90.0)   // 1 øverst, med klokka
-            clockWrap.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = getString(R.string.hunt_pos_label, p)
-                textSize = 12f
-                alpha = if (clockPos == p) 1f else 0.55f
-                translationX = (radius * cos(angle)).toFloat()
-                translationY = (radius * sin(angle)).toFloat()
-                setOnClickListener { clockPos = p; page2() }
-            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-        }
-        content.addView(clockWrap)
+        content.addView(silRow)
 
-        // Utfall: «Dyret løp X m» / Ettersøk / Bomskudd
         val ranRow = Ui.row(this)
         ranRow.addView(TextView(this).apply {
-            text = "${getString(R.string.hunt_ran)} "
-            textSize = 16f
+            text = "${getString(R.string.hunt_ran)} "; textSize = 17f
         })
         val ranInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
             filters = arrayOf(InputFilter.LengthFilter(4))
-            minWidth = Ui.dp(this@HuntLogActivity, 70)
+            minWidth = Ui.dp(this@HuntLogActivity, 80)
         }
+        Ui.boxed(ranInput, this)
         ranRow.addView(ranInput)
-        ranRow.addView(TextView(this).apply { text = " m   "; textSize = 16f })
+        ranRow.addView(TextView(this).apply { text = " m"; textSize = 17f })
+        content.addView(ranRow, Ui.matchWrap(8, this))
+
         var ettersok = false
         var bom = false
-        lateinit var ettersokBtn: MaterialButton
-        lateinit var bomBtn: MaterialButton
-        fun styleOutcome() {
-            ettersokBtn.alpha = if (ettersok) 1f else 0.55f
-            bomBtn.alpha = if (bom) 1f else 0.55f
+        val outcomeRow = Ui.row(this)
+        val notFoundBox = android.widget.CheckBox(this).apply {
+            text = getString(R.string.hunt_not_found); visibility = View.GONE
         }
-        ettersokBtn = MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.hunt_ettersok)
-            setOnClickListener { ettersok = !ettersok; if (ettersok) bom = false
-                styleOutcome() }
+        fun renderOutcome() {
+            outcomeRow.removeAllViews()
+            outcomeRow.addView(Ui.choiceButton(this, getString(R.string.hunt_ettersok),
+                ettersok) {
+                ettersok = !ettersok
+                if (ettersok) bom = false
+                notFoundBox.visibility = if (ettersok) View.VISIBLE else View.GONE
+                renderOutcome()
+            }.apply { layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
+            outcomeRow.addView(Space(this), LinearLayout.LayoutParams(Ui.dp(this, 8), 1))
+            outcomeRow.addView(Ui.choiceButton(this, getString(R.string.hunt_bom), bom) {
+                bom = !bom
+                if (bom) { ettersok = false; notFoundBox.visibility = View.GONE }
+                renderOutcome()
+            }.apply { layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
         }
-        bomBtn = MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.hunt_bom)
-            setOnClickListener { bom = !bom; if (bom) ettersok = false
-                styleOutcome() }
-        }
-        styleOutcome()
-        ranRow.addView(ettersokBtn)
-        ranRow.addView(bomBtn)
-        content.addView(ranRow)
+        renderOutcome()
+        content.addView(outcomeRow, Ui.matchWrap(8, this))
+        content.addView(notFoundBox)
 
         val btnRow = Ui.row(this)
         btnRow.addView(MaterialButton(this, null,
@@ -308,7 +393,14 @@ class HuntLogActivity : AppCompatActivity() {
         btnRow.addView(MaterialButton(this).apply {
             text = getString(R.string.hunt_register)
             setOnClickListener {
-                save(ranInput.text.toString().toIntOrNull(), ettersok, bom)
+                val ran = ranInput.text.toString().toIntOrNull()
+                when {
+                    posSel == null -> Toast.makeText(this@HuntLogActivity,
+                        R.string.hunt_missing_pos, Toast.LENGTH_LONG).show()
+                    ran == null && !ettersok && !bom -> Toast.makeText(this@HuntLogActivity,
+                        R.string.hunt_missing_outcome, Toast.LENGTH_LONG).show()
+                    else -> save(ran, ettersok, bom, notFoundBox.isChecked)
+                }
             }
         })
         content.addView(btnRow, Ui.matchWrap(16, this))
@@ -318,35 +410,25 @@ class HuntLogActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT)
     }
 
-    private fun save(ranM: Int?, ettersok: Boolean, bom: Boolean) {
+    private fun save(ranM: Int?, ettersok: Boolean, bom: Boolean, notFound: Boolean) {
         val outcome = when {
             bom -> Outcome.BOM
             ettersok -> Outcome.SKADE
-            // «Dødelig» = dyret løp kortere enn ~100 m (spec §4/§8)
             ranM != null && ranM <= 100 -> Outcome.DOEDELIG
             ranM != null -> Outcome.SKADE
             else -> Outcome.SKADE
         }
-        // Klokkeposisjon -> provisorisk vinkelkategori (spec §10.2)
-        val angle = when (clockPos) {
-            1 -> Angle.FRONT; 2, 6 -> Angle.SKRAA30
-            3, 5 -> Angle.SIDE; 4 -> Angle.BAK
-            else -> Angle.SIDE
+        val angle = when (posSel) {
+            1 -> Angle.FRONT; 3 -> Angle.SKRAA30; else -> Angle.SIDE
         }
         store.addHunt(HuntRecord(
-            id = Store.newId(),
-            ts = System.currentTimeMillis(),
-            species = species ?: Species.ANNET,
-            distanceM = distanceM ?: 0,
-            angle = angle,
-            moving = false,
-            outcome = outcome,
-            lat = lat, lon = lon,
-            weaponId = store.selectedWeapon()?.id,
-            placeName = placeName,
-            speciesOther = speciesOther,
-            ranM = ranM,
-            clockPos = clockPos,
+            id = Store.newId(), ts = tsForDate(),
+            species = species ?: Species.ANNET, distanceM = distanceM ?: 0,
+            angle = angle, moving = false, outcome = outcome,
+            followUp = if (ettersok && notFound) FollowUp.IKKE_GJENFUNNET else null,
+            lat = lat, lon = lon, weaponId = store.selectedWeapon()?.id,
+            placeName = placeName, speciesOther = speciesOther,
+            ranM = ranM, clockPos = posSel,
         ))
         Toast.makeText(this, R.string.hunt_saved, Toast.LENGTH_SHORT).show()
         finish()

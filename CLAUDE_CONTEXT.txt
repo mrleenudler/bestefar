@@ -13,6 +13,18 @@ LAERDOMMER / FEIL SOM IKKE SKAL GJENTAS (oppdater fortloepende):
   distribusjon, saa telefonen viser hvilken versjon som faktisk er innstallert.
 - PowerShell 5.1: doble anfoerselstegn INNE i commit-meldinger/argumenter
   til native exe brekker argument-parsing — unngaa " i git commit -m.
+- UI-lag (runde 4, v0.6): tema i values/themes.xml (lys brun) + values-night;
+  BestefarApp setter nattmodus fra Store.themeMode. ML Kit text-recognition
+  brukes til OCR-finpussing av poeng (OcrVerifier.kt) — UKALIBRERT heuristikk,
+  maa felttestes. Optikk/ammo/kalkulator er FJERNET (utkommentert m/notat) for
+  aa forenkle; OpticProfile-modellen beholdt. Position.BENK fjernet.
+- Ikon-portering: plain SVG (viewBox+currentColor) -> _convert_plain_svgs.py;
+  potrace-SVG -> _convert_ui_svgs.py (tett bbox). Ikke lag store tomme lerret.
+- Toppbaren har naa KUN 3 ikoner (Avstand/Innsikt/Meny). Vaapen->Profil,
+  Jakt->Meny, Stilling->kun prompt etter scan. Panels.build() haandterer bare
+  avstand + meny; MainActivity.TAB_* konstanter.
+- Spec-filer: bestefar_UI_spec-v0-4.md (§12 endringslogg), backend_spec.md,
+  til_utvikler_v##.md — oppdater/skriv disse ved store UI-runder.
 
 PROSJEKT: Bestefar
 Maalet: CV-pipeline for aa score bilder av Kongsberg elektronisk skyteskive (DFS 100m).

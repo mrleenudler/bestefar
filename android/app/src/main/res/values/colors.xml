@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lys brunt tema (musingsUI runde 4): erstatter Material3-standardlilla. -->
+<resources>
+    <color name="brand_primary">#8D6E63</color>
+    <color name="brand_on_primary">#FFFFFF</color>
+    <color name="brand_primary_container">#EFE0D5</color>
+    <color name="brand_on_primary_container">#3E2723</color>
+    <color name="brand_secondary">#A1887F</color>
+    <color name="brand_surface">#FBF6F0</color>
+    <color name="brand_surface_variant">#E8DDD3</color>
+    <color name="brand_on_surface">#211A15</color>
+    <color name="brand_on_surface_variant">#52443B</color>
+    <color name="brand_outline">#8A7A6D</color>
+
+    <!-- Mørk modus: samme varme palett, mørkere flater -->
+    <color name="brand_primary_dark">#D8B79B</color>
+    <color name="brand_on_primary_dark">#3E2723</color>
+    <color name="brand_primary_container_dark">#5D4037</color>
+    <color name="brand_on_primary_container_dark">#EFE0D5</color>
+    <color name="brand_surface_dark">#1B1714</color>
+    <color name="brand_surface_variant_dark">#3A322C</color>
+    <color name="brand_on_surface_dark">#ECE0D6</color>
+    <color name="brand_on_surface_variant_dark">#D3C3B6</color>
+</resources>

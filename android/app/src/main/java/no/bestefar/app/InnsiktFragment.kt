@@ -60,7 +60,16 @@ class InnsiktFragment : RebuildFragment() {
 
         val evidence = store.currentSeasonSeries().filter { it.countsInEvidence }
         if (evidence.isEmpty()) {
-            content.addView(Ui.body(a, getString(R.string.innsikt_hidden)))
+            // Innsikt låses opp før serier er skutt (musingsUI runde 4):
+            // vis hva flaten gjør, med en nøytral demo-figur.
+            content.addView(Ui.body(a, getString(R.string.innsikt_preview)))
+            content.addView(AnimalView(a).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 150))
+                tintColor = Color.GRAY
+                label = getString(R.string.innsikt_not_tested)
+            })
+            merStatistikkButton(store)
             return
         }
 
@@ -97,6 +106,27 @@ class InnsiktFragment : RebuildFragment() {
         content.addView(chips)
 
         if (mode == 0) buildCompetence(evidence) else buildMap(evidence)
+
+        merStatistikkButton(store)
+    }
+
+    /** «Mer statistikk» nederst i Innsikt (flyttet fra menyen, musingsUI r4). */
+    private fun merStatistikkButton(store: Store) {
+        val a = requireActivity()
+        content.addView(MaterialButton(a, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.menu_more_stats)
+            layoutParams = Ui.matchWrap(20, a)
+            setOnClickListener {
+                val evid = store.currentSeasonSeries().filter { it.countsInEvidence }
+                val sigma = Stats.sigmaCmAt100(evid)
+                val msg = if (sigma == null) getString(R.string.stats_none)
+                else "σ (100 m-ekvivalent): %.1f cm\nR95: %.1f cm\nSpredning: %.2f MOA\n\nMålt om siktepunktet (%d skudd)."
+                    .format(sigma, Stats.r95Cm(sigma), Stats.moa(sigma), Stats.shotCount(evid))
+                AlertDialog.Builder(a).setTitle(R.string.menu_more_stats)
+                    .setMessage(msg).setPositiveButton(R.string.ok, null).show()
+            }
+        })
     }
 
     // ---------- Kompetanseoversikt ----------

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Bestefar" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/brand_primary_dark</item>
+        <item name="colorOnPrimary">@color/brand_on_primary_dark</item>
+        <item name="colorPrimaryContainer">@color/brand_primary_container_dark</item>
+        <item name="colorOnPrimaryContainer">@color/brand_on_primary_container_dark</item>
+        <item name="colorSecondary">@color/brand_primary_dark</item>
+        <item name="android:colorBackground">@color/brand_surface_dark</item>
+        <item name="colorSurface">@color/brand_surface_dark</item>
+        <item name="colorSurfaceVariant">@color/brand_surface_variant_dark</item>
+        <item name="colorOnSurface">@color/brand_on_surface_dark</item>
+        <item name="colorOnSurfaceVariant">@color/brand_on_surface_variant_dark</item>
+        <item name="colorOutline">@color/brand_primary_dark</item>
+    </style>
+</resources>

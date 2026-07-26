@@ -1,5 +1,10 @@
 # Bestefar — UI/UX-spesifikasjon v0.4
 
+> **Addendum v0.6 (musingsUI runde 2–4).** Seksjonene under er den opprinnelige
+> v0.4-speccen. Implementasjonen har siden utviklet seg gjennom tre
+> musingsUI-runder; gjeldende UI er oppsummert i «§12 Endringslogg v0.6» nederst,
+> og full tilbakemeldingskopi ligger i `til_utvikler_v06.md`. Ved konflikt
+> gjelder §12 og faktisk kode (`android/app/src/main/java/no/bestefar/app/`).
 
 Åpne punkter i seksjon 10.
 Bruk placeholdere for grafikk som ikke er triviell å implementere.
@@ -135,3 +140,56 @@ Ikonsett for stillinger (silhuetter med modifikatormerker), arter, vinkling (vin
 ## 11. Avhengighet til CV-kjernen (teknisk)
 
 UI-prosjektet skal **ikke forke** OpenCV/C++-kjernen. Konsumer den som **pinnet avhengighet** — eget repo, tagget versjon, hentet via submodule eller pakket artefakt — så UI bygger mot en kjent kjerne-commit uten en divergerende kopi å vedlikeholde. Må kjernen endres for UI-ens skyld, gjøres det som en versjonert endring i kjerne-repoet med bump av pinnen — bevisst og sporbart, ikke drift i en fork. Instruks til Claude Code: legg kjernen inn som pinnet submodule/artefakt på gitt tag, bygg UI mot det. Kobling til kjernen gjøres via hovedskjermens "Scan" knapp.
+
+## 12. Endringslogg v0.6 (musingsUI runde 2–4)
+
+Denne seksjonen overstyrer eldre beskrivelser der de er i konflikt.
+
+### Navigasjon (endret fra §2)
+- **Tre ikonknapper øverst:** Avstand, Innsikt, Meny. (Våpen, Jakt og Stilling er
+  IKKE lenger i baren.) Hvitt motiv på sort med grå ramme; valgt = fylt/markert ramme.
+  Meny-ikonet er 10 % mindre. Liggende: 60 % bredde; stående: 80 %.
+- **Avstand** og **Meny** åpner som dropdown-paneler (trykk igjen lukker; kun avstand
+  lukkes ved klikk utenfor). **Innsikt** er fullskjerm.
+- **Scan serie**-knappen ligger i hovedflaten (nedre halvdel; full bredde liggende).
+- **Stilling** velges KUN som prompt etter hvert scan (ikke i noen meny). Fire
+  stillinger vertikalt med egne ikoner + antall skudd per stilling; hjelpemidler
+  (anlegg/reim) horisontalt som radio-toggler («uten» = deaktivert). **Benk fjernet.**
+- Hovedflate viser «## øvelsesskudd denne sesongen» øverst.
+
+### Meny
+Min profil (øverst) · Jakt · Venner · Mine serier · Gi tilbakemelding til utvikler ·
+Hvordan bruke appen · Søk (nederst). Deling, Historikk, Om appen og optikk-kalkulator
+er fjernet. «Mer statistikk» ligger nederst i Innsikt.
+
+### Resultat/scan
+- **OCR-finpussing** av poeng (ML Kit, on-device, UKALIBRERT heuristikk): ≤ 0,2 avvik
+  → sømløs oppdatering; > 0,2 → «kunne ikke se treffene» med Forkast / Lagre med
+  skjermpoeng, + bilde-donasjonsdialog.
+- **Innskyting:** kalibreringssjekk på sesongens/dagens første serie(r).
+- **Identiske serier:** varsel ved lagring. **Bare liggende bilder** gates.
+
+### Profil
+Visningsnavn, fødselsår (2–120), «Legg til jaktlag eller skytterlag», «La venner finne
+meg», fortløpende lagring, tema-veksler (lys/mørk/system) øverst til høyre, «Mitt
+jaktmål» (rater 1 av 7/13/20/50; 13 = nasjonalt snitt) med (i). Avanserte innstillinger:
+Mine våpen (+ Legg til våpen), Flytt til ny telefon, Slett alle data. Optikk/ammo fjernet.
+
+### Jakt (menyvalg)
+To knapper: Registrer jaktskudd / Se registrerte skudd. Datovelger («3. mars 2026»).
+«Del med forskning»-checkbox (av = forenklet visning). Posisjon m/rød pin under
+viltknappene. Side 2: tre viltsilhuetter (hjort brukes på alle inntil videre) for
+«Velg dyrets posisjon» + «Dyret løp ca X m» + Ettersøk/Bomskudd.
+
+### Venner (front-end-skjelett)
+Legg til venn (søk/ID/QR) · delingsvalg (visningsnavn perma) · lag med venner gruppert
+under (offset) · flytt lag opp/ned · gråing når deling er av · endre visningsnavn (alias,
+≤ 24 tegn ASCII). Ekte data/invitasjoner krever backend — se `backend_spec.md`.
+
+### Tema
+Lys brunfarge erstatter Material3-lilla; egen dag/natt-palett.
+
+### Tutorial / oppstart
+Oppstartsmelding (vindu 1 velkomst, vindu 2 bildedeling), vist første gang / ved
+`STARTUP_MSG_VERSION`-bump. Tutorial = «Hvordan bruke appen» (Velkommen · Scan serie ·
+Velg skytestilling · Innsikt), med «Avbryt»-knapp.

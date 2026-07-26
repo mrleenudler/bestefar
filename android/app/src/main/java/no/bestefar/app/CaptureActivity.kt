@@ -99,6 +99,10 @@ class CaptureActivity : AppCompatActivity() {
 
     private fun onFrame(image: ImageProxy) {
         if (capturing.get()) { image.close(); return }
+        // Bare liggende bilder godkjennes i gatingen (musingsUI runde 4):
+        // aktiviteten er sensorLandscape-laast, men portrett-frames droppes
+        // eksplisitt som ekstra sikring mot skjeve/opp-ned capture.
+        if (image.width < image.height) { image.close(); return }
         if (!loggedFormat) {
             loggedFormat = true
             Log.i(TAG, "analyse-frame: ${image.width}x${image.height} " +
@@ -111,6 +115,7 @@ class CaptureActivity : AppCompatActivity() {
         val bytes = ByteArray(y.buffer.remaining()).also { y.buffer.get(it) }
         val probe = autoCapture.feed(bytes, image.width, image.height, y.rowStride)
         image.close()
+        if (probe == null) return   // activity er under nedrigging
 
         Log.d(TAG, "probe roi=%b skarp=%.0f klippLo=%.3f klippHi=%.3f dekning=%.2f str=%.2f stabil=%b kval=%b knips=%b"
             .format(probe.roiFound, probe.sharpness, probe.clipLoFrac, probe.clipHiFrac,
@@ -182,6 +187,15 @@ class CaptureActivity : AppCompatActivity() {
                     BestefarCore.FMT_RGBA8, ts)
                 saveResultSidecar(name, result, rotation)
 
+                // Lagre rotert bilde i cache saa ResultActivity kan kjoere OCR
+                // paa skjermens poengtall (musingsUI runde 4).
+                val cacheImg = File(cacheDir, "last_capture.jpg")
+                try {
+                    cacheImg.outputStream().use {
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 92, it)
+                    }
+                } catch (e: Exception) { Log.e(TAG, "cache-bilde feilet", e) }
+
                 // Doep om galleri-bildet med fasiten, saa antall treff + sum
                 // er synlig rett i galleriet (JSON-sidecaren er vanskelig aa
                 // naa uten adb).
@@ -212,7 +226,8 @@ class CaptureActivity : AppCompatActivity() {
                     .putExtra(ResultActivity.EXTRA_RREL,
                               result.hits.map { it.rRel }.toDoubleArray())
                     .putExtra(ResultActivity.EXTRA_THETA,
-                              result.hits.map { it.theta }.toDoubleArray()))
+                              result.hits.map { it.theta }.toDoubleArray())
+                    .putExtra(ResultActivity.EXTRA_IMAGE_PATH, cacheImg.absolutePath))
                 finish()
             }
 
