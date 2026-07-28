@@ -25,6 +25,11 @@ LAERDOMMER / FEIL SOM IKKE SKAL GJENTAS (oppdater fortloepende):
   avstand + meny; MainActivity.TAB_* konstanter.
 - Spec-filer: bestefar_UI_spec-v0-4.md (§12/§13 endringslogg), backend_spec.md,
   til_utvikler_v##.md — oppdater/skriv disse ved store UI-runder.
+- Runde 6 (v0.8): Innsikt-matrise nå med ikoner (stilling/vilt) + (i) paa
+  tittel; TargetView ringer korrigert (6 hvite/5 sorte); HuntRecord fikk
+  created+fellingSuccess; TeamPageActivity (lag-skjelett); RadioGroup krever
+  view-id-er for enkeltvalg (jaktmaal-bug); Ui.singleZero()-filter.
+  Hovedskjerm ryddet til kun oevelsesskudd+scan.
 - Runde 5 (v0.7): Innsikt er en MATRISE (5 vilttyper x jeger-stilling/dyr-
   vinkling/hold), silhuett skalerer med hold, tekst groenn/roed etter jaktmaal.
   Ui.toast() avbryter forrige toast (fiks for toast-koe som blokkerte appen).

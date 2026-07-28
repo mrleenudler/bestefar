@@ -156,6 +156,15 @@ object Ui {
             if (dstart == 0 && e > s && source[s] == '0') "" else null
         }
 
+    /**
+     * Tillat en enslig «0», men ikke flere sifre etter (musingsUI runde 6):
+     * «dyret løp» godtar 0 m, men «0» kan ikke bli «05».
+     */
+    fun singleZero(): android.text.InputFilter =
+        android.text.InputFilter { _, _, _, dest, _, _ ->
+            if (dest.toString() == "0") "" else null
+        }
+
     /** Tekstboks med synlig ramme (kraftigere visuelt hint enn linje). */
     fun boxed(e: android.widget.EditText, c: Context) {
         e.background = android.graphics.drawable.GradientDrawable().apply {

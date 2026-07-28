@@ -23,8 +23,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.7"
+        versionCode = 8
+        versionName = "0.8"
 
         externalNativeBuild {
             cmake {

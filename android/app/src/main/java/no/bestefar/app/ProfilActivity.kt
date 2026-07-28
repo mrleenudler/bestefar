@@ -93,19 +93,24 @@ class ProfilActivity : AppCompatActivity() {
         birthRow.addView(birth)
         content.addView(birthRow)
 
-        // Mine jaktlag og skytterlag (musingsUI runde 5)
+        // Mine jaktlag og skytterlag (musingsUI runde 5/6)
         content.addView(Ui.section(this, getString(R.string.profile_teams_title)))
         store.teams().forEach { t ->
             content.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = t.name
                 layoutParams = Ui.matchWrap(2, this@ProfilActivity)
-                setOnClickListener { startActivity(Intent(this@ProfilActivity, LagActivity::class.java)) }
+                // Klikk åpner laget (musingsUI runde 6)
+                setOnClickListener {
+                    startActivity(Intent(this@ProfilActivity, TeamPageActivity::class.java)
+                        .putExtra(TeamPageActivity.EXTRA_TEAM_ID, t.id))
+                }
             })
         }
-        content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = getString(R.string.profile_add_more)
+        // «+ legg til nytt lag» som knapp (musingsUI runde 6)
+        content.addView(MaterialButton(this).apply {
+            text = getString(R.string.team_create_plain)
+            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
             setOnClickListener { startActivity(Intent(this@ProfilActivity, LagActivity::class.java)) }
         })
 
@@ -133,20 +138,22 @@ class ProfilActivity : AppCompatActivity() {
         })
         content.addView(goalHeader)
 
+        // Setningen flyter naturlig over to linjer, «Endre» til slutt t.h.
+        // (musingsUI runde 6). Måltallet er 2 pt større og bold.
         val goalRow = Ui.row(this)
-        // Måltallet 2 pt større og bold (musingsUI runde 5)
+        val label = Dialogs.rateLabel(store.rateLimit)
+        val sentence = "${getString(R.string.jaktmaal_prefix)} $label " +
+            getString(R.string.jaktmaal_suffix)
+        val sp = android.text.SpannableString(sentence)
+        val s = sentence.indexOf(label)
+        if (s >= 0) {
+            sp.setSpan(Typeface.BOLD.let { android.text.style.StyleSpan(it) },
+                s, s + label.length, 0)
+            sp.setSpan(android.text.style.RelativeSizeSpan(1.15f),
+                s, s + label.length, 0)
+        }
         goalRow.addView(TextView(this).apply {
-            text = getString(R.string.jaktmaal_prefix) + " "
-            textSize = 16f
-        })
-        goalRow.addView(TextView(this).apply {
-            text = Dialogs.rateLabel(store.rateLimit)
-            textSize = 18f
-            setTypeface(typeface, Typeface.BOLD)
-        })
-        goalRow.addView(TextView(this).apply {
-            text = " " + getString(R.string.jaktmaal_suffix)
-            textSize = 16f
+            text = sp; textSize = 16f
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })

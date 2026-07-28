@@ -75,60 +75,12 @@ class OktFragment : Fragment() {
         val store = Store.get(a)
         content.removeAllViews()
 
-        // «## øvelsesskudd denne sesongen» øverst (musingsUI runde 4)
+        // Hovedskjermen holdes ren (musingsUI runde 6): kun antall øvelsesskudd
+        // (Scan-knappen ligger som eget overlegg nederst).
         content.addView(android.widget.TextView(a).apply {
             text = getString(R.string.okt_shots_season, store.shotsThisSeason())
             textSize = 20f
             setPadding(0, 0, 0, Ui.dp(a, 8))
         })
-
-        // Øvelsesmotoren: popup-forslag som kort, bare ved reelt behov (spec §5)
-        val sug = Stats.practiceSuggestion(store.currentSeasonSeries())
-        if (sug != null && store.practicePosition == null && !suggestionDismissed) {
-            val (pos, trained, prior) = sug
-            val card = MaterialCardView(a).apply {
-                radius = Ui.dp(a, 12).toFloat()
-                layoutParams = Ui.matchWrap(12, a)
-            }
-            val inner = Ui.col(a, 16)
-            inner.addView(Ui.body(a,
-                "Du har trent ${(trained * 100).toInt()} % ${pos.label.lowercase()}, " +
-                "men i jakt står den for ~${(prior * 100).toInt()} % av skuddene. " +
-                "Test ${pos.label.lowercase()} på 100 m?"))
-            val btnRow = Ui.row(a)
-            btnRow.addView(MaterialButton(a).apply {
-                text = getString(R.string.okt_practice_ok)
-                setOnClickListener {
-                    store.practicePosition = pos
-                    store.distanceM = 100
-                    rebuild()
-                }
-            })
-            btnRow.addView(MaterialButton(a, null,
-                com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                text = getString(R.string.okt_practice_dismiss)
-                setOnClickListener { suggestionDismissed = true; rebuild() }
-            })
-            inner.addView(btnRow)
-            card.addView(inner)
-            content.addView(card)
-        }
-
-        val today = store.seriesToday()
-        if (today.isNotEmpty()) {
-            val fmt = DateTimeFormatter.ofPattern("HH:mm")
-            today.sortedByDescending { it.ts }.forEach { s ->
-                val t = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault()).format(fmt)
-                val mod = if (s.modifier != PosModifier.UTEN) " (${s.modifier.label})" else ""
-                content.addView(Ui.body(a,
-                    "$t · ${s.position.label}$mod · %.1f (%d skudd)"
-                        .format(s.sumDecimal, s.shots.size)))
-            }
-            content.addView(MaterialButton(a, null,
-                com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                text = getString(R.string.summary_title)
-                setOnClickListener { startActivity(Intent(a, SummaryActivity::class.java)) }
-            })
-        }
     }
 }

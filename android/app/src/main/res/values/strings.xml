@@ -110,7 +110,7 @@
 
     <!-- Samtykke -->
     <string name="consent_research_title">Bidra til forskning?</string>
-    <string name="consent_research_body">Treningsresultatene dine kan deles pseudonymt med forskningsprosjektet om øvelsesskyting og jaktutfall. Du ser nøyaktig hva som deles, og kan trekke samtykket når som helst i profilen.</string>
+    <string name="consent_research_body">Hjelp oss å lære om hvordan øvelsesskyting påvirker jakt.\n\nDu deler bare resultatene fra øvelsesskyting og jakt, aldri personlig informasjon.\n\nDu kan når som helst stoppe delingen og trekke tilbake samtykket fra menyen. Da vil alle data om deg slettes fra forskningsprosjektet.</string>
     <string name="consent_hunt_title">Dele jaktdata?</string>
     <string name="consent_hunt_body">Jaktloggen kan deles pseudonymt til forskning, med stedsoppløsning du velger. Skadedata er alltid private som standard. Avslag endrer ingen funksjonalitet.</string>
     <string name="consent_yes">Ja</string>
@@ -244,7 +244,7 @@
     <string name="sharing_inactive">(Ikke aktiv)</string>
     <string name="sharing_deactivate">Deaktiver deling</string>
     <string name="consent_research_join">Delta i forskning</string>
-    <string name="research_pitch">Vi vil gjerne bruke dataene dine til forskning. Med mer kunnskap om jakt og øvelsesskyting ønsker vi å bidra til mindre lidelse for dyrene, og en bedre opplevelse for jegerne.</string>
+    <string name="research_pitch">Hjelp oss å lære om hvordan øvelsesskyting påvirker jakt.\n\nDu deler bare resultatene fra øvelsesskyting og jakt, aldri personlig informasjon.\n\nDu kan når som helst stoppe delingen og trekke tilbake samtykket fra menyen. Da vil alle data om deg slettes fra forskningsprosjektet.</string>
     <string name="research_never_shared">Deles aldri:</string>
     <string name="research_never_userid">BrukerID</string>
     <string name="research_never_name">Navn</string>
@@ -356,7 +356,7 @@
     <string name="hunt_view_registered">Se registrerte skudd</string>
     <string name="hunt_share_research">Del med forskning</string>
     <string name="hunt_hold">Skuddhold</string>
-    <string name="hunt_missing_ran">Skriv inn hvor omtrent langt dyret løp.</string>
+    <string name="hunt_missing_ran">Skriv inn omtrent hvor langt dyret løp.</string>
     <string name="hunt_missing_other">Skriv inn hvilket vilt.</string>
     <string name="hunt_missing_species_distance">Fyll inn både vilt og skuddhold.</string>
 
@@ -414,6 +414,24 @@
     <string name="dev_generate">Generer serie</string>
     <string name="dev_dummy_scan">Dummy scan</string>
     <string name="dev_always_startup">Vis oppstartsmelding hver gang</string>
+
+    <!-- ============ Runde 6 ============ -->
+    <string name="result_points_label">Poeng:</string>
+    <string name="result_my_avg">Mitt gjennomsnitt for %1$s: %2$.1f</string>
+    <string name="felling_success">Felling var vellykket</string>
+    <string name="felling_ask">Var fellingen vellykket?</string>
+    <string name="hunt_ran_prompt">Skriv inn omtrent hvor langt dyret løp</string>
+    <string name="findable_off_msg">«La venner finne meg» er ikke avkrysset.\nDa kan du ikke bli funnet av venner som søker etter deg.\nDu kan fremdeles bli venner med kode eller QR-kode.</string>
+    <string name="delete_all">Slett alle</string>
+    <string name="delete_all_confirm">Vil du slette alle valgte skudd?\n\nHandlingen kan ikke angres.</string>
+    <string name="team_invite_members">Inviter medlemmer</string>
+    <string name="team_choose_leader">Velg leder</string>
+    <string name="team_edit_name">Endre lagnavn</string>
+    <string name="team_remove_members">Fjern medlemmer</string>
+    <string name="team_you">(deg)</string>
+    <string name="team_remove_inactive">Fjern inaktiv lagleder</string>
+    <string name="team_confirm_leader">Gjøre %1$s til leder? Er du sikker?</string>
+    <string name="team_leader_active">Lagleder er ikke inaktiv. Ta kontakt.</string>
 
     <!-- Innsikt-matrise (runde 5) -->
     <string name="innsikt_recommend">Anbefalte skuddhold og posisjoner:</string>

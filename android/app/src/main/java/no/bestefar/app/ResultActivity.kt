@@ -238,6 +238,10 @@ class ResultActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
         }
+        scoreCol.addView(TextView(this).apply {
+            text = getString(R.string.result_points_label)   // «Poeng:»
+            textSize = 15f
+        })
         r.shots.withIndex().sortedBy { it.value.decimal }.forEach { (idx, shot) ->
             val row = Ui.row(this)
             row.addView(TextView(this).apply {
@@ -271,23 +275,23 @@ class ResultActivity : AppCompatActivity() {
             textSize = 28f
         })
         val w = store.weapons().firstOrNull { it.id == r.weaponId }
-        val modText = if (r.modifier != PosModifier.UTEN) " (${r.modifier.label})" else ""
+        // «Sittende med anlegg» / «... med reim» (musingsUI runde 6)
+        val modText = when (r.modifier) {
+            PosModifier.ANLEGG -> " med anlegg"
+            PosModifier.REIM -> " med reim"
+            else -> ""
+        }
         content.addView(Ui.hint(this,
             "${r.position.label}$modText · ${r.distanceM} m · " + (w?.shownName ?: "—")))
 
-        // Langsiktig tilstand — serien faller inn i bildet, ingen dom (spec §5)
+        // Mitt gjennomsnitt for denne stillingen (uten KI, musingsUI runde 6)
         val history = store.allSeries().filter {
             it.id != r.id && it.position == r.position && it.distanceM == r.distanceM
         }
-        if (history.isEmpty()) {
-            content.addView(Ui.hint(this, getString(R.string.result_long_term_none)))
-        } else {
-            val sums = history.map { it.sumDecimal }
-            val avg = sums.average()
-            val sd = if (sums.size > 1)
-                sqrt(sums.sumOf { (it - avg) * (it - avg) } / (sums.size - 1)) else 0.0
-            content.addView(Ui.body(this, getString(R.string.result_long_term,
-                r.position.label, r.distanceM, avg, sd, history.size)))
+        if (history.isNotEmpty()) {
+            val avg = history.map { it.sumDecimal }.average()
+            content.addView(Ui.body(this, getString(R.string.result_my_avg,
+                r.position.label.lowercase(), avg)))
         }
 
         if (ocrMismatch != null) {
@@ -373,23 +377,30 @@ class ResultActivity : AppCompatActivity() {
     private fun commitAndFinish() {
         val r = record ?: return finish()
         if (!saved) { store.addSeries(r); saved = true }
-        val afterConsent = { Dialogs.maybeResearchConsent(this, store) { finishToSummaryMaybe() } }
         if (r.corrected && !r.sendToFailChannel) {
             Dialogs.failChannelConsent(this) { yes ->
                 if (yes) { r.sendToFailChannel = true; store.updateSeries(r) }
-                afterConsent()
+                consentFlow()
             }
         } else {
-            afterConsent()
+            consentFlow()
         }
     }
 
-    private fun finishToSummaryMaybe() {
-        // Tilby jaktmål-valg etter tre serier (musingsUI runde 4)
-        if (!store.jaktmaalPromptSeen && store.currentSeasonSeries().size >= 3) {
+    /**
+     * Samtykke-rekkefølge (musingsUI runde 6): «Mitt jaktmål» først (etter tre
+     * serier), «Bidra til forskning» tidligst to serier senere — aldri begge på
+     * samme serie.
+     */
+    private fun consentFlow() {
+        val n = store.currentSeasonSeries().size
+        if (!store.jaktmaalPromptSeen && n >= 3) {
             store.jaktmaalPromptSeen = true
+            store.jaktmaalPromptCount = n
             Dialogs.jaktmaalDialog(this, store) { finish() }
-        } else finish()
+            return
+        }
+        Dialogs.maybeResearchConsent(this, store) { finish() }
     }
 
     private fun isIdentical(a: SeriesRecord, b: SeriesRecord): Boolean {

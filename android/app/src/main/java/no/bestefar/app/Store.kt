@@ -222,6 +222,11 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getBoolean("jaktmaalPromptSeen", false)
         set(v) { prefs.edit().putBoolean("jaktmaalPromptSeen", v).apply() }
 
+    /** Serieantall da jaktmål ble vist; forskningsdialog tidligst 2 serier etter. */
+    var jaktmaalPromptCount: Int
+        get() = prefs.getInt("jaktmaalPromptCount", 0)
+        set(v) { prefs.edit().putInt("jaktmaalPromptCount", v).apply() }
+
     var rateChosen: Boolean
         get() = prefs.getBoolean("rateChosen", false)
         set(v) { prefs.edit().putBoolean("rateChosen", v).apply() }

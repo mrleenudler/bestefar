@@ -2,9 +2,11 @@ package no.bestefar.app
 
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -12,6 +14,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.ImageViewCompat
 import com.google.android.material.button.MaterialButton
 import kotlin.math.roundToInt
 
@@ -31,23 +34,30 @@ abstract class RebuildFragment : androidx.fragment.app.Fragment() {
 }
 
 /**
- * Innsikt (musingsUI runde 5): matrise der de fem vilttypene (rader) rammes
- * inn av innstillingene — jeger-stilling øverst, dyr-vinkling nederst, skuddhold
- * i kolonne til høyre. Vilt-silhuett skalerer med hold; frekvenstekst er grønn
- * når jaktmålet er nådd, rød ellers, og grå «øv på stillingen» der stilling
- * mangler øvelsesskudd. Grønn tekst = mål nådd (jf. (i)).
+ * Innsikt (musingsUI runde 6): matrise med fem vilttyper rammet av jeger-stilling
+ * (ikoner, øverst), dyr-vinkling (silhuetter, nederst) og skuddhold (kolonne
+ * t.h.). Jeger-/vilt-/holdknapper er like store. Frekvenstekst grønn = jaktmål
+ * nådd, rød ellers; grå «øv på stillingen» der data mangler. (i) på tittellinjen.
  */
 class InnsiktFragment : RebuildFragment() {
 
-    private var jegerPos = Position.SITTENDE          // forhåndsvalgt
-    private var dyrAngle = Angle.SIDE                 // bredside forhåndsvalgt
-    private var holdM = 100                           // forhåndsvalgt
+    private var jegerPos = Position.SITTENDE
+    private var dyrAngle = Angle.SIDE
+    private var holdM = 100
     private val holds = listOf(25, 50, 75, 100, 150, 200)
-    private val species = listOf(Species.ELG, Species.HJORT, Species.VILLREIN,
+    private val speciesList = listOf(Species.ELG, Species.HJORT, Species.VILLREIN,
         Species.RAADYR, Species.VILLSVIN)
 
     private val greenCol = Color.parseColor("#2E7D32")
     private val redCol = Color.parseColor("#C62828")
+
+    private fun night() = (resources.configuration.uiMode and
+        Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    private fun txtColor() = Ui.themeColor(requireContext(), android.R.attr.textColorPrimary)
+    private fun muted(c: Int) = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
+    private fun trainGrey() = if (night()) Color.parseColor("#9A9A9A") else Color.parseColor("#6E6E6E")
+    private fun silGrey() = if (night()) Color.parseColor("#555555") else Color.parseColor("#CFCFCF")
 
     private fun angleSil(a: Angle): Int = when (a) {
         Angle.FRONT -> R.drawable.ic_hjort_front
@@ -55,11 +65,8 @@ class InnsiktFragment : RebuildFragment() {
         else -> R.drawable.ic_hjort_side
     }
 
-    private fun greyTint(): Int {
-        val night = (resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        return if (night) Color.parseColor("#3A3A3A") else Color.parseColor("#CFCFCF")
-    }
+    private val cellW get() = Ui.dp(requireContext(), 64)
+    private val cellH get() = Ui.dp(requireContext(), 52)
 
     override fun rebuild() {
         val a = requireActivity()
@@ -68,50 +75,64 @@ class InnsiktFragment : RebuildFragment() {
 
         val evidence = store.currentSeasonSeries().filter { it.countsInEvidence }
 
-        content.addView(Ui.title(a, getString(R.string.tab_innsikt)))
-        content.addView(Ui.body(a, getString(R.string.innsikt_recommend)))
-
-        // Jeger-stilling øverst (JJJJ) + (i) høyrejustert
-        val topRow = Ui.row(a)
-        Position.hoved.forEach { p ->
-            topRow.addView(Ui.choiceButton(a, p.label, p == jegerPos, small = true) {
-                jegerPos = p; rebuild()
-            }.apply { layoutParams = LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = Ui.dp(a, 3) } })
-        }
-        topRow.addView(ImageButton(a).apply {
+        // Tittel + (i) høyrejustert (musingsUI runde 6)
+        val titleRow = Ui.row(a)
+        titleRow.addView(Ui.title(a, getString(R.string.tab_innsikt)).apply {
+            layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        titleRow.addView(ImageButton(a).apply {
             setImageResource(R.drawable.ic_info)
             background = null
+            ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(txtColor()))
             contentDescription = getString(R.string.innsikt_info_title)
             setOnClickListener { infoDialog() }
         })
+        content.addView(titleRow)
+        content.addView(Ui.body(a, getString(R.string.innsikt_recommend)))
+
+        // Jeger-stilling som ikoner (JJJJ), sentrert
+        val topRow = Ui.row(a).apply { gravity = Gravity.CENTER }
+        Position.hoved.forEach { p ->
+            topRow.addView(iconCell(p.iconRes, p.iconScale, p == jegerPos,
+                p.label) { jegerPos = p; rebuild() })
+        }
         content.addView(topRow)
 
-        // Matrise: vilttype-rader til venstre, hold-kolonne til høyre
+        // Matrise: vilttype-rader (venstre) + hold-kolonne (høyre)
         val body = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
         val rows = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
-        species.forEach { sp -> rows.addView(speciesRow(sp, evidence, store)) }
+        speciesList.forEach { sp -> rows.addView(speciesRow(sp, evidence, store)) }
         body.addView(rows)
-        body.addView(holdColumn(a))
+
+        val holdCol = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+        }
+        holds.forEach { d ->
+            holdCol.addView(Ui.choiceButton(a, "$d m", holdM == d, small = true) {
+                holdM = d; rebuild()
+            }.apply {
+                maxLines = 1
+                layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
+                    bottomMargin = Ui.dp(a, 2)
+                }
+            })
+        }
+        body.addView(holdCol)
         content.addView(body)
 
-        // Dyr-vinkling nederst (DDD): tre silhuetter (bredside forhåndsvalgt)
+        // Dyr-vinkling som silhuetter (DDD), sentrert
         val bottomRow = Ui.row(a).apply { gravity = Gravity.CENTER }
         listOf(Angle.FRONT to R.drawable.ic_hjort_front,
             Angle.SIDE to R.drawable.ic_hjort_side,
             Angle.SKRAA30 to R.drawable.ic_hjort_skraa).forEach { (ang, res) ->
-            bottomRow.addView(ImageView(a).apply {
-                setImageResource(res)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                val p = Ui.dp(a, 4); setPadding(p, p, p, p)
-                alpha = if (dyrAngle == ang) 1f else 0.4f
-                layoutParams = LinearLayout.LayoutParams(0, Ui.dp(a, 64), 1f)
-                setOnClickListener { dyrAngle = ang; rebuild() }
+            bottomRow.addView(iconCell(res, 1f, dyrAngle == ang, ang.label) {
+                dyrAngle = ang; rebuild()
             })
         }
         content.addView(bottomRow)
@@ -119,19 +140,30 @@ class InnsiktFragment : RebuildFragment() {
         merStatistikkButton(store)
     }
 
-    private fun holdColumn(a: android.app.Activity): LinearLayout {
-        val col = LinearLayout(a).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
+    /** Ramme-innkapslet ikon-knapp med tint og valgt/uvalgt-tilstand. */
+    private fun iconCell(res: Int, scale: Float, selected: Boolean, desc: String,
+                         onClick: () -> Unit): ImageButton {
+        val a = requireActivity()
+        val tint = if (selected) txtColor() else muted(txtColor())
+        return ImageButton(a).apply {
+            setImageResource(res)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleX = scale; scaleY = scale
+            ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(tint))
+            background = GradientDrawable().apply {
+                cornerRadius = Ui.dp(a, 8).toFloat()
+                setStroke(Ui.dp(a, if (selected) 2 else 1),
+                    if (selected) Ui.themeColor(a,
+                        com.google.android.material.R.attr.colorPrimary) else Color.GRAY)
+            }
+            contentDescription = desc
+            val p = Ui.dp(a, 4); setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
+                marginEnd = Ui.dp(a, 4)
+            }
+            setOnClickListener { onClick() }
         }
-        holds.forEach { d ->
-            col.addView(Ui.choiceButton(a, "$d m", holdM == d, small = true) {
-                holdM = d; rebuild()
-            }.apply { layoutParams = LinearLayout.LayoutParams(
-                Ui.dp(a, 64), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                bottomMargin = Ui.dp(a, 2) } })
-        }
-        return col
     }
 
     private fun speciesRow(sp: Species, evidence: List<SeriesRecord>,
@@ -149,15 +181,16 @@ class InnsiktFragment : RebuildFragment() {
         val radius = Stats.lethalRadiusCm(sp, dyrAngle)
         val trained = sigma != null && n > 0 && radius != null
 
-        // Silhuett i fast ramme, skalert med hold (25m fyller, 200m halv)
+        // Fast ramme, silhuett skalert med hold (25 m fyller, 200 m halv)
         val scale = (1.10 - (holdM - 25) / 175.0 * 0.60).coerceIn(0.5, 1.10).toFloat()
         val sil = ImageView(a).apply {
             setImageResource(angleSil(dyrAngle))
             scaleType = ImageView.ScaleType.FIT_CENTER
             scaleX = scale; scaleY = scale
-            layoutParams = LinearLayout.LayoutParams(
-                Ui.dp(a, 96), Ui.dp(a, 72))
-            if (!trained) setColorFilter(greyTint())
+            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 96), Ui.dp(a, 72))
+            ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(
+                    if (trained) txtColor() else silGrey()))
         }
         row.addView(sil)
 
@@ -170,13 +203,21 @@ class InnsiktFragment : RebuildFragment() {
         }
         if (!trained) {
             text.text = getString(R.string.innsikt_train_pos)
-            text.setTextColor(greyTint())
+            text.setTextColor(trainGrey())
         } else {
             val p = Stats.pLethal(sigma!!, holdM, radius!!)
             val x = (p * n).roundToInt()
             val goalMet = p >= (1.0 - store.rateLimit)
-            text.text = "${sp.label}\n$x av $n\n${(p * 100).roundToInt()} %"
-            text.setTextColor(if (goalMet) greenCol else redCol)
+            val col = if (goalMet) greenCol else redCol
+            // Viltnavn i default farge; andel + prosent i fargekode (runde 6)
+            val sb = SpannableStringBuilder()
+            sb.append(sp.label + "\n")
+            val start = sb.length
+            sb.append("$x av $n\n${(p * 100).roundToInt()} %")
+            sb.setSpan(ForegroundColorSpan(col), start, sb.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.setTextColor(txtColor())
+            text.text = sb
         }
         row.addView(text)
         return row
@@ -184,21 +225,23 @@ class InnsiktFragment : RebuildFragment() {
 
     private fun infoDialog() {
         val a = requireActivity()
-        // Fargelegg «Grønn»/«rød» i forklaringsteksten (musingsUI runde 5)
         val raw = getString(R.string.innsikt_info_body)
         val sb = SpannableStringBuilder(raw)
-        colorWord(sb, "Grønn", greenCol); colorWord(sb, "grønn", greenCol)
-        colorWord(sb, "rød", redCol)
+        styleWord(sb, "Grønn", greenCol); styleWord(sb, "grønn", greenCol)
+        styleWord(sb, "rød", redCol)
         AlertDialog.Builder(a)
             .setTitle(R.string.innsikt_info_title)
             .setMessage(sb)
             .setPositiveButton(R.string.ok, null).show()
     }
 
-    private fun colorWord(sb: SpannableStringBuilder, word: String, color: Int) {
+    /** Fargelegg OG uthev (fet) et ord i teksten (musingsUI runde 6). */
+    private fun styleWord(sb: SpannableStringBuilder, word: String, color: Int) {
         var i = sb.indexOf(word)
         while (i >= 0) {
             sb.setSpan(ForegroundColorSpan(color), i, i + word.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sb.setSpan(StyleSpan(android.graphics.Typeface.BOLD), i, i + word.length,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             i = sb.indexOf(word, i + word.length)
         }

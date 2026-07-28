@@ -117,3 +117,23 @@ Eier ønsket å slippe å åpne e-postapp. Krever backend:
   serveren videresender til utviklerens innboks (eller sak-system).
 - Klienten bruker foreløpig ACTION_SENDTO (mailto) med `subject` som e-post-Subject.
   Bytt til endepunktet når backend finnes.
+
+## 11. Lag-medlemskap, lederskap og varsler (musingsUI runde 6)
+UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
+- **Medlemskap:** `Team.members[]`, `Team.leaders[]` (flere ledere mulig).
+  Egen bruker vises alltid i lagets medlemsliste.
+- **Invitasjoner:** «Inviter medlemmer» → kontaktliste/e-post/telefon (jf. §4).
+- **Endre lagnavn:** varsel til alle medlemmer: «Navneendring — Lagleder for X har
+  endret navnet på laget til Y». Vises som første melding ved neste app-åpning
+  (klienten trenger en «pending messages»-kø hentet ved oppstart).
+- **Fjern medlem:** varsel til den fjernede: «Lagleder har fjernet deg fra X».
+- **Overfør lederskap:** velg eksisterende medlem → bekreftelse hos valgt leder.
+- **Velg leder (ingen leder):** avstemning med 7-dagers nedtelling (vises som
+  dager → timer < 24 → minutter < 120). Push til alle medlemmer. Stemmer kan
+  endres til fristen; enstemmighet avslutter tidlig. `POST /v1/teams/{id}/vote`,
+  `GET /v1/teams/{id}/vote-status`.
+- **Fjern inaktiv lagleder:** hvis leder har brukt appen siste måned → «Lagleder
+  er ikke inaktiv. Ta kontakt.» Ellers push til leder + 7-dagers timer; logger
+  leder på, avbrytes; ellers mister leder lederstatus (forblir medlem), og laget
+  kan velge ny leder.
+- **Push-varsler:** krever FCM/APNs-registrering per enhet.

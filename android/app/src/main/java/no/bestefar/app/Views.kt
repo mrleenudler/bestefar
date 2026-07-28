@@ -28,10 +28,11 @@ class TargetView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
 
-    // Antall ringenheter som vises (litt slakk utenfor 1-er-ringen)
-    private val maxR = 10.8f
-    // Svart blink: PLASSHOLDER-radius i ringenheter (Kongsberg-geometri TODO)
-    private val bullR = 3.0f
+    // 11 ringlinjer: inner-tier (0.5), tier..1-er (1..10). Bull (svart) naar
+    // ring 7 -> 5 sorte ringer (inner/ytter-tier, 9, 8, 7) og 6 hvite (6..1).
+    private val maxR = 10.5f
+    private val bullR = 4.0f
+    private val ringRadii = listOf(0.5f) + (1..10).map { it.toFloat() }
 
     override fun onDraw(canvas: Canvas) {
         val cx = width / 2f
@@ -46,13 +47,12 @@ class TargetView @JvmOverloads constructor(
         paint.color = Color.BLACK
         canvas.drawCircle(cx, cy, bullR * step, paint)
 
-        // Ringlinjer 1..10 (grense for poeng k ved r_rel = 11-k)
+        // Ringlinjer: hvite inne i blinken, sorte utenfor
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 1.5f
-        for (k in 1..10) {
-            val r = k * step
-            paint.color = if (k <= bullR) Color.WHITE else Color.BLACK
-            canvas.drawCircle(cx, cy, r, paint)
+        for (r in ringRadii) {
+            paint.color = if (r <= bullR) Color.WHITE else Color.BLACK
+            canvas.drawCircle(cx, cy, r * step, paint)
         }
         // Ytterkant
         paint.color = Color.DKGRAY

@@ -307,6 +307,7 @@ class HuntLogActivity : AppCompatActivity() {
             species = species ?: Species.ANNET, distanceM = 0,
             angle = Angle.SIDE, moving = false, outcome = Outcome.DOEDELIG,
             weaponId = store.selectedWeapon()?.id, speciesOther = speciesOther,
+            created = System.currentTimeMillis(),
         ))
         Ui.toast(this, R.string.hunt_saved)
         finish()
@@ -351,13 +352,20 @@ class HuntLogActivity : AppCompatActivity() {
         })
         val ranInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(4), Ui.noLeadingZero())
+            // Godta 0 m, men ikke sifre etter en enslig 0 (musingsUI runde 6)
+            filters = arrayOf(InputFilter.LengthFilter(4), Ui.singleZero())
             minWidth = Ui.dp(this@HuntLogActivity, 80)
         }
         Ui.boxed(ranInput, this)
         ranRow.addView(ranInput)
         ranRow.addView(TextView(this).apply { text = " m"; textSize = 17f })
         content.addView(ranRow, Ui.matchWrap(8, this))
+
+        // «Felling var vellykket» (musingsUI runde 6)
+        val fellingBox = android.widget.CheckBox(this).apply {
+            text = getString(R.string.felling_success); isChecked = true
+        }
+        content.addView(fellingBox)
 
         var ettersok = false
         var bom = false
@@ -400,10 +408,18 @@ class HuntLogActivity : AppCompatActivity() {
                 val ran = ranInput.text.toString().toIntOrNull()
                 // Bom eller «ikke funnet» krever ikke tall (musingsUI runde 5)
                 val needRan = !bom && !notFoundBox.isChecked
-                if (needRan && ran == null) {
-                    Ui.toast(this@HuntLogActivity, R.string.hunt_missing_ran)
-                } else {
-                    save(ran, ettersok, bom, notFoundBox.isChecked)
+                when {
+                    needRan && ran == null ->
+                        Ui.toast(this@HuntLogActivity, R.string.hunt_missing_ran)
+                    // Uavkrysset «felling vellykket» -> bekreft (musingsUI runde 6)
+                    !fellingBox.isChecked -> AlertDialog.Builder(this@HuntLogActivity)
+                        .setMessage(R.string.felling_ask)
+                        .setPositiveButton(R.string.yes) { _, _ ->
+                            save(ran, ettersok, bom, notFoundBox.isChecked, true) }
+                        .setNegativeButton(R.string.no) { _, _ ->
+                            save(ran, ettersok, bom, notFoundBox.isChecked, false) }
+                        .show()
+                    else -> save(ran, ettersok, bom, notFoundBox.isChecked, true)
                 }
             }
         })
@@ -414,7 +430,8 @@ class HuntLogActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT)
     }
 
-    private fun save(ranM: Int?, ettersok: Boolean, bom: Boolean, notFound: Boolean) {
+    private fun save(ranM: Int?, ettersok: Boolean, bom: Boolean, notFound: Boolean,
+                     fellingSuccess: Boolean) {
         val outcome = when {
             bom -> Outcome.BOM
             ettersok -> Outcome.SKADE
@@ -425,6 +442,7 @@ class HuntLogActivity : AppCompatActivity() {
         val angle = when (posSel) {
             1 -> Angle.FRONT; 3 -> Angle.SKRAA30; else -> Angle.SIDE
         }
+        val now = System.currentTimeMillis()
         store.addHunt(HuntRecord(
             id = Store.newId(), ts = tsForDate(),
             species = species ?: Species.ANNET, distanceM = distanceM ?: 0,
@@ -433,6 +451,7 @@ class HuntLogActivity : AppCompatActivity() {
             lat = lat, lon = lon, weaponId = store.selectedWeapon()?.id,
             placeName = placeName, speciesOther = speciesOther,
             ranM = ranM, clockPos = posSel,
+            created = now, fellingSuccess = fellingSuccess,
         ))
         Ui.toast(this, R.string.hunt_saved)
         finish()

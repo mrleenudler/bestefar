@@ -46,6 +46,14 @@ class AvansertActivity : AppCompatActivity() {
                 .show()
         }
 
+        // «Fjern inaktiv lagleder» (musingsUI runde 6) — FRONT-END-SKJELETT.
+        // Aktivitet siste måned -> avvis; ellers push + 7-dagers timer (backend).
+        entry(getString(R.string.team_remove_inactive)) {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.team_leader_active)
+                .setPositiveButton(R.string.ok, null).show()
+        }
+
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {
             text = getString(R.string.left_handed)

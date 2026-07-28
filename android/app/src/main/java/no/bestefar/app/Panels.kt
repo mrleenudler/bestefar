@@ -127,14 +127,16 @@ object Panels {
             .setTitle(R.string.menu_send_message)
             .setView(root)
             .setPositiveButton(R.string.send) { _, _ ->
+                // Legg subject/body i selve mailto-URIen — mer paalitelig enn
+                // EXTRA_* med ACTION_SENDTO (musingsUI runde 6).
+                val subj = android.net.Uri.encode("[Bestefar] " + title.text.toString().trim())
+                val bodyEnc = android.net.Uri.encode(body.text.toString())
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = android.net.Uri.parse("mailto:mrleenudler@gmail.com")
-                    putExtra(Intent.EXTRA_SUBJECT, "[Bestefar] " + title.text.toString().trim())
-                    putExtra(Intent.EXTRA_TEXT, body.text.toString())
+                    data = android.net.Uri.parse(
+                        "mailto:mrleenudler@gmail.com?subject=$subj&body=$bodyEnc")
                 }
                 try { a.startActivity(intent) } catch (_: Exception) {
-                    android.widget.Toast.makeText(a, R.string.message_no_email_app,
-                        android.widget.Toast.LENGTH_LONG).show()
+                    Ui.toast(a, R.string.message_no_email_app)
                 }
             }
             .setNegativeButton(R.string.cancel, null)

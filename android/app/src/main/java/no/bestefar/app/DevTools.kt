@@ -19,7 +19,7 @@ object DevTools {
      * Semi-tilfeldig serie vektet mot midten, men også mot blinkens areal, så
      * flertallet av «skuddene» legger seg rundt 6–7–8. Lagres som en normal serie.
      */
-    fun generateSeries(activity: Activity, shots: Int = 5) {
+    fun generateSeries(activity: Activity, shots: Int = 10) {
         val store = Store.get(activity)
         val list = (1..shots).map {
             // Normal(7, 1.6) i poeng gir tyngde rundt 6-8; areal-vekting ivaretas

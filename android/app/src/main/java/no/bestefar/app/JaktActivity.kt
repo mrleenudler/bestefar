@@ -47,10 +47,10 @@ class JaktActivity : AppCompatActivity() {
 
         root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
-        // «Tilbake» nederst til høyre (musingsUI runde 5)
+        // «Tilbake» nederst t.h. -> lukker menyen og går til hovedsiden (runde 6)
         root.addView(MaterialButton(this).apply {
             text = getString(R.string.back)
-            setOnClickListener { finish() }
+            setOnClickListener { MainActivity.returnToHome = true; finish() }
         }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END).apply {
             bottomMargin = Ui.dp(this@JaktActivity, 16); rightMargin = Ui.dp(this@JaktActivity, 16)

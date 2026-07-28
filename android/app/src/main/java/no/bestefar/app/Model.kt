@@ -12,11 +12,12 @@ import org.json.JSONObject
  * Skytestillinger (musingsUI runde 4): «benk» fjernet — innskyting håndteres
  * nå av kalibreringssjekk på sesongens første serie. Egne ikoner fra UI-mappen.
  */
-enum class Position(val label: String, val iconRes: Int) {
-    LIGGENDE("Liggende", R.drawable.ic_stilling_liggende),
-    SITTENDE("Sittende", R.drawable.ic_stilling_sittende),
-    KNESTAENDE("Knestående", R.drawable.ic_stilling_knestaaende),
-    STAAENDE("Stående", R.drawable.ic_stilling_staaende);
+enum class Position(val label: String, val iconRes: Int, val iconScale: Float) {
+    // iconScale homogeniserer visuell størrelse (musingsUI runde 6)
+    LIGGENDE("Liggende", R.drawable.ic_stilling_liggende, 0.35f),
+    SITTENDE("Sittende", R.drawable.ic_stilling_sittende, 1.80f),
+    KNESTAENDE("Knestående", R.drawable.ic_stilling_knestaaende, 0.80f),
+    STAAENDE("Stående", R.drawable.ic_stilling_staaende, 1.00f);
 
     companion object {
         val hoved = entries.toList()
@@ -266,6 +267,8 @@ data class HuntRecord(
     val speciesOther: String = "",  // fritekst når art = ANNET
     val ranM: Int? = null,          // «dyret løp X m» (observert feltkriterium)
     val clockPos: Int? = null,      // vinkling som klokkeposisjon 1–6 (placeholder)
+    val created: Long = ts,         // faktisk opprettelsestid (tie-break på lik dato)
+    val fellingSuccess: Boolean = true,  // «felling vellykket» (musingsUI runde 6)
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("ts", ts); put("species", species.name)
@@ -278,25 +281,31 @@ data class HuntRecord(
         put("placeName", placeName); put("speciesOther", speciesOther)
         put("ranM", ranM ?: JSONObject.NULL)
         put("clockPos", clockPos ?: JSONObject.NULL)
+        put("created", created); put("fellingSuccess", fellingSuccess)
     }
     companion object {
-        fun fromJson(o: JSONObject) = HuntRecord(
-            id = o.getString("id"), ts = o.getLong("ts"),
-            species = Species.of(o.getString("species")),
-            distanceM = o.getInt("distanceM"),
-            angle = Angle.of(o.getString("angle")),
-            moving = o.optBoolean("moving", false),
-            outcome = Outcome.of(o.getString("outcome")),
-            followUp = if (o.isNull("followUp")) null else FollowUp.of(o.getString("followUp")),
-            followUpAsked = o.optBoolean("followUpAsked", false),
-            lat = if (o.isNull("lat")) null else o.getDouble("lat"),
-            lon = if (o.isNull("lon")) null else o.getDouble("lon"),
-            weaponId = if (o.isNull("weaponId")) null else o.getString("weaponId"),
-            placeName = o.optString("placeName", ""),
-            speciesOther = o.optString("speciesOther", ""),
-            ranM = if (o.isNull("ranM")) null else o.getInt("ranM"),
-            clockPos = if (o.isNull("clockPos")) null else o.getInt("clockPos"),
-        )
+        fun fromJson(o: JSONObject): HuntRecord {
+            val ts = o.getLong("ts")
+            return HuntRecord(
+                id = o.getString("id"), ts = ts,
+                species = Species.of(o.getString("species")),
+                distanceM = o.getInt("distanceM"),
+                angle = Angle.of(o.getString("angle")),
+                moving = o.optBoolean("moving", false),
+                outcome = Outcome.of(o.getString("outcome")),
+                followUp = if (o.isNull("followUp")) null else FollowUp.of(o.getString("followUp")),
+                followUpAsked = o.optBoolean("followUpAsked", false),
+                lat = if (o.isNull("lat")) null else o.getDouble("lat"),
+                lon = if (o.isNull("lon")) null else o.getDouble("lon"),
+                weaponId = if (o.isNull("weaponId")) null else o.getString("weaponId"),
+                placeName = o.optString("placeName", ""),
+                speciesOther = o.optString("speciesOther", ""),
+                ranM = if (o.isNull("ranM")) null else o.getInt("ranM"),
+                clockPos = if (o.isNull("clockPos")) null else o.getInt("clockPos"),
+                created = o.optLong("created", ts),
+                fellingSuccess = o.optBoolean("fellingSuccess", true),
+            )
+        }
     }
 }
 
@@ -350,16 +359,18 @@ data class Team(
     val name: String,
     val memberCount: Int = 1,
     var sortOrder: Int = 0,
+    val hasLeader: Boolean = true,   // false -> «Velg leder» (musingsUI runde 6)
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("name", name); put("memberCount", memberCount)
-        put("sortOrder", sortOrder)
+        put("sortOrder", sortOrder); put("hasLeader", hasLeader)
     }
     companion object {
         fun fromJson(o: JSONObject) = Team(
             id = o.getString("id"), name = o.getString("name"),
             memberCount = o.optInt("memberCount", 1),
             sortOrder = o.optInt("sortOrder", 0),
+            hasLeader = o.optBoolean("hasLeader", true),
         )
     }
 }

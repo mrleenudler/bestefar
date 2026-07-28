@@ -22,7 +22,7 @@ class VennerActivity : AppCompatActivity() {
     private lateinit var store: Store
     private lateinit var content: LinearLayout
     private val collapsedTeams = mutableSetOf<String>()
-    private var shareCollapsed = true
+    private var shareCollapsed = false   // åpen som default (musingsUI runde 6)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,12 +48,16 @@ class VennerActivity : AppCompatActivity() {
         content.addView(CheckBox(this).apply {
             text = getString(R.string.profile_findable)
             isChecked = store.findable
-            setOnCheckedChangeListener { _, on -> store.findable = on }
+            // Rebuild slik at varselet oppdateres forutsigbart (musingsUI runde 6)
+            setOnCheckedChangeListener { _, on -> store.findable = on; rebuild() }
         })
+        if (!store.findable) content.addView(Ui.hint(this,
+            getString(R.string.findable_off_msg)))
 
         val greyed = !active
-        val teams = store.teams().sortedWith(compareBy({ it.sortOrder }, { -it.memberCount }))
+        val teams = store.teams().sortedBy { it.sortOrder }
         val friends = store.friends()
+        val myTeamIds = teams.map { it.id }.toSet()
 
         teams.forEach { team ->
             val row = Ui.row(this)
@@ -85,18 +89,20 @@ class VennerActivity : AppCompatActivity() {
             content.addView(row)
 
             if (team.id !in collapsedTeams) {
+                // Egen bruker vises også i laget (musingsUI runde 6)
+                content.addView(selfInTeamButton(greyed))
+                // Venner i flere lag føres opp under hvert (samme runde)
                 friends.filter { team.id in it.teamIds }.sortedBy { it.shownName.lowercase() }
                     .forEach { addFriendButton(it, indent = true, greyed = greyed) }
             }
         }
-        friends.filter { f -> teams.none { it.id in f.teamIds } }
+        // Kun venner du IKKE deler lag med, vises utenfor lagene (runde 6)
+        friends.filter { f -> f.teamIds.none { it in myTeamIds } }
             .sortedBy { it.shownName.lowercase() }
             .forEach { addFriendButton(it, indent = false, greyed = greyed) }
 
         if (friends.isEmpty() && teams.isEmpty())
             content.addView(Ui.hint(this, getString(R.string.friends_empty)))
-        if (!store.findable)
-            content.addView(Ui.hint(this, getString(R.string.friends_not_findable)))
 
         sharingSection()
     }
@@ -117,22 +123,36 @@ class VennerActivity : AppCompatActivity() {
         })
     }
 
+    private fun selfInTeamButton(greyed: Boolean) = MaterialButton(this, null,
+        com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+        text = store.nickname.ifBlank { getString(R.string.team_you) } +
+            " ${getString(R.string.team_you)}"
+        alpha = if (greyed) 0.4f else 1f
+        layoutParams = Ui.matchWrap(2, this@VennerActivity).apply {
+            marginStart = Ui.dp(this@VennerActivity, 24)
+        }
+    }
+
     private fun moveTeamPopup(team: Team) {
+        // «Avbryt» til høyre (positiv knapp) — musingsUI runde 6
         AlertDialog.Builder(this)
-            .setItems(arrayOf(getString(R.string.move_up), getString(R.string.move_down),
-                getString(R.string.cancel))) { _, which ->
-                when (which) { 0 -> moveTeam(team, -1); 1 -> moveTeam(team, +1) }
+            .setItems(arrayOf(getString(R.string.move_up), getString(R.string.move_down))) {
+                _, which -> if (which == 0) moveTeam(team, -1) else moveTeam(team, +1)
             }
+            .setPositiveButton(R.string.cancel, null)
             .show()
     }
 
     private fun moveTeam(team: Team, dir: Int) {
+        // Normaliser sortOrder til indeks foerst, slik at bytte faktisk endrer
+        // rekkefoelgen (musingsUI runde 6-bug: like sortOrder ga ingen effekt).
         val list = store.teams().sortedBy { it.sortOrder }.toMutableList()
+        list.forEachIndexed { i, t -> t.sortOrder = i }
         val idx = list.indexOfFirst { it.id == team.id }
         val j = idx + dir
         if (idx < 0 || j < 0 || j >= list.size) return
-        val a = list[idx]; val b = list[j]
-        val tmp = a.sortOrder; a.sortOrder = b.sortOrder; b.sortOrder = tmp
+        val tmp = list[idx].sortOrder; list[idx].sortOrder = list[j].sortOrder
+        list[j].sortOrder = tmp
         store.saveTeams(list); rebuild()
     }
 
@@ -250,7 +270,10 @@ class VennerActivity : AppCompatActivity() {
         })
         head.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = if (shareCollapsed) "⬇" else "⇦"
+            // Kraftigere piler (musingsUI runde 6)
+            text = if (shareCollapsed) "▼" else "◀"
+            textSize = 22f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
             setOnClickListener { shareCollapsed = !shareCollapsed; rebuild() }
         })
         content.addView(head)

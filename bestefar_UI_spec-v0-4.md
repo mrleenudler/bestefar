@@ -218,3 +218,27 @@ Overstyrer eldre beskrivelser ved konflikt.
   «<=»-kollaps; delings-etiketter oppdatert; «Lagre» går til hovedsiden.
 - **Oppstart:** fullskjerm-overlegg som dekker Scan-knappen; menylinje 5 % ned.
 - **Optikk/ammo/kalkulator:** forblir fjernet (runde 4).
+
+## 14. Endringslogg v0.8 (musingsUI runde 6)
+
+- **Hovedskjerm:** kun antall øvelsesskudd + Scan-knapp (all annen clutter fjernet).
+- **Samtykke:** jaktmål og forskning aldri på samme serie (jaktmål først,
+  forskning tidligst 2 serier senere); ny forskningstekst; radioknapp-fiks.
+- **Innsikt:** (i) på tittellinjen (fet grønn/rød, tema-tintet ikon); stilling- og
+  vilt-valg som ikoner med ramme; viltnavn i default farge, tall grønn/rød; mørk-
+  modus-farger; layout JJJJ / VT-rader + hold-kolonne / DDD; like store knapper.
+- **Poeng-visning:** «Poeng:»-etikett; «… med anlegg/reim»; «Mitt gjennomsnitt for
+  denne stillingen» uten KI; skiveringer korrigert (6 hvite + 5 sorte).
+- **Profil:** «+ legg til nytt lag» som knapp; jaktmål over to linjer m/«Endre»;
+  jaktlag-klikk åpner laget (TeamPage).
+- **Jaktlag (TeamPage):** navn, Inviter medlemmer, medlemsliste (m/egen bruker),
+  Rediger lag / Velg leder, Lukk — front-end-skjelett (avstemning/push = backend).
+- **Jakt:** Tilbake går til hovedsiden.
+- **Melding til utvikler:** subject/body i mailto-URIen.
+- **Venner:** egen bruker i lag; venner i flere lag under hvert; flytt opp/ned
+  fikset (Avbryt t.h.); delings-piler kraftigere + åpen som default; findable-
+  varsel stabilt m/ny tekst.
+- **Logg jaktskudd:** «Felling var vellykket»-checkbox + bekreftelse; «dyret løp»
+  godtar 0 m (ikke sifre etter enslig 0); toast-tekst justert.
+- **Se registrerte skudd:** tilbake → lista; store faste piler; nyeste samme-dag
+  øverst; Rediger endrer alt; mørk-modus-silhuetter; flervalg «Slett alle» + popup.

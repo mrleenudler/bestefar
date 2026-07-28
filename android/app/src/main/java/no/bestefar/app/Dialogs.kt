@@ -42,16 +42,22 @@ object Dialogs {
             text = a.getString(R.string.jaktmaal_intro)
             textSize = 15f
         })
+        // Egne id-er kreves for at RadioGroup skal deaktivere forrige valg
+        // (musingsUI runde 6-bug: uten id fikk vi flere valgte samtidig).
         val group = android.widget.RadioGroup(a)
+        var checkId = -1
         JAKTMAAL_RATES.forEach { (rate, label) ->
-            group.addView(android.widget.RadioButton(a).apply {
+            val rb = android.widget.RadioButton(a).apply {
+                id = android.view.View.generateViewId()
                 text = a.getString(R.string.jaktmaal_option, label)
                 textSize = 17f
-                isChecked = store.rateChosen &&
-                    kotlin.math.abs(store.rateLimit - rate) < rate * 0.1
                 setOnClickListener { store.rateLimit = rate; store.rateChosen = true }
-            })
+            }
+            group.addView(rb)
+            if (store.rateChosen && kotlin.math.abs(store.rateLimit - rate) < rate * 0.1)
+                checkId = rb.id
         }
+        if (checkId != -1) group.check(checkId)
         root.addView(group)
         // «Hvorfor er noen tall røde?» er flyttet til (i) i Min profil (runde 5)
         AlertDialog.Builder(a)
@@ -174,8 +180,10 @@ object Dialogs {
      * serier, deretter hver tiende ved «Ikke nå». 18-årsgrense (spec §7).
      */
     fun maybeResearchConsent(a: Activity, store: Store, onDone: () -> Unit = {}) {
-        val n = store.allSeries().size
-        val due = when (store.consentResearch) {
+        val n = store.currentSeasonSeries().size
+        // Aldri samme serie som jaktmål; tidligst 2 serier etter (musingsUI r6)
+        val afterJaktmaal = !store.jaktmaalPromptSeen || n >= store.jaktmaalPromptCount + 2
+        val due = afterJaktmaal && when (store.consentResearch) {
             "" -> n >= 5
             "senere" -> n - store.consentLastPromptCount >= 10
             else -> false
