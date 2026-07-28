@@ -356,14 +356,14 @@ class ResultActivity : AppCompatActivity() {
 
     private fun saveAndFinish() {
         val r = record ?: return finish()
-        // Varsel om identisk serie (musingsUI runde 4)
-        val dup = store.allSeries().firstOrNull { isIdentical(it, r) }
-        if (dup != null && !saved) {
+        // Varsel kun mot FORRIGE serie (musingsUI runde 5)
+        val prev = store.allSeries().filter { it.id != r.id }.maxByOrNull { it.ts }
+        if (prev != null && !saved && isIdentical(prev, r)) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.dup_title)
                 .setMessage(R.string.dup_body)
                 .setPositiveButton(R.string.save) { _, _ -> commitAndFinish() }
-                .setNegativeButton(R.string.dont_save) { _, _ -> finish() }
+                .setNegativeButton(R.string.cancel) { _, _ -> finish() }
                 .show()
         } else {
             commitAndFinish()

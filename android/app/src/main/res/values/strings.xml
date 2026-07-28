@@ -214,7 +214,7 @@
     <string name="hunt_pos_manual">Fyll inn selv</string>
     <string name="hunt_pos_skip">Hopp over</string>
     <string name="hunt_distance">Avstand</string>
-    <string name="hunt_edit_hint">Informasjonen kan redigeres senere i menyen</string>
+    <string name="hunt_edit_hint">Informasjonen kan redigeres senere</string>
     <string name="hunt_ran">Dyret løp</string>
     <string name="hunt_ettersok">Ettersøk</string>
     <string name="hunt_bom">Bomskudd</string>
@@ -232,7 +232,7 @@
     <string name="startup_title">Velkommen</string>
     <string name="startup_info">Bestefar kan scanne resultatene for øvelsesskyting, og hjelper deg med å finne trygt skuddhold på jakt.\n\nDenne appen er i en prøveversjon. Hvis du oppdager problemer, hvis du savner noe, eller hvis ting virker på en irriterende måte, vær så snill å sende oss en melding gjennom meldingstjenesten i menyen.</string>
     <string name="startup_donate">Vi trenger hjelp til å forbedre appen fra dere. Vil du dele bilder der appen gjør en dårlig jobb?</string>
-    <string name="menu_send_message">Send melding</string>
+    <string name="menu_send_message">Melding til utvikler</string>
     <string name="message_title_hint">Tittel</string>
     <string name="message_body_hint">Hva vil du fortelle oss?</string>
     <string name="message_no_email_app">Fant ingen e-postapp. Meldingen kan sendes til mrleenudler@gmail.com.</string>
@@ -254,9 +254,9 @@
     <string name="share_posisjon">Posisjon</string>
     <string name="share_skuddsituasjon">Skuddsituasjon</string>
     <string name="friend_share_name">Navn/kallenavn</string>
-    <string name="friend_share_shots">Antall øvelsesskudd (totalt og pr. sesong)</string>
-    <string name="friend_share_score">Gjennomsnittlig score (denne/forrige sesong)</string>
-    <string name="friend_share_trend">Utvikling i gjennomsnitt</string>
+    <string name="friend_share_shots">Antall øvelsesskudd (anbefalt)</string>
+    <string name="friend_share_score">Gjennomsnittlig score</string>
+    <string name="friend_share_trend">Min utvikling</string>
     <string name="friend_share_kills">Fellinger (vilttype, kommune)</string>
 
     <string name="menu_friends">Venner</string>
@@ -305,8 +305,8 @@
     <string name="ocr_save_screen">Lagre med poengene på skjermen</string>
 
     <!-- Identiske serier -->
-    <string name="dup_title">Lik en tidligere serie</string>
-    <string name="dup_body">Denne serien ser identisk ut med en du allerede har lagret. Lagre likevel?</string>
+    <string name="dup_title">Lik forrige serie</string>
+    <string name="dup_body">Denne serien er helt lik forrige serie. Vil du lagre likevel?</string>
 
     <!-- Innskyting -->
     <string name="sightin_title">Er våpenet innskutt?</string>
@@ -355,9 +355,10 @@
     <!-- Jakt (runde 4) -->
     <string name="hunt_view_registered">Se registrerte skudd</string>
     <string name="hunt_share_research">Del med forskning</string>
-    <string name="hunt_choose_pos">Velg dyrets posisjon</string>
-    <string name="hunt_missing_pos">Velg dyrets posisjon.</string>
-    <string name="hunt_missing_species_distance">Fyll inn både vilt og avstand.</string>
+    <string name="hunt_hold">Skuddhold</string>
+    <string name="hunt_missing_ran">Skriv inn hvor omtrent langt dyret løp.</string>
+    <string name="hunt_missing_other">Skriv inn hvilket vilt.</string>
+    <string name="hunt_missing_species_distance">Fyll inn både vilt og skuddhold.</string>
 
     <!-- Serier (runde 4) -->
     <string name="serier_season">Denne sesongen</string>
@@ -372,10 +373,51 @@
     <string name="friends_need_share_view">Du må dele visningsnavn for å se vennene dine</string>
     <string name="friends_dont_share">Ikke del</string>
     <string name="friend_share_phone">Telefonnummer</string>
-    <string name="friend_share_teams">Jaktlag og skytterlag</string>
-    <string name="friend_share_kommune">Hjemkommune</string>
+    <string name="friend_share_teams">Mine jaktlag og skytterlag</string>
+    <string name="friend_share_kommune">Min hjemkommune</string>
 
     <!-- Innsikt (runde 4) -->
     <string name="innsikt_preview">Her ser du hvilke hold og stillinger som er forsvarlige for deg — brutt ned på stilling, hold og hjelpemidler. Skyt noen serier, så fylles oversikten med dine egne tall.</string>
     <string name="stats_none">Ingen data denne sesongen.</string>
+
+    <!-- ============ Runde 5 ============ -->
+    <string name="back">Tilbake</string>
+    <string name="edit">Rediger</string>
+    <string name="move">Flytt</string>
+    <string name="move_up">Flytt opp</string>
+    <string name="move_down">Flytt ned</string>
+
+    <string name="theme_choose">Velg visningsprofil</string>
+
+    <!-- Profil -->
+    <string name="profile_teams_title">Mine jaktlag og skytterlag</string>
+    <string name="profile_add_more">+ legg til …</string>
+    <string name="jaktmaal_prefix">Mindre enn</string>
+    <string name="jaktmaal_suffix">er skade- eller bomskudd</string>
+
+    <!-- Lag -->
+    <string name="team_create_plain">Opprett nytt lag</string>
+    <string name="team_edit">Rediger lag</string>
+    <string name="team_mine">Mine lag</string>
+    <string name="team_none">Ingen lag ennå.</string>
+    <string name="team_backend_wait">Venter på backend-implementering.</string>
+    <string name="team_deleted">Lag slettet</string>
+    <string name="team_leave">Forlat laget</string>
+    <string name="team_dissolve">Oppløs laget for alle</string>
+    <string name="team_transfer">Overfør lederskap og forlat</string>
+    <string name="team_no_members">Ingen medlemmer å vise ennå.</string>
+
+    <!-- Avanserte innstillinger / utvikler -->
+    <string name="left_handed">Venstrehåndsmodus</string>
+    <string name="left_handed_hint">Speiler grensesnittet horisontalt for venstrehendte.</string>
+    <string name="dev_menu">Utvikler</string>
+    <string name="dev_generate">Generer serie</string>
+    <string name="dev_dummy_scan">Dummy scan</string>
+    <string name="dev_always_startup">Vis oppstartsmelding hver gang</string>
+
+    <!-- Innsikt-matrise (runde 5) -->
+    <string name="innsikt_recommend">Anbefalte skuddhold og posisjoner:</string>
+    <string name="innsikt_train_pos">øv på\nstillingen</string>
+    <string name="innsikt_info_title">Min innsikt</string>
+    <string name="innsikt_info_body">Her kan du utforske hva som er trygge hold og stillinger for ditt jaktmål.\n\nGrønn tekst betyr at du i denne situasjonen har nådd jaktmålet ditt, mens rød tekst betyr at det i denne situasjonen ikke er trygt for deg å skyte.\n\nHusk at de fleste skadeskudd skjer på dyr i bevegelse. Appen kan ikke fortelle deg hva som er trygt når dyr beveger seg, for det varierer fra situasjon til situasjon.</string>
 </resources>

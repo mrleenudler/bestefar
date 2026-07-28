@@ -193,3 +193,28 @@ Lys brunfarge erstatter Material3-lilla; egen dag/natt-palett.
 Oppstartsmelding (vindu 1 velkomst, vindu 2 bildedeling), vist første gang / ved
 `STARTUP_MSG_VERSION`-bump. Tutorial = «Hvordan bruke appen» (Velkommen · Scan serie ·
 Velg skytestilling · Innsikt), med «Avbryt»-knapp.
+
+## 13. Endringslogg v0.7 (musingsUI runde 5)
+
+Overstyrer eldre beskrivelser ved konflikt.
+
+- **Innsikt** er nå en **matrise**: fem vilttyper (rader) rammet av jeger-stilling
+  (topp), dyr-vinkling (bunn) og skuddhold (høyre kolonne). Silhuett skalerer med
+  hold; frekvenstekst grønn = jaktmål nådd, rød = ikke, grå «øv på stillingen» der
+  stilling mangler data. (i) forklarer fargene. Nytt klikk på Innsikt lukker den.
+- **Meny:** «Melding til utvikler» (tittel = Subject); klikk utenfor lukker menyen.
+- **Profil:** visningsnavn tillater latinske tegn (æøå); tema default lys, veksler
+  «Velg visningsprofil», knapp viser gjeldende modus; «Mine jaktlag og skytterlag»
+  liste; «Mitt jaktmål» tall bold+større + (i); «Avanserte innstillinger» egen
+  knapp → undermeny (våpen, flytt, slett, venstrehåndsmodus, Utvikler-meny med
+  Generer serie / Dummy scan / Vis oppstartsmelding hver gang).
+- **Lag:** fullsides meny (Mine lag som innrykkede knapper, Rediger lag).
+- **Jakt:** «Tilbake»-knapp; «Logg jaktskudd» ikke uthevet.
+- **Logg jaktskudd:** «Skuddhold» (ikke Avstand), «Annet» krever tekst, ingen
+  ledende 0, toaster avbryter hverandre, Bomskudd/«ikke funnet» krever ikke tall.
+- **Se registrerte skudd:** klikk-og-hold flervalg-sletting, store piler,
+  Rediger, fast OK-plassering.
+- **Venner:** lag som innrykkede knapper → lagside med medlemmer; opp/ned-popup +
+  «<=»-kollaps; delings-etiketter oppdatert; «Lagre» går til hovedsiden.
+- **Oppstart:** fullskjerm-overlegg som dekker Scan-knappen; menylinje 5 % ned.
+- **Optikk/ammo/kalkulator:** forblir fjernet (runde 4).

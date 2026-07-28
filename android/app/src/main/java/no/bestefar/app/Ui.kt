@@ -115,16 +115,46 @@ object Ui {
     const val NAME_MAX = 24
 
     /**
-     * Filter for visningsnavn: begrens lengde og til utskrivbar ASCII, så
-     * navn deles trygt mellom brukere (musingsUI runde 4).
+     * Filter for visningsnavn (musingsUI runde 5): tillat vanlige latinske
+     * tegn (inkl. æ ø å og aksenter), tall, mellomrom og enkel tegnsetting —
+     * ikke bare ASCII. Begrens lengde.
      */
     fun nameFilters(): Array<android.text.InputFilter> = arrayOf(
         android.text.InputFilter.LengthFilter(NAME_MAX),
         android.text.InputFilter { src, s, e, _, _, _ ->
             val sb = StringBuilder()
-            for (i in s until e) { val c = src[i]; if (c.code in 32..126) sb.append(c) }
-            if (sb.length == e - s) null else sb
+            for (i in s until e) {
+                val c = src[i]
+                if ((c.isLetterOrDigit() && isLatin(c)) || c == ' ' || c in "-_.'") sb.append(c)
+            }
+            if (sb.length == e - s) null else sb   // null = uendret; ellers filtrert
         })
+
+    private fun isLatin(c: Char): Boolean = when (Character.UnicodeBlock.of(c)) {
+        Character.UnicodeBlock.BASIC_LATIN,
+        Character.UnicodeBlock.LATIN_1_SUPPLEMENT,
+        Character.UnicodeBlock.LATIN_EXTENDED_A,
+        Character.UnicodeBlock.LATIN_EXTENDED_B -> true
+        else -> false
+    }
+
+    /**
+     * Global toast (musingsUI runde 5): ny toast avbryter forrige, så en kø av
+     * toasts ikke blokkerer appen.
+     */
+    private var activeToast: android.widget.Toast? = null
+    fun toast(c: Context, resId: Int) = toast(c, c.getString(resId))
+    fun toast(c: Context, msg: String) {
+        activeToast?.cancel()
+        activeToast = android.widget.Toast.makeText(
+            c.applicationContext, msg, android.widget.Toast.LENGTH_SHORT).also { it.show() }
+    }
+
+    /** Ikke tillat 0 som første siffer (musingsUI runde 5). */
+    fun noLeadingZero(): android.text.InputFilter =
+        android.text.InputFilter { source, s, e, _, dstart, _ ->
+            if (dstart == 0 && e > s && source[s] == '0') "" else null
+        }
 
     /** Tekstboks med synlig ramme (kraftigere visuelt hint enn linje). */
     fun boxed(e: android.widget.EditText, c: Context) {

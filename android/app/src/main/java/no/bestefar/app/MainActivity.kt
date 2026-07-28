@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
         const val TAB_MENY = 2
         /** Bump ved endring av oppstartsmeldingen (vises da på nytt). */
         const val STARTUP_MSG_VERSION = 1
+        /** Sett av f.eks. Venner-«Lagre» for å gå til hovedsiden, ikke menyen. */
+        @JvmField var returnToHome = false
     }
 
     private val tabIcons = listOf(
@@ -103,7 +105,10 @@ class MainActivity : AppCompatActivity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 56))
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 56)).apply {
+                // Flytt øverste menylinje 5 % ned (musingsUI runde 5)
+                topMargin = (resources.displayMetrics.heightPixels * 0.05).toInt()
+            }
         }
         val landscape =
             resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -147,6 +152,8 @@ class MainActivity : AppCompatActivity() {
 
     fun select(i: Int) {
         if (i == TAB_INNSIKT) {
+            // Nytt klikk på Innsikt lukker den og går hjem (musingsUI runde 5)
+            if (innsiktOpen) { showHome(); return }
             closeDropdown()
             innsiktOpen = true
             supportFragmentManager.beginTransaction()
@@ -191,8 +198,8 @@ class MainActivity : AppCompatActivity() {
             if (card.height > maxH) { lp.height = maxH; card.layoutParams = lp }
         }
         dropdownWrap.visibility = View.VISIBLE
-        // Kun avstandsmenyen lukkes ved klikk utenfor (musingsUI)
-        scrim.visibility = if (i == TAB_AVSTAND) View.VISIBLE else View.GONE
+        // Klikk utenfor lukker menyen (både avstand og meny, musingsUI runde 5)
+        scrim.visibility = View.VISIBLE
         openPanel = i
         tintTabs()
     }
@@ -231,36 +238,72 @@ class MainActivity : AppCompatActivity() {
     // ---------- Oppstartsmelding (musingsUI runde 4) ----------
 
     private fun maybeStartupMessage() {
-        if (store.startupMsgSeenVersion >= STARTUP_MSG_VERSION) {
+        if (store.startupMsgSeenVersion >= STARTUP_MSG_VERSION && !store.alwaysShowStartup) {
             if (!store.tutorialSeen) root.post { showTutorial() }
             return
         }
-        // Vindu 1: velkomst / prøveversjon (to avsnitt)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.startup_title)
-            .setMessage(R.string.startup_info)
-            .setPositiveButton(R.string.ok) { _, _ -> startupWindow2() }
-            .setCancelable(false)
-            .show()
+        root.post { startupWindow1() }
+    }
+
+    /**
+     * Oppstartsvinduer som fullskjerm-overlegg (musingsUI runde 5): dekker
+     * scan-knappen bak, med luft mellom setningene og ned til valgene.
+     */
+    private fun startupWindow1() {
+        val body = getString(R.string.startup_info)
+        overlayMessage(getString(R.string.startup_title), body,
+            positive = getString(R.string.ok), onPositive = { startupWindow2() })
     }
 
     private fun startupWindow2() {
-        // Vindu 2: deling av bilder der appen gjør en dårlig jobb
-        AlertDialog.Builder(this)
-            .setMessage(R.string.startup_donate)
-            .setPositiveButton(R.string.donate_accept) { _, _ ->
-                store.shareDevImages = "ja"; finishStartup()
-            }
-            .setNegativeButton(R.string.no_thanks) { _, _ ->
-                store.shareDevImages = "nei"; finishStartup()
-            }
-            .setCancelable(false)
-            .show()
+        overlayMessage(null, getString(R.string.startup_donate),
+            positive = getString(R.string.donate_accept),
+            negative = getString(R.string.no_thanks),
+            onPositive = { store.shareDevImages = "ja"; finishStartup() },
+            onNegative = { store.shareDevImages = "nei"; finishStartup() })
     }
 
     private fun finishStartup() {
         store.startupMsgSeenVersion = STARTUP_MSG_VERSION
         if (!store.tutorialSeen) showTutorial()
+    }
+
+    private fun overlayMessage(title: String?, body: String, positive: String,
+                               negative: String? = null,
+                               onPositive: () -> Unit, onNegative: () -> Unit = {}) {
+        val overlay = FrameLayout(this).apply {
+            // Nesten ugjennomsiktig flate så knappen bak er dekket
+            setBackgroundColor(Ui.themeColor(this@MainActivity, android.R.attr.colorBackground))
+            isClickable = true
+        }
+        val col = Ui.col(this, 28)
+        if (title != null) col.addView(TextView(this).apply {
+            text = title; textSize = 24f
+            setPadding(0, 0, 0, Ui.dp(this@MainActivity, 16))
+        })
+        col.addView(TextView(this).apply { text = body; textSize = 16f })
+        // Stort mellomrom ned til valgene (dekker scan-knappen)
+        col.addView(Space(this), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 120)))
+        val btnRow = Ui.row(this)
+        if (negative != null) {
+            btnRow.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                text = negative
+                setOnClickListener { root.removeView(overlay); onNegative() }
+            })
+        }
+        btnRow.addView(Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+        btnRow.addView(MaterialButton(this).apply {
+            text = positive
+            setOnClickListener { root.removeView(overlay); onPositive() }
+        })
+        col.addView(btnRow, Ui.matchWrap(8, this))
+        overlay.addView(col, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER))
+        root.addView(overlay, ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
     }
 
     // ---------- Tutorial / «Hvordan bruke appen» ----------
@@ -319,7 +362,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (reopenMenyOnResume) { reopenMenyOnResume = false; openDropdown(TAB_MENY) }
+        if (returnToHome) {
+            // F.eks. Venner-«Lagre»: gå til hovedsiden, ikke menyen (runde 5)
+            returnToHome = false; reopenMenyOnResume = false; showHome()
+        } else if (reopenMenyOnResume) {
+            reopenMenyOnResume = false; openDropdown(TAB_MENY)
+        }
         maybeAskFollowUp()
     }
 

@@ -53,15 +53,7 @@ object Dialogs {
             })
         }
         root.addView(group)
-        root.addView(MaterialButton(a, null,
-            com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = a.getString(R.string.jaktmaal_why)
-            setOnClickListener {
-                AlertDialog.Builder(a)
-                    .setMessage(R.string.jaktmaal_info)
-                    .setPositiveButton(R.string.ok, null).show()
-            }
-        })
+        // «Hvorfor er noen tall røde?» er flyttet til (i) i Min profil (runde 5)
         AlertDialog.Builder(a)
             .setTitle(R.string.jaktmaal_title)
             .setView(androidx.core.widget.NestedScrollView(a).apply { addView(root) })

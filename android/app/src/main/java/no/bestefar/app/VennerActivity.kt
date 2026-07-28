@@ -5,23 +5,24 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 
 /**
- * Venner (musingsUI runde 4). FRONT-END-SKJELETT — ekte venne-/lagdata og
- * -deling krever konto + backend (se backend_spec.md). Bygget her: legg-til-
- * flyt, delingsvalg (visningsnavn perma-delt), lag med venner gruppert under,
- * og gråing av lista når deling er deaktivert.
+ * Venner (musingsUI runde 5). FRONT-END-SKJELETT (backend_spec.md). Lag som
+ * innrykkede knapper med flytt- (opp/ned) og kollaps-pil; klikk på lag åpner
+ * medlemssiden. Egne delingsvalg kan kollapses. «Lagre» går til hovedsiden.
  */
 class VennerActivity : AppCompatActivity() {
 
     private lateinit var store: Store
     private lateinit var content: LinearLayout
+    private val collapsedTeams = mutableSetOf<String>()
+    private var shareCollapsed = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,43 +51,54 @@ class VennerActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, on -> store.findable = on }
         })
 
-        // Lag med tilhørende venner, deretter øvrige venner (musingsUI runde 4)
-        val teams = store.teams().sortedWith(
-            compareBy({ it.sortOrder }, { -it.memberCount }))
-        val friends = store.friends()
         val greyed = !active
+        val teams = store.teams().sortedWith(compareBy({ it.sortOrder }, { -it.memberCount }))
+        val friends = store.friends()
 
-        teams.forEachIndexed { i, team ->
+        teams.forEach { team ->
             val row = Ui.row(this)
-            row.addView(TextView(this).apply {
-                text = "▸ ${team.name}"; textSize = 17f; alpha = if (greyed) 0.4f else 1f
+            row.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = "▸ ${team.name}"
+                alpha = if (greyed) 0.4f else 1f
                 layoutParams = LinearLayout.LayoutParams(0,
                     ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                setOnClickListener { if (!greyed) teamPage(team) }
             })
-            // Flytt opp/ned (musingsUI runde 4)
+            // «<=» kollaps-pil, nest lengst til høyre (musingsUI runde 5)
             row.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                text = "▲"; setOnClickListener { moveTeam(team, -1) }
+                text = if (team.id in collapsedTeams) "⇦" else "⇨"
+                setOnClickListener {
+                    if (team.id in collapsedTeams) collapsedTeams.remove(team.id)
+                    else collapsedTeams.add(team.id)
+                    rebuild()
+                }
             })
-            row.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                text = "▼"; setOnClickListener { moveTeam(team, +1) }
+            // Opp/ned-ikon lengst til høyre -> popup med flytt opp/ned/avbryt
+            row.addView(ImageButton(this).apply {
+                setImageResource(R.drawable.ic_up_down)
+                background = null
+                contentDescription = getString(R.string.move)
+                setOnClickListener { moveTeamPopup(team) }
             })
             content.addView(row)
-            friends.filter { team.id in it.teamIds }.sortedBy { it.shownName.lowercase() }
-                .forEach { addFriendButton(it, indent = true, greyed = greyed) }
+
+            if (team.id !in collapsedTeams) {
+                friends.filter { team.id in it.teamIds }.sortedBy { it.shownName.lowercase() }
+                    .forEach { addFriendButton(it, indent = true, greyed = greyed) }
+            }
         }
         friends.filter { f -> teams.none { it.id in f.teamIds } }
             .sortedBy { it.shownName.lowercase() }
             .forEach { addFriendButton(it, indent = false, greyed = greyed) }
 
-        if (friends.isEmpty()) content.addView(Ui.hint(this, getString(R.string.friends_empty)))
-        if (!store.findable) content.addView(Ui.hint(this,
-            getString(R.string.friends_not_findable)))
+        if (friends.isEmpty() && teams.isEmpty())
+            content.addView(Ui.hint(this, getString(R.string.friends_empty)))
+        if (!store.findable)
+            content.addView(Ui.hint(this, getString(R.string.friends_not_findable)))
 
-        // Egne delingsvalg (visningsnavn perma-checket) — musingsUI runde 4
-        content.addView(Ui.section(this, getString(R.string.research_i_share)))
-        sharingCheckboxes()
+        sharingSection()
     }
 
     private fun addFriendButton(f: Friend, indent: Boolean, greyed: Boolean) {
@@ -105,6 +117,15 @@ class VennerActivity : AppCompatActivity() {
         })
     }
 
+    private fun moveTeamPopup(team: Team) {
+        AlertDialog.Builder(this)
+            .setItems(arrayOf(getString(R.string.move_up), getString(R.string.move_down),
+                getString(R.string.cancel))) { _, which ->
+                when (which) { 0 -> moveTeam(team, -1); 1 -> moveTeam(team, +1) }
+            }
+            .show()
+    }
+
     private fun moveTeam(team: Team, dir: Int) {
         val list = store.teams().sortedBy { it.sortOrder }.toMutableList()
         val idx = list.indexOfFirst { it.id == team.id }
@@ -112,15 +133,33 @@ class VennerActivity : AppCompatActivity() {
         if (idx < 0 || j < 0 || j >= list.size) return
         val a = list[idx]; val b = list[j]
         val tmp = a.sortOrder; a.sortOrder = b.sortOrder; b.sortOrder = tmp
-        store.saveTeams(list)
-        rebuild()
+        store.saveTeams(list); rebuild()
+    }
+
+    /** Lagside: laget som overskrift, medlemmer som knapper (musingsUI runde 5). */
+    private fun teamPage(team: Team) {
+        content.removeAllViews()
+        content.addView(Ui.title(this, team.name))
+        val members = store.friends().filter { team.id in it.teamIds }
+        if (members.isEmpty()) content.addView(Ui.hint(this, getString(R.string.team_no_members)))
+        members.sortedBy { it.shownName.lowercase() }.forEach { f ->
+            content.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = f.shownName
+                layoutParams = Ui.matchWrap(2, this@VennerActivity)
+                setOnClickListener { friendDetail(f) }
+            })
+        }
+        content.addView(MaterialButton(this).apply {
+            text = getString(R.string.back)
+            layoutParams = Ui.matchWrap(16, this@VennerActivity)
+            setOnClickListener { rebuild() }
+        })
     }
 
     private fun onAddFriend() {
-        // Ingen info delt -> åpne delingsdialog med visningsnavn checket
         if (store.friendShare.isEmpty() || !active) {
-            Dialogs.friendSharingDialog(this, store) { rebuild() }
-            return
+            Dialogs.friendSharingDialog(this, store) { rebuild() }; return
         }
         if (store.nickname.isBlank()) { requireDisplayName { addFriendMethods() }; return }
         addFriendMethods()
@@ -128,8 +167,7 @@ class VennerActivity : AppCompatActivity() {
 
     private fun requireDisplayName(after: () -> Unit) {
         val input = EditText(this).apply {
-            hint = getString(R.string.profile_display_hint)
-            filters = Ui.nameFilters()
+            hint = getString(R.string.profile_display_hint); filters = Ui.nameFilters()
         }
         Ui.capitalize(input)
         AlertDialog.Builder(this)
@@ -150,21 +188,18 @@ class VennerActivity : AppCompatActivity() {
                 getString(R.string.friends_enter_id),
                 getString(R.string.friends_scan_qr),
                 getString(R.string.friends_show_qr))) { _, _ ->
-                Toast.makeText(this, R.string.friends_todo, Toast.LENGTH_LONG).show()
+                Ui.toast(this, R.string.friends_todo)
             }
             .show()
     }
 
     private fun requireSharingDialog(msgRes: Int) {
-        AlertDialog.Builder(this)
-            .setMessage(msgRes)
-            .setPositiveButton(R.string.ok, null)
-            .show()
+        AlertDialog.Builder(this).setMessage(msgRes)
+            .setPositiveButton(R.string.ok, null).show()
     }
 
     private fun friendDetail(f: Friend) {
         content.removeAllViews()
-        // Visningsnavn øverst med «endre visningsnavn»; original i parentes
         val header = Ui.row(this)
         val nameText = if (f.nickAlias.isNotBlank())
             "${f.nickAlias}  (${f.displayName})" else f.displayName
@@ -179,15 +214,12 @@ class VennerActivity : AppCompatActivity() {
             setOnClickListener { editAlias(f) }
         })
         content.addView(header)
-
         f.homeKommune?.let { content.addView(Ui.body(this, "Hjemkommune: $it")) }
         f.phone?.let { content.addView(Ui.body(this, "Telefon: $it  ☎  ✉")) }
         f.shotsTotal?.let { content.addView(Ui.body(this, "Øvelsesskudd totalt: $it")) }
-        f.shotsSeason?.let { content.addView(Ui.body(this, "Denne sesongen: $it")) }
         content.addView(Ui.hint(this, getString(R.string.friends_data_note)))
-
         content.addView(MaterialButton(this).apply {
-            text = getString(R.string.ok)
+            text = getString(R.string.back)
             layoutParams = Ui.matchWrap(16, this@VennerActivity)
             setOnClickListener { rebuild() }
         })
@@ -196,58 +228,68 @@ class VennerActivity : AppCompatActivity() {
     private fun editAlias(f: Friend) {
         val input = EditText(this).apply {
             hint = getString(R.string.friends_alias_hint)
-            filters = Ui.nameFilters()
-            setText(f.nickAlias)
+            filters = Ui.nameFilters(); setText(f.nickAlias)
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.friends_edit_alias)
             .setView(input)
             .setPositiveButton(R.string.save) { _, _ ->
                 f.nickAlias = input.text.toString().trim()
-                store.updateFriend(f)
-                friendDetail(f)
+                store.updateFriend(f); friendDetail(f)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun sharingCheckboxes() {
-        // Visningsnavn perma-checket; øvrige unchecked default (musingsUI r4)
+    private fun sharingSection() {
+        // «Jeg vil dele:» med «<=» kollaps (musingsUI runde 5)
+        val head = Ui.row(this)
+        head.addView(Ui.section(this, getString(R.string.research_i_share)).apply {
+            layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        head.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = if (shareCollapsed) "⬇" else "⇦"
+            setOnClickListener { shareCollapsed = !shareCollapsed; rebuild() }
+        })
+        content.addView(head)
+        if (shareCollapsed) return
+
         content.addView(CheckBox(this).apply {
             text = getString(R.string.friend_share_name); isChecked = true; isEnabled = false
         })
+        // Rekkefølge/etiketter per musingsUI runde 5; Telefon nederst
         val items = listOf(
             "Skudd" to R.string.friend_share_shots,
             "Score" to R.string.friend_share_score,
             "Utvikling" to R.string.friend_share_trend,
             "Fellinger" to R.string.friend_share_kills,
-            "Telefon" to R.string.friend_share_phone,
             "Lag" to R.string.friend_share_teams,
-            "Hjemkommune" to R.string.friend_share_kommune)
+            "Hjemkommune" to R.string.friend_share_kommune,
+            "Telefon" to R.string.friend_share_phone)
         val current = store.friendShare
         val boxes = items.map { (key, res) ->
             CheckBox(this).apply { setText(res); isChecked = key in current; tag = key }
         }
         boxes.forEach { content.addView(it) }
-        val save = MaterialButton(this).apply {
+        content.addView(MaterialButton(this).apply {
             text = getString(R.string.save)
             layoutParams = Ui.matchWrap(8, this@VennerActivity)
             setOnClickListener {
                 store.friendShare = boxes.filter { it.isChecked }
                     .map { it.tag as String }.toSet() + "Navn"
                 store.friendShareActive = true
-                rebuild()
+                // Lagre lukker menyen og går til hovedsiden (musingsUI runde 5)
+                MainActivity.returnToHome = true
+                finish()
             }
-        }
-        content.addView(save)
+        })
         content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
             text = getString(R.string.sharing_deactivate)
             setOnClickListener {
-                // Deaktiver: uncheck alle og lagre (musingsUI runde 4)
-                store.friendShare = emptySet()
-                store.friendShareActive = false
-                rebuild()
+                store.friendShare = emptySet(); store.friendShareActive = false; rebuild()
             }
         })
     }

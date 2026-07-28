@@ -18,8 +18,9 @@ Trengs for backup, venner og lag.
 - **Innlogging:** Google / Apple / e-post / telefonnummer (OAuth/OIDC + OTP for telefon).
 - **Bruker-ID:** intern UUID. **Pseudonym forsknings-ID** avledet separat (ikke
   reversibelt koblet i forskningslageret).
-- **Profil:** visningsnavn (≤ 24 tegn, utskrivbar ASCII — speiler klientens filter),
-  fødselsår (egenrapportert), hjemkommune (valgfri), findable-flagg.
+- **Profil:** visningsnavn (≤ 24 tegn, latinske bokstaver inkl. æ/ø/å + tall/
+  mellomrom/enkel tegnsetting — speiler klientens filter), fødselsår
+  (egenrapportert), hjemkommune (valgfri), findable-flagg.
 - **Endepunkter:** `POST /v1/auth/*`, `GET/PUT /v1/profile`.
 
 ## 2. Backup / dataoverføring (løser «mister loggen»)
@@ -88,3 +89,31 @@ Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
 - All PII kryptert i ro og i transitt. Forsknings-ID ikke reversibelt koblet til konto.
 - Sletting: `DELETE /v1/account` (lokalt + sletteanmodning via pseudonym-ID for
   forskningslageret).
+
+## 3.1 Bruker-ID og misbruksvern (musingsUI runde 5-spørsmål)
+Designsvar på eierens spørsmål om venne-ID og søk:
+- **Unik bruker-ID:** kort, håndskrivbar streng. Forslag: 8–10 tegn fra et
+  forvekslingssikkert alfabet (Crockford base32: utelater I/L/O/U), f.eks.
+  `BF-7Q4K-9F2M`. 9 base32-tegn ≈ 34 bit ≈ 68 mrd. ID-er — rikelig kapasitet for
+  internasjonal spredning, samtidig som den er lett å lese opp/skrive ned. Vises
+  også som QR (redirect-URL, jf. §4).
+- **Feiltastingsvern:** ID-en har innebygd sjekksiffer (siste tegn), så åpenbare
+  tastefeil avvises uten oppslag. Rommet er stort nok til at gjetting er
+  upraktisk (forventet ~10⁴ reelle brukere mot 10¹⁰ mulige ID-er).
+- **Søk etter bruker:** kun brukere med `findable=true` er søkbare.
+  - Telefonsøk: hard rate-limit per konto/enhet — 5 mislykkede telefonsøk på én
+    dag → karantene. Anbefaling: **1 dag** karantene ved første overtredelse,
+    eskalerende til 7 dager ved gjentakelse. (Balanserer bruksvennlighet mot
+    enumereringsangrep på telefonnumre, som er personsensitive.)
+  - ID-søk: lavere risiko (ID er ikke PII), men samme prinsipp med mildere terskel.
+  - **IP-heuristikk:** rate-limit også per IP/subnett for å stoppe automatiserte
+    søk fra én kilde; CAPTCHA ved terskel. Logg kun aggregert, ikke per-søk-PII.
+- **Personvern:** vennskap krever gjensidig aksept; ingen data deles før aksept.
+  Telefonnummer deles kun hvis brukeren selv har krysset det av.
+
+## 10. Direkte melding til utvikler (musingsUI runde 5)
+Eier ønsket å slippe å åpne e-postapp. Krever backend:
+- `POST /v1/feedback { subject, body, appVersion, deviceModel, userId? }` →
+  serveren videresender til utviklerens innboks (eller sak-system).
+- Klienten bruker foreløpig ACTION_SENDTO (mailto) med `subject` som e-post-Subject.
+  Bytt til endepunktet når backend finnes.

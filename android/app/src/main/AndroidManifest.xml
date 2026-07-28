@@ -32,6 +32,8 @@
         <activity android:name=".VennerActivity" android:exported="false" />
         <activity android:name=".JaktActivity" android:exported="false" />
         <activity android:name=".RegistrerteSkuddActivity" android:exported="false" />
+        <activity android:name=".LagActivity" android:exported="false" />
+        <activity android:name=".AvansertActivity" android:exported="false" />
         <!-- KalkulatorActivity fjernet i runde 4 (optikk-funksjonalitet
              kommentert ut for aa forenkle) -->
         <meta-data

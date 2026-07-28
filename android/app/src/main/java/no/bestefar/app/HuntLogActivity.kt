@@ -216,17 +216,20 @@ class HuntLogActivity : AppCompatActivity() {
                 text = getString(R.string.save)
                 setOnClickListener {
                     speciesOther = otherInput.text.toString().trim()
-                    if (species == null) {
-                        Toast.makeText(this@HuntLogActivity,
-                            R.string.hunt_missing_species, Toast.LENGTH_LONG).show()
-                    } else saveSimple()
+                    when {
+                        species == null ->
+                            Ui.toast(this@HuntLogActivity, R.string.hunt_missing_species)
+                        species == Species.ANNET && speciesOther.length < 2 ->
+                            Ui.toast(this@HuntLogActivity, R.string.hunt_missing_other)
+                        else -> saveSimple()
+                    }
                 }
             })
             content.addView(btnRow, Ui.matchWrap(16, this))
         } else {
             val distInput = EditText(this).apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
-                filters = arrayOf(InputFilter.LengthFilter(4))
+                filters = arrayOf(InputFilter.LengthFilter(4), Ui.noLeadingZero())
                 minWidth = Ui.dp(this@HuntLogActivity, 90)
                 setText(distanceM?.toString() ?: "")
             }
@@ -259,7 +262,7 @@ class HuntLogActivity : AppCompatActivity() {
 
             val distRow = Ui.row(this)
             distRow.addView(TextView(this).apply {
-                text = "${getString(R.string.hunt_distance)}: "; textSize = 17f
+                text = "${getString(R.string.hunt_hold)}: "; textSize = 17f
             })
             distRow.addView(distInput)
             distRow.addView(TextView(this).apply { text = " m"; textSize = 17f })
@@ -272,11 +275,13 @@ class HuntLogActivity : AppCompatActivity() {
                 setOnClickListener {
                     speciesOther = otherInput.text.toString().trim()
                     distanceM = distInput.text.toString().toIntOrNull()
-                    // Toast ber om både vilt og avstand (musingsUI runde 4)
-                    if (species == null || distanceM == null) {
-                        Toast.makeText(this@HuntLogActivity,
-                            R.string.hunt_missing_species_distance, Toast.LENGTH_LONG).show()
-                    } else page2()
+                    when {
+                        species == null || distanceM == null ->
+                            Ui.toast(this@HuntLogActivity, R.string.hunt_missing_species_distance)
+                        species == Species.ANNET && speciesOther.length < 2 ->
+                            Ui.toast(this@HuntLogActivity, R.string.hunt_missing_other)
+                        else -> page2()
+                    }
                 }
             })
             // «Informasjonen kan redigeres senere» UNDER Neste (musingsUI runde 4)
@@ -303,7 +308,7 @@ class HuntLogActivity : AppCompatActivity() {
             angle = Angle.SIDE, moving = false, outcome = Outcome.DOEDELIG,
             weaponId = store.selectedWeapon()?.id, speciesOther = speciesOther,
         ))
-        Toast.makeText(this, R.string.hunt_saved, Toast.LENGTH_SHORT).show()
+        Ui.toast(this, R.string.hunt_saved)
         finish()
     }
 
@@ -312,7 +317,6 @@ class HuntLogActivity : AppCompatActivity() {
     private fun page2() {
         val content = Ui.col(this)
 
-        content.addView(Ui.body(this, getString(R.string.hunt_choose_pos)))
         // Tre silhuetter av valgt vilt (hjort brukes på alle inntil videre)
         val silRow = Ui.row(this).apply { gravity = Gravity.CENTER }
         val sils = listOf(
@@ -347,7 +351,7 @@ class HuntLogActivity : AppCompatActivity() {
         })
         val ranInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(4))
+            filters = arrayOf(InputFilter.LengthFilter(4), Ui.noLeadingZero())
             minWidth = Ui.dp(this@HuntLogActivity, 80)
         }
         Ui.boxed(ranInput, this)
@@ -394,12 +398,12 @@ class HuntLogActivity : AppCompatActivity() {
             text = getString(R.string.hunt_register)
             setOnClickListener {
                 val ran = ranInput.text.toString().toIntOrNull()
-                when {
-                    posSel == null -> Toast.makeText(this@HuntLogActivity,
-                        R.string.hunt_missing_pos, Toast.LENGTH_LONG).show()
-                    ran == null && !ettersok && !bom -> Toast.makeText(this@HuntLogActivity,
-                        R.string.hunt_missing_outcome, Toast.LENGTH_LONG).show()
-                    else -> save(ran, ettersok, bom, notFoundBox.isChecked)
+                // Bom eller «ikke funnet» krever ikke tall (musingsUI runde 5)
+                val needRan = !bom && !notFoundBox.isChecked
+                if (needRan && ran == null) {
+                    Ui.toast(this@HuntLogActivity, R.string.hunt_missing_ran)
+                } else {
+                    save(ran, ettersok, bom, notFoundBox.isChecked)
                 }
             }
         })
@@ -430,7 +434,7 @@ class HuntLogActivity : AppCompatActivity() {
             placeName = placeName, speciesOther = speciesOther,
             ranM = ranM, clockPos = posSel,
         ))
-        Toast.makeText(this, R.string.hunt_saved, Toast.LENGTH_SHORT).show()
+        Ui.toast(this, R.string.hunt_saved)
         finish()
     }
 }

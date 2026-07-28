@@ -202,10 +202,20 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getInt("startupMsgSeenVersion", 0)
         set(v) { prefs.edit().putInt("startupMsgSeenVersion", v).apply() }
 
-    /** Tema: "system" | "light" | "dark" (musingsUI runde 4). */
+    /** Tema: "system" | "light" | "dark". Default lys (musingsUI runde 5). */
     var themeMode: String
-        get() = prefs.getString("themeMode", "system") ?: "system"
+        get() = prefs.getString("themeMode", "light") ?: "light"
         set(v) { prefs.edit().putString("themeMode", v).apply(); BestefarApp.applyTheme(v) }
+
+    /** Venstrehåndsmodus: speiler UI horisontalt (musingsUI runde 5). */
+    var leftHanded: Boolean
+        get() = prefs.getBoolean("leftHanded", false)
+        set(v) { prefs.edit().putBoolean("leftHanded", v).apply() }
+
+    /** Utvikler: vis oppstartsmelding hver gang (musingsUI runde 5). */
+    var alwaysShowStartup: Boolean
+        get() = prefs.getBoolean("alwaysShowStartup", false)
+        set(v) { prefs.edit().putBoolean("alwaysShowStartup", v).apply() }
 
     /** «Mitt jaktmål» tilbys etter tre serier (musingsUI runde 4). */
     var jaktmaalPromptSeen: Boolean
@@ -337,6 +347,13 @@ class Store private constructor(ctx: Context) {
     @Synchronized
     fun updateHunt(r: HuntRecord) {
         val list = allHunts().map { if (it.id == r.id) r else it }.toMutableList()
+        huntCache = list
+        writeHunts(list)
+    }
+
+    @Synchronized
+    fun deleteHunts(ids: Collection<String>) {
+        val list = allHunts().filter { it.id !in ids }.toMutableList()
         huntCache = list
         writeHunts(list)
     }

@@ -23,8 +23,15 @@ LAERDOMMER / FEIL SOM IKKE SKAL GJENTAS (oppdater fortloepende):
 - Toppbaren har naa KUN 3 ikoner (Avstand/Innsikt/Meny). Vaapen->Profil,
   Jakt->Meny, Stilling->kun prompt etter scan. Panels.build() haandterer bare
   avstand + meny; MainActivity.TAB_* konstanter.
-- Spec-filer: bestefar_UI_spec-v0-4.md (§12 endringslogg), backend_spec.md,
+- Spec-filer: bestefar_UI_spec-v0-4.md (§12/§13 endringslogg), backend_spec.md,
   til_utvikler_v##.md — oppdater/skriv disse ved store UI-runder.
+- Runde 5 (v0.7): Innsikt er en MATRISE (5 vilttyper x jeger-stilling/dyr-
+  vinkling/hold), silhuett skalerer med hold, tekst groenn/roed etter jaktmaal.
+  Ui.toast() avbryter forrige toast (fiks for toast-koe som blokkerte appen).
+  DevTools (flagg ENABLED) i Avanserte innstillinger: Generer serie / Dummy scan.
+  Nye fullsides-aktiviteter: LagActivity, AvansertActivity. Venner/Lag = skjelett.
+  Tema default LYS. MainActivity.returnToHome=true -> gaa til hovedsiden etter
+  Lagre (ikke reaapne meny).
 
 PROSJEKT: Bestefar
 Maalet: CV-pipeline for aa score bilder av Kongsberg elektronisk skyteskive (DFS 100m).

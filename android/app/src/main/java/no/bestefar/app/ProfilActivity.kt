@@ -1,26 +1,26 @@
 package no.bestefar.app
 
+import android.content.Intent
+import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
-import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import java.time.LocalDate
 
 /**
- * Min profil (musingsUI runde 4): visningsnavn, fødselsår (2–120 år), «Mitt
- * jaktmål», tema-veksler øverst til høyre, fortløpende lagring. Våpenkartotek,
- * flytt og sletting ligger under «Avanserte innstillinger». Deling mot venner
- * skjer i vennelisten, ikke her.
+ * Min profil (musingsUI runde 5): visningsnavn (latinske tegn), fødselsår
+ * (2–120), lag-liste, «Mitt jaktmål» (uthevet tall + (i)), tema-veksler øverst
+ * til høyre, fortløpende lagring. Avanserte innstillinger er egen knapp.
  */
 class ProfilActivity : AppCompatActivity() {
 
@@ -37,16 +37,23 @@ class ProfilActivity : AppCompatActivity() {
         rebuild()
     }
 
+    override fun onResume() { super.onResume(); rebuild() }
+
     private fun watcher(onText: (String) -> Unit) = object : TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun afterTextChanged(s: Editable?) = onText(s?.toString() ?: "")
     }
 
+    private fun themeLabel() = when (store.themeMode) {
+        "dark" -> getString(R.string.theme_dark)
+        "system" -> getString(R.string.theme_system)
+        else -> getString(R.string.theme_light)
+    }
+
     private fun rebuild() {
         content.removeAllViews()
 
-        // Tittel + tema-veksler øverst til høyre (musingsUI runde 4)
         val header = Ui.row(this)
         header.addView(Ui.title(this, getString(R.string.profile_title)).apply {
             layoutParams = LinearLayout.LayoutParams(0,
@@ -54,25 +61,27 @@ class ProfilActivity : AppCompatActivity() {
         })
         header.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = getString(R.string.theme_button)
+            text = themeLabel()   // viser gjeldende modus (musingsUI runde 5)
             setOnClickListener { themeDialog() }
         })
         content.addView(header)
 
-        // Visningsnavn
-        val nick = EditText(this).apply { hint = getString(R.string.profile_display_hint) }
+        val nick = EditText(this).apply {
+            hint = getString(R.string.profile_display_hint)
+            filters = Ui.nameFilters()
+        }
         Ui.capitalize(nick)
         nick.setText(store.nickname)
         nick.addTextChangedListener(watcher { store.nickname = it.trim() })
         content.addView(nick)
 
-        // Fødselsår (2–120 år)
         val birthRow = Ui.row(this)
         birthRow.addView(TextView(this).apply {
             text = getString(R.string.profile_birth_label); textSize = 16f
         })
         val birth = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(4), Ui.noLeadingZero())
             minWidth = Ui.dp(this@ProfilActivity, 90)
             setText(if (store.birthYear == 0) "" else store.birthYear.toString())
         }
@@ -84,16 +93,21 @@ class ProfilActivity : AppCompatActivity() {
         birthRow.addView(birth)
         content.addView(birthRow)
 
-        content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.profile_add_team)
-            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
-            setOnClickListener { teamDialog() }
-        })
-        val teams = store.teams()
-        if (teams.isNotEmpty()) {
-            content.addView(Ui.hint(this, teams.joinToString(" · ") { it.name }))
+        // Mine jaktlag og skytterlag (musingsUI runde 5)
+        content.addView(Ui.section(this, getString(R.string.profile_teams_title)))
+        store.teams().forEach { t ->
+            content.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = t.name
+                layoutParams = Ui.matchWrap(2, this@ProfilActivity)
+                setOnClickListener { startActivity(Intent(this@ProfilActivity, LagActivity::class.java)) }
+            })
         }
+        content.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = getString(R.string.profile_add_more)
+            setOnClickListener { startActivity(Intent(this@ProfilActivity, LagActivity::class.java)) }
+        })
 
         content.addView(CheckBox(this).apply {
             text = getString(R.string.profile_findable)
@@ -101,11 +115,37 @@ class ProfilActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, on -> store.findable = on }
         })
 
-        // Mitt jaktmål (musingsUI runde 4)
-        content.addView(Ui.section(this, getString(R.string.jaktmaal_title)))
+        // Mitt jaktmål: (i) høyrejustert på overskriftslinjen (musingsUI runde 5)
+        val goalHeader = Ui.row(this)
+        goalHeader.addView(Ui.section(this, getString(R.string.jaktmaal_title)).apply {
+            layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        goalHeader.addView(ImageButton(this).apply {
+            setImageResource(R.drawable.ic_info)
+            background = null
+            contentDescription = getString(R.string.jaktmaal_why)
+            setOnClickListener {
+                AlertDialog.Builder(this@ProfilActivity)
+                    .setMessage(R.string.jaktmaal_info)
+                    .setPositiveButton(R.string.ok, null).show()
+            }
+        })
+        content.addView(goalHeader)
+
         val goalRow = Ui.row(this)
+        // Måltallet 2 pt større og bold (musingsUI runde 5)
         goalRow.addView(TextView(this).apply {
-            text = getString(R.string.jaktmaal_current, Dialogs.rateLabel(store.rateLimit))
+            text = getString(R.string.jaktmaal_prefix) + " "
+            textSize = 16f
+        })
+        goalRow.addView(TextView(this).apply {
+            text = Dialogs.rateLabel(store.rateLimit)
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+        })
+        goalRow.addView(TextView(this).apply {
+            text = " " + getString(R.string.jaktmaal_suffix)
             textSize = 16f
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -117,34 +157,12 @@ class ProfilActivity : AppCompatActivity() {
         })
         content.addView(goalRow)
 
-        // Avanserte innstillinger
-        content.addView(Ui.section(this, getString(R.string.profile_advanced)))
+        // Avanserte innstillinger som egen knapp -> undermeny
         content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.profile_weapons_mine)
-            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
-            setOnClickListener { weaponsDialog() }
-        })
-        content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.profile_move)
-            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
-            setOnClickListener {
-                Toast.makeText(this@ProfilActivity, R.string.profile_move_todo,
-                    Toast.LENGTH_SHORT).show()
-            }
-        })
-        content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.profile_delete)
-            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
-            setOnClickListener {
-                AlertDialog.Builder(this@ProfilActivity)
-                    .setMessage(R.string.profile_delete_confirm)
-                    .setPositiveButton(R.string.profile_delete) { _, _ -> store.wipeAll(); finish() }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-            }
+            text = getString(R.string.profile_advanced)
+            layoutParams = Ui.matchWrap(20, this@ProfilActivity)
+            setOnClickListener { startActivity(Intent(this@ProfilActivity, AvansertActivity::class.java)) }
         })
     }
 
@@ -153,99 +171,11 @@ class ProfilActivity : AppCompatActivity() {
             "dark" to getString(R.string.theme_dark),
             "system" to getString(R.string.theme_system))
         AlertDialog.Builder(this)
-            .setTitle(R.string.theme_button)
+            .setTitle(R.string.theme_choose)   // «Velg visningsprofil»
             .setItems(modes.map { it.second }.toTypedArray()) { _, i ->
                 store.themeMode = modes[i].first
                 recreate()
             }
             .show()
-    }
-
-    private fun teamDialog() {
-        // FRONT-END-SKJELETT: nærliggende lag (≤20 innen 50 km) krever backend
-        // (se backend_spec.md). Her: opprett lokalt lag + rolleflyt-skjelett.
-        val root = Ui.col(this, 16)
-        root.addView(MaterialButton(this).apply {
-            text = getString(R.string.team_create)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = Gravity.CENTER_HORIZONTAL }
-            setOnClickListener { createTeamRoleDialog() }
-        })
-        root.addView(Ui.hint(this, getString(R.string.team_nearby_todo)))
-        store.teams().forEach { t ->
-            root.addView(Ui.body(this, "• ${t.name}"))
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.profile_add_team)
-            .setView(androidx.core.widget.NestedScrollView(this).apply { addView(root) })
-            .setNegativeButton(R.string.close, null)
-            .show()
-    }
-
-    private fun createTeamRoleDialog() {
-        val roles = arrayOf(getString(R.string.team_role_leader),
-            getString(R.string.team_role_for_leader),
-            getString(R.string.team_role_ask_leader))
-        AlertDialog.Builder(this)
-            .setTitle(R.string.team_create)
-            .setItems(roles) { _, _ ->
-                val input = EditText(this).apply { hint = getString(R.string.team_name_hint) }
-                Ui.capitalize(input)
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.team_create)
-                    .setView(input)
-                    .setPositiveButton(R.string.save) { _, _ ->
-                        val n = input.text.toString().trim()
-                        if (n.isNotEmpty()) {
-                            store.addTeam(Team(Store.newId(), n))
-                            Toast.makeText(this, R.string.team_invite_todo,
-                                Toast.LENGTH_LONG).show()
-                            rebuild()
-                        }
-                    }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-            }
-            .show()
-    }
-
-    private fun weaponsDialog() {
-        val root = Ui.col(this, 16)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.profile_weapons_mine)
-            .setView(androidx.core.widget.NestedScrollView(this).apply { addView(root) })
-            .setNegativeButton(R.string.close, null)
-            .create()
-        fun fill() {
-            root.removeAllViews()
-            store.weapons().forEach { w ->
-                val row = Ui.row(this)
-                row.addView(TextView(this).apply {
-                    text = w.shownName; textSize = 16f
-                    layoutParams = LinearLayout.LayoutParams(0,
-                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                })
-                row.addView(MaterialButton(this, null,
-                    com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                    text = getString(R.string.change)
-                    setOnClickListener {
-                        Dialogs.weaponEdit(this@ProfilActivity, store, w) { fill() }
-                    }
-                })
-                root.addView(row)
-            }
-            root.addView(MaterialButton(this).apply {
-                text = getString(R.string.weapon_add)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { gravity = Gravity.CENTER_HORIZONTAL }
-                setOnClickListener {
-                    Dialogs.weaponEdit(this@ProfilActivity, store, null) { fill() }
-                }
-            })
-        }
-        fill()
-        dialog.show()
     }
 }
