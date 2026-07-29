@@ -217,6 +217,14 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getBoolean("alwaysShowStartup", false)
         set(v) { prefs.edit().putBoolean("alwaysShowStartup", v).apply() }
 
+    /**
+     * Vis «Vil du dele bilder …»-vinduet ved oppstart (musingsUI runde 7).
+     * Kan slås av i Avanserte innstillinger. Default på.
+     */
+    var startupDonateAsk: Boolean
+        get() = prefs.getBoolean("startupDonateAsk", true)
+        set(v) { prefs.edit().putBoolean("startupDonateAsk", v).apply() }
+
     /** «Mitt jaktmål» tilbys etter tre serier (musingsUI runde 4). */
     var jaktmaalPromptSeen: Boolean
         get() = prefs.getBoolean("jaktmaalPromptSeen", false)

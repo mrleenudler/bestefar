@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.EditText
@@ -187,10 +188,15 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
         if (r.distanceM > 0) content.addView(Ui.body(this,
             "${getString(R.string.hunt_hold)}: ${r.distanceM} m"))
         r.ranM?.let { content.addView(Ui.body(this, "${getString(R.string.hunt_ran)} $it m")) }
-        content.addView(Ui.body(this, "Utfall: ${r.outcome.label}" +
-            (r.followUp?.let { " → ${it.label}" } ?: "")))
-        if (r.outcome == Outcome.DOEDELIG) content.addView(Ui.hint(this,
-            if (r.fellingSuccess) "Felling vellykket" else "Felling mislykket"))
+        // «Utfall: Dødelig» + «Felling vellykket» var redundant: ved dødelig vises
+        // kun felling-status, i samme font som resten (musingsUI runde 7).
+        if (r.outcome == Outcome.DOEDELIG) {
+            content.addView(Ui.body(this,
+                if (r.fellingSuccess) "Felling vellykket" else "Felling mislykket"))
+        } else {
+            content.addView(Ui.body(this, "Utfall: ${outcomeLabel(r.outcome)}" +
+                (r.followUp?.let { " → ${it.label}" } ?: "")))
+        }
 
         content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 90)))
@@ -231,54 +237,91 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
         setOnClickListener { onClick() }
     }
 
-    /** Rediger all info, inkl. utfall/ettersøk/ikke funnet (musingsUI runde 6). */
+    /** «Skade» heter «Ettersøk» i UI-et (musingsUI runde 7). */
+    private fun outcomeLabel(o: Outcome) =
+        if (o == Outcome.SKADE) getString(R.string.hunt_ettersok) else o.label
+
+    /**
+     * Rediger all info (musingsUI runde 7): etikett foran hvert felt, eksisterende
+     * verdier forhåndsutfylt og redigerbare, redigerbar dato, utfallsknappene
+     * stablet loddrett, «Skade» vist som «Ettersøk», og «Dyret ble ikke funnet»
+     * kun når Ettersøk er valgt.
+     */
     private fun editDialog(r: HuntRecord) {
         val col = Ui.col(this, 16)
-        val place = EditText(this).apply {
-            hint = getString(R.string.hunt_position); setText(r.placeName)
+
+        fun labeled(labelRes: Int, field: android.view.View) {
+            col.addView(TextView(this).apply {
+                setText(labelRes); textSize = 14f
+                setPadding(0, Ui.dp(this@RegistrerteSkuddActivity, 8), 0, 0)
+            })
+            col.addView(field)
         }
+
+        val place = EditText(this).apply { setText(r.placeName) }
         Ui.capitalize(place)
         val hold = EditText(this).apply {
-            hint = getString(R.string.hunt_hold)
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(if (r.distanceM > 0) r.distanceM.toString() else "")
         }
         val ran = EditText(this).apply {
-            hint = getString(R.string.hunt_ran)
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(r.ranM?.toString() ?: "")
         }
-        col.addView(place); col.addView(hold); col.addView(ran)
 
-        var outcome = r.outcome
-        var notFound = r.followUp == FollowUp.IKKE_GJENFUNNET
-        val outcomeRow = Ui.row(this)
-        fun renderOutcome() {
-            outcomeRow.removeAllViews()
-            Outcome.entries.forEach { o ->
-                outcomeRow.addView(Ui.choiceButton(this, o.label, outcome == o) {
-                    outcome = o; renderOutcome()
-                }.apply { layoutParams = LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
+        // Redigerbar dato (musingsUI runde 7)
+        var editDate = Instant.ofEpochMilli(r.ts).atZone(ZoneId.systemDefault()).toLocalDate()
+        val dateBtn = com.google.android.material.button.MaterialButton(this, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = editDate.format(dateFmt)
+            setOnClickListener {
+                android.app.DatePickerDialog(this@RegistrerteSkuddActivity, { _, y, m, d ->
+                    editDate = java.time.LocalDate.of(y, m + 1, d)
+                    text = editDate.format(dateFmt)
+                }, editDate.year, editDate.monthValue - 1, editDate.dayOfMonth).show()
             }
         }
-        renderOutcome()
-        col.addView(outcomeRow)
+
+        labeled(R.string.hunt_position, place)
+        labeled(R.string.hunt_hold, hold)
+        labeled(R.string.hunt_ran, ran)
+        labeled(R.string.hunt_date_label, dateBtn)
+
+        var outcome = r.outcome
         val notFoundBox = CheckBox(this).apply {
-            text = getString(R.string.hunt_not_found); isChecked = notFound
+            text = getString(R.string.hunt_not_found)
+            isChecked = r.followUp == FollowUp.IKKE_GJENFUNNET
         }
+        // Utfallsknappene stablet loddrett (musingsUI runde 7)
+        val outcomeCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        fun renderOutcome() {
+            outcomeCol.removeAllViews()
+            Outcome.entries.forEach { o ->
+                outcomeCol.addView(Ui.choiceButton(this, outcomeLabel(o), outcome == o) {
+                    outcome = o; renderOutcome()
+                }.apply { layoutParams = Ui.matchWrap(4, this@RegistrerteSkuddActivity) })
+            }
+            // «Dyret ble ikke funnet» kun ved Ettersøk (Skade)
+            notFoundBox.visibility = if (outcome == Outcome.SKADE) View.VISIBLE else View.GONE
+        }
+        labeled(R.string.hunt_outcome_label, outcomeCol)
+        renderOutcome()
         col.addView(notFoundBox)
 
         AlertDialog.Builder(this)
             .setTitle(R.string.edit)
             .setView(androidx.core.widget.NestedScrollView(this).apply { addView(col) })
             .setPositiveButton(R.string.save) { _, _ ->
+                val newTs = editDate.atTime(12, 0).atZone(ZoneId.systemDefault())
+                    .toInstant().toEpochMilli()
                 val updated = r.copy(
+                    ts = newTs,
                     placeName = place.text.toString().trim(),
                     distanceM = hold.text.toString().toIntOrNull() ?: 0,
                     ranM = ran.text.toString().toIntOrNull(),
                     outcome = outcome,
-                    followUp = if (notFoundBox.isChecked) FollowUp.IKKE_GJENFUNNET else r.followUp)
+                    followUp = if (outcome == Outcome.SKADE && notFoundBox.isChecked)
+                        FollowUp.IKKE_GJENFUNNET else r.followUp)
                 Store.get(this).updateHunt(updated)
                 reload()
                 val idx = records.indexOfFirst { it.id == updated.id }.coerceAtLeast(0)

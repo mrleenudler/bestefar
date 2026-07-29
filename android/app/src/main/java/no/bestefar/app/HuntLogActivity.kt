@@ -57,6 +57,13 @@ class HuntLogActivity : AppCompatActivity() {
 
     private val dateFmt = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale("no"))
 
+    private fun night() = (resources.configuration.uiMode and
+        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    /** Silhuett-tint: tekstfarge i mørk visning, sort i lys (musingsUI runde 7). */
+    private fun silTint() = if (night())
+        Ui.themeColor(this, android.R.attr.textColorPrimary) else Color.BLACK
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
@@ -112,6 +119,7 @@ class HuntLogActivity : AppCompatActivity() {
                     1 -> manualPlaceDialog()
                 }
             }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -204,7 +212,13 @@ class HuntLogActivity : AppCompatActivity() {
         speciesButtons(otherInput, content, null)
 
         if (!shareResearch) {
-            // Forenklet visning: dato + vilt + Lagre/Avbryt (musingsUI runde 4)
+            // Forenklet visning: dato + vilt + «Felling var vellykket» + Lagre/Avbryt.
+            // Felling-checkboxen hører hjemme også her (musingsUI runde 7).
+            val fellingBox = android.widget.CheckBox(this).apply {
+                text = getString(R.string.felling_success); isChecked = true
+            }
+            content.addView(fellingBox)
+
             val btnRow = Ui.row(this)
             btnRow.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.borderlessButtonStyle).apply {
@@ -221,7 +235,13 @@ class HuntLogActivity : AppCompatActivity() {
                             Ui.toast(this@HuntLogActivity, R.string.hunt_missing_species)
                         species == Species.ANNET && speciesOther.length < 2 ->
                             Ui.toast(this@HuntLogActivity, R.string.hunt_missing_other)
-                        else -> saveSimple()
+                        // Uavkrysset «felling vellykket» -> bekreft (runde 6/7)
+                        !fellingBox.isChecked -> AlertDialog.Builder(this@HuntLogActivity)
+                            .setMessage(R.string.felling_ask)
+                            .setPositiveButton(R.string.yes) { _, _ -> saveSimple(true) }
+                            .setNegativeButton(R.string.no) { _, _ -> saveSimple(false) }
+                            .show()
+                        else -> saveSimple(true)
                     }
                 }
             })
@@ -300,14 +320,18 @@ class HuntLogActivity : AppCompatActivity() {
     private fun tsForDate(): Long =
         selectedDate.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    /** Forenklet logging: dato + vilt, lagres som felling (dødelig). */
-    private fun saveSimple() {
+    /**
+     * Forenklet logging: dato + vilt, lagres som felling (dødelig). Posisjon
+     * logges også her (musingsUI runde 7 — tidligere kun ved forskningsdeling).
+     */
+    private fun saveSimple(fellingSuccess: Boolean) {
         store.addHunt(HuntRecord(
             id = Store.newId(), ts = tsForDate(),
             species = species ?: Species.ANNET, distanceM = 0,
             angle = Angle.SIDE, moving = false, outcome = Outcome.DOEDELIG,
+            lat = lat, lon = lon, placeName = placeName,
             weaponId = store.selectedWeapon()?.id, speciesOther = speciesOther,
-            created = System.currentTimeMillis(),
+            created = System.currentTimeMillis(), fellingSuccess = fellingSuccess,
         ))
         Ui.toast(this, R.string.hunt_saved)
         finish()
@@ -328,6 +352,8 @@ class HuntLogActivity : AppCompatActivity() {
             val iv = ImageView(this).apply {
                 setImageResource(res)
                 scaleType = ImageView.ScaleType.FIT_CENTER
+                androidx.core.widget.ImageViewCompat.setImageTintList(this,
+                    android.content.res.ColorStateList.valueOf(silTint()))
                 val p = Ui.dp(this@HuntLogActivity, 6)
                 setPadding(p, p, p, p)
                 background = GradientDrawable().apply {

@@ -242,3 +242,36 @@ Overstyrer eldre beskrivelser ved konflikt.
   godtar 0 m (ikke sifre etter enslig 0); toast-tekst justert.
 - **Se registrerte skudd:** tilbake → lista; store faste piler; nyeste samme-dag
   øverst; Rediger endrer alt; mørk-modus-silhuetter; flervalg «Slett alle» + popup.
+
+## 15. Endringslogg v0.9 (musingsUI runde 7)
+
+- **Topplinje:** flyttes faktisk ~5 % ned (2-args `addView(w,h)` nullet marginen
+  før — nå 1-args så `topMargin` beholdes).
+- **Oppstart:** «Vil du dele bilder …»-vinduet kan slås av i Avanserte innstillinger.
+  Forskningens delings-checkbokser er auto-krysset første gang.
+- **Popuper:** felles modell (setItems + Avbryt) på lister som manglet Avbryt.
+- **Innsikt (ombygd):** (i) tydelig synlig (36 dp) t.h. for tittelen; valgt piktogram
+  = sort (lys) / tekstfarge (mørk), uvalgt = grå; presentasjonssilhuett tekstfarget;
+  viltnavn i default farge. «Stripe»-bug fikset (rammen ligger på en FrameLayout,
+  bare bildet skaleres). Egne Innsikt-skalaer (liggende opp, sittende ned). Ramme:
+  jeger-stilling høyrejustert over hold-kolonnen, dyr-vinkling venstrejustert under,
+  hold-kolonne like bred som stående-ikonet og høy nok til å ramme matrisen, med
+  tresifret tall + «m». Stillings-homogeniseringen (−65 %/+80 %) hører til
+  stillingsvelgeren *etter scan*, ikke Innsikt.
+- **Poeng-visning:** «Poeng:» foran totalen; dato «8. mars 2026    08:38» (luft
+  mellom dato/tid); «Mitt gjennomsnitt for denne stillingen»; skivas ekstra hvite
+  ytre halvring fjernet (maxR = 10). **Karusell** over viste serier i Serielogg med
+  piler + OK; datoen animeres (3× → default, ~20 % ned/høyre, 1 s, avbrytbar) når
+  dagen bytter. Dummy-scan gir 10 skudd.
+- **Profil:** «+ legg til nytt lag» outlined (ikke uthevet); lag-rekkefølge følger
+  Venner (sortOrder). Lag-«Slett»: eneste medlem → slettes; flere → forlat; eneste
+  leder → oppløs for alle / overfør + forlat.
+- **Jaktlag:** medlemmer klikkbare → karusell (piler går helt rundt + OK); lagleder
+  merket «(Lagleder)» øverst, ellers alfabetisk; «Slett lag» i Rediger lag.
+- **Venner:** dobbelt innrykk for lagmedlemmer.
+- **Utvikler:** «Legg til venn» (navn + lag, 5 serier á 10 skudd).
+- **Logg jaktskudd:** felling-checkbox også i forenklet (forsknings-av) flyt;
+  posisjon logges også der; mørk-modus-tintede stilling-silhuetter. Skuddloggen viser
+  kun «Felling vellykket/mislykket» (ikke «Utfall: Dødelig») i samme font. Rediger:
+  etikett foran hvert felt, redigerbar dato, utfallsknapper stablet loddrett, «Skade»
+  vist som «Ettersøk», «Dyret ble ikke funnet» kun ved Ettersøk.

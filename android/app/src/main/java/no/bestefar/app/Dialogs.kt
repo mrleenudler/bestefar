@@ -115,6 +115,10 @@ object Dialogs {
                 }
                 b.icon = androidx.core.content.ContextCompat.getDrawable(a, p.iconRes)
                 b.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                // Homogeniser ikonstørrelsen på selve stillingsvelgeren
+                // (musingsUI runde 7 — dette var opprinnelig ment her, ikke i Innsikt)
+                b.iconSize = dp(a, 30)
+                b.iconPadding = dp(a, 8)
                 b.layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 52)
                 ).apply { topMargin = dp(a, 6) }
@@ -270,10 +274,12 @@ object Dialogs {
         val items = listOf("Vilt" to R.string.share_vilt, "Dato" to R.string.share_dato,
             "Posisjon" to R.string.share_posisjon,
             "Skuddsituasjon" to R.string.share_skuddsituasjon)
+        // Auto-kryss alt ved første gang (musingsUI runde 7); ellers speil valget
+        val firstTime = store.consentHunt == "" && store.researchShare.isEmpty()
         val boxes = items.map { (key, res) ->
             android.widget.CheckBox(a).apply {
                 setText(res)
-                isChecked = key in store.researchShare
+                isChecked = firstTime || key in store.researchShare
                 tag = key
             }
         }

@@ -313,3 +313,19 @@ VIKTIGE FELLER:
   - Det er TO venvs: .Bestefar\ (ufullstendig) og .venv\ (riktig)
 
 OUTPUT-MAPPE: Visualiseringer/outputs/ (slett ved start av ny sesjon)
+
+UI-RUNDE 7 (v0.9) LÆRDOMMER:
+  - addView(view, W, H) LAGER nye LayoutParams og NULLER margin/vekt satt i view.layoutParams.
+    Bruk 1-args addView(view) naar du har satt layoutParams (inkl. topMargin) selv.
+    (Dette gjorde at topplinjas 5%-margin aldri virket i runde 5/6.)
+  - FIT_CENTER i en celle normaliserer allerede SVG-storrelsen. IKKE bruk enum-iconScale
+    (ment for MaterialButton.icon) oppaa det -> doblet skalering (liggende bittesmaa,
+    sittende overflow). Innsikt har egne skalaer.
+  - Aa skalere en HEL ImageButton med bakgrunn/ramme (scaleX/Y) skalerer ogsaa rammen ->
+    "loddrette striper". Legg ramme paa en FrameLayout av fast storrelse, skaler kun bildet.
+  - Naar bruker sier "X ble ikke implementert" men koden finnes: sjekk om (a) de testet
+    eldre APK, eller (b) feltet bare vises betinget (f.eks. snitt vises kun med historikk;
+    "med anlegg" krever valgt hjelpemiddel). Legg til manglende bit (her: "Poeng:" foran
+    TOTALEN, som var en annen visning enn "Poeng:"-lista til hoyre for skiva).
+  - Dato-"bytte"-animasjon: ts har HH:mm og er alltid ulik. Bruk DAG (toLocalDate) som
+    noekkel for aa trigge animasjon, ikke hele tidsstempelet.

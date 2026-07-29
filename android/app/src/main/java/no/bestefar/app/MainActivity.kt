@@ -61,8 +61,10 @@ class MainActivity : AppCompatActivity() {
         Ui.applyInsets(root)
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        column.addView(buildRow(listOf(TAB_AVSTAND, TAB_INNSIKT, TAB_MENY)),
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        // NB: bruk 1-args addView slik at topMargin i buildRow ikke overskrives
+        // (musingsUI runde 7: 2-args addView(w,h) lagde nye LayoutParams og
+        // nullet marginen, derfor lå baren helt oppe under statuslinjen).
+        column.addView(buildRow(listOf(TAB_AVSTAND, TAB_INNSIKT, TAB_MENY)))
 
         stack = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -106,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 56)).apply {
-                // Flytt øverste menylinje 5 % ned (musingsUI runde 5)
+                // Flytt øverste menylinje ~5 % ned fra statuslinjen (musingsUI r5/r7)
                 topMargin = (resources.displayMetrics.heightPixels * 0.05).toInt()
             }
         }
@@ -252,7 +254,10 @@ class MainActivity : AppCompatActivity() {
     private fun startupWindow1() {
         val body = getString(R.string.startup_info)
         overlayMessage(getString(R.string.startup_title), body,
-            positive = getString(R.string.ok), onPositive = { startupWindow2() })
+            positive = getString(R.string.ok), onPositive = {
+                // Bildedelings-spørsmålet kan slås av (musingsUI runde 7)
+                if (store.startupDonateAsk) startupWindow2() else finishStartup()
+            })
     }
 
     private fun startupWindow2() {

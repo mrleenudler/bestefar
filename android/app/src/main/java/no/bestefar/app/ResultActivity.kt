@@ -34,6 +34,10 @@ class ResultActivity : AppCompatActivity() {
         const val EXTRA_RREL = "r_rel"
         const val EXTRA_THETA = "theta"
         const val EXTRA_IMAGE_PATH = "image_path"
+        /** «8. mars 2026    08:38» — god luft mellom dato og tid (musingsUI r7). */
+        val DATE_TIME_FMT: java.time.format.DateTimeFormatter =
+            java.time.format.DateTimeFormatter.ofPattern("d. MMMM yyyy    HH:mm",
+                java.util.Locale("no"))
     }
 
     private lateinit var store: Store
@@ -270,10 +274,15 @@ class ResultActivity : AppCompatActivity() {
         mainRow.addView(scoreCol)
         content.addView(mainRow)
 
+        // «Poeng:» foran totalen (musingsUI runde 7)
         content.addView(TextView(this).apply {
-            text = "%.1f  (%d)".format(r.sumDecimal, r.sumInteger)
+            text = getString(R.string.result_points_prefix, r.sumDecimal, r.sumInteger)
             textSize = 28f
         })
+        // Dato + tid med god luft mellom (musingsUI runde 7)
+        content.addView(Ui.body(this,
+            java.time.Instant.ofEpochMilli(r.ts).atZone(java.time.ZoneId.systemDefault())
+                .format(DATE_TIME_FMT)))
         val w = store.weapons().firstOrNull { it.id == r.weaponId }
         // «Sittende med anlegg» / «... med reim» (musingsUI runde 6)
         val modText = when (r.modifier) {
@@ -284,14 +293,13 @@ class ResultActivity : AppCompatActivity() {
         content.addView(Ui.hint(this,
             "${r.position.label}$modText · ${r.distanceM} m · " + (w?.shownName ?: "—")))
 
-        // Mitt gjennomsnitt for denne stillingen (uten KI, musingsUI runde 6)
+        // Mitt gjennomsnitt for denne stillingen (uten KI, musingsUI runde 6/7)
         val history = store.allSeries().filter {
             it.id != r.id && it.position == r.position && it.distanceM == r.distanceM
         }
         if (history.isNotEmpty()) {
             val avg = history.map { it.sumDecimal }.average()
-            content.addView(Ui.body(this, getString(R.string.result_my_avg,
-                r.position.label.lowercase(), avg)))
+            content.addView(Ui.body(this, getString(R.string.result_my_avg_pos, avg)))
         }
 
         if (ocrMismatch != null) {

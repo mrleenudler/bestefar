@@ -114,7 +114,8 @@ class VennerActivity : AppCompatActivity() {
             text = f.shownName + shots
             alpha = if (greyed) 0.4f else 1f
             layoutParams = Ui.matchWrap(2, this@VennerActivity).apply {
-                if (indent) marginStart = Ui.dp(this@VennerActivity, 24)
+                // Dobbelt innrykk for medlemmer i lag (musingsUI runde 7)
+                if (indent) marginStart = Ui.dp(this@VennerActivity, 48)
             }
             setOnClickListener {
                 if (greyed) requireSharingDialog(R.string.friends_need_share_view)
@@ -129,17 +130,17 @@ class VennerActivity : AppCompatActivity() {
             " ${getString(R.string.team_you)}"
         alpha = if (greyed) 0.4f else 1f
         layoutParams = Ui.matchWrap(2, this@VennerActivity).apply {
-            marginStart = Ui.dp(this@VennerActivity, 24)
+            marginStart = Ui.dp(this@VennerActivity, 48)   // dobbelt innrykk (runde 7)
         }
     }
 
     private fun moveTeamPopup(team: Team) {
-        // «Avbryt» til høyre (positiv knapp) — musingsUI runde 6
+        // Samme modell som «Rediger lag»: setItems + Avbryt (negativ) — runde 7
         AlertDialog.Builder(this)
             .setItems(arrayOf(getString(R.string.move_up), getString(R.string.move_down))) {
                 _, which -> if (which == 0) moveTeam(team, -1) else moveTeam(team, +1)
             }
-            .setPositiveButton(R.string.cancel, null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -210,6 +211,7 @@ class VennerActivity : AppCompatActivity() {
                 getString(R.string.friends_show_qr))) { _, _ ->
                 Ui.toast(this, R.string.friends_todo)
             }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 

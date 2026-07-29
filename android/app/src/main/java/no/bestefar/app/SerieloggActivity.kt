@@ -31,7 +31,13 @@ class SerieloggActivity : AppCompatActivity() {
     private var detail: SeriesRecord? = null
     private var seasonOnly = true   // «Denne sesongen» / «Alle» (musingsUI r4)
 
+    // Karusell over de viste seriene (musingsUI runde 7)
+    private var detailList: List<SeriesRecord> = emptyList()
+    private var lastShownDate: String? = null
+    private var dateAnimator: android.view.ViewPropertyAnimator? = null
+
     private val fmt = DateTimeFormatter.ofPattern("d.M.yy HH:mm")
+    private val dateFmt = ResultActivity.DATE_TIME_FMT
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +102,7 @@ class SerieloggActivity : AppCompatActivity() {
         if (all.isEmpty()) {
             content.addView(Ui.hint(this, getString(R.string.serielogg_empty)))
         }
-        all.forEach { s ->
+        all.forEachIndexed { index, s ->
             val t = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault()).format(fmt)
             val avg = if (s.shots.isEmpty()) 0.0 else s.sumDecimal / s.shots.size
             val row = TextView(this).apply {
@@ -115,8 +121,10 @@ class SerieloggActivity : AppCompatActivity() {
                         if (s.id in selected) selected.remove(s.id) else selected.add(s.id)
                         if (selected.isEmpty()) exitSelection() else renderList()
                     } else {
+                        detailList = all
+                        lastShownDate = null
                         detail = s
-                        renderDetail(s)
+                        renderDetail(index)
                     }
                 }
                 setOnLongClickListener {
@@ -148,11 +156,24 @@ class SerieloggActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDetail(s: SeriesRecord) {
+    /**
+     * Karusell over de viste seriene (musingsUI runde 7): samme rike poeng-
+     * visning som resultatkortet, piler i endene (fjernes ytterst) + OK.
+     * Dato animeres når den bytter mellom serier.
+     */
+    private fun renderDetail(index: Int) {
+        dateAnimator?.cancel()
+        if (detailList.isEmpty() || index !in detailList.indices) { renderList(); return }
+        val s = detailList[index]
+        detail = s
         root.removeAllViews()
         val content = Ui.col(this)
-        val t = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault()).format(fmt)
-        content.addView(Ui.title(this, t))
+
+        val zoned = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault())
+        val dateText = zoned.format(dateFmt)
+        val dayKey = zoned.toLocalDate().toString()   // animasjon kun ved ny DAG
+        val dateView = Ui.title(this, dateText)
+        content.addView(dateView)
 
         val mainRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -166,6 +187,10 @@ class SerieloggActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(Ui.dp(this@SerieloggActivity, 8), 0, 0, 0)
         }
+        scoreCol.addView(TextView(this).apply {
+            text = getString(R.string.result_points_label)   // «Poeng:»
+            textSize = 15f
+        })
         s.shots.sortedBy { it.decimal }.forEach { shot ->
             scoreCol.addView(TextView(this).apply {
                 text = "%.1f".format(shot.decimal)
@@ -176,30 +201,88 @@ class SerieloggActivity : AppCompatActivity() {
         content.addView(mainRow)
 
         content.addView(TextView(this).apply {
-            text = "%.1f  (%d)".format(s.sumDecimal, s.sumInteger)
+            text = getString(R.string.result_points_prefix, s.sumDecimal, s.sumInteger)
             textSize = 26f
         })
         val w = store.weapons().firstOrNull { it.id == s.weaponId }
-        val mod = if (s.modifier != PosModifier.UTEN) " (${s.modifier.label})" else ""
+        val modText = when (s.modifier) {
+            PosModifier.ANLEGG -> " med anlegg"
+            PosModifier.REIM -> " med reim"
+            else -> ""
+        }
         content.addView(Ui.hint(this,
-            "${s.position.label}$mod · ${s.distanceM} m · " +
+            "${s.position.label}$modText · ${s.distanceM} m · " +
             (w?.shownName ?: "—") + if (s.corrected) " · korrigert" else ""))
 
-        val btnRow = Ui.row(this)
-        btnRow.addView(MaterialButton(this, null,
+        // Mitt gjennomsnitt for denne stillingen (musingsUI runde 7)
+        val history = store.allSeries().filter {
+            it.id != s.id && it.position == s.position && it.distanceM == s.distanceM
+        }
+        if (history.isNotEmpty()) {
+            content.addView(Ui.body(this, getString(R.string.result_my_avg_pos,
+                history.map { it.sumDecimal }.average())))
+        }
+
+        content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
             text = getString(R.string.serielogg_delete)
             setOnClickListener { confirmDelete(setOf(s.id)) }
         })
-        btnRow.addView(android.widget.Space(this), LinearLayout.LayoutParams(0, 1, 1f))
-        btnRow.addView(MaterialButton(this).apply {
-            text = getString(R.string.ok)
-            setOnClickListener { detail = null; renderList() }
-        })
-        content.addView(btnRow, Ui.matchWrap(12, this))
 
+        content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 90)))
         root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
+
+        // Fast knapperad: piler i endene (fjernes ytterst), OK sentrert
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        }
+        val left = FrameLayout(this)
+        if (index < detailList.size - 1) left.addView(bigArrow("‹") { renderDetail(index + 1) })
+        bar.addView(left, LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(MaterialButton(this).apply {
+            text = getString(R.string.ok)
+            minWidth = Ui.dp(this@SerieloggActivity, 120)
+            setOnClickListener { detail = null; renderList() }
+        })
+        val right = FrameLayout(this)
+        if (index > 0) right.addView(bigArrow("›") { renderDetail(index - 1) })
+        bar.addView(right, LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        root.addView(bar, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM).apply {
+            bottomMargin = Ui.dp(this@SerieloggActivity, 24)
+            leftMargin = Ui.dp(this@SerieloggActivity, 8)
+            rightMargin = Ui.dp(this@SerieloggActivity, 8)
+        })
+
+        // Dato-animasjon når datoen bytter (musingsUI runde 7): starter ~3x og
+        // ~20 % ned til høyre, zoomer inn til default på 1 s. Ikke-blokkerende;
+        // avbrytes hvis pilen trykkes på nytt (dateAnimator.cancel over).
+        if (lastShownDate != null && lastShownDate != dayKey) {
+            dateView.post {
+                dateView.pivotX = 0f; dateView.pivotY = dateView.height.toFloat()
+                dateView.scaleX = 3f; dateView.scaleY = 3f
+                dateView.translationX = resources.displayMetrics.widthPixels * 0.20f
+                dateView.translationY = Ui.dp(this, 40).toFloat()
+                dateAnimator = dateView.animate()
+                    .scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
+                    .setDuration(1000L)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                dateAnimator?.start()
+            }
+        }
+        lastShownDate = dayKey
+    }
+
+    /** Store, høye piler — samme stil som ellers der vi blar (runde 7). */
+    private fun bigArrow(glyph: String, onClick: () -> Unit) = MaterialButton(this, null,
+        com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        text = glyph; textSize = 40f; scaleY = 1.7f
+        setOnClickListener { onClick() }
     }
 
     private fun confirmDelete(ids: Set<String>) {

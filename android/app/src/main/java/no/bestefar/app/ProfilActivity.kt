@@ -93,9 +93,10 @@ class ProfilActivity : AppCompatActivity() {
         birthRow.addView(birth)
         content.addView(birthRow)
 
-        // Mine jaktlag og skytterlag (musingsUI runde 5/6)
+        // Mine jaktlag og skytterlag — samme rekkefølge som i Venner
+        // (sortOrder, musingsUI runde 7)
         content.addView(Ui.section(this, getString(R.string.profile_teams_title)))
-        store.teams().forEach { t ->
+        store.teams().sortedBy { it.sortOrder }.forEach { t ->
             content.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = t.name
@@ -107,9 +108,10 @@ class ProfilActivity : AppCompatActivity() {
                 }
             })
         }
-        // «+ legg til nytt lag» som knapp (musingsUI runde 6)
-        content.addView(MaterialButton(this).apply {
-            text = getString(R.string.team_create_plain)
+        // «+ legg til nytt lag» — outlined, ikke uthevet (musingsUI runde 7)
+        content.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.team_create_plus)
             layoutParams = Ui.matchWrap(4, this@ProfilActivity)
             setOnClickListener { startActivity(Intent(this@ProfilActivity, LagActivity::class.java)) }
         })

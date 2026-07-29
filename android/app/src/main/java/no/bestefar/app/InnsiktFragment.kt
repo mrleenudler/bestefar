@@ -9,6 +9,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -55,9 +56,24 @@ class InnsiktFragment : RebuildFragment() {
         Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     private fun txtColor() = Ui.themeColor(requireContext(), android.R.attr.textColorPrimary)
-    private fun muted(c: Int) = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
     private fun trainGrey() = if (night()) Color.parseColor("#9A9A9A") else Color.parseColor("#6E6E6E")
-    private fun silGrey() = if (night()) Color.parseColor("#555555") else Color.parseColor("#CFCFCF")
+    private fun silGrey() = if (night()) Color.parseColor("#8A8A8A") else Color.parseColor("#9E9E9E")
+
+    /** Valgt piktogram: sort i lys modus, tekstfarge i mørk (musingsUI runde 7). */
+    private fun selectedSil() = if (night()) txtColor() else Color.BLACK
+
+    /**
+     * Egne skaleringer for Innsikt (musingsUI runde 7): FIT_CENTER i cellen
+     * normaliserer allerede SVG-ene, så de store enum-skalaene (for
+     * stillingsvelgeren etter scan) doblet opp og ga liggende for liten /
+     * sittende for stor. Disse verdiene jevner dem ut.
+     */
+    private fun innsiktScale(p: Position): Float = when (p) {
+        Position.LIGGENDE -> 1.0f
+        Position.SITTENDE -> 0.75f
+        Position.KNESTAENDE -> 0.8f
+        Position.STAAENDE -> 1.0f
+    }
 
     private fun angleSil(a: Angle): Int = when (a) {
         Angle.FRONT -> R.drawable.ic_hjort_front
@@ -65,8 +81,12 @@ class InnsiktFragment : RebuildFragment() {
         else -> R.drawable.ic_hjort_side
     }
 
-    private val cellW get() = Ui.dp(requireContext(), 64)
-    private val cellH get() = Ui.dp(requireContext(), 52)
+    // Ramme-celle: like bred som holdknappene, så stående-ikon og hold-kolonne
+    // står i loddrett flukt (musingsUI runde 7).
+    private val cellW get() = Ui.dp(requireContext(), 60)
+    private val cellH get() = Ui.dp(requireContext(), 54)
+    private val distCellH get() = Ui.dp(requireContext(), 50)
+    private val rowH get() = Ui.dp(requireContext(), 62)
 
     override fun rebuild() {
         val a = requireActivity()
@@ -75,7 +95,7 @@ class InnsiktFragment : RebuildFragment() {
 
         val evidence = store.currentSeasonSeries().filter { it.countsInEvidence }
 
-        // Tittel + (i) høyrejustert (musingsUI runde 6)
+        // Tittel + (i) høyrejustert, tydelig synlig (musingsUI runde 7)
         val titleRow = Ui.row(a)
         titleRow.addView(Ui.title(a, getString(R.string.tab_innsikt)).apply {
             layoutParams = LinearLayout.LayoutParams(0,
@@ -87,20 +107,25 @@ class InnsiktFragment : RebuildFragment() {
             ImageViewCompat.setImageTintList(this,
                 android.content.res.ColorStateList.valueOf(txtColor()))
             contentDescription = getString(R.string.innsikt_info_title)
+            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 36), Ui.dp(a, 36))
+            val p = Ui.dp(a, 4); setPadding(p, p, p, p)
             setOnClickListener { infoDialog() }
         })
         content.addView(titleRow)
         content.addView(Ui.body(a, getString(R.string.innsikt_recommend)))
 
-        // Jeger-stilling som ikoner (JJJJ), sentrert
-        val topRow = Ui.row(a).apply { gravity = Gravity.CENTER }
-        Position.hoved.forEach { p ->
-            topRow.addView(iconCell(p.iconRes, p.iconScale, p == jegerPos,
-                p.label) { jegerPos = p; rebuild() })
+        // Øverste ramme-kant: jeger-stilling (JJJJ), høyrejustert slik at
+        // stående-ikonet står over hold-kolonnen (musingsUI runde 7).
+        val topRow = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
+        }
+        Position.hoved.forEachIndexed { i, p ->
+            topRow.addView(iconCell(p.iconRes, innsiktScale(p), p == jegerPos,
+                p.label, last = i == Position.hoved.size - 1) { jegerPos = p; rebuild() })
         }
         content.addView(topRow)
 
-        // Matrise: vilttype-rader (venstre) + hold-kolonne (høyre)
+        // Midtre: matrise (venstre) rammet av hold-kolonne (høyre)
         val body = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
         val rows = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
@@ -113,25 +138,19 @@ class InnsiktFragment : RebuildFragment() {
         val holdCol = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
         }
-        holds.forEach { d ->
-            holdCol.addView(Ui.choiceButton(a, "$d m", holdM == d, small = true) {
-                holdM = d; rebuild()
-            }.apply {
-                maxLines = 1
-                layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
-                    bottomMargin = Ui.dp(a, 2)
-                }
-            })
-        }
+        holds.forEach { d -> holdCol.addView(holdButton(d)) }
         body.addView(holdCol)
         content.addView(body)
 
-        // Dyr-vinkling som silhuetter (DDD), sentrert
-        val bottomRow = Ui.row(a).apply { gravity = Gravity.CENTER }
+        // Nederste ramme-kant: dyr-vinkling (DDD), venstrejustert til venstre
+        // for 200 m-knappen (musingsUI runde 7).
+        val bottomRow = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.START
+        }
         listOf(Angle.FRONT to R.drawable.ic_hjort_front,
             Angle.SIDE to R.drawable.ic_hjort_side,
             Angle.SKRAA30 to R.drawable.ic_hjort_skraa).forEach { (ang, res) ->
-            bottomRow.addView(iconCell(res, 1f, dyrAngle == ang, ang.label) {
+            bottomRow.addView(iconCell(res, 1f, dyrAngle == ang, ang.label, last = false) {
                 dyrAngle = ang; rebuild()
             })
         }
@@ -140,17 +159,40 @@ class InnsiktFragment : RebuildFragment() {
         merStatistikkButton(store)
     }
 
-    /** Ramme-innkapslet ikon-knapp med tint og valgt/uvalgt-tilstand. */
-    private fun iconCell(res: Int, scale: Float, selected: Boolean, desc: String,
-                         onClick: () -> Unit): ImageButton {
+    /** Hold-knapp: alltid tre sifre og «m» synlig, like bred som stående-cellen. */
+    private fun holdButton(d: Int): MaterialButton {
         val a = requireActivity()
-        val tint = if (selected) txtColor() else muted(txtColor())
-        return ImageButton(a).apply {
-            setImageResource(res)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            scaleX = scale; scaleY = scale
-            ImageViewCompat.setImageTintList(this,
-                android.content.res.ColorStateList.valueOf(tint))
+        val selected = holdM == d
+        val b = if (selected) MaterialButton(a)
+        else MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+        b.text = "$d m"
+        b.textSize = 13f
+        b.maxLines = 1
+        b.isAllCaps = false
+        b.cornerRadius = Ui.dp(a, 6)
+        b.insetTop = 0; b.insetBottom = 0
+        b.minWidth = 0; b.minimumWidth = 0
+        b.minHeight = 0; b.minimumHeight = 0
+        val ph = Ui.dp(a, 2)
+        b.setPadding(ph, 0, ph, 0)
+        b.layoutParams = LinearLayout.LayoutParams(cellW, distCellH).apply {
+            bottomMargin = Ui.dp(a, 2)
+        }
+        b.setOnClickListener { holdM = d; rebuild() }
+        return b
+    }
+
+    /**
+     * Ramme-innkapslet ikon-knapp. Rammen ligger på en FrameLayout av fast
+     * størrelse, og bare det indre bildet skaleres — slik unngås de loddrette
+     * «stripene» fra å skalere hele knappen (background) med (musingsUI runde 7).
+     * Valgt = sort (lys) / tekstfarge (mørk); uvalgt = grå.
+     */
+    private fun iconCell(res: Int, scale: Float, selected: Boolean, desc: String,
+                         last: Boolean, onClick: () -> Unit): FrameLayout {
+        val a = requireActivity()
+        val tint = if (selected) selectedSil() else silGrey()
+        val box = FrameLayout(a).apply {
             background = GradientDrawable().apply {
                 cornerRadius = Ui.dp(a, 8).toFloat()
                 setStroke(Ui.dp(a, if (selected) 2 else 1),
@@ -158,12 +200,23 @@ class InnsiktFragment : RebuildFragment() {
                         com.google.android.material.R.attr.colorPrimary) else Color.GRAY)
             }
             contentDescription = desc
-            val p = Ui.dp(a, 4); setPadding(p, p, p, p)
             layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
-                marginEnd = Ui.dp(a, 4)
+                if (!last) marginEnd = Ui.dp(a, 4)
             }
             setOnClickListener { onClick() }
         }
+        val p = Ui.dp(a, 4)
+        box.addView(ImageView(a).apply {
+            setImageResource(res)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleX = scale; scaleY = scale
+            setPadding(p, p, p, p)
+            ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(tint))
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        })
+        return box
     }
 
     private fun speciesRow(sp: Species, evidence: List<SeriesRecord>,
@@ -172,7 +225,8 @@ class InnsiktFragment : RebuildFragment() {
         val row = LinearLayout(a).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, Ui.dp(a, 2), 0, Ui.dp(a, 2))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, rowH)
         }
 
         val posSeries = evidence.filter { it.position == jegerPos }
@@ -181,13 +235,14 @@ class InnsiktFragment : RebuildFragment() {
         val radius = Stats.lethalRadiusCm(sp, dyrAngle)
         val trained = sigma != null && n > 0 && radius != null
 
-        // Fast ramme, silhuett skalert med hold (25 m fyller, 200 m halv)
+        // Presentasjonssilhuett: tekstfarget (musingsUI runde 7), skalert med
+        // hold (25 m fyller, 200 m halv). Grå kun når data mangler.
         val scale = (1.10 - (holdM - 25) / 175.0 * 0.60).coerceIn(0.5, 1.10).toFloat()
         val sil = ImageView(a).apply {
             setImageResource(angleSil(dyrAngle))
             scaleType = ImageView.ScaleType.FIT_CENTER
             scaleX = scale; scaleY = scale
-            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 96), Ui.dp(a, 72))
+            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 84), Ui.dp(a, 58))
             ImageViewCompat.setImageTintList(this,
                 android.content.res.ColorStateList.valueOf(
                     if (trained) txtColor() else silGrey()))

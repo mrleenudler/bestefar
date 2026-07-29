@@ -54,8 +54,52 @@ object DevTools {
      * Real 1.jpg direkte siden bildet ikke er pakket i appen; fabrikkert
      * treffsett er en enklere og mer stabil test.)
      */
+    /**
+     * «Legg til venn» (musingsUI runde 7): fabrikkerer en venn i et valgt lag
+     * med 5 genererte øvelsesserier (50 skudd) for å teste venne-/lag-UI-et.
+     * Krever minst ett lag (venner legges i et lag).
+     */
+    fun addFriendDialog(activity: Activity) {
+        val store = Store.get(activity)
+        val teams = store.teams()
+        if (teams.isEmpty()) { Ui.toast(activity, R.string.dev_friend_no_team); return }
+        val input = android.widget.EditText(activity).apply {
+            hint = activity.getString(R.string.dev_friend_name_hint)
+        }
+        Ui.capitalize(input)
+        androidx.appcompat.app.AlertDialog.Builder(activity)
+            .setTitle(R.string.dev_add_friend)
+            .setView(input)
+            .setPositiveButton(activity.getString(R.string.save)) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty()) return@setPositiveButton
+                if (teams.size == 1) makeFriend(activity, name, teams[0].id)
+                else androidx.appcompat.app.AlertDialog.Builder(activity)
+                    .setTitle(R.string.dev_add_friend)
+                    .setItems(teams.map { it.name }.toTypedArray()) { _, i ->
+                        makeFriend(activity, name, teams[i].id)
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun makeFriend(activity: Activity, name: String, teamId: String) {
+        val store = Store.get(activity)
+        // 5 serier á 10 skudd = 50 øvelsesskudd (musingsUI runde 7)
+        val total = 50
+        store.addFriend(Friend(
+            id = Store.newId(), displayName = name, teamIds = listOf(teamId),
+            phone = "9%07d".format(Random.nextInt(0, 10_000_000)),
+            homeKommune = listOf("Trysil", "Rendalen", "Stor-Elvdal", "Åmot").random(),
+            shotsTotal = total, shotsSeason = total))
+        Ui.toast(activity, R.string.dev_friend_added)
+    }
+
     fun dummyScan(activity: Activity) {
-        val n = 5
+        val n = 10   // 10 skudd, som en normal serie (musingsUI runde 7)
         val decimals = DoubleArray(n)
         val integers = IntArray(n)
         val rrel = DoubleArray(n)

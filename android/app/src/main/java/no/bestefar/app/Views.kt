@@ -30,7 +30,9 @@ class TargetView @JvmOverloads constructor(
 
     // 11 ringlinjer: inner-tier (0.5), tier..1-er (1..10). Bull (svart) naar
     // ring 7 -> 5 sorte ringer (inner/ytter-tier, 9, 8, 7) og 6 hvite (6..1).
-    private val maxR = 10.5f
+    // maxR = 10: skivekanten faller sammen med 1-er-linja, saa det ikke ligger
+    // en ekstra hvit halvring utenfor ytterste ring (musingsUI runde 7).
+    private val maxR = 10.0f
     private val bullR = 4.0f
     private val ringRadii = listOf(0.5f) + (1..10).map { it.toFloat() }
 

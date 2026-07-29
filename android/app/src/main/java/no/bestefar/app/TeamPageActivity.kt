@@ -6,15 +6,17 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 
 /**
- * Jaktlag-/skytterlag-side (musingsUI runde 6). FRONT-END-SKJELETT: medlemskap,
+ * Jaktlag-/skytterlag-side (musingsUI runde 6/7). FRONT-END-SKJELETT: medlemskap,
  * lederskap, invitasjoner, avstemning og push-varsler krever backend
- * (backend_spec.md §4/§11). Her: navn, Inviter medlemmer, medlemsliste (egen
- * bruker + venner i laget), Rediger lag / Velg leder, Lukk.
+ * (backend_spec.md §4/§11). Her: navn, Inviter medlemmer, medlemsliste (leder
+ * øverst, ellers alfabetisk), klikkbar medlems-karusell, Rediger lag / Velg
+ * leder, Lukk. «Slett lag» håndterer forlat/oppløs/overfør (runde 7).
  */
 class TeamPageActivity : AppCompatActivity() {
 
@@ -24,6 +26,9 @@ class TeamPageActivity : AppCompatActivity() {
     private var team: Team? = null
     private lateinit var root: FrameLayout
     private lateinit var content: LinearLayout
+
+    /** Ett medlem i lista/karusellen. */
+    private data class Member(val name: String, val isSelf: Boolean, val isLeader: Boolean)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,12 +41,28 @@ class TeamPageActivity : AppCompatActivity() {
         rebuild()
     }
 
-    private fun members(t: Team): List<String> {
-        // Egen bruker vises også (musingsUI runde 6)
-        val self = store.nickname.ifBlank { getString(R.string.team_you) } +
-            " ${getString(R.string.team_you)}"
-        val friends = store.friends().filter { t.id in it.teamIds }.map { it.shownName }
-        return listOf(self) + friends
+    private fun selfName() = store.nickname.ifBlank { getString(R.string.me_label) }
+
+    /**
+     * Medlemmer i visningsrekkefølge: lagleder(e) øverst merket «(Lagleder)»,
+     * ellers alfabetisk (musingsUI runde 7). I skjelettet er egen bruker leder
+     * når laget har leder.
+     */
+    private fun members(t: Team): List<Member> {
+        val self = Member(selfName(), isSelf = true, isLeader = t.hasLeader)
+        val friends = store.friends().filter { t.id in it.teamIds }
+            .map { Member(it.shownName, isSelf = false, isLeader = false) }
+        return if (t.hasLeader) {
+            listOf(self) + friends.sortedBy { it.name.lowercase() }
+        } else {
+            (listOf(self) + friends).sortedBy { it.name.lowercase() }
+        }
+    }
+
+    private fun display(m: Member): String {
+        val you = if (m.isSelf) " ${getString(R.string.team_you)}" else ""
+        val leader = if (m.isLeader) " ${getString(R.string.team_leader_tag)}" else ""
+        return m.name + you + leader
     }
 
     private fun rebuild() {
@@ -57,12 +78,13 @@ class TeamPageActivity : AppCompatActivity() {
             setOnClickListener { Ui.toast(this@TeamPageActivity, R.string.team_backend_wait) }
         })
 
-        members(t).forEach { name ->
+        val mem = members(t)
+        mem.forEachIndexed { i, m ->
             content.addView(MaterialButton(this, null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = name
+                text = display(m)
                 layoutParams = Ui.matchWrap(2, this@TeamPageActivity)
-                setOnClickListener { Ui.toast(this@TeamPageActivity, R.string.friends_data_note) }
+                setOnClickListener { memberCarousel(i) }
             })
         }
         // Plass til den faste knapperaden nederst
@@ -93,16 +115,89 @@ class TeamPageActivity : AppCompatActivity() {
         })
     }
 
+    // ---------- Medlems-karusell (musingsUI runde 7) ----------
+
+    /**
+     * Karusell over medlemmene med samme layout som ellers (piler + OK), men her
+     * går pilene helt rundt (wraparound).
+     */
+    private fun memberCarousel(index: Int) {
+        val t = team ?: return
+        val mem = members(t)
+        if (mem.isEmpty()) return
+        val i = ((index % mem.size) + mem.size) % mem.size
+        val m = mem[i]
+        root.removeAllViews()
+        val col = Ui.col(this)
+
+        col.addView(Ui.title(this, display(m)))
+        val friend = if (!m.isSelf)
+            store.friends().firstOrNull { t.id in it.teamIds && it.shownName == m.name } else null
+        when {
+            m.isSelf -> col.addView(Ui.body(this, getString(R.string.team_you_detail)))
+            friend != null -> {
+                friend.homeKommune?.let { col.addView(Ui.body(this, "Hjemkommune: $it")) }
+                friend.phone?.let { col.addView(Ui.body(this, "Telefon: $it  ☎  ✉")) }
+                friend.shotsTotal?.let { col.addView(Ui.body(this, "Øvelsesskudd totalt: $it")) }
+                col.addView(Ui.hint(this, getString(R.string.friends_data_note)))
+            }
+            else -> col.addView(Ui.hint(this, getString(R.string.friends_data_note)))
+        }
+
+        col.addView(android.widget.Space(this), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 90)))
+        root.addView(Ui.scroll(this, col), ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT)
+
+        // Fast knapperad: piler går helt rundt, OK sentrert
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        }
+        val left = FrameLayout(this).apply {
+            addView(bigArrow("‹") { memberCarousel(i - 1) })
+        }
+        bar.addView(left, LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(MaterialButton(this).apply {
+            text = getString(R.string.ok)
+            minWidth = Ui.dp(this@TeamPageActivity, 120)
+            setOnClickListener { rebuild() }
+        })
+        val right = FrameLayout(this).apply {
+            addView(bigArrow("›") { memberCarousel(i + 1) })
+        }
+        bar.addView(right, LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        root.addView(bar, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM).apply {
+            bottomMargin = Ui.dp(this@TeamPageActivity, 24)
+            leftMargin = Ui.dp(this@TeamPageActivity, 8)
+            rightMargin = Ui.dp(this@TeamPageActivity, 8)
+        })
+    }
+
+    /** Store, høye piler — samme stil som «Se registrerte skudd» (runde 6/7). */
+    private fun bigArrow(glyph: String, onClick: () -> Unit) = MaterialButton(this, null,
+        com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        text = glyph; textSize = 40f; scaleY = 1.7f
+        setOnClickListener { onClick() }
+    }
+
+    // ---------- Rediger / slett ----------
+
     private fun editTeam(t: Team) {
         AlertDialog.Builder(this)
             .setTitle(R.string.team_edit)
             .setItems(arrayOf(getString(R.string.team_edit_name),
                 getString(R.string.team_remove_members),
-                getString(R.string.team_transfer))) { _, which ->
+                getString(R.string.team_transfer),
+                getString(R.string.team_delete))) { _, which ->
                 when (which) {
                     0 -> renameTeam(t)
                     1 -> Ui.toast(this, R.string.team_backend_wait)   // varsler = backend
                     2 -> chooseLeader(t)
+                    3 -> deleteOrLeaveTeam(t)
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -130,9 +225,57 @@ class TeamPageActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * Slett/forlat lag (musingsUI runde 7):
+     *  - eneste medlem  -> slett laget uten varsel
+     *  - flere medlemmer, ikke eneste leder -> forlat laget
+     *  - eneste leder m/flere medlemmer -> oppløs for alle ELLER overfør + forlat
+     */
+    private fun deleteOrLeaveTeam(t: Team) {
+        val others = store.friends().filter { t.id in it.teamIds }
+        when {
+            others.isEmpty() -> { removeTeamLocally(t); Ui.toast(this, R.string.team_deleted); finish() }
+            t.hasLeader -> AlertDialog.Builder(this)
+                .setTitle(t.name)
+                .setItems(arrayOf(getString(R.string.team_dissolve),
+                    getString(R.string.team_transfer))) { _, which ->
+                    when (which) {
+                        0 -> { removeTeamLocally(t); Ui.toast(this, R.string.team_deleted); finish() }
+                        1 -> chooseLeaderThenLeave(t)
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            else -> AlertDialog.Builder(this)
+                .setMessage(getString(R.string.team_leave) + "?")
+                .setPositiveButton(R.string.team_leave) { _, _ ->
+                    removeTeamLocally(t); finish() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun removeTeamLocally(t: Team) =
+        store.saveTeams(store.teams().filter { it.id != t.id })
+
+    private fun chooseLeaderThenLeave(t: Team) {
+        // Overfør lederskap: velg medlem, deretter forlat (backend håndterer varsel)
+        val friends = store.friends().filter { t.id in it.teamIds }
+        if (friends.isEmpty()) { removeTeamLocally(t); finish(); return }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.team_transfer)
+            .setItems(friends.map { it.shownName }.toTypedArray()) { _, _ ->
+                removeTeamLocally(t)
+                Ui.toast(this, R.string.team_backend_wait)
+                finish()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     /** Velg ny leder: klikk et medlem, bekreft (musingsUI runde 6-skjelett). */
     private fun chooseLeader(t: Team) {
-        val names = members(t).toTypedArray()
+        val names = members(t).map { display(it) }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.team_choose_leader)
             // Nedtellingstimer (7 dager) + push-avstemning krever backend (§11)
@@ -145,6 +288,7 @@ class TeamPageActivity : AppCompatActivity() {
                     .setNegativeButton(R.string.cancel, null)
                     .show()
             }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 }

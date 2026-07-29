@@ -54,6 +54,16 @@ class AvansertActivity : AppCompatActivity() {
                 .setPositiveButton(R.string.ok, null).show()
         }
 
+        // Oppstarts-bildedeling av/på (musingsUI runde 7)
+        content.addView(SwitchCompat(this).apply {
+            text = getString(R.string.startup_donate_ask)
+            isChecked = store.startupDonateAsk
+            setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
+                0, Ui.dp(this@AvansertActivity, 12))
+            setOnCheckedChangeListener { _, on -> store.startupDonateAsk = on }
+        })
+        content.addView(Ui.hint(this, getString(R.string.startup_donate_ask_hint)))
+
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {
             text = getString(R.string.left_handed)
@@ -82,13 +92,16 @@ class AvansertActivity : AppCompatActivity() {
             .setItems(arrayOf(getString(R.string.dev_generate),
                 getString(R.string.dev_dummy_scan),
                 getString(R.string.dev_always_startup) + ": " +
-                    if (store.alwaysShowStartup) "på" else "av")) { _, which ->
+                    (if (store.alwaysShowStartup) "på" else "av"),
+                getString(R.string.dev_add_friend))) { _, which ->
                 when (which) {
                     0 -> DevTools.generateSeries(this)
                     1 -> DevTools.dummyScan(this)
                     2 -> store.alwaysShowStartup = !store.alwaysShowStartup
+                    3 -> DevTools.addFriendDialog(this)
                 }
             }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 

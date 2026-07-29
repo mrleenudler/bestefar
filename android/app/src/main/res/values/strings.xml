@@ -433,6 +433,24 @@
     <string name="team_confirm_leader">Gjøre %1$s til leder? Er du sikker?</string>
     <string name="team_leader_active">Lagleder er ikke inaktiv. Ta kontakt.</string>
 
+    <!-- ============ Runde 7 ============ -->
+    <string name="team_create_plus">+ legg til nytt lag</string>
+    <string name="team_delete">Slett lag</string>
+    <string name="team_delete_confirm">Vil du slette laget?\n\nHandlingen kan ikke angres.</string>
+    <string name="team_leader_tag">(Lagleder)</string>
+    <string name="dev_add_friend">Legg til venn</string>
+    <string name="dev_friend_name_hint">Visningsnavn</string>
+    <string name="dev_friend_added">Venn lagt til med 5 serier</string>
+    <string name="dev_friend_no_team">Lag et jaktlag først (venner legges i et lag).</string>
+    <string name="startup_donate_ask">Spør om bildedeling ved oppstart</string>
+    <string name="startup_donate_ask_hint">Ved oppstart spør appen om lov til å dele bilder der den gjør en dårlig jobb. Slå av for å slippe spørsmålet.</string>
+    <string name="result_my_avg_pos">Mitt gjennomsnitt for denne stillingen: %1$.1f</string>
+    <string name="me_label">Meg</string>
+    <string name="team_you_detail">Dette er deg.</string>
+    <string name="hunt_date_label">Dato</string>
+    <string name="hunt_outcome_label">Utfall</string>
+    <string name="result_points_prefix">Poeng: %1$.1f  (%2$d)</string>
+
     <!-- Innsikt-matrise (runde 5) -->
     <string name="innsikt_recommend">Anbefalte skuddhold og posisjoner:</string>
     <string name="innsikt_train_pos">øv på\nstillingen</string>
