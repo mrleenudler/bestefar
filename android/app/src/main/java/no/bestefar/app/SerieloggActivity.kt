@@ -139,6 +139,9 @@ class SerieloggActivity : AppCompatActivity() {
             content.addView(row)
         }
 
+        // Ikke la lista skjule seg bak Lukk-knappen (musingsUI runde 8)
+        content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 80)))
         root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
 
@@ -147,6 +150,17 @@ class SerieloggActivity : AppCompatActivity() {
             root.addView(MaterialButton(this).apply {
                 text = getString(R.string.cancel)
                 setOnClickListener { exitSelection() }
+            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.END).apply {
+                bottomMargin = Ui.dp(this@SerieloggActivity, 16)
+                rightMargin = Ui.dp(this@SerieloggActivity, 16)
+            })
+        } else {
+            // Lukk nederst i høyre hjørne (musingsUI runde 8)
+            root.addView(MaterialButton(this).apply {
+                text = getString(R.string.close)
+                setOnClickListener { finish() }
             }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM or Gravity.END).apply {
@@ -189,7 +203,9 @@ class SerieloggActivity : AppCompatActivity() {
         }
         scoreCol.addView(TextView(this).apply {
             text = getString(R.string.result_points_label)   // «Poeng:»
-            textSize = 15f
+            // Samme størrelse som poengene, i fet (musingsUI runde 8)
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         s.shots.sortedBy { it.decimal }.forEach { shot ->
             scoreCol.addView(TextView(this).apply {
@@ -214,14 +230,22 @@ class SerieloggActivity : AppCompatActivity() {
             "${s.position.label}$modText · ${s.distanceM} m · " +
             (w?.shownName ?: "—") + if (s.corrected) " · korrigert" else ""))
 
-        // Mitt gjennomsnitt for denne stillingen (musingsUI runde 7)
-        val history = store.allSeries().filter {
-            it.id != s.id && it.position == s.position && it.distanceM == s.distanceM
-        }
-        if (history.isNotEmpty()) {
-            content.addView(Ui.body(this, getString(R.string.result_my_avg_pos,
-                history.map { it.sumDecimal }.average())))
-        }
+        // Mitt gjennomsnitt for denne stillingen: sesong + totalt, brutt ned kun
+        // på stilling (musingsUI runde 8)
+        val samePos = store.allSeries().filter { it.position == s.position }
+        val seasonNow = Store.seasonKey(s.ts)
+        val seasonPos = samePos.filter { Store.seasonKey(it.ts) == seasonNow }
+        content.addView(TextView(this).apply {
+            text = getString(R.string.result_avg_pos_title)
+            textSize = 15f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, Ui.dp(this@SerieloggActivity, 8), 0, Ui.dp(this@SerieloggActivity, 2))
+        })
+        if (seasonPos.isNotEmpty())
+            content.addView(Ui.body(this, getString(R.string.result_avg_season,
+                seasonPos.map { it.sumDecimal }.average())))
+        content.addView(Ui.body(this, getString(R.string.result_avg_total,
+            samePos.map { it.sumDecimal }.average())))
 
         content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {

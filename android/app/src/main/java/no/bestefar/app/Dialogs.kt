@@ -90,7 +90,7 @@ object Dialogs {
 
         var selectedPos = store.currentPosition
         var selectedMod = store.lastModifier(selectedPos)
-        val counts = store.seriesCountByPosition()
+        val shotsPerPos = store.shotsCountByPosition()
 
         lateinit var refresh: () -> Unit
 
@@ -106,23 +106,12 @@ object Dialogs {
         refresh = {
             posCol.removeAllViews()
             Position.hoved.forEach { p ->
-                val n = counts[p] ?: 0
-                val label = "${p.label}   ($n skudd)"
-                val b = Ui.choiceButton(a, label, p == selectedPos) {
+                val n = shotsPerPos[p] ?: 0
+                posCol.addView(positionRow(a, p, n, p == selectedPos) {
                     selectedPos = p
                     selectedMod = store.lastModifier(p)
                     refresh()
-                }
-                b.icon = androidx.core.content.ContextCompat.getDrawable(a, p.iconRes)
-                b.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
-                // Homogeniser ikonstørrelsen på selve stillingsvelgeren
-                // (musingsUI runde 7 — dette var opprinnelig ment her, ikke i Innsikt)
-                b.iconSize = dp(a, 30)
-                b.iconPadding = dp(a, 8)
-                b.layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 52)
-                ).apply { topMargin = dp(a, 6) }
-                posCol.addView(b)
+                })
             }
             modRow.removeAllViews()
             PosModifier.valgbare.forEach { m ->
@@ -161,6 +150,50 @@ object Dialogs {
         sheet.show()
     }
 
+    /**
+     * Stillingsrad i stillingsvelgeren (musingsUI runde 8): ikon via FIT_CENTER-
+     * ImageView i en fast-høyde/variabel-bredde-boks, så «Liggende» beholder
+     * aspektforholdet (MaterialButton.iconSize tvang kvadrat og klemte den flat).
+     * Bredere ikoner (liggende) får være litt lengre; høye (stående) blir smalere.
+     */
+    private fun positionRow(a: Activity, p: Position, shots: Int, selected: Boolean,
+                            onClick: () -> Unit): android.view.View {
+        val primary = Ui.themeColor(a, com.google.android.material.R.attr.colorPrimary)
+        val onSel = if (selected) android.graphics.Color.WHITE
+        else Ui.themeColor(a, android.R.attr.textColorPrimary)
+        val row = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(a, 8).toFloat()
+                if (selected) setColor(primary)
+                else setStroke(dp(a, 1), android.graphics.Color.GRAY)
+            }
+            isClickable = true
+            setOnClickListener { onClick() }
+            val padH = dp(a, 12)
+            setPadding(padH, dp(a, 6), padH, dp(a, 6))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(a, 6) }
+        }
+        row.addView(android.widget.ImageView(a).apply {
+            setImageResource(p.iconRes)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            androidx.core.widget.ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(onSel))
+            layoutParams = LinearLayout.LayoutParams(dp(a, 54), dp(a, 38))
+        })
+        row.addView(TextView(a).apply {
+            text = "  ${p.label}   ($shots skudd)"
+            textSize = 16f
+            setTextColor(onSel)
+            layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(a, 8) }
+        })
+        return row
+    }
+
     /** Dagsbekreftelse av våpen — én gang per dag (spec §2). Ammo fjernet i r4. */
     fun weaponDayConfirm(a: Activity, store: Store, onDone: () -> Unit) {
         val ws = store.weapons()
@@ -185,11 +218,14 @@ object Dialogs {
      */
     fun maybeResearchConsent(a: Activity, store: Store, onDone: () -> Unit = {}) {
         val n = store.currentSeasonSeries().size
+        val season = Store.seasonKey(System.currentTimeMillis())
         // Aldri samme serie som jaktmål; tidligst 2 serier etter (musingsUI r6)
         val afterJaktmaal = !store.jaktmaalPromptSeen || n >= store.jaktmaalPromptCount + 2
         val due = afterJaktmaal && when (store.consentResearch) {
             "" -> n >= 5
             "senere" -> n - store.consentLastPromptCount >= 10
+            // Spør på nytt hver ny sesong, også når man allerede deler (runde 8)
+            "ja", "aldri" -> store.researchConsentSeason != season && n >= 1
             else -> false
         }
         if (!due) { onDone(); return }
@@ -197,9 +233,12 @@ object Dialogs {
         AlertDialog.Builder(a)
             .setTitle(R.string.consent_research_title)
             .setMessage(R.string.consent_research_body)
-            .setPositiveButton(R.string.consent_yes) { _, _ -> researchConsentYes(a, store) {} }
-            .setNegativeButton(R.string.consent_later) { _, _ -> store.consentResearch = "senere" }
-            .setNeutralButton(R.string.consent_never) { _, _ -> store.consentResearch = "aldri" }
+            .setPositiveButton(R.string.consent_yes) { _, _ ->
+                store.researchConsentSeason = season; researchConsentYes(a, store) {} }
+            .setNegativeButton(R.string.consent_later) { _, _ ->
+                store.researchConsentSeason = season; store.consentResearch = "senere" }
+            .setNeutralButton(R.string.consent_never) { _, _ ->
+                store.researchConsentSeason = season; store.consentResearch = "aldri" }
             .setOnDismissListener { onDone() }
             .show()
     }
@@ -208,7 +247,9 @@ object Dialogs {
     fun researchConsentYes(a: Activity, store: Store, onDone: () -> Unit) {
         val year = LocalDate.now().year
         if (store.birthYear in 1..(year - 18)) {
-            store.consentResearch = "ja"; onDone(); return
+            store.consentResearch = "ja"
+            store.researchConsentSeason = Store.seasonKey(System.currentTimeMillis())
+            onDone(); return
         }
         if (store.birthYear != 0) {
             AlertDialog.Builder(a).setMessage(R.string.consent_age_denied)
@@ -274,8 +315,10 @@ object Dialogs {
         val items = listOf("Vilt" to R.string.share_vilt, "Dato" to R.string.share_dato,
             "Posisjon" to R.string.share_posisjon,
             "Skuddsituasjon" to R.string.share_skuddsituasjon)
-        // Auto-kryss alt ved første gang (musingsUI runde 7); ellers speil valget
-        val firstTime = store.consentHunt == "" && store.researchShare.isEmpty()
+        // Auto-kryss alt ved første gang — men KUN når forskning er aktivert
+        // (musingsUI runde 8); ellers speil valget
+        val firstTime = store.consentHunt == "" && store.researchShare.isEmpty() &&
+            store.consentResearch == "ja"
         val boxes = items.map { (key, res) ->
             android.widget.CheckBox(a).apply {
                 setText(res)

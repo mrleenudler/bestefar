@@ -175,6 +175,12 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getString("shareGranularity", "Kommune (~10 km)") ?: ""
         set(v) { prefs.edit().putString("shareGranularity", v).apply() }
 
+    /** Sesong (jaktår-startår) da forskningssamtykke sist ble bekreftet; brukes
+     *  til å spørre på nytt hver nye sesong (musingsUI runde 8). -1 = aldri. */
+    var researchConsentSeason: Int
+        get() = prefs.getInt("researchConsentSeason", -1)
+        set(v) { prefs.edit().putInt("researchConsentSeason", v).apply() }
+
     // ---------- Jaktmodus ----------
 
     var huntMode: Boolean
@@ -329,6 +335,12 @@ class Store private constructor(ctx: Context) {
     /** Antall serier skutt fra hver stilling denne sesongen (stillingsvalg). */
     fun seriesCountByPosition(): Map<Position, Int> =
         currentSeasonSeries().groupingBy { it.position }.eachCount()
+
+    /** Antall SKUDD skutt fra hver stilling denne sesongen (stillingsvelger viser
+     *  skudd, ikke serier — musingsUI runde 8). */
+    fun shotsCountByPosition(): Map<Position, Int> =
+        currentSeasonSeries().groupBy { it.position }
+            .mapValues { e -> e.value.sumOf { it.shots.size } }
 
     /** Sesongens serier for ett våpen, kronologisk (innskytingssjekk). */
     fun seasonSeriesForWeapon(weaponId: String?): List<SeriesRecord> =

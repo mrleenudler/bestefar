@@ -1,5 +1,6 @@
 package no.bestefar.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
@@ -34,6 +35,9 @@ class VennerActivity : AppCompatActivity() {
         rebuild()
     }
 
+    // Oppdater etter retur fra TeamPageActivity (lag kan være endret/slettet)
+    override fun onResume() { super.onResume(); rebuild() }
+
     private val active get() = store.friendShareActive
 
     private fun rebuild() {
@@ -67,7 +71,13 @@ class VennerActivity : AppCompatActivity() {
                 alpha = if (greyed) 0.4f else 1f
                 layoutParams = LinearLayout.LayoutParams(0,
                     ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                setOnClickListener { if (!greyed) teamPage(team) }
+                // Full lagside (musingsUI runde 8): viser deg selv i lista og gir
+                // «Rediger lag» til lagleder — samme side som fra Min profil.
+                setOnClickListener {
+                    if (!greyed) startActivity(Intent(this@VennerActivity,
+                        TeamPageActivity::class.java)
+                        .putExtra(TeamPageActivity.EXTRA_TEAM_ID, team.id))
+                }
             })
             // «<=» kollaps-pil, nest lengst til høyre (musingsUI runde 5)
             row.addView(MaterialButton(this, null,
@@ -155,27 +165,6 @@ class VennerActivity : AppCompatActivity() {
         val tmp = list[idx].sortOrder; list[idx].sortOrder = list[j].sortOrder
         list[j].sortOrder = tmp
         store.saveTeams(list); rebuild()
-    }
-
-    /** Lagside: laget som overskrift, medlemmer som knapper (musingsUI runde 5). */
-    private fun teamPage(team: Team) {
-        content.removeAllViews()
-        content.addView(Ui.title(this, team.name))
-        val members = store.friends().filter { team.id in it.teamIds }
-        if (members.isEmpty()) content.addView(Ui.hint(this, getString(R.string.team_no_members)))
-        members.sortedBy { it.shownName.lowercase() }.forEach { f ->
-            content.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = f.shownName
-                layoutParams = Ui.matchWrap(2, this@VennerActivity)
-                setOnClickListener { friendDetail(f) }
-            })
-        }
-        content.addView(MaterialButton(this).apply {
-            text = getString(R.string.back)
-            layoutParams = Ui.matchWrap(16, this@VennerActivity)
-            setOnClickListener { rebuild() }
-        })
     }
 
     private fun onAddFriend() {

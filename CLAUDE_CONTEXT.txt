@@ -329,3 +329,27 @@ UI-RUNDE 7 (v0.9) LÆRDOMMER:
     TOTALEN, som var en annen visning enn "Poeng:"-lista til hoyre for skiva).
   - Dato-"bytte"-animasjon: ts har HH:mm og er alltid ulik. Bruk DAG (toLocalDate) som
     noekkel for aa trigge animasjon, ikke hele tidsstempelet.
+
+UI-RUNDE 8 (v0.10) LAERDOMMER:
+  - ROTAARSAK (kostet 2-3 runder): Ui.themeColor returnerte tv.data RAATT.
+    android.R.attr.textColorPrimary oppløses til en ColorStateList-REFERANSE, ikke en
+    farge-int -> tv.data er en RESSURS-ID (som ARGB = tilfeldig/usynlig farge). Derfor
+    var ALT som ble tintet med tekstfargen "usynlig" i baade lys og moerk (vilt-
+    silhuetter, valgt piktogram, viltnavn-tekst, jaktlogg-silhuetter). colorPrimary
+    virket fordi den oppløses til direkte farge-int. Fiks: sjekk tv.type (COLOR_INT-
+    range) -> tv.data; ellers tv.resourceId -> ContextCompat.getColor / (fallback)
+    ResourcesCompat.getColorStateList(...).defaultColor. NAAR noe tintet med tekst-
+    fargen er "usynlig" uansett natt/dag: MISTENK theme-attr-oppløsning FOERST.
+  - MaterialButton.iconSize tvinger ikonet til KVADRAT (iconSize x iconSize) og klemmer
+    brede ikoner (liggende) flate. Vil du beholde aspekt: bruk en ImageView med
+    FIT_CENTER i en boks (fast hoyde, variabel/fast bredde), ikke b.icon+iconSize.
+  - "## skudd" i stillingsvelgeren viste SERIER (seriesCountByPosition), ikke skudd.
+    La til shotsCountByPosition() (sum av shots.size). Sjekk alltid at en teller faktisk
+    teller det etiketten sier.
+  - Tema-attr som er ColorStateList (textColorPrimary) vs farge-int (colorPrimary):
+    de oppfoerer seg ULIKT i resolveAttribute. Ikke anta at alle attr gir farge-int.
+  - Checkbox-default: "Felling var vellykket" skal vaere UAVKRYSSET slik at et bevisst
+    valg tvinges frem via bekreftelsesdialog. Standard-checked skjuler feillogging.
+  - Oppstartspopups som brukeren "ikke vil se hver gang": flytt valget til Avanserte
+    innstillinger (bryter), la popupen kun styres av dev-flagg. Bruker vil ha KONTROLL,
+    ikke gjentatte spoersmaal.

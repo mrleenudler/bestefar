@@ -214,8 +214,10 @@ class HuntLogActivity : AppCompatActivity() {
         if (!shareResearch) {
             // Forenklet visning: dato + vilt + «Felling var vellykket» + Lagre/Avbryt.
             // Felling-checkboxen hører hjemme også her (musingsUI runde 7).
+            // Uavkrysset som default (musingsUI runde 8): tvinger et bevisst valg
+            // via bekreftelsesdialogen ved lagring hvis den står uavkrysset.
             val fellingBox = android.widget.CheckBox(this).apply {
-                text = getString(R.string.felling_success); isChecked = true
+                text = getString(R.string.felling_success); isChecked = false
             }
             content.addView(fellingBox)
 
@@ -387,9 +389,9 @@ class HuntLogActivity : AppCompatActivity() {
         ranRow.addView(TextView(this).apply { text = " m"; textSize = 17f })
         content.addView(ranRow, Ui.matchWrap(8, this))
 
-        // «Felling var vellykket» (musingsUI runde 6)
+        // «Felling var vellykket» — uavkrysset default (musingsUI runde 8)
         val fellingBox = android.widget.CheckBox(this).apply {
-            text = getString(R.string.felling_success); isChecked = true
+            text = getString(R.string.felling_success); isChecked = false
         }
         content.addView(fellingBox)
 

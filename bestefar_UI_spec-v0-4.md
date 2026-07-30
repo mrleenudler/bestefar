@@ -275,3 +275,28 @@ Overstyrer eldre beskrivelser ved konflikt.
   kun «Felling vellykket/mislykket» (ikke «Utfall: Dødelig») i samme font. Rediger:
   etikett foran hvert felt, redigerbar dato, utfallsknapper stablet loddrett, «Skade»
   vist som «Ettersøk», «Dyret ble ikke funnet» kun ved Ettersøk.
+
+## 16. Endringslogg v0.10 (musingsUI runde 8)
+
+- **Fargeoppslag (rotårsak):** `Ui.themeColor` løser nå opp ColorStateList-attributter
+  (særlig `android:textColorPrimary`) korrekt — tidligere ble ressurs-ID-en tolket som
+  farge, så alt tintet med tekstfargen var «usynlig». Fikser vilt-silhuetter (lys/mørk),
+  valgt piktogram i mørk, viltnavn-tekst og jaktlogg-silhuetter i mørk i én operasjon.
+- **Topplinje:** margin 5 % → 2 % (3 % opp).
+- **Forskning:** «Del med forskning»-bryter i Avanserte innstillinger (18-årsgate);
+  auto-kryss kun når forskning er aktivert; nytt samtykke-spørsmål hver ny sesong
+  (`researchConsentSeason`).
+- **Oppstart:** bildedelings-spørsmålet popper ikke lenger; flyttet til «Del bilder med
+  utvikler»-bryter i Avanserte innstillinger. Intro-vindu kun første gang / dev-flagg.
+- **Innsikt:** (i) = UTF-8-glyf «ⓘ». Ramme-flukt: tre første stillinger venstrejustert
+  (liggende over «forfra»-vilt), stående skjøvet helt til høyre over hold-kolonnen; luft
+  mellom stående og 25 m; avstandsknapper like store som ikoncellene (60×54).
+- **Stillingsvelger:** «Liggende» beholder aspekt (FIT_CENTER-ImageView i boks, ikke
+  `iconSize`-kvadrat); «## skudd» teller skudd (`shotsCountByPosition`), ikke serier.
+- **Serier:** «Lukk»-knapp nederst t.h., lista scroller ikke bak den.
+- **Poeng:** «Poeng:»-overskrift i fet, samme størrelse som poengene. «Mitt gjennomsnitt
+  for denne stillingen» brytes kun på stilling: «Denne sesongen: X / Totalt Y».
+- **Logg jaktskudd:** «Felling var vellykket» uavkrysset default (→ bekreftelsesdialog
+  ved uavkrysset). Rediger: «Bom»/«ikke funnet» fader ut, sletter og låser «Dyret løp».
+- **Venner:** klikk på jaktlag åpner full lagside (deg selv i lista + «Rediger lag» for
+  lagleder), samme som fra Min profil.

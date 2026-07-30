@@ -292,6 +292,28 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
             text = getString(R.string.hunt_not_found)
             isChecked = r.followUp == FollowUp.IKKE_GJENFUNNET
         }
+
+        // «Dyret løp» blokkeres når utfallet er Bom eller «ikke funnet»: tallet
+        // gir da ingen mening. Første gang settes tilstanden stille; endres den
+        // av brukeren, fades tallet elegant ut før det slettes (musingsUI runde 8).
+        var ranBlockInit = false
+        fun setRanBlocked() {
+            val block = outcome == Outcome.BOM ||
+                (outcome == Outcome.SKADE && notFoundBox.isChecked)
+            if (block) {
+                if (ran.text.isNotEmpty() && ranBlockInit) {
+                    ran.animate().alpha(0f).setDuration(280L).withEndAction {
+                        ran.setText(""); ran.alpha = 1f; ran.isEnabled = false
+                    }.start()
+                } else {
+                    ran.setText(""); ran.isEnabled = false
+                }
+            } else if (!ran.isEnabled) {
+                ran.isEnabled = true; ran.alpha = 1f
+            }
+        }
+        notFoundBox.setOnCheckedChangeListener { _, _ -> setRanBlocked() }
+
         // Utfallsknappene stablet loddrett (musingsUI runde 7)
         val outcomeCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         fun renderOutcome() {
@@ -303,9 +325,11 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
             }
             // «Dyret ble ikke funnet» kun ved Ettersøk (Skade)
             notFoundBox.visibility = if (outcome == Outcome.SKADE) View.VISIBLE else View.GONE
+            setRanBlocked()
         }
         labeled(R.string.hunt_outcome_label, outcomeCol)
         renderOutcome()
+        ranBlockInit = true
         col.addView(notFoundBox)
 
         AlertDialog.Builder(this)

@@ -244,7 +244,9 @@ class ResultActivity : AppCompatActivity() {
         }
         scoreCol.addView(TextView(this).apply {
             text = getString(R.string.result_points_label)   // «Poeng:»
-            textSize = 15f
+            // Samme størrelse som poengene under, i fet (musingsUI runde 8)
+            textSize = 19f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         r.shots.withIndex().sortedBy { it.value.decimal }.forEach { (idx, shot) ->
             val row = Ui.row(this)
@@ -293,14 +295,9 @@ class ResultActivity : AppCompatActivity() {
         content.addView(Ui.hint(this,
             "${r.position.label}$modText · ${r.distanceM} m · " + (w?.shownName ?: "—")))
 
-        // Mitt gjennomsnitt for denne stillingen (uten KI, musingsUI runde 6/7)
-        val history = store.allSeries().filter {
-            it.id != r.id && it.position == r.position && it.distanceM == r.distanceM
-        }
-        if (history.isNotEmpty()) {
-            val avg = history.map { it.sumDecimal }.average()
-            content.addView(Ui.body(this, getString(R.string.result_my_avg_pos, avg)))
-        }
+        // Mitt gjennomsnitt for denne stillingen: brutt ned på stilling (ikke
+        // avstand/hjelpemiddel), sesong + totalt, oppdateres løpende (runde 8).
+        addAvgBlock(r)
 
         if (ocrMismatch != null) {
             renderOcrMismatch()
@@ -320,6 +317,28 @@ class ResultActivity : AppCompatActivity() {
             })
             content.addView(btnRow, Ui.matchWrap(12, this))
         }
+    }
+
+    /**
+     * «Mitt gjennomsnitt for denne stillingen» — sesong + totalt, brutt ned kun
+     * på stilling (musingsUI runde 8). Tar med gjeldende serie selv om den ennå
+     * ikke er lagret, så snittet stemmer med det som vises.
+     */
+    private fun addAvgBlock(r: SeriesRecord) {
+        val samePos = store.allSeries().filter { it.position == r.position && it.id != r.id } + r
+        val seasonNow = Store.seasonKey(r.ts)
+        val season = samePos.filter { Store.seasonKey(it.ts) == seasonNow }
+        content.addView(TextView(this).apply {
+            text = getString(R.string.result_avg_pos_title)
+            textSize = 15f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, Ui.dp(this@ResultActivity, 8), 0, Ui.dp(this@ResultActivity, 2))
+        })
+        if (season.isNotEmpty())
+            content.addView(Ui.body(this, getString(R.string.result_avg_season,
+                season.map { it.sumDecimal }.average())))
+        content.addView(Ui.body(this, getString(R.string.result_avg_total,
+            samePos.map { it.sumDecimal }.average())))
     }
 
     /** OCR uenig (> 0.2): vis melding + forkast / lagre med skjermens poeng. */

@@ -10,7 +10,6 @@ import android.text.style.StyleSpan
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -85,8 +84,7 @@ class InnsiktFragment : RebuildFragment() {
     // står i loddrett flukt (musingsUI runde 7).
     private val cellW get() = Ui.dp(requireContext(), 60)
     private val cellH get() = Ui.dp(requireContext(), 54)
-    private val distCellH get() = Ui.dp(requireContext(), 50)
-    private val rowH get() = Ui.dp(requireContext(), 62)
+    private val rowH get() = Ui.dp(requireContext(), 64)
 
     override fun rebuild() {
         val a = requireActivity()
@@ -101,27 +99,34 @@ class InnsiktFragment : RebuildFragment() {
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
-        titleRow.addView(ImageButton(a).apply {
-            setImageResource(R.drawable.ic_info)
-            background = null
-            ImageViewCompat.setImageTintList(this,
-                android.content.res.ColorStateList.valueOf(txtColor()))
+        // (i): UTF-8-glyf i stedet for SVG-ikonet, som var vanskelig å få synlig
+        // (musingsUI runde 8). Tekstfarget, tydelig klikkbart.
+        titleRow.addView(TextView(a).apply {
+            text = "ⓘ"
+            textSize = 26f
+            setTextColor(txtColor())
+            gravity = Gravity.CENTER
             contentDescription = getString(R.string.innsikt_info_title)
-            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 36), Ui.dp(a, 36))
-            val p = Ui.dp(a, 4); setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 40), Ui.dp(a, 40))
+            val pad = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_DIP, 4f, resources.displayMetrics).toInt()
+            setPadding(pad, pad, pad, pad)
+            isClickable = true
             setOnClickListener { infoDialog() }
         })
         content.addView(titleRow)
         content.addView(Ui.body(a, getString(R.string.innsikt_recommend)))
 
-        // Øverste ramme-kant: jeger-stilling (JJJJ), høyrejustert slik at
-        // stående-ikonet står over hold-kolonnen (musingsUI runde 7).
-        val topRow = LinearLayout(a).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
-        }
+        // Øverste ramme-kant: jeger-stilling. De tre første venstrejustert (over
+        // dyr-vinklingene nederst), stående skjøvet helt til høyre av en spacer så
+        // den står rett over hold-kolonnen (musingsUI runde 7/8: presis flukt).
+        val topRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
         Position.hoved.forEachIndexed { i, p ->
+            val last = i == Position.hoved.size - 1
+            if (last) topRow.addView(android.widget.Space(a),
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             topRow.addView(iconCell(p.iconRes, innsiktScale(p), p == jegerPos,
-                p.label, last = i == Position.hoved.size - 1) { jegerPos = p; rebuild() })
+                p.label, last = last) { jegerPos = p; rebuild() })
         }
         content.addView(topRow)
 
@@ -137,6 +142,12 @@ class InnsiktFragment : RebuildFragment() {
 
         val holdCol = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                // Luft mellom stående-ikonet og 25 m, lik mellomrommet mellom
+                // avstandene (musingsUI runde 8)
+                topMargin = Ui.dp(a, 6)
+            }
         }
         holds.forEach { d -> holdCol.addView(holdButton(d)) }
         body.addView(holdCol)
@@ -175,8 +186,9 @@ class InnsiktFragment : RebuildFragment() {
         b.minHeight = 0; b.minimumHeight = 0
         val ph = Ui.dp(a, 2)
         b.setPadding(ph, 0, ph, 0)
-        b.layoutParams = LinearLayout.LayoutParams(cellW, distCellH).apply {
-            bottomMargin = Ui.dp(a, 2)
+        // Like store som vilt-/stilling-ikoncellene, jevnt mellomrom (runde 8)
+        b.layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
+            bottomMargin = Ui.dp(a, 6)
         }
         b.setOnClickListener { holdM = d; rebuild() }
         return b

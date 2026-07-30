@@ -54,15 +54,36 @@ class AvansertActivity : AppCompatActivity() {
                 .setPositiveButton(R.string.ok, null).show()
         }
 
-        // Oppstarts-bildedeling av/på (musingsUI runde 7)
+        // Del med forskning av/på (musingsUI runde 8): valget bor nå her, ikke i
+        // en oppstartspopup. På = "ja", av = "aldri".
         content.addView(SwitchCompat(this).apply {
-            text = getString(R.string.startup_donate_ask)
-            isChecked = store.startupDonateAsk
+            text = getString(R.string.research_share_toggle)
+            isChecked = store.consentResearch == "ja"
             setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
                 0, Ui.dp(this@AvansertActivity, 12))
-            setOnCheckedChangeListener { _, on -> store.startupDonateAsk = on }
+            setOnCheckedChangeListener { _, on ->
+                if (on) {
+                    // 18-årsgate før forskning aktiveres (spec §7)
+                    Dialogs.researchConsentYes(this@AvansertActivity, store) {
+                        if (store.consentResearch == "ja")
+                            store.researchConsentSeason = Store.seasonKey(System.currentTimeMillis())
+                        else isChecked = false   // avslått (alder) -> tilbakestill
+                    }
+                } else store.consentResearch = "aldri"
+            }
         })
-        content.addView(Ui.hint(this, getString(R.string.startup_donate_ask_hint)))
+        content.addView(Ui.hint(this, getString(R.string.research_share_toggle_hint)))
+
+        // Del bilder med utvikler av/på (musingsUI runde 8): flyttet fra
+        // oppstartspopup til her. På = "ja", av = "nei".
+        content.addView(SwitchCompat(this).apply {
+            text = getString(R.string.share_dev_images)
+            isChecked = store.shareDevImagesActive
+            setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
+                0, Ui.dp(this@AvansertActivity, 12))
+            setOnCheckedChangeListener { _, on -> store.shareDevImages = if (on) "ja" else "nei" }
+        })
+        content.addView(Ui.hint(this, getString(R.string.share_dev_images_hint)))
 
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {

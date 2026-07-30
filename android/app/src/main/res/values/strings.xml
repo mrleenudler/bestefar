@@ -451,6 +451,15 @@
     <string name="hunt_outcome_label">Utfall</string>
     <string name="result_points_prefix">Poeng: %1$.1f  (%2$d)</string>
 
+    <!-- ============ Runde 8 ============ -->
+    <string name="share_dev_images">Del bilder med utvikler</string>
+    <string name="share_dev_images_hint">Del bilder der appen gjør en dårlig jobb, så vi kan forbedre den. Kan slås av når som helst.</string>
+    <string name="research_share_toggle">Del med forskning</string>
+    <string name="research_share_toggle_hint">Del anonymiserte data (vilt, dato, posisjon, skuddsituasjon) med forskning. Du blir spurt på nytt ved ny sesong.</string>
+    <string name="result_avg_pos_title">Mitt gjennomsnitt for denne stillingen</string>
+    <string name="result_avg_season">Denne sesongen: %1$.1f</string>
+    <string name="result_avg_total">Totalt %1$.1f</string>
+
     <!-- Innsikt-matrise (runde 5) -->
     <string name="innsikt_recommend">Anbefalte skuddhold og posisjoner:</string>
     <string name="innsikt_train_pos">øv på\nstillingen</string>

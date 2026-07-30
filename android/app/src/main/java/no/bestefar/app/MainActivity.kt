@@ -108,8 +108,9 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 56)).apply {
-                // Flytt øverste menylinje ~5 % ned fra statuslinjen (musingsUI r5/r7)
-                topMargin = (resources.displayMetrics.heightPixels * 0.05).toInt()
+                // Øverste menylinje ~2 % ned fra statuslinjen (musingsUI r5/r7/r8:
+                // 5 % ble litt for langt ned, justert 3 % opp til 2 %)
+                topMargin = (resources.displayMetrics.heightPixels * 0.02).toInt()
             }
         }
         val landscape =
@@ -252,20 +253,12 @@ class MainActivity : AppCompatActivity() {
      * scan-knappen bak, med luft mellom setningene og ned til valgene.
      */
     private fun startupWindow1() {
+        // Bildedelings-spørsmålet er flyttet til Avanserte innstillinger
+        // («Del bilder med utvikler») og popper ikke lenger ved oppstart
+        // (musingsUI runde 8). Kun intro-vinduet vises — første gang / dev-flagg.
         val body = getString(R.string.startup_info)
         overlayMessage(getString(R.string.startup_title), body,
-            positive = getString(R.string.ok), onPositive = {
-                // Bildedelings-spørsmålet kan slås av (musingsUI runde 7)
-                if (store.startupDonateAsk) startupWindow2() else finishStartup()
-            })
-    }
-
-    private fun startupWindow2() {
-        overlayMessage(null, getString(R.string.startup_donate),
-            positive = getString(R.string.donate_accept),
-            negative = getString(R.string.no_thanks),
-            onPositive = { store.shareDevImages = "ja"; finishStartup() },
-            onNegative = { store.shareDevImages = "nei"; finishStartup() })
+            positive = getString(R.string.ok), onPositive = { finishStartup() })
     }
 
     private fun finishStartup() {

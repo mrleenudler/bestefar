@@ -57,9 +57,31 @@ object Ui {
         layoutParams = LinearLayout.LayoutParams(1, dp(c, h))
     }
 
+    /**
+     * Løs opp en tema-attributt til en farge. VIKTIG (musingsUI runde 8):
+     * enkelte attributter — særlig android.R.attr.textColorPrimary — peker til en
+     * ColorStateList, ikke en direkte farge-int. Da er `tv.data` en RESSURS-ID
+     * (tolket som ARGB blir det en tilfeldig, ofte usynlig farge). Det var
+     * rotårsaken til at silhuetter/tekst tintet med tekstfargen var «usynlige» i
+     * både lys og mørk visning gjennom flere runder. Her håndteres begge tilfeller:
+     * direkte farge-int (colorPrimary) OG ressurs-referanse (textColorPrimary).
+     */
     fun themeColor(c: Context, attr: Int): Int {
         val tv = TypedValue()
-        return if (c.theme.resolveAttribute(attr, tv, true)) tv.data else Color.BLACK
+        if (!c.theme.resolveAttribute(attr, tv, true)) return Color.BLACK
+        // Direkte farge-int (f.eks. colorPrimary)
+        if (tv.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT)
+            return tv.data
+        // Referanse til color/ColorStateList (f.eks. android:textColorPrimary)
+        if (tv.resourceId != 0) {
+            return try {
+                androidx.core.content.ContextCompat.getColor(c, tv.resourceId)
+            } catch (_: Exception) {
+                androidx.core.content.res.ResourcesCompat.getColorStateList(
+                    c.resources, tv.resourceId, c.theme)?.defaultColor ?: Color.BLACK
+            }
+        }
+        return Color.BLACK
     }
 
     /**
