@@ -240,24 +240,37 @@ class ResultActivity : AppCompatActivity() {
         })
         val scoreCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            // Poengene midtstilles under «Poeng:» (musingsUI runde 9)
+            gravity = Gravity.CENTER_HORIZONTAL
             setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
         }
         scoreCol.addView(TextView(this).apply {
             text = getString(R.string.result_points_label)   // «Poeng:»
             // Samme størrelse som poengene under, i fet (musingsUI runde 8)
             textSize = 19f
+            gravity = Gravity.CENTER_HORIZONTAL
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         r.shots.withIndex().sortedBy { it.value.decimal }.forEach { (idx, shot) ->
-            val row = Ui.row(this)
+            // Tettere poeng-rader (musingsUI runde 9): kompakt blyant, liten
+            // radhøyde, midtstilt.
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
             row.addView(TextView(this).apply {
                 text = "%.1f".format(shot.decimal)
                 textSize = 19f
-                minWidth = Ui.dp(this@ResultActivity, 48)
+                gravity = Gravity.CENTER
+                minWidth = Ui.dp(this@ResultActivity, 40)
             })
             row.addView(ImageButton(this).apply {
                 setImageResource(R.drawable.ic_edit)
                 background = null
+                val p = Ui.dp(this@ResultActivity, 2)
+                setPadding(p, p, p, p)
+                layoutParams = LinearLayout.LayoutParams(
+                    Ui.dp(this@ResultActivity, 26), Ui.dp(this@ResultActivity, 26))
                 contentDescription = getString(R.string.result_edit)
                 setOnClickListener {
                     Dialogs.shotEdit(this@ResultActivity, shot.decimal) { v ->
@@ -271,7 +284,10 @@ class ResultActivity : AppCompatActivity() {
                     }
                 }
             })
-            scoreCol.addView(row)
+            scoreCol.addView(row, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = Ui.dp(this@ResultActivity, 1)
+            })
         }
         mainRow.addView(scoreCol)
         content.addView(mainRow)

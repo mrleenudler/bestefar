@@ -277,6 +277,12 @@ class Store private constructor(ctx: Context) {
         set(v) { prefs.edit().putString("shareDevImages", v).apply() }
     val shareDevImagesActive: Boolean get() = shareDevImages == "ja"
 
+    /** Sesong da bildedelings-spørsmålet sist ble stilt ved oppstart; brukes til
+     *  å spørre én gang neste sesong hvis deling ikke er valgt (musingsUI r9). */
+    var shareDevImagesSeason: Int
+        get() = prefs.getInt("shareDevImagesSeason", -1)
+        set(v) { prefs.edit().putInt("shareDevImagesSeason", v).apply() }
+
     // ---------- Serier ----------
 
     @Synchronized

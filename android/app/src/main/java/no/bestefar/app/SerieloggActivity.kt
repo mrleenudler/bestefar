@@ -139,11 +139,13 @@ class SerieloggActivity : AppCompatActivity() {
             content.addView(row)
         }
 
-        // Ikke la lista skjule seg bak Lukk-knappen (musingsUI runde 8)
-        content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 80)))
-        root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT)
+        // Lista skal AVSLUTTE over bunnknappen, ikke scrolle bak den (musingsUI
+        // runde 9): scroll-området får bunnmarg så seriene klippes ved knappens
+        // overkant (ScrollView klipper egne barn til sine grenser).
+        root.addView(Ui.scroll(this, content), FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+            bottomMargin = Ui.dp(this@SerieloggActivity, 72)
+        })
 
         if (selectionMode) {
             // Avbryt nederst i høyre hjørne (musingsUI)

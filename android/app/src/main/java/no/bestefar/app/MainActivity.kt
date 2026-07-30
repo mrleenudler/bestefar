@@ -241,11 +241,10 @@ class MainActivity : AppCompatActivity() {
     // ---------- Oppstartsmelding (musingsUI runde 4) ----------
 
     private fun maybeStartupMessage() {
-        if (store.startupMsgSeenVersion >= STARTUP_MSG_VERSION && !store.alwaysShowStartup) {
-            if (!store.tutorialSeen) root.post { showTutorial() }
-            return
-        }
-        root.post { startupWindow1() }
+        val showIntro = store.startupMsgSeenVersion < STARTUP_MSG_VERSION ||
+            store.alwaysShowStartup
+        if (showIntro) root.post { startupWindow1() }
+        else root.post { maybeDonateThenTutorial() }
     }
 
     /**
@@ -253,17 +252,38 @@ class MainActivity : AppCompatActivity() {
      * scan-knappen bak, med luft mellom setningene og ned til valgene.
      */
     private fun startupWindow1() {
-        // Bildedelings-spørsmålet er flyttet til Avanserte innstillinger
-        // («Del bilder med utvikler») og popper ikke lenger ved oppstart
-        // (musingsUI runde 8). Kun intro-vinduet vises — første gang / dev-flagg.
         val body = getString(R.string.startup_info)
         overlayMessage(getString(R.string.startup_title), body,
-            positive = getString(R.string.ok), onPositive = { finishStartup() })
+            positive = getString(R.string.ok), onPositive = {
+                store.startupMsgSeenVersion = STARTUP_MSG_VERSION
+                maybeDonateThenTutorial()
+            })
     }
 
-    private fun finishStartup() {
-        store.startupMsgSeenVersion = STARTUP_MSG_VERSION
-        if (!store.tutorialSeen) showTutorial()
+    /**
+     * Bildedelings-spørsmålet ved oppstart (musingsUI runde 9): vises FØRSTE gang
+     * appen åpnes, og deretter én gang neste sesong hvis deling ikke er valgt.
+     * (Valget kan uansett styres fra Avanserte innstillinger.)
+     */
+    private fun maybeDonateThenTutorial() {
+        val season = Store.seasonKey(System.currentTimeMillis())
+        val ask = when {
+            store.shareDevImages == "" -> true                       // aldri spurt
+            store.shareDevImages != "ja" && store.shareDevImagesSeason != season -> true
+            else -> false
+        }
+        if (!ask) { if (!store.tutorialSeen) showTutorial(); return }
+        overlayMessage(null, getString(R.string.startup_donate),
+            positive = getString(R.string.donate_accept),
+            negative = getString(R.string.no_thanks),
+            onPositive = {
+                store.shareDevImages = "ja"; store.shareDevImagesSeason = season
+                if (!store.tutorialSeen) showTutorial()
+            },
+            onNegative = {
+                store.shareDevImages = "nei"; store.shareDevImagesSeason = season
+                if (!store.tutorialSeen) showTutorial()
+            })
     }
 
     private fun overlayMessage(title: String?, body: String, positive: String,

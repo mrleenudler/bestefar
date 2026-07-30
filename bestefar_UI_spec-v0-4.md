@@ -300,3 +300,22 @@ Overstyrer eldre beskrivelser ved konflikt.
   ved uavkrysset). Rediger: «Bom»/«ikke funnet» fader ut, sletter og låser «Dyret løp».
 - **Venner:** klikk på jaktlag åpner full lagside (deg selv i lista + «Rediger lag» for
   lagleder), samme som fra Min profil.
+
+## 17. Endringslogg v0.11 (musingsUI runde 9)
+
+- **Oppstart:** bildedelings-popup vises igjen — første gang, og én gang neste sesong
+  hvis deling ikke er valgt (`shareDevImagesSeason`). Kommer etter intro-vinduet.
+- **Avanserte innstillinger:** fjernet «spurt på nytt hver sesong»-hintet. «Fjern
+  inaktiv lagleder» viser jaktlag-velger kun ved flere inaktive; ellers toast «Ingen
+  inaktive lagledere funnet» (inaktivitet = backend §11, tom liste i skjelettet).
+- **Innsikt:** alle fire stillinger inntil hverandre til venstre (smal 2 dp-stripe),
+  stående i 4. kolonne over hold-kolonnen; matrisebredde låst til tre kolonner så
+  hold-kolonnen lander under stående. Avstandsknapper = ikoncellenes størrelse.
+  Mørk-modus-silhuetter tintes med varm lysebrun (colorPrimary #D8B79B). Nye
+  art-spesifikke silhuetter for Elg og Villsvin (side + front; skrå bruker side).
+- **Resultatkort:** poeng midtstilt under «Poeng:», tettere rader, «:» bak «Mitt
+  gjennomsnitt for denne stillingen».
+- **Serier:** lista klippes ved overkanten av «Lukk»-knappen (scroll-bunnmarg).
+- **Logg jaktskudd (Rediger):** «Bom»/«ikke funnet» blokkerer avstandsfeltet
+  umiddelbart (deaktivert + ikke fokuserbart); animasjonen blåser opp fonten (1,7×)
+  mens tallet fader ut.

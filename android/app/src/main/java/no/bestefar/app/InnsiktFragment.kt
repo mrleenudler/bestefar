@@ -58,8 +58,14 @@ class InnsiktFragment : RebuildFragment() {
     private fun trainGrey() = if (night()) Color.parseColor("#9A9A9A") else Color.parseColor("#6E6E6E")
     private fun silGrey() = if (night()) Color.parseColor("#8A8A8A") else Color.parseColor("#9E9E9E")
 
-    /** Valgt piktogram: sort i lys modus, tekstfarge i mørk (musingsUI runde 7). */
-    private fun selectedSil() = if (night()) txtColor() else Color.BLACK
+    /**
+     * Aktiv silhuett-/piktogram-farge: sort i lys modus, varm lysebrun
+     * (colorPrimary = #D8B79B) i mørk (musingsUI runde 9 — brukeren ville ha den
+     * varme brune fargen i mørk visning, ikke den nøytrale tekstfargen).
+     */
+    private fun silColor() = if (night())
+        Ui.themeColor(requireContext(), com.google.android.material.R.attr.colorPrimary)
+    else Color.BLACK
 
     /**
      * Egne skaleringer for Innsikt (musingsUI runde 7): FIT_CENTER i cellen
@@ -74,17 +80,32 @@ class InnsiktFragment : RebuildFragment() {
         Position.STAAENDE -> 1.0f
     }
 
-    private fun angleSil(a: Angle): Int = when (a) {
-        Angle.FRONT -> R.drawable.ic_hjort_front
-        Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_hjort_skraa
-        else -> R.drawable.ic_hjort_side
+    /**
+     * Viltsilhuett for art + vinkling (musingsUI runde 9): Elg og Villsvin har
+     * egne side/front-silhuetter; øvrige bruker hjort. Elg/villsvin mangler
+     * skrå-variant, så skrå bruker deres side-silhuett.
+     */
+    private fun angleSil(sp: Species, a: Angle): Int {
+        val front = a == Angle.FRONT
+        return when (sp) {
+            Species.ELG -> if (front) R.drawable.ic_elg_front else R.drawable.ic_elg_side
+            Species.VILLSVIN ->
+                if (front) R.drawable.ic_villsvin_front else R.drawable.ic_villsvin_side
+            else -> when (a) {
+                Angle.FRONT -> R.drawable.ic_hjort_front
+                Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_hjort_skraa
+                else -> R.drawable.ic_hjort_side
+            }
+        }
     }
 
     // Ramme-celle: like bred som holdknappene, så stående-ikon og hold-kolonne
-    // står i loddrett flukt (musingsUI runde 7).
+    // står i loddrett flukt (musingsUI runde 7). `gap` = smal stripe mellom alle
+    // ikoner (musingsUI runde 9).
     private val cellW get() = Ui.dp(requireContext(), 60)
     private val cellH get() = Ui.dp(requireContext(), 54)
     private val rowH get() = Ui.dp(requireContext(), 64)
+    private val gap get() = Ui.dp(requireContext(), 2)
 
     override fun rebuild() {
         val a = requireActivity()
@@ -117,25 +138,25 @@ class InnsiktFragment : RebuildFragment() {
         content.addView(titleRow)
         content.addView(Ui.body(a, getString(R.string.innsikt_recommend)))
 
-        // Øverste ramme-kant: jeger-stilling. De tre første venstrejustert (over
-        // dyr-vinklingene nederst), stående skjøvet helt til høyre av en spacer så
-        // den står rett over hold-kolonnen (musingsUI runde 7/8: presis flukt).
+        // Øverste ramme-kant: alle fire stillinger inntil hverandre til venstre,
+        // kun en smal stripe imellom (musingsUI runde 9). Stående (siste) står
+        // dermed i 4. kolonne — rett over hold-kolonnen.
         val topRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
         Position.hoved.forEachIndexed { i, p ->
             val last = i == Position.hoved.size - 1
-            if (last) topRow.addView(android.widget.Space(a),
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             topRow.addView(iconCell(p.iconRes, innsiktScale(p), p == jegerPos,
                 p.label, last = last) { jegerPos = p; rebuild() })
         }
         content.addView(topRow)
 
-        // Midtre: matrise (venstre) rammet av hold-kolonne (høyre)
+        // Midtre: matrise (venstre) + hold-kolonne (4. kolonne, under stående).
+        // Matrisebredden er låst til de tre første kolonnene, så hold-kolonnen
+        // lander rett under stående og «kobler» seg til resten (musingsUI runde 9).
         val body = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
         val rows = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(3 * cellW + 3 * gap,
+                ViewGroup.LayoutParams.WRAP_CONTENT)
         }
         speciesList.forEach { sp -> rows.addView(speciesRow(sp, evidence, store)) }
         body.addView(rows)
@@ -144,17 +165,16 @@ class InnsiktFragment : RebuildFragment() {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                // Luft mellom stående-ikonet og 25 m, lik mellomrommet mellom
-                // avstandene (musingsUI runde 8)
-                topMargin = Ui.dp(a, 6)
+                // Smal stripe mellom stående-ikonet og 25 m (musingsUI runde 9)
+                topMargin = gap
             }
         }
         holds.forEach { d -> holdCol.addView(holdButton(d)) }
         body.addView(holdCol)
         content.addView(body)
 
-        // Nederste ramme-kant: dyr-vinkling (DDD), venstrejustert til venstre
-        // for 200 m-knappen (musingsUI runde 7).
+        // Nederste ramme-kant: dyr-vinkling (DDD), venstrejustert under de tre
+        // første stillingene. Generisk hjort-silhuett som vinkel-indikator (runde 7).
         val bottomRow = LinearLayout(a).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.START
         }
@@ -186,9 +206,9 @@ class InnsiktFragment : RebuildFragment() {
         b.minHeight = 0; b.minimumHeight = 0
         val ph = Ui.dp(a, 2)
         b.setPadding(ph, 0, ph, 0)
-        // Like store som vilt-/stilling-ikoncellene, jevnt mellomrom (runde 8)
+        // Like store som vilt-/stilling-ikoncellene, smal stripe imellom (runde 9)
         b.layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
-            bottomMargin = Ui.dp(a, 6)
+            bottomMargin = gap
         }
         b.setOnClickListener { holdM = d; rebuild() }
         return b
@@ -203,7 +223,7 @@ class InnsiktFragment : RebuildFragment() {
     private fun iconCell(res: Int, scale: Float, selected: Boolean, desc: String,
                          last: Boolean, onClick: () -> Unit): FrameLayout {
         val a = requireActivity()
-        val tint = if (selected) selectedSil() else silGrey()
+        val tint = if (selected) silColor() else silGrey()
         val box = FrameLayout(a).apply {
             background = GradientDrawable().apply {
                 cornerRadius = Ui.dp(a, 8).toFloat()
@@ -213,7 +233,7 @@ class InnsiktFragment : RebuildFragment() {
             }
             contentDescription = desc
             layoutParams = LinearLayout.LayoutParams(cellW, cellH).apply {
-                if (!last) marginEnd = Ui.dp(a, 4)
+                if (!last) marginEnd = gap
             }
             setOnClickListener { onClick() }
         }
@@ -247,17 +267,18 @@ class InnsiktFragment : RebuildFragment() {
         val radius = Stats.lethalRadiusCm(sp, dyrAngle)
         val trained = sigma != null && n > 0 && radius != null
 
-        // Presentasjonssilhuett: tekstfarget (musingsUI runde 7), skalert med
-        // hold (25 m fyller, 200 m halv). Grå kun når data mangler.
+        // Presentasjonssilhuett: art-spesifikk (musingsUI runde 9), sort i lys /
+        // varm brun i mørk, skalert med hold (25 m fyller, 200 m halv). Grå kun
+        // når data mangler.
         val scale = (1.10 - (holdM - 25) / 175.0 * 0.60).coerceIn(0.5, 1.10).toFloat()
         val sil = ImageView(a).apply {
-            setImageResource(angleSil(dyrAngle))
+            setImageResource(angleSil(sp, dyrAngle))
             scaleType = ImageView.ScaleType.FIT_CENTER
             scaleX = scale; scaleY = scale
-            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 84), Ui.dp(a, 58))
+            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 72), Ui.dp(a, 58))
             ImageViewCompat.setImageTintList(this,
                 android.content.res.ColorStateList.valueOf(
-                    if (trained) txtColor() else silGrey()))
+                    if (trained) silColor() else silGrey()))
         }
         row.addView(sil)
 

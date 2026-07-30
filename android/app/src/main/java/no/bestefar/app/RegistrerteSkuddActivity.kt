@@ -300,16 +300,28 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
         fun setRanBlocked() {
             val block = outcome == Outcome.BOM ||
                 (outcome == Outcome.SKADE && notFoundBox.isChecked)
+            ran.animate().cancel()
             if (block) {
+                // Blokker innskriving UMIDDELBART (musingsUI runde 9): ikke bare
+                // deaktiver, men fjern fokuserbarhet så tastaturet ikke kan brukes.
+                ran.isEnabled = false
+                ran.isFocusable = false
+                ran.isFocusableInTouchMode = false
                 if (ran.text.isNotEmpty() && ranBlockInit) {
-                    ran.animate().alpha(0f).setDuration(280L).withEndAction {
-                        ran.setText(""); ran.alpha = 1f; ran.isEnabled = false
-                    }.start()
+                    // Blås opp fonten samtidig som tallet fader ut (runde 9) —
+                    // mer oppmerksomhetsfangende enn ren utfading.
+                    ran.animate().scaleX(1.7f).scaleY(1.7f).alpha(0f).setDuration(400L)
+                        .withEndAction {
+                            ran.setText(""); ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
+                        }.start()
                 } else {
-                    ran.setText(""); ran.isEnabled = false
+                    ran.setText(""); ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
                 }
-            } else if (!ran.isEnabled) {
-                ran.isEnabled = true; ran.alpha = 1f
+            } else {
+                ran.isEnabled = true
+                ran.isFocusable = true
+                ran.isFocusableInTouchMode = true
+                ran.alpha = 1f; ran.scaleX = 1f; ran.scaleY = 1f
             }
         }
         notFoundBox.setOnCheckedChangeListener { _, _ -> setRanBlocked() }

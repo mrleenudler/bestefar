@@ -46,13 +46,8 @@ class AvansertActivity : AppCompatActivity() {
                 .show()
         }
 
-        // «Fjern inaktiv lagleder» (musingsUI runde 6) — FRONT-END-SKJELETT.
-        // Aktivitet siste måned -> avvis; ellers push + 7-dagers timer (backend).
-        entry(getString(R.string.team_remove_inactive)) {
-            AlertDialog.Builder(this)
-                .setMessage(R.string.team_leader_active)
-                .setPositiveButton(R.string.ok, null).show()
-        }
+        // «Fjern inaktiv lagleder» (musingsUI runde 6/9) — FRONT-END-SKJELETT.
+        entry(getString(R.string.team_remove_inactive)) { removeInactiveLeader() }
 
         // Del med forskning av/på (musingsUI runde 8): valget bor nå her, ikke i
         // en oppstartspopup. På = "ja", av = "aldri".
@@ -105,6 +100,35 @@ class AvansertActivity : AppCompatActivity() {
         // Speil hele skjermen for venstrehendte (enkel RTL-vending)
         window.decorView.layoutDirection = if (store.leftHanded)
             android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
+    }
+
+    /**
+     * «Fjern inaktiv lagleder» (musingsUI runde 9): dialogen med jaktlag-valg
+     * vises KUN når flere lag har inaktiv lagleder; ellers toast «Ingen inaktive
+     * lagledere funnet». Inaktivitet krever aktivitetsdata per lagleder =
+     * backend (backend_spec.md §11), så i skjelettet er lista tom.
+     */
+    private fun removeInactiveLeader() {
+        val teams = teamsWithInactiveLeader()
+        when {
+            teams.isEmpty() -> Ui.toast(this, R.string.team_no_inactive_leaders)
+            teams.size == 1 -> confirmRemoveInactive(teams[0])
+            else -> AlertDialog.Builder(this)
+                .setTitle(R.string.team_remove_inactive_which)
+                .setItems(teams.map { it.name }.toTypedArray()) { _, i ->
+                    confirmRemoveInactive(teams[i])
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    /** Backend (§11) leverer hvilke lag som har inaktiv lagleder; tom i skjelettet. */
+    private fun teamsWithInactiveLeader(): List<Team> = emptyList()
+
+    private fun confirmRemoveInactive(@Suppress("UNUSED_PARAMETER") t: Team) {
+        // Backend: push til lagleder + 7-dagers nedtelling. Her kun kvittering.
+        Ui.toast(this, R.string.team_backend_wait)
     }
 
     private fun devMenu() {

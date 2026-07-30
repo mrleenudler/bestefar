@@ -353,3 +353,24 @@ UI-RUNDE 8 (v0.10) LAERDOMMER:
   - Oppstartspopups som brukeren "ikke vil se hver gang": flytt valget til Avanserte
     innstillinger (bryter), la popupen kun styres av dev-flagg. Bruker vil ha KONTROLL,
     ikke gjentatte spoersmaal.
+
+UI-RUNDE 9 (v0.11) LAERDOMMER:
+  - "Moerk silhuett skal vaere tekstfarget" viste seg aa bety den VARME LYSEBRUNE
+    (colorPrimary_dark = #D8B79B), ikke android:textColorPrimary. Naar bruker sier
+    "tekstfarget/varm" om et brunt tema: bruk colorPrimary, ikke tekstfargen.
+  - Plain-SVG (viewBox + <path fill=currentColor>) -> vector drawable: viewport =
+    (vb.w, vb.h), <group translateX=-vb.minx translateY=-vb.miny>, fill #FF000000
+    (tintes i UI). Se _convert_species_svgs.py. Elg/Villsvin-silhuetter finnes i UI/.
+  - Innsikt-ramme: for aa faa hold-kolonnen RETT under staaende, laas matrisebredden
+    til 3*(cellW+gap) (tre foerste kolonner). Da lander 4. kolonne (hold) under
+    staaende. Ikke bruk weight=1 paa matrisen hvis noe skal staa i "kolonne 4".
+    "Smal stripe mellom ikoner" = 2 dp marginEnd/bottomMargin/topMargin overalt.
+  - "Ikke mulig aa skrive inn" krever isEnabled=false OG isFocusable=false +
+    isFocusableInTouchMode=false (kun isEnabled kan i praksis fremdeles fokuseres i
+    enkelte tilfeller). Sett dem UMIDDELBART, foer evt. animasjon.
+  - Flytende knapp over ScrollView (FrameLayout-overlay) = innhold scroller BAK
+    knappen. Vil bruker at innholdet skal KLIPPES over knappen: gi ScrollView
+    bottomMargin (ikke padding) = knappehoyde; ScrollView klipper egne barn til
+    grensene sine.
+  - MaterialButton.iconSize (runde 8) og whole-button-scale (runde 7) er begge felle
+    for ikon-forvrengning/rammeskade — bruk ImageView+FIT_CENTER i egen boks.
