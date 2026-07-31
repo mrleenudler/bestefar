@@ -154,10 +154,14 @@ struct Config {
 //   en lys hvit skjerm. Verdiene skal fortsatt finkalibreres mot maalte
 //   probe-verdier (live-overlay paa capture-skjermen viser dem).
 struct AutoCaptureParams {
-    // 24 frames (~0.8 s @ 30 fps): felttest viste at 8 utloeste for raskt
-    // (daarlig UX + brukeren rekker ikke aa komponere). Rammen gloeder
-    // groent gjennom hele holdevinduet.
-    int    stability_frames        = 24;
+    // 6 frames (~0.2 s @ 30 fps): felttest paa skytebanen (2026-07) viste at
+    // 24-frames holdevindu gjorde det altfor vanskelig aa faa tatt bildet
+    // (ett daarlig frame nullstiller vinduet). Flyten er naa capture-first:
+    // bildet tas STILLE i det kriteriene er oppfylt, og «Klar!»-UI spilles
+    // etterpaa — kort vindu er oensket, det vokter bare mot sveip-bevegelse.
+    // (Historikk: 8 ble i sin tid oekt til 24 fordi rammen gloedet FOER
+    // capture og brukeren ikke rakk aa komponere; det UX-hensynet er borte.)
+    int    stability_frames        = 6;
     double min_sharpness           = 40.0;  // Laplacian-varians i ROI (<40 = reelt uskarpt)
     double stability_max_move_frac = 0.01;  // maks hjoerneflytt per frame (andel av diagonal)
     double max_clip_lo_frac        = 0.30;  // maks andel piksler i moerkeste bin
@@ -175,6 +179,12 @@ struct AutoCaptureParams {
     // monitor-testing (opplyst skjerm stor, men apparat-i-bildet lite).
     // Geometri: delta>=50px paa 4000px-still => bull >= ~0.07; god margin 0.10.
     double min_bull_width_frac     = 0.10;  // UKALIBRERT: bull-bredde / framebredde
+    // Gjenskinn (musings 2026-07): stoerste SAMMENHENGENDE mettede flekk i
+    // skjermblobben / blob-areal. Punktvis metning (LED/markoerer) filtreres
+    // med morfologisk aapning; helt utbrent skjerm fanges av max_clip_hi_frac.
+    // 0.05 ~ flekk paa 1/8 av den hvite skiva. UKALIBRERT — permissiv med
+    // vilje; maalt verdi vises i debug-overlayet for felt-kalibrering.
+    double max_glare_frac          = 0.05;  // maks gjenskinnsflekk / blob-areal
     double frame_margin_frac       = 0.02;  // margin mot framekant
     int    probe_max_side          = 480;   // arbeidsopploesning for FrameProbe
 };

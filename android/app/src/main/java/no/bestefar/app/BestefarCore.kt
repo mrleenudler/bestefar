@@ -54,6 +54,8 @@ object BestefarCore {
         val screenWidthFrac: Double,
         val sizeOk: Boolean,
         val bullWidthFrac: Double,
+        val glareFrac: Double,
+        val glareOk: Boolean,
     )
 
     fun analyze(data: ByteArray, width: Int, height: Int, stride: Int,
@@ -100,6 +102,8 @@ object BestefarCore {
                 screenWidthFrac = v[10],
                 sizeOk = v[11] > 0.5,
                 bullWidthFrac = v[12],
+                glareFrac = v[13],
+                glareOk = v[14] > 0.5,
             )
         }
 

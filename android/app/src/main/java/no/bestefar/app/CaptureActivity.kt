@@ -10,6 +10,8 @@ import android.graphics.Matrix
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.OrientationEventListener
+import android.view.Surface
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -50,13 +52,36 @@ class CaptureActivity : AppCompatActivity() {
     private var imageCapture: ImageCapture? = null
     private lateinit var statusText: TextView
     private lateinit var debugText: TextView
+    private lateinit var scanFrame: ScanFrameView
     private var loggedFormat = false
+
+    // sensorLandscape roterer 180 grader (landskap <-> omvendt landskap) UTEN
+    // activity-recreate -> ImageCapture.targetRotation blir staaende paa bind-
+    // tidspunktets rotasjon -> stillbildet faar feil rotationDegrees og kjernen
+    // ser et opp-ned bilde (felttest skytebanen 2026-07). Loesning: foelg
+    // enhetens orientering kontinuerlig (standard CameraX-moenster).
+    private val orientationListener by lazy {
+        object : OrientationEventListener(this) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+                val rotation = when (orientation) {
+                    in 45..134 -> Surface.ROTATION_270
+                    in 135..224 -> Surface.ROTATION_180
+                    in 225..314 -> Surface.ROTATION_90
+                    else -> Surface.ROTATION_0
+                }
+                imageCapture?.targetRotation = rotation
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_capture)
         statusText = findViewById(R.id.statusText)
         debugText = findViewById(R.id.debugText)
+        scanFrame = findViewById(R.id.scanFrame)
+        statusText.text = getString(R.string.status_compose)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
@@ -122,29 +147,40 @@ class CaptureActivity : AppCompatActivity() {
                     probe.coverage, probe.screenWidthFrac, probe.stable, probe.qualityOk,
                     probe.shouldCapture))
 
+        // Capture-first (felttest skytebanen 2026-07): bildet tas STILLE i det
+        // oeyeblikket kriteriene er oppfylt; deretter spilles brukervennlig UI
+        // («Klar!»-groenn ramme 0,4 s -> blits) mens analysen allerede kjoerer.
+        if (probe.shouldCapture && capturing.compareAndSet(false, true)) {
+            takeStillAndAnalyze()
+            runOnUiThread { showReadyThenFlash() }
+            return
+        }
+
         runOnUiThread {
+            if (capturing.get()) return@runOnUiThread   // «Klar!»-UI eier skjermen
             debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f\n" +
-                              "str=%.2f bull=%.2f stabil=%b kval=%b storrelse=%b")
+                              "str=%.2f bull=%.2f glare=%.3f stabil=%b kval=%b storrelse=%b")
                 .format(probe.roiFound, probe.sharpness, probe.clipLoFrac,
                         probe.clipHiFrac, probe.coverage, probe.screenWidthFrac,
-                        probe.bullWidthFrac, probe.stable, probe.qualityOk, probe.sizeOk)
+                        probe.bullWidthFrac, probe.glareFrac, probe.stable,
+                        probe.qualityOk, probe.sizeOk)
+            // Én rolig hovedinstruks; kun reelle kvalitetsblokkere (gjenskinn,
+            // lys/fokus) faar egne hint. Ingen groenn ramme foer bildet er tatt.
             statusText.text = when {
-                !probe.roiFound -> getString(R.string.status_searching)
-                !probe.sizeOk -> getString(R.string.status_closer)
-                !probe.qualityOk -> getString(R.string.status_quality)
-                !probe.stable -> getString(R.string.status_hold_still)
-                else -> getString(R.string.status_capturing)
+                probe.roiFound && !probe.glareOk -> getString(R.string.status_glare)
+                probe.roiFound && probe.sizeOk && !probe.qualityOk ->
+                    getString(R.string.status_quality)
+                else -> getString(R.string.status_compose)
             }
-            // Ramme-gloed naar alle kriterier er inne (holdevinduet fylles)
-            findViewById<android.view.View>(R.id.scanFrame).setBackgroundResource(
-                if (probe.stable && probe.qualityOk && probe.sizeOk)
-                    R.drawable.scan_frame_active
-                else R.drawable.scan_frame)
         }
-        if (probe.shouldCapture && capturing.compareAndSet(false, true)) {
-            runOnUiThread { flash() }
-            takeStillAndAnalyze()
-        }
+    }
+
+    /** Groenn ramme + «Klar!» i 0,4 s, deretter klassisk blits. Bildet er
+     *  allerede tatt (stille) naar dette spilles av. */
+    private fun showReadyThenFlash() {
+        scanFrame.ready = true
+        statusText.text = getString(R.string.status_ready)
+        scanFrame.postDelayed({ if (!isDestroyed) flash() }, 400)
     }
 
     /** Klassisk kort hvit blits. */
@@ -233,6 +269,10 @@ class CaptureActivity : AppCompatActivity() {
 
             override fun onError(e: ImageCaptureException) {
                 Log.e(TAG, "capture feilet", e)
+                runOnUiThread {
+                    scanFrame.ready = false
+                    statusText.text = getString(R.string.status_compose)
+                }
                 capturing.set(false)
             }
         })
@@ -279,6 +319,16 @@ class CaptureActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "kunne ikke lagre sidecar", e)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        orientationListener.enable()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        orientationListener.disable()
     }
 
     override fun onDestroy() {

@@ -10,13 +10,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Skanner-ramme 4:3 (som apparatskjermen), sentrert. Kravspec §2. -->
-    <View
+    <!-- Skanner-ramme 4:3 (som apparatskjermen), sentrert. Kravspec §2.
+         ScanFrameView tegner hele skjermlayouten (sirkler + tabellbokser)
+         saa brukeren skjoenner hvordan telefonen skal holdes. -->
+    <no.bestefar.app.ScanFrameView
         android:id="@+id/scanFrame"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="8dp"
-        android:background="@drawable/scan_frame"
         app:layout_constraintDimensionRatio="4:3"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

@@ -17,12 +17,12 @@
     <string name="tab_jakt">Jakt</string>
     <string name="tab_meny">Meny</string>
 
-    <!-- Capture (eksisterende) -->
-    <string name="status_searching">Finner skjermen …</string>
-    <string name="status_closer">Gå nærmere — fyll rammen</string>
+    <!-- Capture. Felttest skytebanen (musings 2026-07): én rolig instruks
+         i stedet for kriterie-kaskade; «Klar!» vises ETTER at bildet er tatt. -->
+    <string name="status_compose">Beveg telefonen slik at skjermen passer i rammen.</string>
     <string name="status_quality">Hold kamera nærmere / bedre lys</string>
-    <string name="status_hold_still">Hold i ro …</string>
-    <string name="status_capturing">Knipser!</string>
+    <string name="status_glare">Gjenskinn på skjermen — prøv en annen vinkel</string>
+    <string name="status_ready">Klar!</string>
 
     <!-- Resultatkort -->
     <string name="result_hits">%1$d treff</string>

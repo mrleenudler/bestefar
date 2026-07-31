@@ -374,3 +374,33 @@ UI-RUNDE 9 (v0.11) LAERDOMMER:
     grensene sine.
   - MaterialButton.iconSize (runde 8) og whole-button-scale (runde 7) er begge felle
     for ikon-forvrengning/rammeskade — bruk ImageView+FIT_CENTER i egen boks.
+
+CAPTURE-RUNDE (2026-07-31, v0.12) — FELTTEST SKYTEBANEN (musings.txt):
+  - CAPTURE-FIRST: bildet tas STILLE naar kriteriene er oppfylt; UI («Klar!»-
+    groenn ramme 0,4 s -> blits) spilles ETTERPAA. stability_frames 24 -> 6
+    (24 fantes kun fordi gammel flyt gloedet FOER capture; ett daarlig frame
+    nullstilte vinduet -> "altfor vanskelig aa faa scannet").
+  - OPP-NED-ROTAARSAK: sensorLandscape roterer 180 grader UTEN activity-
+    recreate -> ImageCapture.targetRotation blir stale -> feil rotationDegrees.
+    Fiks: OrientationEventListener som setter targetRotation kontinuerlig.
+    (Preview haandteres av PreviewView selv; KUN stillbildet rammes.)
+  - ScanFrameView (erstatter scan_frame*.xml-drawables, som er SLETTET):
+    sirkel om hvit skive + bull, poengliste- og oppsummeringsrektangel,
+    9dp ytre ramme, matt 0x66FFFFFF (groenn 0xCC4CAF50 ved klar). Geometri
+    MAALT paa rektifiserte C-crop (_probe_frame_geometry*.py): senter
+    (0.415,0.420), r_hvit=0.304*B, r_bull=0.121*B, tabell x 0.752-0.990,
+    liste y 0.016-0.516, oppsummering y 0.516-0.824. Verifikasjonsbilde:
+    Visualiseringer/outputs/scan_frame_mock.png (_vis_scan_frame_mock.py -
+    holdes i synk med ScanFrameView.kt). NB: C5-bull maalte 0.090 (treff-
+    markoerer brakk komponenten); C1/C9 = 0.121 brukt.
+  - GLARE-METRIKK i frame_probe: stoerste sammenhengende mettede (>=250)
+    komponent i skjermblob / blob-areal, morf-aapning 5x5 mot punktmetning.
+    max_glare_frac=0.05 UKALIBRERT, inngaar i quality-gaten + eget statushint.
+    FFI: BfFrameProbe fikk glare_frac+glare_ok, BfAutoCaptureParams fikk
+    max_glare_frac; JNI-protokollen er naa 15 doubles (var 13) - jni_bridge.cpp
+    OG BestefarCore.kt maa endres i takt.
+  - Capture-statustekster: status_searching/closer/hold_still/capturing
+    ERSTATTET av status_compose/glare/ready (+ status_quality beholdt).
+  - verify_cset_cpp.py etter endringene: 10/10 PASS (analysen uberoert).
+  - FELLE (Edit-verktoey): CLAUDE_CONTEXT.txt har blandet tegnsett; norske
+    tegn i eldre avsnitt matcher ikke alltid — bruk ASCII-ankre ved redigering.

@@ -74,6 +74,7 @@ typedef struct BfAutoCaptureParams {
     double  min_coverage;            /* default 0.80 */
     double  min_screen_width_frac;   /* default 0.90: skjermblobben maa fylle framen */
     double  min_bull_width_frac;     /* UKALIBRERT, default 0.10: bull-bredde/framebredde */
+    double  max_glare_frac;          /* UKALIBRERT, default 0.05: gjenskinnsflekk/blob-areal */
     double  frame_margin_frac;       /* default 0.02 */
     int32_t probe_max_side;          /* default 480 */
 } BfAutoCaptureParams;
@@ -91,6 +92,8 @@ typedef struct BfFrameProbe {
     double  screen_width_frac;   /* skjermblob-bredde / framebredde (stoerrelsesmaal) */
     int32_t size_ok;             /* stoerrelseskriteriet oppfylt naa (skjerm OG bull) */
     double  bull_width_frac;     /* bull-bredde / framebredde (presisjonsmaal) */
+    double  glare_frac;          /* stoerste mettede flekk / skjermblob-areal */
+    int32_t glare_ok;            /* gjenskinnskriteriet oppfylt naa */
 } BfFrameProbe;
 
 typedef struct BfAutoCapture BfAutoCapture;   /* opaque tilstandsmaskin */

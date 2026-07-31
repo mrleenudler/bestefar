@@ -1,6 +1,7 @@
 ﻿// Auto-capture: FrameProbe (per-frame kvalitet/ROI) + trigger-tilstandsmaskin.
 // Kravspec 4: stabilitet og bildekvalitet er LOGISK UAVHENGIGE kriterier.
 // Gjenbruker kontrast-ROI-en fra screen-modulen (kravspec 4 "Gjenbruk").
+#include <algorithm>
 #include <deque>
 
 #include "bestefar/bestefar_ffi.h"
@@ -13,8 +14,29 @@ struct ProbeInternals {
     bool roi_found = false;
     cv::Rect roi_box;      // skjerm-blobbens boks (geometri: stoerrelse/dekning)
     double sharpness = 0, clip_lo = 0, clip_hi = 0, coverage = 0;
-    double bull_frac = 0;  // bull-bredde / framebredde (presisjonsmaal)
+    double bull_frac = 0;   // bull-bredde / framebredde (presisjonsmaal)
+    double glare_frac = 0;  // stoerste mettede flekk / skjermblob-areal
 };
+
+// Gjenskinn (musings 2026-07): speilrefleks paa skjermglasset gir en
+// SAMMENHENGENDE mettet flekk som kan skjule ringer/treff uten aa dra
+// clip_hi-andelen over taket. Maal: stoerste sammenhengende mettede
+// komponent i skjermblob-boksen, som andel av boksarealet. Morfologisk
+// aapning fjerner punktmetning (LED-piksler, hvite markoerkanter);
+// helt utbrent skjerm fanges uansett av max_clip_hi_frac.
+static double measure_glare_frac(const cv::Mat& gray, const cv::Rect& blob_box) {
+    if (blob_box.width < 8 || blob_box.height < 8) return 0.0;
+    cv::Mat sat;
+    cv::threshold(gray(blob_box), sat, 249, 255, cv::THRESH_BINARY);
+    cv::morphologyEx(sat, sat, cv::MORPH_OPEN,
+                     cv::getStructuringElement(cv::MORPH_ELLIPSE, {5, 5}));
+    cv::Mat labels, stats, centroids;
+    const int num = cv::connectedComponentsWithStats(sat, labels, stats, centroids, 8);
+    int best = 0;
+    for (int l = 1; l < num; ++l)
+        best = std::max(best, stats.at<int32_t>(l, cv::CC_STAT_AREA));
+    return static_cast<double>(best) / blob_box.area();
+}
 
 // Bull-maal: stoerste SOLIDE moerke komponent inne i skjerm-blobben.
 // Morfologisk aapning fjerner tynne strukturer (ringlinjer, tall,
@@ -81,6 +103,7 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     out.roi_found = true;
     out.roi_box = *blob_box;
     out.bull_frac = measure_bull_frac(gray, *blob_box, gray.cols);
+    out.glare_frac = measure_glare_frac(gray, *blob_box);
 
     // Skarphet: Laplacian-varians INNE i ROI (fokusmaal)
     cv::Mat lap;
@@ -151,6 +174,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->min_coverage = d.min_coverage;
     out->min_screen_width_frac = d.min_screen_width_frac;
     out->min_bull_width_frac = d.min_bull_width_frac;
+    out->max_glare_frac = d.max_glare_frac;
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
 }
@@ -166,6 +190,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.min_coverage = p->min_coverage;
         ac->params.min_screen_width_frac = p->min_screen_width_frac;
         ac->params.min_bull_width_frac = p->min_bull_width_frac;
+        ac->params.max_glare_frac = p->max_glare_frac;
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
     }
@@ -277,12 +302,18 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
             return BF_OK;
         }
 
-        // KRITERIUM 2: bildekvalitet (uavhengig av stabilitet)
+        // KRITERIUM 2: bildekvalitet (uavhengig av stabilitet).
+        // Gjenskinn inngaar her: en stor speilflekk gjoer bildet vanskelig
+        // aa tolke -> ikke knips (musings 2026-07).
         const auto& p = ac->params;
+        const bool glare_ok = pr.glare_frac <= p.max_glare_frac;
+        out->glare_frac = pr.glare_frac;
+        out->glare_ok = glare_ok ? 1 : 0;
         const bool quality = pr.sharpness >= p.min_sharpness &&
                              pr.clip_lo <= p.max_clip_lo_frac &&
                              pr.clip_hi <= p.max_clip_hi_frac &&
-                             pr.coverage >= p.min_coverage;
+                             pr.coverage >= p.min_coverage &&
+                             glare_ok;
         out->quality_ok = quality ? 1 : 0;
 
         // KRITERIUM 3: stoerrelse - BAADE skjermblobben (fyll rammen) OG
