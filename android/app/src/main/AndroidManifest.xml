@@ -13,7 +13,10 @@
         android:theme="@style/Theme.Bestefar"
         android:allowBackup="true">
 
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- PORTRETT overalt unntatt Scan (musingsUI runde 10): layoutene er
+             bygget for staaende telefon, og liggende ga skjeve/klemte rammer. -->
+        <activity android:name=".MainActivity" android:exported="true"
+                  android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -24,17 +27,28 @@
              tekst aldri blir opp-ned (musingsUI runde 3) -->
         <activity android:name=".CaptureActivity" android:exported="false"
                   android:screenOrientation="sensorLandscape" />
-        <activity android:name=".ResultActivity" android:exported="false" />
-        <activity android:name=".SummaryActivity" android:exported="false" />
-        <activity android:name=".HuntLogActivity" android:exported="false" />
-        <activity android:name=".ProfilActivity" android:exported="false" />
-        <activity android:name=".SerieloggActivity" android:exported="false" />
-        <activity android:name=".VennerActivity" android:exported="false" />
-        <activity android:name=".JaktActivity" android:exported="false" />
-        <activity android:name=".RegistrerteSkuddActivity" android:exported="false" />
-        <activity android:name=".LagActivity" android:exported="false" />
-        <activity android:name=".AvansertActivity" android:exported="false" />
-        <activity android:name=".TeamPageActivity" android:exported="false" />
+        <activity android:name=".ResultActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".SummaryActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".HuntLogActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".ProfilActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".SerieloggActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".VennerActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".JaktActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".RegistrerteSkuddActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".LagActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".AvansertActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
+        <activity android:name=".TeamPageActivity" android:exported="false"
+                  android:screenOrientation="portrait" />
         <!-- KalkulatorActivity fjernet i runde 4 (optikk-funksjonalitet
              kommentert ut for aa forenkle) -->
         <meta-data

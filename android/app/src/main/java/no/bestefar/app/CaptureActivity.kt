@@ -204,7 +204,10 @@ class CaptureActivity : AppCompatActivity() {
 
                 val name = "bestefar_" + SimpleDateFormat("yyyyMMdd_HHmmss",
                                                           Locale.US).format(Date(ts))
-                val galleryUri = saveJpegToGallery(jpeg, name)
+                // Galleri-lagring er nå brukerens valg (musingsUI runde 10);
+                // default på til spørsmålet er stilt etter første scan.
+                val galleryUri = if (Store.get(this@CaptureActivity).saveScansToGallery)
+                    saveJpegToGallery(jpeg, name) else null
 
                 // Dekod + roter til visningsorientering FOER analyse:
                 // toBitmap()/dekoding tar IKKE hensyn til rotationDegrees.
@@ -263,7 +266,8 @@ class CaptureActivity : AppCompatActivity() {
                               result.hits.map { it.rRel }.toDoubleArray())
                     .putExtra(ResultActivity.EXTRA_THETA,
                               result.hits.map { it.theta }.toDoubleArray())
-                    .putExtra(ResultActivity.EXTRA_IMAGE_PATH, cacheImg.absolutePath))
+                    .putExtra(ResultActivity.EXTRA_IMAGE_PATH, cacheImg.absolutePath)
+                    .putExtra(ResultActivity.EXTRA_GALLERY_URI, galleryUri?.toString()))
                 finish()
             }
 

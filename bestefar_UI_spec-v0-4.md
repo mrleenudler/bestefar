@@ -319,3 +319,51 @@ Overstyrer eldre beskrivelser ved konflikt.
 - **Logg jaktskudd (Rediger):** «Bom»/«ikke funnet» blokkerer avstandsfeltet
   umiddelbart (deaktivert + ikke fokuserbart); animasjonen blåser opp fonten (1,7×)
   mens tallet fader ut.
+
+## 18. Endringslogg v0.13 (musingsUI runde 10)
+
+(v0.12 var capture-runden fra felttesten på skytebanen — se `til_utvikler_v012.md`;
+den rørte ikke UI-spesifikasjonen utenom scan-skjermen.)
+
+- **Skjermorientering:** ALLE skjermbilder er låst til portrett. Kun `CaptureActivity`
+  (Scan) er liggende (`sensorLandscape`).
+- **Systemlinjer:** status- og navigasjonslinjen har svart bakgrunn med lyse ikoner i
+  BÅDE lys og mørk visning. Appen melder seg ut av edge-to-edge-tvangen (targetSdk 35+
+  ignorerer ellers `statusBarColor`), så systemet tegner baren selv.
+- **Forskning er satt på pause** (`Dialogs.RESEARCH_ENABLED = false`): ingen
+  forskningsdialoger i flyten, og bryteren «Del med forskning» i Avanserte innstillinger
+  er låst av med forklarende hint. Checkboxen «Del med forskning» i Logg jaktskudd heter
+  nå **«Detaljert visning»** og er rent et visningsvalg — den gjelder også for «Annet».
+- **Duplikatsjekk:** to serier regnes bare som like hvis BÅDE poengene (< 0,05) OG
+  treffpunktene stemmer. Treffene pares grådig, og hvert par må ligge innenfor
+  **0,1 poeng** (rRel er i ringsteg, så ett ringsteg = ett poeng). Opp-ned-bilder gir
+  identiske poeng men speilvendte treffpunkter, og meldes ikke lenger som duplikat.
+- **Poengvisning (resultatkort):**
+  - Blyanten per poenglinje er **fjernet** — OCR har overtatt korreksjonsrollen, og
+    blyanten blokkerte plassen til høyre for de midtstilte poengene.
+  - Finnes OCR-poeng, **tar de presedens** og vises i **skjermrekkefølge** (ikke sortert
+    på verdi). Totalen følger det som vises.
+  - Ved uenighet bytter visningene plass: OCR-poengene øverst, «Identifiserte treff:»
+    nederst. Tekst: «Appen klarte ikke å se poengene riktig. Vil du lagre serien
+    likevel?» med knappene «Forkast» / **«Lagre leste poeng»**.
+- **Avvist analyse:** resultatskjermen anbefaler nytt bilde — «Bildet ble ikke korrekt
+  analysert. Scan bildet på ny.» med «Avbryt» / «Scan». Signalet er analysens egen
+  kvalitetsport (`status != OK`); ingen nytt cue fra CV-kjernen trengs.
+- **Serier:** merking av flere serier oppdaterer kun radbakgrunn og knapper — lista
+  bygges ikke om, så skjermen står stille (før hoppet den til toppen for hver merking).
+- **Oppstart:** bildedelings-vinduet vises første gang appen åpnes, én gang neste sesong
+  hvis deling ikke er valgt, og **alltid** når «Vis oppstartsmelding hver gang» er på i
+  utviklermodus.
+- **Innsikt:** rammen er nå 7 like høye rader som **autoskaleres etter skjermhøyden** så
+  alt får plass på én skjerm: stillingsraden øverst + 6 rader i kroppen (5 vilttyper +
+  vinkelraden). Hold-kolonnen har nøyaktig 6 knapper, så **200 m står rett til høyre for
+  vinkel-/vilt-posisjonsvalgene**. Tekst- og knappestørrelser følger radhøyden. Nye
+  silhuetter for **villrein** i alle tre vinkler (front/side/skrå) — første art med
+  egen skrå-silhuett; elg og villsvin bruker fortsatt side-varianten på skrå.
+- **Logg jaktskudd (Rediger):** tallet i «Dyret løp» vokser til **dobbel** størrelse og
+  flyr **opp mot høyre** mens det fader ut (0,55 s). Foreldrene har `clipChildren=false`
+  slik at animasjonen ikke klippes.
+- **Avanserte innstillinger:** ny bryter **«Lagre scannede bilder i bildearkivet»**.
+  Etter første scan spør appen «Ønsker du at skjermbildet skal lagres i bildearkivet
+  ditt?» ‹Ja›/‹Nei›, etterfulgt av «Du kan endre dette valget i «Avanserte
+  innstillinger»». Svarer man Nei, slettes også bildet fra den scanen.

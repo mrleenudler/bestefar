@@ -21,9 +21,13 @@ object OcrVerifier {
     const val THRESHOLD = 0.2
 
     sealed class Result {
-        /** OCR bekrefter (maks avvik <= 0.2). `scores` er OCR-poengene å vise. */
+        /**
+         * OCR bekrefter (maks avvik <= 0.2). `scores` er OCR-poengene å vise, i
+         * SKJERMREKKEFØLGE — altså slik de står i poenglista på apparatet, ikke
+         * sortert på verdi (musingsUI runde 10).
+         */
         data class Match(val scores: List<Double>, val maxDiff: Double) : Result()
-        /** OCR er uenig (> 0.2). `scores` er OCR-poengene. */
+        /** OCR er uenig (> 0.2). `scores` er OCR-poengene i skjermrekkefølge. */
         data class Mismatch(val scores: List<Double>) : Result()
         /** Fant ikke et sammenlignbart sett — la de detekterte stå urørt. */
         object Inconclusive : Result()
@@ -51,6 +55,8 @@ object OcrVerifier {
         // Trenger like mange kandidat-poeng som detekterte treff for en ærlig
         // sammenligning; ellers er vi ikke trygge nok til å overstyre.
         if (ocr.size != detected.size) return Result.Inconclusive
+        // SAMMENLIGNINGEN sorterer (settene skal matche uansett rekkefølge), men
+        // `ocr` returneres UROERT — visningen skal vise skjermrekkefølgen.
         val d = detected.sorted()
         val o = ocr.sorted()
         val maxDiff = d.indices.maxOf { abs(d[it] - o[it]) }

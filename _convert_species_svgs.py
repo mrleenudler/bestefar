@@ -14,6 +14,10 @@ JOBS = [
     ("UI/Elg_silhuett_front.svg", OUT + "ic_elg_front.xml"),
     ("UI/Villsvin_silhuett_side.svg", OUT + "ic_villsvin_side.xml"),
     ("UI/Villsvin_silhuett_front.svg", OUT + "ic_villsvin_front.xml"),
+    # Rein (musingsUI runde 10) - foerste art med EGEN skraa-silhuett.
+    ("UI/rein_silhuett_side.svg", OUT + "ic_rein_side.xml"),
+    ("UI/rein_silhuett_front.svg", OUT + "ic_rein_front.xml"),
+    ("UI/rein_silhuett_skrå.svg", OUT + "ic_rein_skraa.xml"),
 ]
 
 

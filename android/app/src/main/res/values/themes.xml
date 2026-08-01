@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Lys brunt tema (musingsUI runde 4). Dag-variant her; natt i values-night. -->
     <style name="Theme.Bestefar" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/brand_primary</item>
@@ -13,5 +13,15 @@
         <item name="colorOnSurface">@color/brand_on_surface</item>
         <item name="colorOnSurfaceVariant">@color/brand_on_surface_variant</item>
         <item name="colorOutline">@color/brand_outline</item>
+        <!-- Svart statuslinje ogsaa i LYS visning (musingsUI runde 10): de lyse
+             brune flatene ga nesten usynlige systemikoner. targetSdk 35+ tvinger
+             edge-to-edge og ignorerer statusBarColor, saa vi melder oss ut av
+             tvangen; da tegner systemet baren selv med fargen under, og
+             Ui.applyInsets blir en no-op (innsets = 0). -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 </resources>

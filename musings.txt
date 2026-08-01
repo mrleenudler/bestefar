@@ -1,24 +1,40 @@
-First: Delete old outputs
+claude --resume 9e2a0c40-c544-415c-a5fc-cf607b719919
 
 Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
+Always read CLAUDE_CONTEXT.TXT after compacting.
+Oppdater backend_spec.md ved behov
+Les siste versjon av til_utvikler_v##.md for å se hva som ble gjort i forrige iterasjon.
+Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
 
 Testing with the app: 
-I'm testing by photographing the test images from my computer screen.
-The verdict is as of now, that not all hits are identified, and many hits have decimal errors in their score. 
+TODO later: Vi må lage backend
 
-I think we need to save the images captured and analyze them. 
 
-Also, the capture screen is a bit unfriendly. The frame should be 4:3, as the apparatus screen. 
-IMHO we should encourage the image being taken horizontally, for better resolution. 
-When the capture is taken, we can make the frame glow with a massige of "hold still", and the classic brief white flash on the screen when the image is captured. 
+Nå har vi testet appen på skytebanen. 
 
-The good news is that the algo is very efficient, and there is no annoying delay to speak of.
+Det er altfor vanskelig å få scannet.
+	Gatingen er for sensitiv og gjør det vanskelig å få tatt bildet. Vi endrer den slik: 
+		Teksten endres til: "Beveg telefonen slik at skjermen passer i rammen."
+		Når kriteriene er oppfylt, tas bildet umiddelbart, MEN vi viser den grønne rammen med "Klar!" i 0,4s, og viser deretter ta-bilde animasjonen. Altså tas bildet (stille) først, og brukervennlig UI spilles av etterpå.
 
-Interesting. After your 16kB fix, the auto-capture is broken.
+Opp-ned bilde:
+	Scan-skjermen tillater at telefonen ligger begge veier, men resultatet kan bli opp-ned. Bruk telefonenes orientering til å sikre at riktig side kommer opp i begge konfigurasjoner.
 
+
+Scan-rammen:
+	Brukerne forstår ikke hvordan telefonen skal holdes, så vi må endre på rammen. 
+	1. Legg til en sirkel som skal omslutte hvitt område, og en sirkel som skal omslutte sort område.
+	2. Legg til et rektangel på høyre side som skal omslutte påengene, og ett rektangel umiddelbart under, som skal omslutte oppsummeringen.
+	3. Gjør den ytre rammen 3 ganger så tykk
+	4. Gjør alle rammene matt-gjennomsiktige
+	5. Pass på at alle ramme-elementene har riktig størrelse i forhold til hverandre, slik at de matcher en virkelig skjerm med minimalt med skew.
+
+Glare: 
+	Kan vi identifisere når det er glare på skjermen? Det kan brukes til å avvise bildet dersom det er vanskelig å tolke.
+NOTE to self: Glare gate kan blokke capture mer enn ønsket. Verifiser i felt.
 ------------------------------------------------------------
 
-Notes about the cluster center square: Ignored for now. 
+Notes about the cluster center square: Ignored the following for now. 
 
 There is now more variability in the accuracy of the square. 
 Some are idintified with ebtter precision, and some with worse thatn the previous run. 
@@ -43,4 +59,4 @@ Output: Same, + visuals I sohould  verify. Don't trust your own vision.
 
 For later: 
 Efficiency improvement: Remove double crop/skew correction. (Probably not necessary)
-Identify cluster center square for inferring hidden hits. (in progress)
+Identify cluster center square for inferring hidden hits. (in progress / redundant?)

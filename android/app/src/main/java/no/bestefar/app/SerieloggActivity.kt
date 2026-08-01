@@ -3,6 +3,7 @@ package no.bestefar.app
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -30,6 +31,14 @@ class SerieloggActivity : AppCompatActivity() {
     private val selected = mutableSetOf<String>()
     private var detail: SeriesRecord? = null
     private var seasonOnly = true   // «Denne sesongen» / «Alle» (musingsUI r4)
+
+    // Radene i lista + de to «flytende» knappene holdes som felt, slik at
+    // merking KUN oppdaterer det som faktisk endrer seg. Full renderList() ved
+    // hver avkryssing scrollet skjermen til toppen (musingsUI runde 10).
+    private val rowViews = mutableMapOf<String, TextView>()
+    private var trashBtn: ImageButton? = null
+    private var cancelBtn: MaterialButton? = null
+    private var closeBtn: MaterialButton? = null
 
     // Karusell over de viste seriene (musingsUI runde 7)
     private var detailList: List<SeriesRecord> = emptyList()
@@ -61,11 +70,29 @@ class SerieloggActivity : AppCompatActivity() {
     private fun exitSelection() {
         selectionMode = false
         selected.clear()
-        renderList()
+        // Ingen ombygging: bare skru av markeringene og bytte knapper tilbake.
+        if (rowViews.isEmpty()) renderList() else updateSelectionUi()
+    }
+
+    /**
+     * Oppdaterer KUN det merkingen påvirker (radbakgrunn + hvilke knapper som
+     * vises). Ingen renderList() -> ScrollView beholder posisjonen sin
+     * (musingsUI runde 10).
+     */
+    private fun updateSelectionUi() {
+        rowViews.forEach { (id, v) ->
+            if (selectionMode && id in selected)
+                v.setBackgroundColor(Color.argb(60, 128, 128, 128))
+            else v.background = null
+        }
+        trashBtn?.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        cancelBtn?.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        closeBtn?.visibility = if (selectionMode) View.GONE else View.VISIBLE
     }
 
     private fun renderList() {
         root.removeAllViews()
+        rowViews.clear()
         val content = Ui.col(this)
 
         val header = Ui.row(this)
@@ -73,15 +100,16 @@ class SerieloggActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
-        if (selectionMode) {
-            // Søppelbøtte øverst i høyre hjørne (musingsUI)
-            header.addView(ImageButton(this).apply {
-                setImageResource(R.drawable.ic_delete)
-                background = null
-                contentDescription = getString(R.string.serielogg_delete)
-                setOnClickListener { confirmDelete(selected.toSet()) }
-            })
+        // Søppelbøtte øverst i høyre hjørne (musingsUI); ligger alltid i treet
+        // og vises kun i merkemodus, så merking ikke krever ombygging.
+        trashBtn = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_delete)
+            background = null
+            visibility = if (selectionMode) View.VISIBLE else View.GONE
+            contentDescription = getString(R.string.serielogg_delete)
+            setOnClickListener { confirmDelete(selected.toSet()) }
         }
+        header.addView(trashBtn)
         content.addView(header)
 
         // Denne sesongen / Alle (musingsUI runde 4)
@@ -119,7 +147,7 @@ class SerieloggActivity : AppCompatActivity() {
                 setOnClickListener {
                     if (selectionMode) {
                         if (s.id in selected) selected.remove(s.id) else selected.add(s.id)
-                        if (selected.isEmpty()) exitSelection() else renderList()
+                        if (selected.isEmpty()) exitSelection() else updateSelectionUi()
                     } else {
                         detailList = all
                         lastShownDate = null
@@ -131,11 +159,12 @@ class SerieloggActivity : AppCompatActivity() {
                     if (!selectionMode) {
                         selectionMode = true
                         selected.add(s.id)
-                        renderList()
+                        updateSelectionUi()
                     }
                     true
                 }
             }
+            rowViews[s.id] = row
             content.addView(row)
         }
 
@@ -147,29 +176,27 @@ class SerieloggActivity : AppCompatActivity() {
             bottomMargin = Ui.dp(this@SerieloggActivity, 72)
         })
 
-        if (selectionMode) {
-            // Avbryt nederst i høyre hjørne (musingsUI)
-            root.addView(MaterialButton(this).apply {
-                text = getString(R.string.cancel)
-                setOnClickListener { exitSelection() }
-            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM or Gravity.END).apply {
-                bottomMargin = Ui.dp(this@SerieloggActivity, 16)
-                rightMargin = Ui.dp(this@SerieloggActivity, 16)
-            })
-        } else {
-            // Lukk nederst i høyre hjørne (musingsUI runde 8)
-            root.addView(MaterialButton(this).apply {
-                text = getString(R.string.close)
-                setOnClickListener { finish() }
-            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM or Gravity.END).apply {
-                bottomMargin = Ui.dp(this@SerieloggActivity, 16)
-                rightMargin = Ui.dp(this@SerieloggActivity, 16)
-            })
+        // Begge bunnknappene ligger alltid i treet; kun synligheten byttes ved
+        // merking (musingsUI runde 10 — unngår ombygging og scroll-hopp).
+        val corner = { FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END).apply {
+            bottomMargin = Ui.dp(this@SerieloggActivity, 16)
+            rightMargin = Ui.dp(this@SerieloggActivity, 16)
+        } }
+        // Avbryt nederst i høyre hjørne (musingsUI)
+        cancelBtn = MaterialButton(this).apply {
+            text = getString(R.string.cancel)
+            visibility = if (selectionMode) View.VISIBLE else View.GONE
+            setOnClickListener { exitSelection() }
         }
+        root.addView(cancelBtn, corner())
+        // Lukk nederst i høyre hjørne (musingsUI runde 8)
+        closeBtn = MaterialButton(this).apply {
+            text = getString(R.string.close)
+            visibility = if (selectionMode) View.GONE else View.VISIBLE
+            setOnClickListener { finish() }
+        }
+        root.addView(closeBtn, corner())
     }
 
     /**
@@ -183,6 +210,8 @@ class SerieloggActivity : AppCompatActivity() {
         val s = detailList[index]
         detail = s
         root.removeAllViews()
+        // Lista er ute av visningstreet -> glem radreferansene (runde 10)
+        rowViews.clear(); trashBtn = null; cancelBtn = null; closeBtn = null
         val content = Ui.col(this)
 
         val zoned = Instant.ofEpochMilli(s.ts).atZone(ZoneId.systemDefault())
@@ -318,7 +347,9 @@ class SerieloggActivity : AppCompatActivity() {
             .setPositiveButton(R.string.serielogg_delete) { _, _ ->
                 store.deleteSeries(ids)
                 detail = null
-                exitSelection()
+                selectionMode = false
+                selected.clear()
+                renderList()          // lista er endret -> full ombygging
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

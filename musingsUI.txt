@@ -1,5 +1,7 @@
+claude --resume 14f581a8-72d7-476d-880c-5dc0da4df6c3
 
 Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
+Always read CLAUDE_CONTEXT.TXT after compacting.
 
 Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måter som ikke er eksplistitt beskrevet
 
@@ -7,154 +9,96 @@ UI-grafikkelementer ligger i mappen UI
 
 Oppdater Bestefar_UI_spec til å stemme med endringene.
 Oppdater backend_spec.md ved behov
+Les siste versjon av til_utvikler_v##.md for å se hva som ble gjort i forrige iterasjon.
 Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
 
-[note to self: vurder UI ved lys profil]
+=> OCR: Identifiserte poeng skal bare vises hvis de avviker > 0.1p fra leste poeng (er det implementert alt?)
 
-Flytt øverste menylinje 5% ned
-
-Hovedskjermen blir full av clutter når serier er skutt. Kun antall øvelsesskudd og Scan knappen skal vises på hovedskjermen.
-Øktoppsummering:
-	Fjernes fra hovedskjerm
+Det ser ut til at hvis poengene er like, defineres seriene som like. (Fra erfaringer med opp-ned bildene) Serier må også ha samme treffpunkter med en liten margin (<= 0,1p) for at vi skal defiere dem som like og vise lik-serie dialogen.
 
 
-Bidra til forskning: "Hjelp oss å lære om hvordan øvelsesskyting påvirker jakt. \n\nDu deler bare resultatene fra øvelsesskyting og jakt, aldri personlig informasjon.\n\n Du kan når som helst stoppe delingen og trekke tilbake samtykket fra menyen. Da vil alle data om deg slettes fra forskningsprosjektet."
+Forskning: Vi legger den i bakgrunnen så lenge
+	Skjul dialogen i oppstart
+	Endre "Del med forskning" checkbox i logg jaktskudd til "Detaljert visning"
+	Lås checkboxen i Avanserte innstillinger til unchecked.
 
-Mitt jaktmål: 
-	Jeg vil ikke at Forskningsdialogen og Jaktmål dialogen dukker opp på samme serie. Dette er kanskje bare et problem i utviklermodus, men hvis ikke, så vil jeg at "Mitt jaktmål" kommer først, og "Bidra til forskning" kommer tidligst to serier senere.
-	Det er tull med radioknappene: Noen ganger vil ikke forrige valg deaktiveres når ny knapp trykkes.
+Lys visning: Telefonens statusikoner må ha svart bakgrunn, også i lys visning.
+
+OCR/poengskjerm: 
+	Når OCR-resultater finnes, brukes de direkte i poengvisningen, og tar presendens over identifiserte treff. Da skal poengene ikke være sortert etter verdi, men stå i den rekkefølgen de er oppført på skjermen. Identifiserte treff vises nederst på skjermen, i.e. de to visningene bytter plass når det ikke er samsvar mellom dem.
+	Endring: "Appen klarte ikke å se poengene rikitg.\nVil du lagre serien likevel?
+		Tekst på knappen: "Lagre leste poeng"
+
+Når serier lengre ned på listen merkes, hopper skjermen til start for hver ny som merkes. Skjermen må ikke flyttes.
+
+- Startup: the image-donate popup no longer appears — moved to a "Del bilder med utvikler" toggle in Advanced settings.
+	->Den skal dukke opp første gang appen åpnes.
+		-> Når "Vis oppstartsmelding hver gang" er valgt i Utviklermodus, skal meldingen for bildedeling også vises.
+
+
+Vi låser alle skjermbildene til vertikal visning. Bare Scan skal være horisontal.
 
 
 Innsikt: 
-	(i) Skriv "Grønn" og "rød" i fet font
-	(i) Den er usynlig i mørk modus. Kan vi la (i) ikonet følge appens UI-profil forøvrig?
-	Flytt (i) opp til "Innsikt"
-	Stillinger-valgene skal representeres av ikonene, ikke tekst
-		Samme betraktninger gjelder som for viltposisjon ikonene.
-	Vilt-Posisjonsvalgene er kjempefine i lys visning, men:
-		La dem få en ramme slik som de andre knappene
-		I mørk visning er de nesten usynlige. Gi dem samme farge som teksten. 
-		De ikke-valgte viltposisjonene i mørk visning bør få en mørkere variant av tekstfargen.
-	Navnet på viltet skrives i default farge, mens andel og prosent beholder fargekoden.
-	"øv på stillingen" er for mørk i mørk visning. Gi den en lysere gråtone.
-		I lys visning, må den være litt mørkere	
-	Jeg ønsker knappene arrangert som:
-JJJJ 
-   A
-VT A
-VT A
-VT A
-VT A
-VT A
-   A
-DDDA
-		Jeger- og viltstilling knappene skal være like store. Avstand knappene justeres slik at de matcher de to andre der de møtes. Avstand-knappene må få plass til hele tallet på én linje, og "m" også, om mulig.
+	Nå passer ikonene mye bedre, men avstandene skal gå så langt ned at 200m står rett til høyre for vilt-posisjon valgene. Det vil si at avstandene(Eller alle valg-ikonene) skal være like høye som vilt-ikonene. Vi ønsker også at alt innholdet skal passe på én skjerm. Pass på at de auto-skaleres.
+	Legg inn silhuetter for [rein_silhuett_skrå]
+		
+
+Scan-bilde:
+	La poengene være midt-aligned med "Poeng:", ikke venstre-aligned
+		-> Nå ser jeg det er blyanten som blokkerer plassen til høyre. Fjern den. Vi lar OCR ta den rollen, og heller be om en re-capture om analysen feiler.
+			-> Kan vi anbefale re-scan når bildet ikke blir korrekt analysert, eller trenger vi et cue fra CV-kjernen(-> Nei.)? "Bildet ble ikke korrekt analysert. Scan bildet på ny." <Avbryt><Scan>	
+
+Logg jaktskudd:
+	"Rediger" for skudd:
+		Animasjonen er litt lite oppmerksomhetsfangende. Kan vi blåse opp fonststørrelsen samtidig som vi fader ut?
+		-> Fadingen ble ikke helt som jeg hadde tenkt. La skriftstørrelsen vokse til det dobbelte, og la den begvege seg opp mot høyre. 
+	Skudd som slettes i appen, og som er overført til backend, skal ha et "deleted" flagg i backend.
+
+Avanserte innstillinger: 
+	Valg om å lagre scannede bilder i bildearkivet. 
+	Etter første scan, må det åpnes en dialog: "Ønsker du at skjermbildet skal lagres i bildearkivet ditt?" <Ja><Nei> -> Ny dialog: "Du kan endre dette valget i \"Avanserte innstillinger\""
 
 
 
+Kontroller at backend_spec.md inneholder hva den trenger.
 
-Profil:
-	Lys modus skal være default
-	"+ legg til nytt lag" presenteres som knapp
-	Layouten på Mitt jaktmål har floket seg. La teksten flyte naturlig over to linjer med "Endre" til slutt på høyre side.
-	Når jeg klikker på et jaktlag, kommer jeg til "legg til" menyen. 
-		Klikk på jaktlag skal åpne dette jaktlaget (se eget punkt). 
-		Klikk på et jaktlag endrer "opprett" knappen til "rediger", men den åpner ikke redigering, den bare sletter laget
-
-Jaktlag:
-	Øverst vises lagets navn
-	Deretter en knapp med "Inviter medlemmer"
-	Så kommer listen med medlemmer (scrolling om nødvendig) utformet som knapper. De er klikkbare og viser medlemmets delte informasjon. Piler lar deg bla frem og tilbake i jaktlagets medlemmer.
-	Nederst til venstre er en "Rediger lag" knapp, men bare dersom du er leder, eller eneste medlem i laget.
-		"Rediger lag" menyen kan fjerne medlemmer. Da sendes et varsel til de som er fjernet om at lagleder har fjernet dem fra xxx. Varselet vises som første melding neste gang appen åpnes.
-			<Endre lagnavn>Da informeres alle brukere med en melding: "Navneendring\n\nLagleder for xxx har endret navnet på laget til yyy"
-			<Overfør lederskap> Velg ny leder. Kun eksisterende medlemmer tilgjengelige. Dialog for valgt ny leder: "Er du sikker?" <Avbryt> <Velg leder>
-	Dersom laget har flere medlemmer, men ingen leder, skal det være en "Velg leder" knapp samme sted.
+Venner: 
+<ignore>(forhåpentligvis implementert)Dersom laget har flere medlemmer, men ingen leder, skal det være en "Velg leder" knapp samme sted.
 		"Velg leder" åpner en dialog der man kan klikke på det medlemmet man ønsker som leder. 
 		Rett under overskriften, er en timer som teller ned avstemningen. Den starter på 7 dager. Den viser først bare dager, så timer når det er mindre enn 24, og til slutt minutter når det er mindre enn 120.
 		Alle medlemmer får et push varsel når leder skal velges.
 		Stemmer kan endres helt frem til fristen.
 		Dersom alle har stemt enstemmig, avsluttes timeren og leder settes.
-	Nederst til høyre er en <Lukk> knapp
-	"Fjern inaktiv lagleder" legges til som knapp i "Avanserte innstillinger"
+	(forhåpentligvis implementert)"Fjern inaktiv lagleder" legges til som knapp i "Avanserte innstillinger"
 		Hvis lagleder har brukt appen siste måned -> Popup "Lagleder er ikke inaktiv. Ta kontakt." <OK>
 		else push melding sendes til lagleder og timer settes til 7 dager
 			Hvis leder logger på, avbrytes nedtellingen
 			else leder mister lederstatus, men forblir i laget. Laget kan stemme over ny leder fra leder mangler-funksjonaliteten.	
-
-Stillings-skjerm:
-	Ikonene for stilling må homogeniseres i størrelse. Homogeniser selv eller bruk mine forslag: Stående: OK, Knsetående: -20%, Sittende: +80%, Liggende -65%
-Poeng-visning: 
-	La genererte test-serier være på 10 skudd	
-	Skriv "Poeng:" foran poengene
-	For stilling skriv "... med reim" eler "... med anlegg"
-	Erstatt "Langsiktig..." med "Mitt gjennomsnitt for denne stillingen: " uten konfidensintervall.
-	Poengringene i visningen stemmer ikke: Det skal være 6 hvite ringer, og 5 sorte, inkludert inner/ytter tier. Poengene er rikitge talt innenfra (når jeg ser tar høyde for at tier-delingen ikke er med), men telt utenfra blir det feil fordi det er én ring for mye.
-
-Melding til utvikler:
-	Det som skrives i meldingsdialogen må limes inn som subject og body i mailen. Eventuelt må den gå rett til mail, uten inntastingsmulighet.
-
-
-Profil:
-	Eksisterende jaktlag skal kunne klikkes og slettes
-	Hvis brukeren er eneste medlem, slettes laget uten varsel
-	Hvis laget har flere brukere, forlater du laget, uten at det slettes
-	Hvis du er eneste leder for laget, får du valg om å oppløse laget for alle, eller overføre lederskap og forlate laget.
-Legg til jaktlag: 
-	Teksten under "+ opprett nytt lag" endres til "Mine lag:"
-	Registrerte lag vises som en liste med knapper
-	Dersom et lag klikkes, endres knappen "+ opprett nytt lag" til "Rediger lag"
-	Endre fra popup meny til fullsides meny.
-	Jaktlag brukeren er medlem av, skal listes nedover, og være klikkbare. Gjør dem til knapper med en indent(type avsnitt) ift. Legg til...
-	"Invitasjoner sendes når appen er koblet til nett" -> Hva er dette egentlig? Endre til "Venter på backent implementering"?
-
-Jakt:
-	<Tilbake> knapp lukker menyen og går til hovedsiden.
-
-Venner:
-	For jaktlag, vis også egen bruker
-	For jaktlag, la brukerne føres opp flere ganger, dersom de er medlem i flere jaktlag
-		Disse brukerne føres ikke opp utenfor jaktlagene. Bare brukere du ikke deler jaktlag med, døres opp utenfor.
-	Flytt opp/ned menyen: "Avbryt" flyttes til høyre i dialogen.
-		Flytt funksjonaliteten funker ikke. Lagene må bytte plass etter instrusjonen.
-	"Jeg vil dele"-pilene er altfor små/svake/utydelige (lys visning). De må være kraftigere.
-		La menyen være åpen pr default
-	"La venner finne meg" er litt ustabil. Varselmeldingen Kommer/forsvinner ikke forutsigbart.
-		Meldingen skal være: "\"La venner finne meg\" er ikke avkrysset.\nDa kan du ikke bli funnet av venner som søker etter deg. \nDu kan fremdeles bli venner med kode eller QR-kode."
-
-Logg jaktskudd: 
-	Legg til en <checkbox> "Felling var vellykket"
-		Hvis boksen ikke checkes, åpnes en popup dialog: "Var fellingen vellykket?" <Nei><Ja>
-		Kun vellykkede fellinger sendes til venner dersom delt.
-		Skuddet logges med "felling vellykket" eller "felling mislykket"
-	"dyret løp" må akseptere 0m, men ikke 0 tillat tasting av ytterligere 0 etter den første.
-	Se registrerte skudd: Når man er inne på detaljvisning av et skudd, og telefonene tilbake knapp trykkes, skal den gå tilbake til skuddoversikten.
-	Pilene til å bla  mellom skuddene er litt smale. Trekk dem ut i høyden.
-		Bruk samme piler over alt hvor vi blar 
-	"Skriv inn hvor omtrent langt dyret løp" -> "Skriv inn omtrent hvor langt dyret løp"
-	Nye skudd på samme dato legges øverst
-	"Rediger" for skudd må kunne endre all informasjonen, Inkludert knapper for bomskudd, ettersøk og ikke funnet.
-	Endre silhuettene i mørk visning her også. 
-	Når flere jaktskudd er merket, må <Slett alle> knapp opprettes nede til høyre
-		Slett alle -> popup "Vil du slette alle valgte skudd? \n\nHandlingen kan ikke angres."<Slett alle><Avbryt>
-			<Avbryt> går til hovedsiden
-	Piler for å bla mellom skudd skal ikke bla rundt. Pilen fjernes for første og siste element, men posisjonen til <ok> skal ikke endres.
-
-
-	
-
-
+</ignore>
 
 ----------------------------------------------------
 Alt nedenfor skal ignoreres
 ------------------------------------------------------
 
-
+TODO: Opp-ned bilder gir feil poengberegning. Sjekk at det forsvinner med oppdatering av skjermorientering.
+TODO: Vurder begrenset med nevnere for Innsikt
+TODO: vurder UI ved lys profil
+TODO: Homogenisering av UI
 TODO: Søk og bakenforliggende funksjons- og kunnskapsartikler
 TODO: Avansert statistikk
 TODO: Implementere vennefunksjon (backend)
 TODO: Implementere innsamling av forskningsdata
 TODO: Eksporter/flytt/backup data/konto
+TODO: Når et lag fjernes, overføres venner til utenfor laglisten. -> Det er korrekt oppførsel. Reflekter over andre scenarier.
+TODO: Endring av teksten i "Mitt jaktmål" dialogen: Hva skal den være?
+TODO: Brukerlagring av bilder: Beste serie / over terskel / alle ; Koble til Dropbox/Onedrive/GDisk mv.
+TODO: Hvordan er treffpunkter lagret? Hvordan kan jeg verifisere reliabilitet? 
+TODO: Farge for statusbaren kan møte problemer senere: 
+	
+- Den svarte statuslinjen krevde windowOptOutEdgeToEdgeEnforcement — med targetSdk 36 ignoreres statusBarColor ellers helt. Flagget er Googles midlertidige opt-out og forsvinner i en framtidig SDK; da må vi tegne baren selv. Bieffekt: Ui.applyInsets() blir en no-op av seg selv, så innholdet ligger nå litt høyere enn før.
+
+
 
 (i): Hvilke elementer skal ha informasjonsikon? (Ikke svar på denne, det er utviklers jobb å bestemme)
 
@@ -167,11 +111,4 @@ Jegeropplæring.no har masse artikler som kan forenkles til korte faktasnutter i
 
 ->Vurder UI-støtte av tutorial (på lengre sikt)
 
-
-Scan: (Implementert?)
-Når et resultat er scannet, kommer resultatet opp på skjermen som en skive med treffene markert. 
-På høyre side av skiven er poengene oppført i stigende rekkefølge (desimaltall inkludert). 
-Hvert poeng har en blyant ved siden av, som kan brukes til å endre poengene ved behov. 
-Under skiven er det en "ikke lagre" knapp til venstre, og en "ok" knapp til høyre.
-(Er det implementert?)
 

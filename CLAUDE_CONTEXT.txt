@@ -404,3 +404,33 @@ CAPTURE-RUNDE (2026-07-31, v0.12) — FELTTEST SKYTEBANEN (musings.txt):
   - verify_cset_cpp.py etter endringene: 10/10 PASS (analysen uberoert).
   - FELLE (Edit-verktoey): CLAUDE_CONTEXT.txt har blandet tegnsett; norske
     tegn i eldre avsnitt matcher ikke alltid — bruk ASCII-ankre ved redigering.
+
+UI-RUNDE 10 (v0.13) LAERDOMMER:
+  - statusBarColor VIRKER IKKE naar targetSdk >= 35: edge-to-edge tvinges og
+    fargen ignoreres. Vil du ha svart systemlinje maa du ogsaa sette
+    android:windowOptOutEdgeToEdgeEnforcement=true (API 35, krever tools:
+    targetApi og xmlns:tools i <resources>). Bonus: da blir Ui.applyInsets en
+    no-op av seg selv (insets = 0), saa ingen layout maa endres.
+  - "Skjermen hopper til toppen" ved avkryssing = full re-render av ScrollView.
+    Behold rad-viewene som felt og oppdater KUN bakgrunn/synlighet. Knapper som
+    bytter (soppelboette/Avbryt/Lukk) skal alltid ligge i treet med
+    visibility-toggle, ikke legges til/fjernes.
+  - rRel er i RINGSTEG, og ett ringsteg = ett poeng (DevTools: rRel = 10.9-dec).
+    "Margin <= 0,1 poeng" mellom treffpunkter = euklidsk avstand <= 0.1 i
+    (rRel*cos t, rRel*sin t). Like POENG alene kan ikke skille et opp-ned bilde
+    fra en ekte duplikatserie - radiene er identiske, punktene er speilvendte.
+  - Skal noe staa "rett til hoyre for" den nederste raden i en ramme: den raden
+    maa ligge INNE i den samme vertikale kolonnen, ikke under hele body-en.
+    (Innsikt: vinkelraden flyttet inn i venstrekolonnen som rad 6, saa
+    hold-kolonnens 6. knapp (200 m) lander ved siden av den.)
+  - "Alt skal passe paa en skjerm" => regn radhoyden ut fra
+    displayMetrics.heightPixels minus et reservert chrome-budsjett, og klem den
+    (coerceIn). Ikke hardkod dp naar innholdet har fast antall rader.
+  - View-animasjon som flytter et barn UT av sin egen rad blir KLIPPET.
+    clipChildren=false + clipToPadding=false paa alle foreldre (ogsaa
+    NestedScrollView i dialogen), ellers ser man ingenting.
+  - OcrVerifier returnerte alltid OCR-poengene i skjermrekkefolge; det var
+    VISNINGEN i ResultActivity som sorterte (ocr.sorted()). Sjekk hvor
+    sorteringen faktisk skjer for du "fikser" datalaget.
+  - Funksjonalitet som skal PAUSES (forskning) - bruk ett navngitt flagg
+    (Dialogs.RESEARCH_ENABLED) som alle inngangene sjekker, ikke slett kode.

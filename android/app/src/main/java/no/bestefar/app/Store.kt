@@ -283,6 +283,20 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getInt("shareDevImagesSeason", -1)
         set(v) { prefs.edit().putInt("shareDevImagesSeason", v).apply() }
 
+    /**
+     * Lagre scannede skjermbilder i telefonens bildearkiv (musingsUI runde 10).
+     * Default PÅ til spørsmålet er stilt etter første scan — bildet er det mest
+     * verdifulle vi har hvis analysen bommer, og svarer brukeren «Nei» slettes
+     * også det første bildet.
+     */
+    var saveScansToGallery: Boolean
+        get() = prefs.getBoolean("saveScansToGallery", true)
+        set(v) { prefs.edit().putBoolean("saveScansToGallery", v).apply() }
+
+    var saveScansAsked: Boolean
+        get() = prefs.getBoolean("saveScansAsked", false)
+        set(v) { prefs.edit().putBoolean("saveScansAsked", v).apply() }
+
     // ---------- Serier ----------
 
     @Synchronized

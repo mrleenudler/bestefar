@@ -157,8 +157,6 @@ class HuntLogActivity : AppCompatActivity() {
                     species = s
                     speciesOther = otherInput.text.toString().trim()
                     distInput?.let { distanceM = it.text.toString().toIntOrNull() }
-                    // «Annet» -> markør i tekstboks + deaktiver forskningsdeling
-                    if (s == Species.ANNET) shareResearch = false
                     page1()
                     if (s == Species.ANNET) {
                         otherInput.requestFocus()
@@ -193,10 +191,12 @@ class HuntLogActivity : AppCompatActivity() {
     private fun page1() {
         val content = Ui.col(this)
 
+        // «Detaljert visning» (musingsUI runde 10): checkboxen styrte tidligere
+        // forskningsdeling. Forskning er lagt i bakgrunnen, og valget er nå kun
+        // et visningsvalg — derfor gjelder det for alt vilt, også «Annet».
         content.addView(android.widget.CheckBox(this).apply {
-            text = getString(R.string.hunt_share_research)
+            text = getString(R.string.hunt_detailed_view)
             isChecked = shareResearch
-            isEnabled = species != Species.ANNET
             setOnCheckedChangeListener { _, on -> shareResearch = on; page1() }
         })
 

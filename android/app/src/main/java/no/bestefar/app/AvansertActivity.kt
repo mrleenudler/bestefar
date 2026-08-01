@@ -50,10 +50,12 @@ class AvansertActivity : AppCompatActivity() {
         entry(getString(R.string.team_remove_inactive)) { removeInactiveLeader() }
 
         // Del med forskning av/på (musingsUI runde 8): valget bor nå her, ikke i
-        // en oppstartspopup. På = "ja", av = "aldri".
+        // en oppstartspopup. På = "ja", av = "aldri". LÅST AV i runde 10 —
+        // forskning er lagt i bakgrunnen til innsamlingen er klar.
         content.addView(SwitchCompat(this).apply {
             text = getString(R.string.research_share_toggle)
-            isChecked = store.consentResearch == "ja"
+            isChecked = Dialogs.RESEARCH_ENABLED && store.consentResearch == "ja"
+            isEnabled = Dialogs.RESEARCH_ENABLED
             setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
                 0, Ui.dp(this@AvansertActivity, 12))
             setOnCheckedChangeListener { _, on ->
@@ -67,7 +69,9 @@ class AvansertActivity : AppCompatActivity() {
                 } else store.consentResearch = "aldri"
             }
         })
-        content.addView(Ui.hint(this, getString(R.string.research_share_toggle_hint)))
+        content.addView(Ui.hint(this, getString(
+            if (Dialogs.RESEARCH_ENABLED) R.string.research_share_toggle_hint
+            else R.string.research_share_paused)))
 
         // Del bilder med utvikler av/på (musingsUI runde 8): flyttet fra
         // oppstartspopup til her. På = "ja", av = "nei".
@@ -79,6 +83,16 @@ class AvansertActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, on -> store.shareDevImages = if (on) "ja" else "nei" }
         })
         content.addView(Ui.hint(this, getString(R.string.share_dev_images_hint)))
+
+        // Lagre scannede skjermbilder i bildearkivet (musingsUI runde 10)
+        content.addView(SwitchCompat(this).apply {
+            text = getString(R.string.save_scans_gallery)
+            isChecked = store.saveScansToGallery
+            setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
+                0, Ui.dp(this@AvansertActivity, 12))
+            setOnCheckedChangeListener { _, on -> store.saveScansToGallery = on }
+        })
+        content.addView(Ui.hint(this, getString(R.string.save_scans_gallery_hint)))
 
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {

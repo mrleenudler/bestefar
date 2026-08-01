@@ -81,9 +81,10 @@ class InnsiktFragment : RebuildFragment() {
     }
 
     /**
-     * Viltsilhuett for art + vinkling (musingsUI runde 9): Elg og Villsvin har
-     * egne side/front-silhuetter; øvrige bruker hjort. Elg/villsvin mangler
-     * skrå-variant, så skrå bruker deres side-silhuett.
+     * Viltsilhuett for art + vinkling (musingsUI runde 9/10): Elg, Villsvin og
+     * Villrein har egne side/front-silhuetter; øvrige bruker hjort. Villrein er
+     * den eneste med EGEN skrå-silhuett; elg/villsvin mangler den, så skrå
+     * bruker deres side-silhuett.
      */
     private fun angleSil(sp: Species, a: Angle): Int {
         val front = a == Angle.FRONT
@@ -91,6 +92,11 @@ class InnsiktFragment : RebuildFragment() {
             Species.ELG -> if (front) R.drawable.ic_elg_front else R.drawable.ic_elg_side
             Species.VILLSVIN ->
                 if (front) R.drawable.ic_villsvin_front else R.drawable.ic_villsvin_side
+            Species.VILLREIN -> when (a) {
+                Angle.FRONT -> R.drawable.ic_rein_front
+                Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_rein_skraa
+                else -> R.drawable.ic_rein_side
+            }
             else -> when (a) {
                 Angle.FRONT -> R.drawable.ic_hjort_front
                 Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_hjort_skraa
@@ -99,18 +105,34 @@ class InnsiktFragment : RebuildFragment() {
         }
     }
 
-    // Ramme-celle: like bred som holdknappene, så stående-ikon og hold-kolonne
-    // står i loddrett flukt (musingsUI runde 7). `gap` = smal stripe mellom alle
-    // ikoner (musingsUI runde 9).
-    private val cellW get() = Ui.dp(requireContext(), 60)
-    private val cellH get() = Ui.dp(requireContext(), 54)
-    private val rowH get() = Ui.dp(requireContext(), 64)
+    // ---- Autoskalert rutenett (musingsUI runde 10) ----------------------------
+    // Rammen er 7 like høye rader: stillingsraden øverst + 6 rader i kroppen
+    // (5 vilttyper + vinkelraden). Hold-kolonnen har nøyaktig 6 knapper, så
+    // 200 m havner rett til høyre for vinkel-/vilt-posisjonsvalgene. Radhøyden
+    // regnes ut fra skjermhøyden slik at alt får plass på ÉN skjerm.
     private val gap get() = Ui.dp(requireContext(), 2)
+    private var unitH = 0          // radavstand (celle + stripe)
+    private var cellH = 0          // selve cellehøyden
+    private var cellW = 0          // cellebredde = holdknappbredde
+
+    /** Plass tittel/undertekst/knapp/systemlinjer trenger utenom rutenettet. */
+    private fun reservedH() = Ui.dp(requireContext(), 250)
+
+    private fun computeMetrics() {
+        val a = requireContext()
+        val dm = resources.displayMetrics
+        val avail = dm.heightPixels - reservedH()
+        unitH = (avail / 7).coerceIn(Ui.dp(a, 34), Ui.dp(a, 66))
+        cellH = unitH - gap
+        // Fire kolonner må få plass i bredden ved siden av kolonnepaddingen
+        cellW = minOf(Ui.dp(a, 66), (dm.widthPixels - Ui.dp(a, 40) - 4 * gap) / 4)
+    }
 
     override fun rebuild() {
         val a = requireActivity()
         val store = Store.get(a)
         content.removeAllViews()
+        computeMetrics()
 
         val evidence = store.currentSeasonSeries().filter { it.countsInEvidence }
 
@@ -141,7 +163,11 @@ class InnsiktFragment : RebuildFragment() {
         // Øverste ramme-kant: alle fire stillinger inntil hverandre til venstre,
         // kun en smal stripe imellom (musingsUI runde 9). Stående (siste) står
         // dermed i 4. kolonne — rett over hold-kolonnen.
-        val topRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
+        val topRow = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, unitH)
+        }
         Position.hoved.forEachIndexed { i, p ->
             val last = i == Position.hoved.size - 1
             topRow.addView(iconCell(p.iconRes, innsiktScale(p), p == jegerPos,
@@ -149,43 +175,44 @@ class InnsiktFragment : RebuildFragment() {
         }
         content.addView(topRow)
 
-        // Midtre: matrise (venstre) + hold-kolonne (4. kolonne, under stående).
-        // Matrisebredden er låst til de tre første kolonnene, så hold-kolonnen
-        // lander rett under stående og «kobler» seg til resten (musingsUI runde 9).
+        // Kroppen: venstrekolonne (5 vilt-rader + vinkelraden) og hold-kolonnen
+        // (6 knapper) — like høye, så 200 m står RETT TIL HØYRE for vinkel-/
+        // vilt-posisjonsvalgene (musingsUI runde 10). Venstrekolonnens bredde er
+        // låst til de tre første kolonnene, så hold-kolonnen lander under stående.
         val body = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }
-        val rows = LinearLayout(a).apply {
+        val leftCol = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(3 * cellW + 3 * gap,
                 ViewGroup.LayoutParams.WRAP_CONTENT)
         }
-        speciesList.forEach { sp -> rows.addView(speciesRow(sp, evidence, store)) }
-        body.addView(rows)
-
-        val holdCol = LinearLayout(a).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                // Smal stripe mellom stående-ikonet og 25 m (musingsUI runde 9)
-                topMargin = gap
-            }
-        }
-        holds.forEach { d -> holdCol.addView(holdButton(d)) }
-        body.addView(holdCol)
-        content.addView(body)
+        speciesList.forEach { sp -> leftCol.addView(speciesRow(sp, evidence, store)) }
 
         // Nederste ramme-kant: dyr-vinkling (DDD), venstrejustert under de tre
         // første stillingene. Generisk hjort-silhuett som vinkel-indikator (runde 7).
-        val bottomRow = LinearLayout(a).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.START
+        val angleRow = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, unitH)
         }
         listOf(Angle.FRONT to R.drawable.ic_hjort_front,
             Angle.SIDE to R.drawable.ic_hjort_side,
             Angle.SKRAA30 to R.drawable.ic_hjort_skraa).forEach { (ang, res) ->
-            bottomRow.addView(iconCell(res, 1f, dyrAngle == ang, ang.label, last = false) {
+            angleRow.addView(iconCell(res, 1f, dyrAngle == ang, ang.label, last = false) {
                 dyrAngle = ang; rebuild()
             })
         }
-        content.addView(bottomRow)
+        leftCol.addView(angleRow)
+        body.addView(leftCol)
+
+        val holdCol = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        holds.forEach { d -> holdCol.addView(holdButton(d)) }
+        body.addView(holdCol)
+        content.addView(body)
 
         merStatistikkButton(store)
     }
@@ -197,7 +224,8 @@ class InnsiktFragment : RebuildFragment() {
         val b = if (selected) MaterialButton(a)
         else MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
         b.text = "$d m"
-        b.textSize = 13f
+        // Skalerer med radhøyden så teksten aldri blir klippet (runde 10)
+        b.textSize = (cellH / resources.displayMetrics.density * 0.30f).coerceIn(11f, 15f)
         b.maxLines = 1
         b.isAllCaps = false
         b.cornerRadius = Ui.dp(a, 6)
@@ -258,7 +286,7 @@ class InnsiktFragment : RebuildFragment() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, rowH)
+                ViewGroup.LayoutParams.MATCH_PARENT, unitH)
         }
 
         val posSeries = evidence.filter { it.position == jegerPos }
@@ -275,7 +303,8 @@ class InnsiktFragment : RebuildFragment() {
             setImageResource(angleSil(sp, dyrAngle))
             scaleType = ImageView.ScaleType.FIT_CENTER
             scaleX = scale; scaleY = scale
-            layoutParams = LinearLayout.LayoutParams(Ui.dp(a, 72), Ui.dp(a, 58))
+            // Silhuettboksen følger radhøyden (autoskalering, runde 10)
+            layoutParams = LinearLayout.LayoutParams((cellH * 1.25).toInt(), cellH)
             ImageViewCompat.setImageTintList(this,
                 android.content.res.ColorStateList.valueOf(
                     if (trained) silColor() else silGrey()))
@@ -283,10 +312,11 @@ class InnsiktFragment : RebuildFragment() {
         row.addView(sil)
 
         val text = TextView(a).apply {
-            textSize = 16f
+            textSize = (cellH / resources.displayMetrics.density * 0.28f)
+                .coerceIn(12f, 16f)
             layoutParams = LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = Ui.dp(a, 8)
+                marginStart = Ui.dp(a, 6)
             }
         }
         if (!trained) {
@@ -340,7 +370,7 @@ class InnsiktFragment : RebuildFragment() {
         content.addView(MaterialButton(a, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.menu_more_stats)
-            layoutParams = Ui.matchWrap(20, a)
+            layoutParams = Ui.matchWrap(10, a)   // strammere, alt skal på én skjerm
             setOnClickListener {
                 val evid = store.currentSeasonSeries().filter { it.countsInEvidence }
                 val sigma = Stats.sigmaCmAt100(evid)

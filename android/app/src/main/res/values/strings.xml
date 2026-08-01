@@ -299,10 +299,21 @@
     <string name="donate_accept">Godta</string>
     <string name="donate_decline">Avvis</string>
 
-    <!-- OCR-finpussing -->
-    <string name="ocr_mismatch">Appen klarte ikke se treffene riktig. Vil du lagre serien likevel?</string>
+    <!-- OCR-finpussing (tekst oppdatert i musingsUI runde 10) -->
+    <string name="ocr_mismatch">Appen klarte ikke å se poengene riktig.\nVil du lagre serien likevel?</string>
     <string name="ocr_discard">Forkast</string>
-    <string name="ocr_save_screen">Lagre med poengene på skjermen</string>
+    <string name="ocr_save_screen">Lagre leste poeng</string>
+
+    <!-- musingsUI runde 10 -->
+    <string name="result_detected_label">Identifiserte treff:</string>
+    <string name="rescan_body">Bildet ble ikke korrekt analysert. Scan bildet på ny.</string>
+    <string name="rescan_scan">Scan</string>
+    <string name="gallery_save_ask">Ønsker du at skjermbildet skal lagres i bildearkivet ditt?</string>
+    <string name="gallery_save_info">Du kan endre dette valget i «Avanserte innstillinger»</string>
+    <string name="save_scans_gallery">Lagre scannede bilder i bildearkivet</string>
+    <string name="save_scans_gallery_hint">Skjermbildet fra hver scan legges i Bilder/Bestefar, sammen med antall treff og sum.</string>
+    <string name="research_share_paused">Forskningsdeling er midlertidig satt på pause mens innsamlingen ferdigstilles.</string>
+    <string name="hunt_detailed_view">Detaljert visning</string>
 
     <!-- Identiske serier -->
     <string name="dup_title">Lik forrige serie</string>

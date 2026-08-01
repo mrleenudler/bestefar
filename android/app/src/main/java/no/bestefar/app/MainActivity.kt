@@ -261,13 +261,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Bildedelings-spørsmålet ved oppstart (musingsUI runde 9): vises FØRSTE gang
-     * appen åpnes, og deretter én gang neste sesong hvis deling ikke er valgt.
+     * Bildedelings-spørsmålet ved oppstart (musingsUI runde 9/10): vises FØRSTE
+     * gang appen åpnes, deretter én gang neste sesong hvis deling ikke er valgt
+     * — og ALLTID når «Vis oppstartsmelding hver gang» står på i utviklermodus.
      * (Valget kan uansett styres fra Avanserte innstillinger.)
      */
     private fun maybeDonateThenTutorial() {
         val season = Store.seasonKey(System.currentTimeMillis())
         val ask = when {
+            store.alwaysShowStartup -> true                          // utviklerflagg
             store.shareDevImages == "" -> true                       // aldri spurt
             store.shareDevImages != "ja" && store.shareDevImagesSeason != season -> true
             else -> false

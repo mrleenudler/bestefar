@@ -1,10 +1,11 @@
 package no.bestefar.app
 
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -12,14 +13,18 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import java.io.File
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Resultatkort (musingsUI): skive med treffene markert; poeng i stigende
- * rekkefølge med blyant per poeng; «Ikke lagre» / «OK» under. Runde 4:
- * OCR-finpussing av poeng, innskytingssjekk på sesongens første serie, og
- * varsel om identiske serier. Optikk/klikk-forslag fjernet.
+ * Resultatkort (musingsUI): skive med treffene markert, poenglista til høyre og
+ * «Ikke lagre» / «OK» under. Runde 4: OCR-finpussing av poeng, innskytingssjekk
+ * på sesongens første serie, varsel om identiske serier. Runde 10: blyanten er
+ * fjernet — OCR har overtatt korreksjonsrollen, og feiler analysen ber vi heller
+ * om et nytt bilde.
  */
 class ResultActivity : AppCompatActivity() {
 
@@ -34,10 +39,17 @@ class ResultActivity : AppCompatActivity() {
         const val EXTRA_RREL = "r_rel"
         const val EXTRA_THETA = "theta"
         const val EXTRA_IMAGE_PATH = "image_path"
+        const val EXTRA_GALLERY_URI = "gallery_uri"
         /** «8. mars 2026    08:38» — god luft mellom dato og tid (musingsUI r7). */
         val DATE_TIME_FMT: java.time.format.DateTimeFormatter =
             java.time.format.DateTimeFormatter.ofPattern("d. MMMM yyyy    HH:mm",
                 java.util.Locale("no"))
+        /**
+         * Maks avstand mellom to treffpunkter for at de skal regnes som «samme
+         * treff» ved duplikatsjekk (musingsUI runde 10). rRel er oppgitt i
+         * RINGSTEG, og ett ringsteg = ett poeng, så 0,1 her = 0,1 poeng.
+         */
+        const val SAME_HIT_POINTS = 0.1
     }
 
     private lateinit var store: Store
@@ -45,7 +57,11 @@ class ResultActivity : AppCompatActivity() {
     private var record: SeriesRecord? = null
     private var saved = false
     private var imagePath: String? = null
-    private var ocrMismatch: List<Double>? = null   // sett -> vis avviks-banner
+    private var galleryUri: Uri? = null
+    /** OCR-poeng i SKJERMREKKEFØLGE (musingsUI runde 10). Null = ingen OCR. */
+    private var ocrScores: List<Double>? = null
+    /** Falsk når OCR og de detekterte treffene er uenige (> 0.2). */
+    private var ocrAgrees = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +71,7 @@ class ResultActivity : AppCompatActivity() {
         Ui.applyInsets(scroller)
         setContentView(scroller)
         imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH)
+        galleryUri = intent.getStringExtra(EXTRA_GALLERY_URI)?.let { Uri.parse(it) }
 
         val status = intent.getIntExtra(EXTRA_STATUS, BestefarCore.ERROR_INTERNAL)
         if (status != BestefarCore.OK) {
@@ -76,21 +93,65 @@ class ResultActivity : AppCompatActivity() {
             Shot(decimals[it], integers[it], rrel[it], theta[it])
         }
 
-        resolvePosition { pos, mod ->
-            val w = store.selectedWeapon()
-            record = SeriesRecord(
-                id = Store.newId(),
-                ts = System.currentTimeMillis(),
-                weaponId = w?.id,
-                ammoName = w?.ammoName ?: "",
-                distanceM = store.distanceM,
-                position = pos,
-                modifier = mod,
-                shots = shots,
-            )
-            // Innskytingssjekk før OCR/visning (kan forkaste serien)
-            sightInCheck { runOcrThenRender() }
+        // «Vil du lagre skjermbildet i bildearkivet?» etter FØRSTE (vellykkede)
+        // scan (musingsUI runde 10) — før stillingsvalget, så spørsmålet ikke
+        // kommer midt i lagringsflyten.
+        askGallerySave {
+            resolvePosition { pos, mod ->
+                val w = store.selectedWeapon()
+                record = SeriesRecord(
+                    id = Store.newId(),
+                    ts = System.currentTimeMillis(),
+                    weaponId = w?.id,
+                    ammoName = w?.ammoName ?: "",
+                    distanceM = store.distanceM,
+                    position = pos,
+                    modifier = mod,
+                    shots = shots,
+                )
+                // Innskytingssjekk før OCR/visning (kan forkaste serien)
+                sightInCheck { runOcrThenRender() }
+            }
         }
+    }
+
+    // ---------- Lagring av scan i bildearkivet (musingsUI runde 10) ----------
+
+    /**
+     * Spør én gang — etter første scan — om skjermbildet skal ligge i brukerens
+     * bildearkiv, og forklar hvor valget kan endres. Svarer man «Nei» slettes
+     * også bildet fra denne scanen, siden CaptureActivity lagrer først og spør
+     * etterpå (bildet er det mest verdifulle vi har hvis analysen bommer).
+     */
+    private fun askGallerySave(onDone: () -> Unit) {
+        if (store.saveScansAsked) { onDone(); return }
+        store.saveScansAsked = true
+        AlertDialog.Builder(this)
+            .setMessage(R.string.gallery_save_ask)
+            .setPositiveButton(R.string.yes) { _, _ ->
+                store.saveScansToGallery = true; galleryInfo(onDone)
+            }
+            .setNegativeButton(R.string.no) { _, _ ->
+                store.saveScansToGallery = false
+                deleteGalleryImage()
+                galleryInfo(onDone)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun galleryInfo(onDone: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setMessage(R.string.gallery_save_info)
+            .setPositiveButton(R.string.ok) { _, _ -> onDone() }
+            .setOnCancelListener { onDone() }
+            .show()
+    }
+
+    private fun deleteGalleryImage() {
+        val uri = galleryUri ?: return
+        try { contentResolver.delete(uri, null, null) } catch (_: Exception) { }
+        galleryUri = null
     }
 
     /** Stilling velges alltid etter scan nå (musingsUI runde 4). */
@@ -165,12 +226,13 @@ class ResultActivity : AppCompatActivity() {
             when (result) {
                 is OcrVerifier.Result.Match -> {
                     // Sømløs oppdatering til OCR-poengene (sortert mapping)
+                    ocrScores = result.scores; ocrAgrees = true
                     applyScores(result.scores)
                     if (store.shareDevImagesActive) queueDevImage(r, "ocr_match")
                     render()
                 }
                 is OcrVerifier.Result.Mismatch -> {
-                    ocrMismatch = result.scores
+                    ocrScores = result.scores; ocrAgrees = false
                     render()
                 }
                 OcrVerifier.Result.Inconclusive -> render()
@@ -204,12 +266,18 @@ class ResultActivity : AppCompatActivity() {
         } catch (_: Exception) { /* best effort; backend-opplasting kommer */ }
     }
 
+    /**
+     * Analysen forkastet bildet (musingsUI runde 10). Vi trenger ikke noe nytt
+     * signal fra CV-kjernen: status != OK ER kvalitetsportens «dette kan jeg ikke
+     * score»-svar, så her anbefaler vi rett og slett et nytt bilde.
+     */
     private fun renderRejected(status: Int) {
         content.removeAllViews()
         content.addView(Ui.title(this, getString(R.string.app_name)))
-        content.addView(Ui.body(this, getString(R.string.result_rejected, status)))
+        content.addView(Ui.body(this, getString(R.string.rescan_body)))
+        content.addView(Ui.hint(this, getString(R.string.result_rejected, status)))
         content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
             text = getString(R.string.result_send_fail)
             layoutParams = Ui.matchWrap(16, this@ResultActivity)
             setOnClickListener {
@@ -218,11 +286,22 @@ class ResultActivity : AppCompatActivity() {
                 isEnabled = false
             }
         })
-        content.addView(MaterialButton(this).apply {
-            text = getString(R.string.ok)
-            layoutParams = Ui.matchWrap(8, this@ResultActivity)
+        val btnRow = Ui.row(this)
+        btnRow.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = getString(R.string.cancel)
             setOnClickListener { finish() }
         })
+        btnRow.addView(android.widget.Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+        btnRow.addView(MaterialButton(this).apply {
+            text = getString(R.string.rescan_scan)
+            minWidth = Ui.dp(this@ResultActivity, 120)
+            setOnClickListener {
+                startActivity(Intent(this@ResultActivity, CaptureActivity::class.java))
+                finish()
+            }
+        })
+        content.addView(btnRow, Ui.matchWrap(12, this))
     }
 
     private fun render() {
@@ -238,63 +317,20 @@ class ResultActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0,
                 Ui.dp(this@ResultActivity, 300), 1f)
         })
-        val scoreCol = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            // Poengene midtstilles under «Poeng:» (musingsUI runde 9)
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
-        }
-        scoreCol.addView(TextView(this).apply {
-            text = getString(R.string.result_points_label)   // «Poeng:»
-            // Samme størrelse som poengene under, i fet (musingsUI runde 8)
-            textSize = 19f
-            gravity = Gravity.CENTER_HORIZONTAL
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-        })
-        r.shots.withIndex().sortedBy { it.value.decimal }.forEach { (idx, shot) ->
-            // Tettere poeng-rader (musingsUI runde 9): kompakt blyant, liten
-            // radhøyde, midtstilt.
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            row.addView(TextView(this).apply {
-                text = "%.1f".format(shot.decimal)
-                textSize = 19f
-                gravity = Gravity.CENTER
-                minWidth = Ui.dp(this@ResultActivity, 40)
-            })
-            row.addView(ImageButton(this).apply {
-                setImageResource(R.drawable.ic_edit)
-                background = null
-                val p = Ui.dp(this@ResultActivity, 2)
-                setPadding(p, p, p, p)
-                layoutParams = LinearLayout.LayoutParams(
-                    Ui.dp(this@ResultActivity, 26), Ui.dp(this@ResultActivity, 26))
-                contentDescription = getString(R.string.result_edit)
-                setOnClickListener {
-                    Dialogs.shotEdit(this@ResultActivity, shot.decimal) { v ->
-                        r.shots = r.shots.mapIndexed { i, s ->
-                            if (i == idx) s.copy(decimal = v,
-                                integer = floor(v).toInt().coerceAtMost(10)) else s
-                        }
-                        r.corrected = true
-                        if (saved) store.updateSeries(r)
-                        render()
-                    }
-                }
-            })
-            scoreCol.addView(row, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = Ui.dp(this@ResultActivity, 1)
-            })
-        }
-        mainRow.addView(scoreCol)
+        // Poenglista: OCR-poengene tar presedens og står i SKJERMREKKEFØLGE
+        // (musingsUI runde 10). Uten OCR viser vi som før de detekterte i
+        // stigende rekkefølge. Blyanten er fjernet — den blokkerte plassen til
+        // høyre, og OCR har overtatt rollen som korreksjon.
+        val shown = ocrScores ?: r.shots.map { it.decimal }.sorted()
+        mainRow.addView(pointsColumn(getString(R.string.result_points_label), shown, 19f))
         content.addView(mainRow)
 
-        // «Poeng:» foran totalen (musingsUI runde 7)
+        // «Poeng:» foran totalen (musingsUI runde 7). Totalen følger det som
+        // faktisk vises, slik at OCR-poengene og summen ikke spriker.
+        val sumDec = shown.sum()
+        val sumInt = shown.sumOf { floor(it).toInt().coerceIn(0, 10) }
         content.addView(TextView(this).apply {
-            text = getString(R.string.result_points_prefix, r.sumDecimal, r.sumInteger)
+            text = getString(R.string.result_points_prefix, sumDec, sumInt)
             textSize = 28f
         })
         // Dato + tid med god luft mellom (musingsUI runde 7)
@@ -315,7 +351,14 @@ class ResultActivity : AppCompatActivity() {
         // avstand/hjelpemiddel), sesong + totalt, oppdateres løpende (runde 8).
         addAvgBlock(r)
 
-        if (ocrMismatch != null) {
+        if (ocrScores != null && !ocrAgrees) {
+            // De to visningene bytter plass ved uenighet (musingsUI runde 10):
+            // OCR-poengene står øverst, de identifiserte treffene nederst.
+            content.addView(pointsColumn(getString(R.string.result_detected_label),
+                r.shots.map { it.decimal }.sorted(), 17f).apply {
+                gravity = Gravity.START
+                setPadding(0, Ui.dp(this@ResultActivity, 12), 0, 0)
+            })
             renderOcrMismatch()
         } else {
             val btnRow = Ui.row(this)
@@ -333,6 +376,38 @@ class ResultActivity : AppCompatActivity() {
             })
             content.addView(btnRow, Ui.matchWrap(12, this))
         }
+    }
+
+    /**
+     * Poengkolonne med overskrift; verdiene vises i den rekkefølgen de kommer
+     * (musingsUI runde 10 — OCR-poengene skal IKKE sorteres på verdi).
+     */
+    private fun pointsColumn(title: String, values: List<Double>, size: Float): LinearLayout {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            // Poengene midtstilles under «Poeng:» (musingsUI runde 9)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
+        }
+        col.addView(TextView(this).apply {
+            text = title
+            // Samme størrelse som poengene under, i fet (musingsUI runde 8)
+            textSize = size
+            gravity = Gravity.CENTER_HORIZONTAL
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        values.forEach { v ->
+            col.addView(TextView(this).apply {
+                text = "%.1f".format(v)
+                textSize = size
+                gravity = Gravity.CENTER
+                minWidth = Ui.dp(this@ResultActivity, 40)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = Ui.dp(this@ResultActivity, 1)
+            })
+        }
+        return col
     }
 
     /**
@@ -357,12 +432,10 @@ class ResultActivity : AppCompatActivity() {
             samePos.map { it.sumDecimal }.average())))
     }
 
-    /** OCR uenig (> 0.2): vis melding + forkast / lagre med skjermens poeng. */
+    /** OCR uenig (> 0.2): vis melding + forkast / lagre de leste poengene. */
     private fun renderOcrMismatch() {
-        val ocr = ocrMismatch ?: return
+        val ocr = ocrScores ?: return
         content.addView(Ui.body(this, getString(R.string.ocr_mismatch)))
-        content.addView(Ui.hint(this, "Skjermens poeng: " +
-            ocr.sorted().joinToString("  ") { "%.1f".format(it) }))
         val btnRow = Ui.row(this)
         btnRow.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
@@ -374,7 +447,7 @@ class ResultActivity : AppCompatActivity() {
             text = getString(R.string.ocr_save_screen)
             setOnClickListener {
                 applyScores(ocr)
-                ocrMismatch = null
+                ocrAgrees = true
                 maybeAskDonate { saveAndFinish() }
             }
         })
@@ -446,13 +519,35 @@ class ResultActivity : AppCompatActivity() {
         Dialogs.maybeResearchConsent(this, store) { finish() }
     }
 
+    /**
+     * To serier er «like» bare hvis BÅDE poengene OG treffpunktene stemmer
+     * (musingsUI runde 10). Like poeng alene holdt ikke: et opp-ned bilde gir
+     * nøyaktig de samme poengene (radiene er uendret) men speilvendte/roterte
+     * treffpunkter, og ble derfor feilaktig meldt som duplikat.
+     */
     private fun isIdentical(a: SeriesRecord, b: SeriesRecord): Boolean {
         if (a.id == b.id) return false
         if (a.position != b.position || a.distanceM != b.distanceM) return false
         if (a.shots.size != b.shots.size || a.shots.isEmpty()) return false
         val sa = a.shots.map { it.decimal }.sorted()
         val sb = b.shots.map { it.decimal }.sorted()
-        return sa.indices.all { kotlin.math.abs(sa[it] - sb[it]) < 0.05 }
+        if (!sa.indices.all { abs(sa[it] - sb[it]) < 0.05 }) return false
+        // Parer treffpunktene grådig: hvert treff i a må ha et ubrukt treff i b
+        // innenfor 0,1 poeng (rRel er i ringsteg = poeng).
+        val free = b.shots.toMutableList()
+        for (s in a.shots) {
+            val match = free.minByOrNull { hitDistance(s, it) } ?: return false
+            if (hitDistance(s, match) > SAME_HIT_POINTS) return false
+            free.remove(match)
+        }
+        return true
+    }
+
+    /** Avstand mellom to treffpunkter, målt i poeng (ringsteg). */
+    private fun hitDistance(p: Shot, q: Shot): Double {
+        val dx = p.rRel * cos(p.theta) - q.rRel * cos(q.theta)
+        val dy = p.rRel * sin(p.theta) - q.rRel * sin(q.theta)
+        return sqrt(dx * dx + dy * dy)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

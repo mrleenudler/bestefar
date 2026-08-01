@@ -248,7 +248,12 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
      * kun når Ettersøk er valgt.
      */
     private fun editDialog(r: HuntRecord) {
-        val col = Ui.col(this, 16)
+        val col = Ui.col(this, 16).apply {
+            // «Dyret løp»-tallet flyr ut av sin egen rad når det blokkeres
+            // (musingsUI runde 10) — uten dette klipper foreldrene animasjonen.
+            clipChildren = false
+            clipToPadding = false
+        }
 
         fun labeled(labelRes: Int, field: android.view.View) {
             col.addView(TextView(this).apply {
@@ -308,20 +313,33 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
                 ran.isFocusable = false
                 ran.isFocusableInTouchMode = false
                 if (ran.text.isNotEmpty() && ranBlockInit) {
-                    // Blås opp fonten samtidig som tallet fader ut (runde 9) —
-                    // mer oppmerksomhetsfangende enn ren utfading.
-                    ran.animate().scaleX(1.7f).scaleY(1.7f).alpha(0f).setDuration(400L)
+                    // Tallet vokser til DOBBEL størrelse og flyr opp mot høyre
+                    // mens det fader ut (musingsUI runde 10). Pivot i venstre
+                    // kant/bunn så veksten skjer oppover-høyre, ikke sentrert.
+                    ran.pivotX = 0f
+                    ran.pivotY = ran.height.toFloat()
+                    ran.animate()
+                        .scaleX(2f).scaleY(2f)
+                        .translationXBy(Ui.dp(this@RegistrerteSkuddActivity, 70).toFloat())
+                        .translationYBy(-Ui.dp(this@RegistrerteSkuddActivity, 70).toFloat())
+                        .alpha(0f)
+                        .setDuration(550L)
+                        .setInterpolator(android.view.animation.AccelerateInterpolator())
                         .withEndAction {
-                            ran.setText(""); ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
+                            ran.setText("")
+                            ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
+                            ran.translationX = 0f; ran.translationY = 0f
                         }.start()
                 } else {
                     ran.setText(""); ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
+                    ran.translationX = 0f; ran.translationY = 0f
                 }
             } else {
                 ran.isEnabled = true
                 ran.isFocusable = true
                 ran.isFocusableInTouchMode = true
                 ran.alpha = 1f; ran.scaleX = 1f; ran.scaleY = 1f
+                ran.translationX = 0f; ran.translationY = 0f
             }
         }
         notFoundBox.setOnCheckedChangeListener { _, _ -> setRanBlocked() }
@@ -346,7 +364,10 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle(R.string.edit)
-            .setView(androidx.core.widget.NestedScrollView(this).apply { addView(col) })
+            .setView(androidx.core.widget.NestedScrollView(this).apply {
+                clipChildren = false; clipToPadding = false
+                addView(col)
+            })
             .setPositiveButton(R.string.save) { _, _ ->
                 val newTs = editDate.atTime(12, 0).atZone(ZoneId.systemDefault())
                     .toInstant().toEpochMilli()

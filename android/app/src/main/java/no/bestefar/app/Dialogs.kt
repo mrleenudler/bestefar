@@ -16,6 +16,14 @@ import java.time.LocalDate
 
 object Dialogs {
 
+    /**
+     * FORSKNING ER LAGT I BAKGRUNNEN (musingsUI runde 10). Innsamlingen er ikke
+     * klar, så alle forskningsdialoger er slått av og bryteren i Avanserte
+     * innstillinger er låst av. Koden står urørt bak dette flagget — sett det
+     * til true for å slå funksjonaliteten på igjen.
+     */
+    const val RESEARCH_ENABLED = false
+
     private fun dp(a: Activity, v: Int) = (v * a.resources.displayMetrics.density).toInt()
 
     /** «Mitt jaktmål»-rater (musingsUI runde 4). 1 av 13 = nasjonalt snitt. */
@@ -217,6 +225,7 @@ object Dialogs {
      * serier, deretter hver tiende ved «Ikke nå». 18-årsgrense (spec §7).
      */
     fun maybeResearchConsent(a: Activity, store: Store, onDone: () -> Unit = {}) {
+        if (!RESEARCH_ENABLED) { onDone(); return }
         val n = store.currentSeasonSeries().size
         val season = Store.seasonKey(System.currentTimeMillis())
         // Aldri samme serie som jaktmål; tidligst 2 serier etter (musingsUI r6)
@@ -279,6 +288,7 @@ object Dialogs {
      * etterpå fortsetter flyten til Logg jaktskudd uansett svar.
      */
     fun maybeHuntConsent(a: Activity, store: Store, onDone: () -> Unit) {
+        if (!RESEARCH_ENABLED) { onDone(); return }
         if (store.consentHunt != "") { onDone(); return }
         researchSharingDialog(a, store, onDone)
     }
