@@ -39,6 +39,27 @@ def schema_translate_map(url: str) -> dict[str, str | None] | None:
     return None
 
 
+def alembic_compare_opts() -> dict:
+    """
+    Innstillinger for Alembics sammenligning av modeller mot base - brukt baade
+    av migrations/env.py (autogenerate) og av tests/test_migrations.py.
+
+    `include_schemas` MAA staa paa: uten den reflekterer Alembic bare
+    standardskjemaet og rapporterer `research`-tabellene som manglende i basen
+    selv om de finnes. Filteret er like noedvendig andre veien - uten det ville
+    Alembic dratt inn Supabases egne skjemaer (auth, storage, ...) og foreslaatt
+    aa slette dem.
+    """
+    from .models import RESEARCH_SCHEMA
+    vaare = {None, "public", RESEARCH_SCHEMA}
+
+    def include_name(name, type_, parent_names) -> bool:
+        return name in vaare if type_ == "schema" else True
+
+    return {"compare_type": True, "include_schemas": True,
+            "include_name": include_name}
+
+
 def engine() -> Engine:
     global _engine, _sessionmaker
     if _engine is None:

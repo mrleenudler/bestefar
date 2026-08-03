@@ -14,7 +14,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 from app.config import settings
-from app.db import normalize_url, schema_translate_map
+from app.db import alembic_compare_opts, normalize_url, schema_translate_map
 from app.models import Base
 
 config = context.config
@@ -24,11 +24,12 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 URL = normalize_url(settings().database_url)
+COMPARE_OPTS = alembic_compare_opts()
 
 
 def run_migrations_offline() -> None:
     context.configure(url=URL, target_metadata=target_metadata,
-                      literal_binds=True, compare_type=True,
+                      literal_binds=True, **COMPARE_OPTS,
                       dialect_opts={"paramstyle": "named"})
     with context.begin_transaction():
         context.run_migrations()
@@ -43,7 +44,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata,
-                          compare_type=True)
+                          **COMPARE_OPTS)
         with context.begin_transaction():
             context.run_migrations()
 

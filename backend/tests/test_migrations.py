@@ -22,7 +22,8 @@ def test_modeller_og_migrasjoner_er_i_takt(db_url):
     from alembic.migration import MigrationContext
     from sqlalchemy import create_engine
 
-    from app.db import normalize_url, schema_translate_map
+    from app.db import (alembic_compare_opts, normalize_url,
+                        schema_translate_map)
     from app.models import Base
 
     url = normalize_url(db_url)
@@ -32,8 +33,9 @@ def test_modeller_og_migrasjoner_er_i_takt(db_url):
         kwargs["execution_options"] = {"schema_translate_map": translate}
     engine = create_engine(url, **kwargs)
 
+    # Samme innstillinger som migrations/env.py bruker - se docstringen der.
     with engine.connect() as conn:
-        ctx = MigrationContext.configure(conn, opts={"compare_type": True})
+        ctx = MigrationContext.configure(conn, opts=alembic_compare_opts())
         diff = compare_metadata(ctx, Base.metadata)
 
     assert diff == [], f"Modellene og migrasjonene spriker: {diff}"
