@@ -38,9 +38,12 @@ class SummaryActivity : AppCompatActivity() {
         content.addView(Ui.vspace(this, 8))
         content.addView(Ui.hint(this, getString(R.string.summary_no_change)))
 
-        val queued = store.allSeries().count { !it.uploaded } +
-            store.allHunts().size
-        content.addView(Ui.body(this, getString(R.string.summary_queue, queued)))
+        // Kø-linja teller nå det som FAKTISK kan sendes: bilder til
+        // feilanalyse (backend_spec §6). Serier og jaktlogg krever innlogging
+        // (§1/§5) og telles først når kontoen finnes — den gamle telleren
+        // kunne bare vokse, siden ingenting sendte noe.
+        val queued = Sync.pending(this)
+        if (queued > 0) content.addView(Ui.body(this, getString(R.string.summary_queue, queued)))
 
         content.addView(MaterialButton(this).apply {
             text = getString(R.string.ok)

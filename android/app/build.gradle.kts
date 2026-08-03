@@ -23,8 +23,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.13"
+        versionCode = 14
+        versionName = "0.14"
 
         externalNativeBuild {
             cmake {
@@ -55,12 +55,26 @@ android {
         }
     }
 
+    // BuildConfig er AV som standard fra AGP 8 — vi trenger den til API_BASE_URL.
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             if (keystoreProps.isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            buildConfigField("String", "API_BASE_URL",
+                "\"https://bestefar-api.fly.dev\"")
+        }
+        debug {
+            // 10.0.2.2 = vertsmaskinen sett fra emulatoren. Paa fysisk telefon
+            // settes adressen i DevTools (Store.apiBaseUrl) i stedet for aa
+            // bygge paa nytt. Klartekst-HTTP tillates kun i debug, se
+            // src/debug/AndroidManifest.xml.
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
         }
     }
     compileOptions {

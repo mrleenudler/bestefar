@@ -8,6 +8,10 @@ class BestefarApp : Application() {
     override fun onCreate() {
         super.onCreate()
         applyTheme(Store.get(this).themeMode)
+        // Opportunistisk tømming av opplastingskøen (backend_spec §6). Alt
+        // skjer på en bakgrunnstråd og kan feile stille — appen er offline-
+        // først, så et mislykket forsøk er normaltilstanden, ikke en feil.
+        Sync.flush(this)
     }
 
     companion object {

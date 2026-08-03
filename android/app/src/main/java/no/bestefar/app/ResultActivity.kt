@@ -58,6 +58,15 @@ class ResultActivity : AppCompatActivity() {
     private var saved = false
     private var imagePath: String? = null
     private var galleryUri: Uri? = null
+    /** Kjernens interim-konfidens; følger med opplastingen (backend_spec §6). */
+    private var confidence = 0.0
+    /**
+     * Poengene CV-KJERNEN leverte, tatt vare på før OCR eventuelt overskriver
+     * dem i `record.shots`. Uten dette ville en donasjon merket «ocr_match»
+     * inneholde OCR-poengene i begge felt — altså null informasjon om hva
+     * kjernen faktisk så.
+     */
+    private var detectedScores: List<Double> = emptyList()
     /** OCR-poeng i SKJERMREKKEFØLGE (musingsUI runde 10). Null = ingen OCR. */
     private var ocrScores: List<Double>? = null
     /** Falsk når OCR og de detekterte treffene er uenige (> 0.2). */
@@ -72,6 +81,7 @@ class ResultActivity : AppCompatActivity() {
         setContentView(scroller)
         imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH)
         galleryUri = intent.getStringExtra(EXTRA_GALLERY_URI)?.let { Uri.parse(it) }
+        confidence = intent.getDoubleExtra(EXTRA_CONFIDENCE, 0.0)
 
         val status = intent.getIntExtra(EXTRA_STATUS, BestefarCore.ERROR_INTERNAL)
         if (status != BestefarCore.OK) {
@@ -92,6 +102,7 @@ class ResultActivity : AppCompatActivity() {
         val shots = decimals.indices.map {
             Shot(decimals[it], integers[it], rrel[it], theta[it])
         }
+        detectedScores = decimals.toList()
 
         // «Vil du lagre skjermbildet i bildearkivet?» etter FØRSTE (vellykkede)
         // scan (musingsUI runde 10) — før stillingsvalget, så spørsmålet ikke
@@ -254,16 +265,16 @@ class ResultActivity : AppCompatActivity() {
         r.shots = newShots
     }
 
-    /** Køer fullskala-bilde + poeng til utvikler (backend-opplasting: TODO). */
+    /**
+     * Køer fullskala-bilde + poeng for opplasting til `/v1/failed-analyses`
+     * (backend_spec §6). Selve sendingen er [Sync] sitt ansvar og skjer når
+     * nettet tillater det — her skal ingenting kunne blokkere lagringsflyten.
+     */
     private fun queueDevImage(r: SeriesRecord, tag: String) {
-        try {
-            val dir = File(filesDir, "dev_uploads").apply { mkdirs() }
-            imagePath?.let { p ->
-                File(p).copyTo(File(dir, "${r.id}_$tag.jpg"), overwrite = true)
-            }
-            File(dir, "${r.id}_$tag.json").writeText(
-                """{"detected":[${r.shots.joinToString(",") { "%.1f".format(java.util.Locale.US, it.decimal) }}],"tag":"$tag"}""")
-        } catch (_: Exception) { /* best effort; backend-opplasting kommer */ }
+        Sync.queue(this, r.id, tag, BestefarCore.OK, confidence,
+            detected = detectedScores.ifEmpty { r.shots.map { it.decimal } },
+            ocr = ocrScores, imagePath = imagePath)
+        Sync.flush(this)
     }
 
     /**
@@ -276,16 +287,25 @@ class ResultActivity : AppCompatActivity() {
         content.addView(Ui.title(this, getString(R.string.app_name)))
         content.addView(Ui.body(this, getString(R.string.rescan_body)))
         content.addView(Ui.hint(this, getString(R.string.result_rejected, status)))
-        content.addView(MaterialButton(this, null,
-            com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = getString(R.string.result_send_fail)
-            layoutParams = Ui.matchWrap(16, this@ResultActivity)
-            setOnClickListener {
-                Toast.makeText(this@ResultActivity,
-                    getString(R.string.summary_queue, 1), Toast.LENGTH_SHORT).show()
-                isEnabled = false
-            }
-        })
+        // Et avvist bilde er det mest verdifulle vi kan få til kalibrering av
+        // kjernen (§6). Knappen er et EKSPLISITT samtykke for akkurat dette
+        // bildet, uavhengig av den generelle bildedelings-innstillingen.
+        if (imagePath != null) {
+            content.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                text = getString(R.string.result_send_fail)
+                layoutParams = Ui.matchWrap(16, this@ResultActivity)
+                setOnClickListener {
+                    isEnabled = false
+                    Sync.queue(this@ResultActivity, Store.newId(), "rejected", status,
+                        confidence, detected = emptyList(), ocr = null,
+                        imagePath = imagePath)
+                    Toast.makeText(this@ResultActivity, R.string.upload_queued,
+                        Toast.LENGTH_SHORT).show()
+                    Sync.flush(this@ResultActivity)
+                }
+            })
+        }
         val btnRow = Ui.row(this)
         btnRow.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {

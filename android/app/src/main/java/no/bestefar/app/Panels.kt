@@ -113,7 +113,12 @@ object Panels {
         return col
     }
 
-    /** «Gi tilbakemelding til utvikler» → e-post (musingsUI). */
+    /**
+     * «Gi tilbakemelding til utvikler» → `POST /v1/feedback` (backend_spec §10).
+     * Endepunktet krever ikke innlogging, så dette er den ene funksjonen som
+     * fungerer ende-til-ende allerede. Feiler den, faller vi tilbake på
+     * e-postappen slik at meldingen aldri går tapt fordi nettet er nede.
+     */
     private fun sendMessageDialog(a: MainActivity) {
         val root = Ui.col(a, 16)
         val title = EditText(a).apply { hint = a.getString(R.string.message_title_hint) }
@@ -127,20 +132,51 @@ object Panels {
             .setTitle(R.string.menu_send_message)
             .setView(root)
             .setPositiveButton(R.string.send) { _, _ ->
-                // Legg subject/body i selve mailto-URIen — mer paalitelig enn
-                // EXTRA_* med ACTION_SENDTO (musingsUI runde 6).
-                val subj = android.net.Uri.encode("[Bestefar] " + title.text.toString().trim())
-                val bodyEnc = android.net.Uri.encode(body.text.toString())
-                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = android.net.Uri.parse(
-                        "mailto:mrleenudler@gmail.com?subject=$subj&body=$bodyEnc")
+                val subj = title.text.toString().trim().ifEmpty {
+                    a.getString(R.string.menu_send_message)
                 }
-                try { a.startActivity(intent) } catch (_: Exception) {
-                    Ui.toast(a, R.string.message_no_email_app)
-                }
+                val text = body.text.toString().trim()
+                if (text.isEmpty()) { Ui.toast(a, R.string.message_empty); return@setPositiveButton }
+                sendFeedback(a, subj, text)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private fun sendFeedback(a: MainActivity, subject: String, body: String) {
+        Ui.toast(a, R.string.message_sending)
+        Api.io {
+            val resp = Api.postJson(a, "/v1/feedback", org.json.JSONObject().apply {
+                put("subject", subject)
+                put("body", body)
+                put("app_version", BuildConfig.VERSION_NAME)
+                put("device_model", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+            })
+            Api.ui {
+                when {
+                    resp.ok -> Ui.toast(a, R.string.message_sent)
+                    // 429: serveren ber oss vente. Da hjelper det ikke aa aapne
+                    // e-postappen heller — meldingen er allerede sendt inn.
+                    resp.code == 429 -> Ui.toast(a, R.string.message_rate_limited)
+                    else -> mailtoFallback(a, subject, body)
+                }
+            }
+        }
+    }
+
+    /** Legg subject/body i selve mailto-URIen — mer pålitelig enn EXTRA_* (runde 6). */
+    private fun mailtoFallback(a: MainActivity, subject: String, body: String) {
+        val subj = android.net.Uri.encode("[Bestefar] $subject")
+        val bodyEnc = android.net.Uri.encode(body)
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = android.net.Uri.parse("mailto:mrleenudler@gmail.com?subject=$subj&body=$bodyEnc")
+        }
+        try {
+            Ui.toast(a, R.string.message_offline_email)
+            a.startActivity(intent)
+        } catch (_: Exception) {
+            Ui.toast(a, R.string.message_no_email_app)
+        }
     }
 
     // ---------- Søk ----------

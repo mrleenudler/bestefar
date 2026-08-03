@@ -434,3 +434,96 @@ UI-RUNDE 10 (v0.13) LAERDOMMER:
     sorteringen faktisk skjer for du "fikser" datalaget.
   - Funksjonalitet som skal PAUSES (forskning) - bruk ett navngitt flagg
     (Dialogs.RESEARCH_ENABLED) som alle inngangene sjekker, ikke slett kode.
+
+BACKEND-RUNDE 1 (2026-08-02, fase 1 i Plan_for_backend_implementering.odt):
+  - Kilder: backend_spec.md + Plan_for_backend_implementering.odt (faseplan
+    0-8) + UI/musings_backend.txt (kontoer som er opprettet).
+  - INFRA: Fly.io-app "bestefar-api", org personal, region ams ->
+    https://bestefar-api.fly.dev  (eget domene ikke kjoept ennaa).
+    DB = Supabase-prosjekt Bestefar_base (ref puioipitfilhqnarrsup).
+    Objektlagring = Cloudflare R2 (ikke koblet inn ennaa, fase 6).
+  - EGEN VENV FOR BACKEND: backend\.venv (fastapi/sqlalchemy/psycopg).
+    Prosjektets .venv er CV-pipelinen (cv2/scipy) - IKKE bland dem.
+    Kjoer: backend\.venv\Scripts\python.exe -m pytest tests -q
+  - FELLE (flyctl): `flyctl deploy --config backend/fly.toml ./backend` feiler
+    med "config is missing an app name" - --config tolkes relativt til
+    app-katalogen. Kjoer flyctl deploy FRA backend\ i stedet (det er ogsaa
+    det .github/workflows/deploy-backend.yml gjoer).
+  - Engine lages LATT (backend/app/db.py), ikke ved import: ellers doer
+    prosessen ved oppstart hvis DB er nede, og Fly gir en deploy-loop uten
+    forklaring. /health svarer alltid 200; DB-tilstand staar i kroppen.
+  - /health rapporterer "feilkonfigurert" hvis ENV=prod og DATABASE_URL er
+    sqlite - ellers ville SELECT 1 gitt "ok" paa en flyktig containerfil.
+  - E-post (§10) er leverandoer-agnostisk (services/mailer.py): Resend hvis
+    RESEND_API_KEY, ellers SMTP hvis SMTP_HOST, ellers kun logging. Meldingen
+    lagres ALLTID i DB foerst, videresending er en bakgrunnsoppgave som kan
+    feile uten datatap (forward_error paa raden).
+  - Secrets: settes med `flyctl secrets set ... -a bestefar-api`. La BRUKEREN
+    kjoere kommandoen (passord skal ikke inn i chat-loggen).
+
+BACKEND-RUNDE 2 (2026-08-02/03, fase 2 - datamodell + Alembic):
+  - app/models.py er SPLITTET til pakken app/models/ (base, user, training,
+    social, ops, research). __init__ re-eksporterer alt, saa
+    `from ..models import X` virker som foer.
+  - 23 tabeller i Supabase. Forskning ligger i EGET Postgres-skjema
+    (research.consents/records/deletion_requests) uten FK til brukertabellene.
+    SQLite har ikke skjemaer -> schema_translate_map {research: None} i
+    app/db.py OG migrations/env.py.
+  - Forsknings-pseudonym AVLEDES (HMAC-SHA256(secret, user_id)), det lagres
+    ikke i en tabell - en oppslagstabell ville vaert den reversible koblingen
+    spec §7 forbyr. Secret kan derfor ikke roteres uten aa brekke koblingen.
+  - Enum-kolonner: native_enum=False (VARCHAR+CHECK). Postgres-native ENUM
+    krever ALTER TYPE-migrasjoner og finnes per skjema - ikke verdt det.
+  - Serie-ID = klientens egen UUID -> PUT er idempotent (klienten koer usendte
+    serier og kan sende samme serie flere ganger).
+  - FELLE (SQLAlchemy): `series.shots.clear()` + append i samme flush gir
+    UNIQUE-brudd - INSERT legges FOER DELETE. Maa `s.flush()` etter clear().
+  - FELLE (float): sum(10.4, 9.8) = 20.200000000000003. Desimalpoeng har én
+    desimal -> round(sum, 1) ved lagring.
+  - FELLE (tester): Alembics env.py importerer app.config og varmer opp
+    lru_cache-en i settings(). conftest maa nullstille sys.modules ETTER
+    `alembic upgrade head`, ellers ser testene gamle miljoevariabler.
+  - Testene bygger basen med Alembic (ikke create_all), og
+    tests/test_migrations.py sammenligner modeller mot base -> modellendring
+    uten migrasjon feiler i CI. Den sjekken kan BARE kjoere paa Postgres
+    (schema_translate_map gjoer research-skjemaet usynlig for refleksjon paa
+    SQLite); CI kjoerer derfor suiten to ganger, SQLite + Postgres-service.
+  - fly.toml [deploy] release_command = "alembic upgrade head": migrasjonen
+    kjoerer i egen maskin FOER ny versjon slippes til. Dockerfile maa derfor
+    ogsaa kopiere alembic.ini + migrations/.
+  - Auth mangler til fase 3: deps.current_user svarer 501 i prod og godtar
+    headeren X-Debug-User-Id kun naar ENV != prod.
+
+UI-RUNDE 11 (v0.14) - BACKEND-KOBLING, KLIENTSIDEN:
+  - Appen hadde NULL nettverkskode for denne runden. Nye filer: Api.kt
+    (HttpURLConnection, ingen nytt bibliotek) og Sync.kt (filbasert koe i
+    filesDir/dev_uploads). Naar auth kommer er det eneste nye en token-header
+    i Api.request() - ikke et helt transportlag.
+  - BuildConfig er AV som standard fra AGP 8. buildFeatures { buildConfig =
+    true } MAA settes for at buildConfigField skal kompilere.
+  - Klartekst-HTTP (http://10.0.2.2:8000 mot lokal backend) krever
+    usesCleartextTraffic. Legg den i src/debug/AndroidManifest.xml, IKKE i
+    hovedmanifestet - release skal bare snakke HTTPS. tools:replace trengs
+    ikke naar hovedmanifestet ikke setter attributtet.
+  - FELLE SOM NESTEN BLE BEGAATT: applyScores() overskriver record.shots med
+    OCR-poengene FOER donasjonen koees. En "ocr_match"-donasjon ville da hatt
+    OCR-poengene i BEGGE felt = null informasjon om hva kjernen saa. Ta vare
+    paa kjernens poeng i et eget felt (detectedScores) ved onCreate.
+  - Tre plassholdere i UI-et LOEY foer denne runden: queueDevImage() skrev
+    filer ingen sendte, "N usendte opplastinger" var en teller som kun kunne
+    vokse, og "Send bildet til feilanalyse" viste kvittering uten aa sende.
+    Naar en teller/knapp gjelder backend: sjekk at det finnes en sender.
+  - Feilklassifisering i en offline-foerst-app: retryable = code 0 (naadde
+    aldri fram) / 408 / 429 / >=500. Alt annet (400/413/422) er PERMANENT og
+    elementet skal kastes, ellers gror koeen med soppel i evig tid.
+  - /v1/feedback og /v1/failed-analyses krever IKKE innlogging (bevisst, se
+    docstringene). /v1/stats gjoer (deps.current_user) - derfor er
+    SeriesRecord.uploaded fortsatt uroert.
+  - Verifisert mot produksjon 2026-08-02 med noeyaktig klientens wire-form:
+    /health 200, /v1/feedback 202, /v1/failed-analyses 201. To testrader
+    (id 1 i begge tabeller) staar i Supabase og kan slettes.
+  - core_version i donasjonene er appens versionName; CV-kjernen eksponerer
+    ingen versjon over FFI. Aapent spoersmaal til eier (til_utvikler_v014.md).
+  - Backend-agenten jobbet i samme repo SAMTIDIG (backend/app/models.py ble
+    til pakken backend/app/models/, og backend_spec.md ble skrevet av begge).
+    Rediger kun android/ + egne docs-seksjoner naar to instanser kjoerer.

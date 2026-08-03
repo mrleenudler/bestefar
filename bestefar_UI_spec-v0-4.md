@@ -367,3 +367,36 @@ den rørte ikke UI-spesifikasjonen utenom scan-skjermen.)
   Etter første scan spør appen «Ønsker du at skjermbildet skal lagres i bildearkivet
   ditt?» ‹Ja›/‹Nei›, etterfulgt av «Du kan endre dette valget i «Avanserte
   innstillinger»». Svarer man Nei, slettes også bildet fra den scanen.
+
+## 19. Endringslogg v0.14 (backend-kobling, runde 1)
+
+Første runde der appen faktisk snakker med en server. Alt annet fungerer som før
+uten nett — offline-først er ikke svekket, bare supplert.
+
+- **Melding til utvikler** går nå til `POST /v1/feedback` i stedet for å åpne
+  e-postappen. Kvitteringer: «Sender …» → «Takk! Meldingen er sendt.» Feiler
+  kallet, åpnes e-postappen som før («Fikk ikke kontakt. Åpner e-post i stedet.»).
+  Er man rate-limitet (429) sier appen det rett ut i stedet for å lage duplikater
+  via e-post. Tom melding avvises før sending.
+- **Opplastingskøen er reell.** Bilder til feilanalyse (`ocr_match`,
+  `ocr_mismatch`, `rejected`) ligger i en filbasert kø og sendes til
+  `POST /v1/failed-analyses` ved appstart og på «Send nå». Tidligere ble de bare
+  skrevet til disk og ble liggende for alltid.
+- **«Send bildet til feilanalyse»** på avvist-skjermen sender nå faktisk bildet.
+  Før viste knappen bare en kvittering og deaktiverte seg selv. Knappen er et
+  eksplisitt samtykke for akkurat det bildet, uavhengig av den generelle
+  bildedelings-bryteren, og vises bare når det finnes et bilde å sende.
+- **Avanserte innstillinger** har fått:
+  - **«Last kun opp på wifi»** (default på) — køen er fullskala-JPEG-er og skal
+    ikke spise mobildata på skytebanen. «Send nå» overstyrer valget.
+  - **«Send bilder til feilanalyse nå»** med levende status: «N bilde(r) venter
+    på å bli sendt» / «Ingenting venter. Sist sendt \<dato tid\>». Knappen er
+    deaktivert når køen er tom.
+- **Øktoppsummering:** kø-linja teller nå det som faktisk kan sendes (bilder), og
+  skjules når køen er tom. Den gamle telleren summerte serier + jaktlogg, som
+  ingen kunne sende, og kunne derfor bare vokse.
+- **Utviklermeny:** «API-adresse» lar en peke appen mot en annen backend (lokal
+  maskin, staging) uten å bygge på nytt. Tom verdi = innebygd adresse.
+- Ingen nye tillatelser brukeren merker: `INTERNET` og `ACCESS_NETWORK_STATE`
+  krever ikke samtykke. Ingen data forlater telefonen uten at brukeren har sagt ja
+  til bildedeling eller selv trykket «Send».

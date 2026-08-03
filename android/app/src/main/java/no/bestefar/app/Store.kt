@@ -297,6 +297,26 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getBoolean("saveScansAsked", false)
         set(v) { prefs.edit().putBoolean("saveScansAsked", v).apply() }
 
+    // ---------- Opplasting (backend_spec §6) ----------
+
+    /**
+     * Kun wifi. Default PÅ: køen består av fullskala-JPEG-er, og en jeger på
+     * skytebanen skal ikke bruke opp mobildata uten å ha bedt om det.
+     */
+    var uploadWifiOnly: Boolean
+        get() = prefs.getBoolean("uploadWifiOnly", true)
+        set(v) { prefs.edit().putBoolean("uploadWifiOnly", v).apply() }
+
+    /** Tidspunkt for siste fullførte tømming av køen; 0 = aldri. */
+    var lastSyncTs: Long
+        get() = prefs.getLong("lastSyncTs", 0L)
+        set(v) { prefs.edit().putLong("lastSyncTs", v).apply() }
+
+    /** Utvikler: overstyr API-adressen i felt. Tom = BuildConfig.API_BASE_URL. */
+    var apiBaseUrl: String
+        get() = prefs.getString("apiBaseUrl", "") ?: ""
+        set(v) { prefs.edit().putString("apiBaseUrl", v).apply() }
+
     // ---------- Serier ----------
 
     @Synchronized

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kun debug: tillat klartekst-HTTP mot en backend som kjoerer lokalt
+     (http://10.0.2.2:8000). Release-bygget snakker bare HTTPS. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

@@ -76,7 +76,7 @@
 
     <!-- Øktoppsummering -->
     <string name="summary_title">Øktoppsummering</string>
-    <string name="summary_queue">%1$d usendte opplastinger i kø</string>
+    <string name="summary_queue">%1$d bilde(r) venter på å bli sendt til feilanalyse</string>
     <string name="summary_no_change">Kompetansebildet oppdateres etter hvert som seriene faller inn i langtidsbildet.</string>
 
     <!-- Innsikt -->
@@ -236,6 +236,26 @@
     <string name="message_title_hint">Tittel</string>
     <string name="message_body_hint">Hva vil du fortelle oss?</string>
     <string name="message_no_email_app">Fant ingen e-postapp. Meldingen kan sendes til mrleenudler@gmail.com.</string>
+    <!-- Melding til utvikler går nå til backenden (backend_spec §10) -->
+    <string name="message_empty">Skriv en melding før du sender.</string>
+    <string name="message_sending">Sender …</string>
+    <string name="message_sent">Takk! Meldingen er sendt.</string>
+    <string name="message_rate_limited">Du har sendt mange meldinger. Prøv igjen om en stund.</string>
+    <string name="message_offline_email">Fikk ikke kontakt. Åpner e-post i stedet.</string>
+
+    <!-- Opplastingskø (backend_spec §6) -->
+    <string name="upload_queued">Lagt i kø. Sendes når du er på nett.</string>
+    <string name="upload_send_now">Send bilder til feilanalyse nå</string>
+    <string name="upload_sending">Sender …</string>
+    <string name="upload_queue_empty">Ingenting venter på å bli sendt.</string>
+    <string name="upload_queue_empty_since">Ingenting venter. Sist sendt %1$s.</string>
+    <string name="upload_queue_count">%1$d bilde(r) venter på å bli sendt.</string>
+    <string name="upload_offline">Ingen nettforbindelse. Køen sendes senere.</string>
+    <string name="upload_done">Sendte %1$d.</string>
+    <string name="upload_done_dropped">Sendte %1$d. %2$d ble avvist av serveren og er fjernet.</string>
+    <string name="upload_partial">Sendte %1$d. %2$d venter fortsatt.</string>
+    <string name="upload_wifi_only">Last kun opp på wifi</string>
+    <string name="upload_wifi_only_hint">Bildene til feilanalyse er store. Med denne på venter de til du er på wifi. «Send nå» sender uansett.</string>
 
     <string name="menu_sharing">Deling</string>
     <string name="sharing_research">Dele med forskning</string>
@@ -450,6 +470,8 @@
     <string name="team_delete_confirm">Vil du slette laget?\n\nHandlingen kan ikke angres.</string>
     <string name="team_leader_tag">(Lagleder)</string>
     <string name="dev_add_friend">Legg til venn</string>
+    <string name="dev_api_url">API-adresse</string>
+    <string name="dev_api_url_reset">Nullstill</string>
     <string name="dev_friend_name_hint">Visningsnavn</string>
     <string name="dev_friend_added">Venn lagt til med 5 serier</string>
     <string name="dev_friend_no_team">Lag et jaktlag først (venner legges i et lag).</string>

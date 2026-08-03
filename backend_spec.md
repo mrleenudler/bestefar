@@ -15,7 +15,10 @@ ikke er avklart.
 
 ## 1. Konto og identitet
 Trengs for backup, venner og lag.
-- **Innlogging:** Google / Apple / e-post / telefonnummer (OAuth/OIDC + OTP for telefon).
+- **Innlogging:** Google / Apple / e-post ved lansering (v1, OAuth/OIDC).
+  Telefonnummer (OTP) **utsatt til v2** — krever betalt SMS-leverandør
+  (Twilio/Vonage o.l.) og legger til en kostnads-/integrasjonslinje som ikke
+  er nødvendig for MVP.
 - **Bruker-ID:** intern UUID. **Pseudonym forsknings-ID** avledet separat (ikke
   reversibelt koblet i forskningslageret).
 - **Profil:** visningsnavn (≤ 24 tegn, latinske bokstaver inkl. æ/ø/å + tall/
@@ -67,6 +70,8 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   godtatt bildedeling (oppstartsvindu 2) eller per-innsending.
 - **Endepunkt:** `POST /v1/failed-analyses` (multipart: bilde + JSON med detekterte
   poeng, OCR-poeng, `tag` ∈ {ocr_match, ocr_mismatch, rejected}).
+- **Lagring:** bilder lagres i S3-kompatibel objektlagring (Cloudflare R2), ikke i
+  selve databasen — kun metadata/JSON lagres relasjonelt.
 - Formål: kalibrere OCR-heuristikken og CV-kjernen (bl.a. **over-deteksjon av treff**,
   se §8).
 
@@ -75,7 +80,20 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 - Jakt-deling styres av brukerens valg: `{ vilt?, dato?, posisjon(grovhet)?,
   skuddsituasjon? }`. Skadedata private som standard.
 - Samtykketabell: `{ pseudonymId, type(trening|jakt), granted_at, revoked_at? }`.
+- *Implementert 2026-08-02:* tabellene ligger i et eget Postgres-**skjema**
+  (`research.consents`, `research.records`, `research.deletion_requests`) uten
+  fremmednøkler til brukertabellene. Pseudonymet **avledes** med
+  HMAC-SHA256(server-hemmelighet, bruker-UUID) i stedet for å lagres i en
+  oppslagstabell — en slik tabell ville vært nettopp den reversible koblingen
+  denne paragrafen forbyr. Konsekvens: hemmeligheten kan ikke roteres uten å
+  bryte koblingen til allerede innsamlede forskningsdata.
+- Endepunktet er sperret av flagget `RESEARCH_ENABLED` (av som standard), på
+  linje med `Dialogs.RESEARCH_ENABLED` i klienten.
 - `# TODO(eier): konkret feltinnhold for forskning ikke endelig avklart` (jf. kjerne-spec §6).
+- **Forutsetning før aktivering i produksjon:** personvernerklæring må foreligge,
+  og det må avklares om Datatilsynet krever DPIA (sannsynlig, gitt forskningsformålet
+  og sensitiviteten i jaktdata). Endepunktet kan bygges teknisk før dette, men reell
+  innsamling fra brukere venter til det juridiske er på plass.
 
 ## 8. CV-kjerne-oppgaver (ikke backend, men avdekket i felt)
 Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
@@ -84,11 +102,20 @@ Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
   stabilitet, og dedup av treff som ligger nærmere enn X ringavstander i `hits`/`overlap`.
 - **OCR i kjernen:** UI-et bruker foreløpig ML Kit on-device. Vurder om skjerm-OCR bør
   flyttes til kjernen for konsistens og for å utnytte skjermens kjente layout.
+- **`bf_version()` i `bestefar_ffi.h`:** klienten sender i dag appens `versionName`
+  som `core_version` i §6-donasjonene. Det er en dårlig stedfortreder — UI-runder
+  bumper versjonen uten at kjernen er rørt, så det ser ut som kjernen endret seg
+  når den ikke gjorde det. Donasjonenes formål er å kalibrere kjernen, og en måling
+  uten å vite hvilken kjerne som produserte den kan ikke brukes til det. Kolonnen
+  `core_version` finnes allerede og tar imot hva som helst; dette er en ren
+  kjerne-endring.
 
 ## 9. Sikkerhet / personvern
 - All PII kryptert i ro og i transitt. Forsknings-ID ikke reversibelt koblet til konto.
 - Sletting: `DELETE /v1/account` (lokalt + sletteanmodning via pseudonym-ID for
   forskningslageret).
+- **Personvernerklæring + DPIA:** se §7 — forutsetning for aktivering av
+  forskningsdatainnsamling, ikke bare en implementasjonsdetalj.
 
 ## 3.1 Bruker-ID og misbruksvern (musingsUI runde 5-spørsmål)
 Designsvar på eierens spørsmål om venne-ID og søk:
@@ -100,6 +127,13 @@ Designsvar på eierens spørsmål om venne-ID og søk:
 - **Feiltastingsvern:** ID-en har innebygd sjekksiffer (siste tegn), så åpenbare
   tastefeil avvises uten oppslag. Rommet er stort nok til at gjetting er
   upraktisk (forventet ~10⁴ reelle brukere mot 10¹⁰ mulige ID-er).
+  *Implementert 2026-08-02* (`backend/app/services/ids.py`): **8 signifikante
+  tegn** — 7 tilfeldige + sjekksiffer — vist som `BF-XXXX-XXXX`, altså akkurat
+  eksempelet over. Det gir ~3,4 · 10¹⁰ ID-er; ett tegn kortere enn de «9 tegn»
+  teksten nevner, men fortsatt langt over det gjettingsargumentet krever, og
+  lettere å lese opp. Sjekksifferet er `sum mod 32` i samme alfabet (ikke
+  Crockfords mod-37-variant, som ville trukket inn symboler utenfor alfabetet).
+  Innlesing folder I/L→1 og O→0, så vanlige lesefeil godtas.
 - **Søk etter bruker:** kun brukere med `findable=true` er søkbare.
   - Telefonsøk: hard rate-limit per konto/enhet — 5 mislykkede telefonsøk på én
     dag → karantene. Anbefaling: **1 dag** karantene ved første overtredelse,
@@ -110,6 +144,27 @@ Designsvar på eierens spørsmål om venne-ID og søk:
     søk fra én kilde; CAPTCHA ved terskel. Logg kun aggregert, ikke per-søk-PII.
 - **Personvern:** vennskap krever gjensidig aksept; ingen data deles før aksept.
   Telefonnummer deles kun hvis brukeren selv har krysset det av.
+
+## 0.1 Infrastruktur (tillegg til §0)
+Konkretisering av vertsvalg og driftsoppsett for backend-MVP:
+- **Vert:** Fly.io, region Amsterdam (EU) — lav driftsbyrde, gratis-tier dekker
+  lav trafikk i tidlig fase. Alternativ: Google Cloud Run (scale-to-zero, betal
+  kun for faktisk bruk) hvis trafikkmønsteret er svært sporadisk.
+  *Etablert 2026-08-02:* app `bestefar-api`, `https://bestefar-api.fly.dev`.
+- **Database:** Postgres. **Valgt: Supabase** (EU-region, prosjekt
+  `Bestefar_base`) — administrasjons-UI på kjøpet. Forskningsdata i
+  egne tabeller/skjema i samme database — ikke fysisk separat database
+  (jf. §0 strukturell adskillelse).
+- **Objektlagring:** Cloudflare R2 (S3-kompatibelt API, gratis egress) for
+  feilanalyse-bilder (§6, oppdatert). Bilder lagres aldri i selve databasen.
+- **Secrets:** Fly secrets (eller tilsvarende hos valgt vert) — samme prinsipp
+  som `gradle.properties`-mønsteret for signeringsnøkkelen (aldri i
+  versjonskontroll).
+- **CI/CD:** GitHub Actions, push til `main` → automatisk deploy.
+- **Domene:** eget domene for API-endepunkt og OAuth-redirect-URLer.
+- **Region/GDPR-begrunnelse:** EU/EØS-hosting valgt for å forenkle
+  personvern-compliance — unngår overføringsmekanismer for tredjelandsoverføring
+  som ellers kreves ved USA-only-tjenester (jf. Schrems II).
 
 ## 10. Direkte melding til utvikler (musingsUI runde 5)
 Eier ønsket å slippe å åpne e-postapp. Krever backend:
@@ -137,3 +192,42 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   leder på, avbrytes; ellers mister leder lederstatus (forblir medlem), og laget
   kan velge ny leder.
 - **Push-varsler:** krever FCM/APNs-registrering per enhet.
+
+## 12. Klientens transportlag (Android, v0.14)
+Klientsiden av kontrakten. Bygget mot fase 1-endepunktene og verifisert mot
+`https://bestefar-api.fly.dev` 2026-08-02 (`/v1/feedback` → 202, `/v1/failed-analyses` → 201).
+
+- **`Api.kt`** — `HttpURLConnection`, ingen nettverksbibliotek. Basis-URL fra
+  `BuildConfig.API_BASE_URL` (release: `https://bestefar-api.fly.dev`, debug:
+  `http://10.0.2.2:8000`), overstyrbar i felt via DevTools → «API-adresse».
+  Klartekst-HTTP er tillatt **kun** i debug (`src/debug/AndroidManifest.xml`).
+- **Feilklassifisering:** `retryable` = `code == 0` (nådde aldri fram), 408,
+  429, ≥ 500. Alt annet (400/413/422) er permanent — køen kaster elementet i
+  stedet for å prøve i evig tid. Serveren bør derfor svare 4xx på data den
+  aldri vil kunne ta imot, og 5xx/429 på alt som kan gå bra senere.
+- **`Sync.kt`** — filbasert kø i `filesDir/dev_uploads`, ett par
+  `{seriesId}_{tag}.jpg` + `.json` per innsending. Tømmes ved appstart og på
+  «Send nå» i Avanserte innstillinger. Ikke WorkManager: sending mens appen er
+  lukket er ikke et krav ennå.
+- **Sidecar-format v2** (feltnavnene mappes 1:1 til multipart-feltene):
+  ```json
+  {"v":2,"series_id":"<uuid>","tag":"ocr_match|ocr_mismatch|rejected",
+   "status_code":0,"confidence":0.83,"core_version":"0.14",
+   "detected":[10.4,9.8],"ocr":[10.4,9.9]}
+  ```
+  `detected` er alltid poengene **CV-kjernen** ga, også når OCR har overskrevet
+  visningen — ellers ville en `ocr_match`-donasjon ikke si noe om hva kjernen så.
+- **`confidence = -1.0`** betyr *ukjent*: sendes for kø-filer skrevet før v0.14
+  (format v1 hadde bare `detected` + `tag`). Behandle som «ikke målt», ikke som
+  lav konfidens.
+- **`core_version`** er foreløpig appens `versionName`. CV-kjernen eksponerer
+  ingen egen versjon over FFI ennå; når den gjør det, skal den brukes her.
+- **Kun wifi** (`Store.uploadWifiOnly`, default på): køen er fullskala-JPEG-er.
+  «Send nå» overstyrer valget, men ikke «er vi på nett i det hele tatt».
+- **`/v1/feedback`** er koblet inn i «Melding til utvikler». Feiler kallet
+  (annet enn 429) faller klienten tilbake til `mailto:` — meldingen skal aldri
+  gå tapt fordi nettet er nede. 429 gir en egen melding, siden e-post-fallback
+  der bare ville laget duplikater.
+- **Ikke koblet inn ennå:** `/v1/stats` (krever `deps.current_user`) og
+  `/v1/research` (sperret av `Dialogs.RESEARCH_ENABLED`). `SeriesRecord.uploaded`
+  står fortsatt urørt og venter på konto (§1).
