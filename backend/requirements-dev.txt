@@ -1,2 +1,7 @@
 -r requirements.txt
 pytest>=8.2
+# Gjoer pytest-feil om til GitHub-annotasjoner. De kan leses via check-runs-
+# API-et UTEN token, i motsetning til selve jobbloggen (som svarer 403 anonymt,
+# ogsaa for offentlige repoer). Uten dette maa loggen eksporteres for haand
+# hver gang CI feiler paa noe som ikke slaar ut lokalt.
+pytest-github-actions-annotate-failures>=0.2
