@@ -4,6 +4,8 @@ Bestefar backend (backend_spec.md).
 Ansvarsomraadene er atskilte routere (kravspec §5):
   /v1/profile          profil og delingsvalg (§1, §3)
   /v1/users, /v1/friends  soek, venneforespoersler, delt statistikk (§3, §3.1)
+  /v1/teams            lag, invitasjoner, lederskap og avstemning (§4, §11)
+  /v1/messages         meldingskoe hentet ved oppstart (§11)
   /v1/stats            brukerens egne resultatdata
   /v1/backup           klient-kryptert backup av logg og innstillinger (§2)
   /v1/failed-analyses  opt-in innsending av feilede analyser
@@ -16,7 +18,7 @@ from fastapi import FastAPI
 
 from .config import settings
 from .routers import (backup, failed_analyses, feedback, friends, health,
-                      profile, research, stats)
+                      messages, profile, research, stats, teams)
 
 cfg = settings()
 logging.basicConfig(level=cfg.log_level.upper(),
@@ -31,6 +33,9 @@ app.include_router(health.router)
 app.include_router(feedback.router)
 app.include_router(profile.router)
 app.include_router(friends.router)
+app.include_router(teams.router)
+app.include_router(teams.invite_router)
+app.include_router(messages.router)
 app.include_router(stats.router)
 app.include_router(backup.router)
 app.include_router(failed_analyses.router)

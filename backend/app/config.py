@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     # bekvemmelighet lokalt, og skal vaere AV i produksjon.
     auto_create_tables: bool = True
 
+    # --- Lag og invitasjoner (§4) ---
+    # Invitasjons-URL-en er den samme som QR-koden peker paa. Serveren leser
+    # User-Agent og sender videre til riktig butikk.
+    invite_base_url: str = "https://bestefar-api.fly.dev/i"
+    play_store_url: str = ("https://play.google.com/store/apps/details"
+                           "?id=no.bestefar.app")
+    # iOS er ikke publisert ennaa; peker til Play-siden inntil videre.
+    app_store_url: str = ("https://play.google.com/store/apps/details"
+                          "?id=no.bestefar.app")
+
     # --- Moderasjon av visningsnavn (§3) ---
     # Kommaseparert. Tom som standard: en hardkodet norsk banneordliste ville
     # vaert baade ufullstendig og umulig aa vedlikeholde fra repoet.

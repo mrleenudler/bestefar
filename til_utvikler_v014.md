@@ -321,3 +321,47 @@ som UTC. Migrasjon `4ef8ebf137fc` konverterer kolonnene til `timestamptz`.
 Den måtte skrives for hånd: autogenerate ser ikke typeforskjellen mot SQLite.
 
 74 tester grønne.
+
+## Fase 6 — lag (§4, §11)
+
+`POST/GET /v1/teams`, `GET /v1/teams/near`, `GET/PUT /v1/teams/{id}`,
+`POST /v1/teams/{id}/invite`, `POST /v1/teams/join`,
+`DELETE /v1/teams/{id}/members/{id}`, lederskap med bekreftelse, avstemning,
+utfordring av inaktiv leder, `GET/POST /v1/messages`, og redirect-URLen
+`GET /i/{token}`.
+
+**Fristene avgjøres lat.** Både avstemningen og inaktiv-leder-utfordringen
+løper i 7 dager, men appen har ingen jobbkjører. I stedet avgjøres de første
+gang noen spør etter dem. Utfallet blir det samme — en avstemning ingen spør
+etter, har heller ingen som venter på svaret — og vi slipper en scheduler som
+må driftes. Når push lander i fase 8 bør et periodisk kall legges inn, så
+varselet går ut på fristen og ikke ved neste besøk.
+
+**Invitasjonslenken svarer likt uansett om tokenet finnes.** Den deles i åpne
+kanaler, og et svar som skilte gyldig fra ugyldig ville gjort den til et
+oppslagsverk over hvilke lag som eksisterer. Redirecten leser User-Agent og
+sender til Play eller App Store.
+
+**SMS-invitasjon melder ærlig fra.** Siden SMS er utsatt til v2, får en
+telefoninvitasjon `delivery_status: failed` med en forklaring — *og lenken
+vedlagt*, så klienten kan dele den med ACTION_SEND i stedet. Telefonnumre
+normaliseres til E.164; norske 8-sifrede numre får +47, alt annet må oppgis
+med landkode siden vi ikke kan gjette landet.
+
+**Overføring av lederskap krever bekreftelse** fra den valgte. Ingen skal våkne
+opp som lagleder uten å ha sagt ja. Enstemmighet avslutter en avstemning tidlig,
+som spec-en sier; uavgjort ved fristen gir `expired` framfor en leder kåret på
+terningkast, og laget kan starte en ny.
+
+**Meldingskøen kvitteres, ikke slettes.** `POST /v1/messages/ack` markerer raden
+som levert. En klient som krasjer mellom henting og visning mister da ikke
+meldingen for godt.
+
+To ting du bør vite: `GET /v1/teams/near` leser alle lag med koordinater og
+sorterer i Python — det holder lenge, men må byttes til PostGIS eller en
+geohash-kolonne når tabellen vokser. Og `User.last_seen_at` oppdateres nå maks
+én gang i timen per bruker, siden §11 trenger «har lederen brukt appen siste
+måned?».
+
+104 tester grønne. Ingen ny migrasjon — lag-tabellene lå allerede i
+initial-migrasjonen fra fase 2.

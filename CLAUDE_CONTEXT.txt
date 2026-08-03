@@ -540,6 +540,30 @@ BACKEND-RUNDE 4 (2026-08-03, fase 5 - venner §3/§3.1):
     den klient-krypterte backup-bloben (§2), som serveren ikke kan lese.
     Krever spec-avklaring (egne jaktrader), ikke bare implementasjon.
 
+BACKEND-RUNDE 5 (2026-08-03, fase 6 - lag §4/§11):
+  - Nye ruter i routers/teams.py + messages.py: opprett/list/naer, rename,
+    invite, join, medlemmer, lederskap m/bekreftelse, avstemning, utfordring
+    av inaktiv leder, meldingskoe.
+  - FELLE (FastAPI-ruting): /{team_id}/leaders/confirm ble spist av
+    /{team_id}/leaders/{member_id} (member_id="confirm") -> 403 i stedet for
+    404. FastAPI tar FOERSTE rute som matcher; spesifikk sti MAA deklareres
+    foer parametrisert.
+  - LAT AVGJOERELSE av frister (services/teamgov.py): baade avstemning (7 d)
+    og inaktiv-leder-utfordring (7 d) avgjoeres foerste gang noen SPOER, ikke
+    av en bakgrunnsjobb. Ingen scheduler aa drifte. Naar push (fase 8) kommer,
+    boer et periodisk kall likevel inn saa varselet gaar paa fristen.
+  - deps.touch() oppdaterer User.last_seen_at maks én gang per time - §11
+    trenger «har leder brukt appen siste maaned?».
+  - Enstemmighet avslutter avstemningen tidlig; uavgjort ved frist gir
+    outcome=expired (ingen leder kaares paa terningkast).
+  - SMS-invitasjon: ingen leverandoer (utsatt til v2), saa vi returnerer
+    delivery_status=failed MED lenken, slik at klienten kan dele den via
+    ACTION_SEND. E-post sendes via mailer.
+  - /i/{token}-redirecten svarer 302 til butikken UANSETT om tokenet finnes -
+    lenken deles i aapne kanaler og skal ikke kunne brukes til aa sjekke
+    hvilke lag som eksisterer.
+  - Ingen ny migrasjon: alle lag-tabellene laa i initial-migrasjonen.
+
 FELLE (flyctl, 2026-08-03): ~/.fly/config.yml ble skrevet full av NUL-bytes
   (1929 byte) da to instanser kjoerte flyctl samtidig -> «yaml: control
   characters are not allowed» paa ALLE flyctl-kommandoer. Filen holder

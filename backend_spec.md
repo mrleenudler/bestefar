@@ -84,6 +84,16 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   EXTRA_TEXT; server leser User-Agent → riktig butikk (Play/App Store). Samme URL som
   QR for e-post/SMS-invitasjon. `POST /v1/teams/{id}/invite { emailOrPhone }` med
   validering (identifiser e-post vs telefon) og **leveringskvittering/-feil** tilbake.
+- *Implementert 2026-08-03:* `GET /i/{token}` leser User-Agent og svarer 302 til
+  Play/App Store. Den svarer likt **uansett om tokenet finnes** — lenken deles i
+  åpne kanaler, og et svar som skilte gyldig fra ugyldig ville gjort den til et
+  oppslagsverk over hvilke lag som eksisterer. Telefonnumre normaliseres til
+  E.164 (norske 8-sifrede får +47). Siden SMS er utsatt til v2, får en
+  telefoninvitasjon `delivery_status: failed` **med lenken vedlagt**, slik at
+  klienten kan dele den via ACTION_SEND i stedet.
+- `GET /v1/teams/near` leser alle lag med koordinater og sorterer i Python. Det
+  holder lenge, men må byttes til PostGIS eller en geohash-kolonne når tabellen
+  vokser.
 
 ## 5. Treningsresultater (utvidelse av `/v1/stats`)
 - Per serie: `{ id, ts, weaponId, distanceM, position, modifier, shots[], corrected,
@@ -217,6 +227,20 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   leder på, avbrytes; ellers mister leder lederstatus (forblir medlem), og laget
   kan velge ny leder.
 - **Push-varsler:** krever FCM/APNs-registrering per enhet.
+- *Implementert 2026-08-03:* meldingskøen er `GET /v1/messages` +
+  `POST /v1/messages/ack`. Kvittering **markerer** raden som levert i stedet for
+  å slette den, så en klient som krasjer mellom henting og visning ikke mister
+  meldingen. Køen erstatter ikke push — push når brukeren mens appen er lukket,
+  køen er garantien for at meldingen når fram til slutt.
+- **Frister avgjøres lat, ikke av en bakgrunnsjobb:** både avstemningen og
+  inaktiv-leder-utfordringen har 7-dagers frist, men appen har ingen jobbkjører.
+  De avgjøres første gang noen spør etter dem. Utfallet blir det samme — en
+  avstemning ingen spør etter, har ingen som venter på svaret — men når push
+  (fase 8) er på plass bør et periodisk kall legges inn, så varselet går ut på
+  fristen og ikke ved neste besøk.
+- Uavgjort ved fristen gir `expired`, ikke en leder kåret på terningkast; laget
+  kan starte en ny avstemning. Overføring av lederskap krever **bekreftelse** fra
+  den valgte — ingen skal våkne opp som lagleder uten å ha sagt ja.
 
 ## 12. Klientens transportlag (Android, v0.14)
 Klientsiden av kontrakten. Bygget mot fase 1-endepunktene og verifisert mot

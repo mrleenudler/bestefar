@@ -18,6 +18,8 @@ Ansvarsomraadene er ATSKILTE (kravspec §5):
    `app/routers/backup.py` for hvorfor det vernet maa ligge server-side.
 6. **`/v1/profile`**, **`/v1/users/search`**, **`/v1/friends`** — profil,
    delingsvalg, brukersoek og vennskap (§3, §3.1).
+7. **`/v1/teams`**, **`/v1/messages`**, **`/i/{token}`** — lag, invitasjoner,
+   lederskap, avstemning og meldingskoe (§4, §11).
 
 Tre ting styrer venne-delen:
 
@@ -29,6 +31,11 @@ Tre ting styrer venne-delen:
 - **Filtreringen er utgaaende og server-side** (`services/sharing.py`). Da er
   «deaktivering nuller delte felt» en garanti, ikke noe en modifisert klient
   kan omgaa.
+
+Lagfristene (7 dager for avstemning og for inaktiv-leder-utfordring) avgjoeres
+LAT - foerste gang noen spoer, ikke av en bakgrunnsjobb. Se docstringen i
+`app/services/teamgov.py`. Naar push kommer i fase 8 boer et periodisk kall inn
+saa varselet gaar paa fristen.
 
 ## Tidsstempler
 
