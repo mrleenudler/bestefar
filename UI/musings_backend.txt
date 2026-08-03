@@ -1,0 +1,55 @@
+fly.io konto er opprettet.
+installed in powershell:
+	iwr https://fly.io/install.ps1 -useb | iex
+jeg har logget inn
+	flyctl auth login
+jeg har logget inn på cloudflare med google kontoen min
+	Jeg har opprettet R2-konto og lagret API-token, Access Key ID, Secret Access Key, jurisdiction-specific endpoints for S3 clients
+
+jeg har laget Supabase konto
+Project name: 
+Bestefar_base
+Project URL:
+https://puioipitfilhqnarrsup.supabase.co
+Publishable key: 
+sb_publishable_GvhwK-BY1bncbH3WjZH4uA_y0EqNXA2
+Direct connection string:
+postgresql://postgres:[YOUR-PASSWORD]@db.puioipitfilhqnarrsup.supabase.co:5432/postgres
+CLI Setup Commands:
+supabase login
+supabase init
+supabase link --project-ref puioipitfilhqnarrsup
+	jeg har lagret Supabase Database password
+----------------------
+Du er i et Powershell miljø
+
+Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
+Always read CLAUDE_CONTEXT.TXT after compacting.
+
+Oppdater backend_spec.md ved behov
+Les siste versjon av til_utvikler_v##.md for å se hva som ble gjort i forrige iterasjon.
+Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
+--------------------------
+
+
+
+Plan_for_backend_implementering.odt sammen med backend_spec.md beskriver oppgaven.
+
+bestefar_UI_spec-v0-4 har info om UI for appen, hvis det skulle være behov for.
+
+
+
+----------------------------
+Fra CC til utvikler:
+To ting som gjenstår hos deg:
+- FLY_API_TOKEN som repo-secret — uten den kjører ikke auto-deploy, og alt jeg har deployet så langt har gått fra denne maskinen.
+- Testradene i basen (feedback id 1–2, failed_analyses id 1–2) kan slettes når du vil.
+
+Fase 3 (auth) er neste steg, men den er blokkert på ting bare du kan gjøre: Google OAuth-klient i Google Cloud Console, Apple-utviklerkonto, og et eget domene for redirect-URLene. Vil du at jeg går løs på fase 4 (backup/sync) i mellomtiden? Den avhenger riktignok av auth, men jeg kan bygge endepunktene mot current_user-avhengigheten som allerede finnes, så de er ferdige når innloggingen lander.
+
+
+-------------------------------
+
+
+
+TODO: Vurderes implementert senere: SMS-støtte med Twilio

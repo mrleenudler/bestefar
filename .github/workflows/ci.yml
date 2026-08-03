@@ -41,13 +41,35 @@ jobs:
         run: gradle assembleDebug
 
   backend:
-    name: Backend (import + kompilering)
+    name: Backend (tester)
     runs-on: ubuntu-latest
+    # Postgres er produksjonsdialekten. Skjemaet `research` finnes bare der
+    # (SQLite har ikke skjemaer), saa driftsjekken mellom modeller og
+    # migrasjoner kan bare kjoere her.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bestefar_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Installer og roekt-test
-        run: |
-          pip install -r backend/requirements.txt
-          cd backend && python -c "from app.main import app; print(len(app.routes), 'ruter')"
+      - name: Installer
+        run: pip install -r backend/requirements-dev.txt
+      - name: Roekt-test import
+        working-directory: backend
+        run: python -c "from app.main import app; print(len(app.routes), 'ruter')"
+      - name: pytest (SQLite)
+        working-directory: backend
+        run: python -m pytest tests -q
+      - name: pytest (Postgres)
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bestefar_test
+        run: python -m pytest tests -q

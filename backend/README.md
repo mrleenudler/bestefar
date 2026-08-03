@@ -1,6 +1,9 @@
 # Bestefar backend
 
-Liten FastAPI-backend med TRE ATSKILTE ansvarsomraader (kravspec §5):
+FastAPI-backend, se `../backend_spec.md` for kravene og
+`../Plan_for_backend_implementering.odt` for faseplanen.
+
+Ansvarsomraadene er ATSKILTE (kravspec §5):
 
 1. **`/v1/stats`** — brukerens egne resultatdata (statistikk-sync).
    Standard: kun treffdata, ingen bilder. Bildelagring er brukerstyrt opsjon.
@@ -8,21 +11,103 @@ Liten FastAPI-backend med TRE ATSKILTE ansvarsomraader (kravspec §5):
    analyser (bilde + metadata) for CV-forbedring.
 3. **`/v1/research`** — forskningsdata, STRUKTURELT ADSKILT (egne tabeller,
    pseudonym skytter-ID, eksplisitt samtykke). Kravspec §6.
+4. **`/v1/feedback`** — melding fra bruker til utvikler (backend_spec §10).
 
-## Kjoere
+`/health` rapporterer database- og e-poststatus, og svarer 200 saa lenge
+prosessen lever (se `app/routers/health.py` for hvorfor).
 
+## Lokal kjoering
+
+Backenden har sitt EGET virtuelt miljoe, `backend/.venv` — ikke prosjektets
+`.venv` (den er for CV-pipelinen og har cv2/scipy).
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+copy .env.example .env          # fyll inn ved behov
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+
+SQLite som standard (`bestefar.db`); sett `DATABASE_URL` for Postgres.
+Interaktiv API-dok paa `/docs` naar `ENV != prod`.
+
+## Drift (backend_spec §0.1)
+
+| | |
+|---|---|
+| Vert | Fly.io, app `bestefar-api`, region `ams` (EU/EOES) |
+| Database | Supabase Postgres (`Bestefar_base`, EU) |
+| Objektlagring | Cloudflare R2 — for feilanalyse-bilder (fase 6) |
+| CI/CD | GitHub Actions: push til `main` → `flyctl deploy` |
+
+Secrets settes som Fly secrets, aldri i repoet (samme prinsipp som
+`gradle.properties` for signeringsnoekkelen):
+
+```powershell
+flyctl secrets set DATABASE_URL="postgresql://postgres:<passord>@db.<ref>.supabase.co:5432/postgres" -a bestefar-api
+flyctl secrets set FEEDBACK_TO="<utviklerens e-post>" -a bestefar-api
 ```
 
-SQLite som standard (`bestefar.db`); bytt `DATABASE_URL` for Postgres.
+E-postvideresending (§10) er leverandoer-agnostisk: sett `RESEND_API_KEY`
+ELLER `SMTP_HOST`+`SMTP_USER`+`SMTP_PASSWORD`. Uten noen av delene lagres
+meldingen i databasen og logges — den gaar aldri tapt.
 
-## Datamodell (§6)
+For automatisk deploy fra GitHub trengs repo-secret `FLY_API_TOKEN`:
 
-- Tidsserie: `Session` -> `Series` -> `Shot`, alle tidsstemplet.
-- To resultattyper: `result_type` = training | hunt (ulik personvernprofil).
-- Forskning: `ResearchConsent` (type + tidspunkt + tilbaketrekking) og
-  `ResearchRecord` med pseudonym `subject_id` — ingen FK til brukertabellene.
-- Konkret feltinnhold i forskningsdatasettet er IKKE avklart:
-  se `TODO(eier)`-markeringene i `app/models.py`.
+```powershell
+flyctl tokens create deploy -a bestefar-api
+```
+
+## Datamodell
+
+`app/models/` er delt etter ansvar:
+
+| Modul | Innhold |
+|---|---|
+| `user.py` | konto, identitet, delingsvalg, backup, misbruksvern (§1, §2, §3.1) |
+| `training.py` | serier og treff (§5) — speiler `SeriesRecord`/`Shot` i `Model.kt` |
+| `social.py` | venner og lag, invitasjoner, lederavstemning, meldingskoe (§3, §4, §11) |
+| `ops.py` | feilanalyse (§6) og feedback (§10) |
+| `research.py` | forskningsdata i EGET skjema — ingen FK til brukertabellene (§7) |
+
+Tre valg som er verdt aa kjenne til:
+
+- **Forsknings-ID avledes, den lagres ikke.** `services/pseudonym.py` regner
+  HMAC-SHA256(hemmelighet, user_id). En oppslagstabell ville vaert nettopp den
+  reversible koblingen §7 forbyr. Hemmeligheten maa aldri roteres uten en plan
+  for eksisterende forskningsdata.
+- **Serie-ID er klientens egen UUID.** Opplasting blir da idempotent, slik at
+  klienten trygt kan sende en koet serie flere ganger (§5).
+- **Enum-kolonner er VARCHAR + CHECK** (`native_enum=False`), ikke Postgres
+  ENUM: billigere aa utvide, og lesbart i Supabases admin-UI.
+
+Konkret feltinnhold i forskningsdatasettet er fortsatt IKKE avklart — se
+`TODO(eier)` i `app/models/research.py`.
+
+## Migrasjoner
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "hva du endret"
+```
+
+I produksjon kjoerer `alembic upgrade head` som `release_command` i `fly.toml`,
+altsaa FOER den nye versjonen slippes til. Feiler migrasjonen, stanses
+deployen og forrige versjon blir staaende.
+
+`AUTO_CREATE_TABLES` (`create_all`) finnes bare som bekvemmelighet lokalt og er
+`false` i produksjon — Alembic eier skjemaet.
+
+`tests/test_migrations.py` sammenligner modellene med basen etter
+`upgrade head`, saa en modellendring uten migrasjon feiler i CI i stedet for
+ved deploy. Den kjoerer bare mot Postgres: skjemaet `research` finnes ikke paa
+SQLite. CI kjoerer derfor suiten to ganger — SQLite og Postgres.
+
+## Ikke aktiver uten videre
+
+`/v1/research` skal ikke tas i bruk mot ekte brukere foer personvernerklaering
+foreligger og behovet for DPIA er avklart (backend_spec §7/§9). Klienten har
+samme sperre via `Dialogs.RESEARCH_ENABLED`.

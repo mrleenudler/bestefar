@@ -25,5 +25,11 @@ android/keystore.properties
 dist/
 backend/bestefar.db
 backend/__pycache__/
+backend/.venv/
+backend/.env
+backend/.pytest_cache/
+
+# LibreOffice-laasefiler
+.~lock.*#
 
 android/.kotlin/
