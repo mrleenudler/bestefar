@@ -564,6 +564,25 @@ BACKEND-RUNDE 5 (2026-08-03, fase 6 - lag §4/§11):
     hvilke lag som eksisterer.
   - Ingen ny migrasjon: alle lag-tabellene laa i initial-migrasjonen.
 
+FELLE - SQLITE HAANDHEVER IKKE FREMMEDNOEKLER (2026-08-03, kostet en CI-runde):
+  82 av 105 tester feilet i CI mot Postgres mens ALLE passerte paa SQLite.
+  Aarsak: SQLAlchemy satte inn sharing_preferences FOER users. Det finnes
+  ingen relationship() mellom User og SharingPreference, og uten en slik
+  kobling har unit-of-work ingen rekkefoelge aa sortere etter - FK-kolonnen
+  alene er ikke nok. SQLite sa ingenting fordi PRAGMA foreign_keys er AV som
+  standard.
+  TO FIKSER, begge noedvendige:
+    1. db.py slaar paa PRAGMA foreign_keys=ON for SQLite, saa feilklassen er
+       synlig lokalt i stedet for aa dukke opp i CI.
+    2. s.flush() etter s.add(parent) foer barnet legges til (deps.py).
+  REGEL: legger du til en forelder og et barn i samme flush UTEN en
+  relationship() mellom dem, MAA du flushe imellom.
+
+FELLE - CI-LOGGER KAN IKKE LESES ANONYMT: GitHub svarer 403 paa
+  /actions/jobs/<id>/logs uten token, ogsaa for offentlige repoer. Jobbnavn og
+  stegstatus er derimot aapent i /actions/runs. Trenger du selve loggen, be
+  brukeren eksportere den (de kan lagre den i repoet som job-logs.txt).
+
 FELLE (flyctl, 2026-08-03): ~/.fly/config.yml ble skrevet full av NUL-bytes
   (1929 byte) da to instanser kjoerte flyctl samtidig -> «yaml: control
   characters are not allowed» paa ALLE flyctl-kommandoer. Filen holder

@@ -29,6 +29,10 @@ def current_user(x_debug_user_id: str | None = Header(default=None),
         user = User(id=x_debug_user_id, public_id=ids.generate(),
                     display_name=f"Testbruker {x_debug_user_id[:6]}")
         s.add(user)
+        # MAA skylles foer raden som peker paa den. Det finnes ingen
+        # relationship() mellom User og SharingPreference, saa SQLAlchemy har
+        # ingen rekkefoelge aa sortere etter og kan sette inn barnet foerst.
+        s.flush()
         s.add(SharingPreference(user_id=user.id))
         s.commit()
     touch(s, user)

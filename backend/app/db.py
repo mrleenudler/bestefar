@@ -7,7 +7,7 @@ oppstart gir en deploy-loop uten forklaring.
 import logging
 from collections.abc import Iterator
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import settings
@@ -37,6 +37,21 @@ def schema_translate_map(url: str) -> dict[str, str | None] | None:
     if url.startswith("sqlite"):
         return {RESEARCH_SCHEMA: None}
     return None
+
+
+def _enforce_sqlite_foreign_keys(eng: Engine) -> None:
+    """
+    SQLite haandhever IKKE fremmednoekler med mindre man ber om det.
+
+    Uten dette er en hel feilklasse usynlig lokalt og dukker foerst opp i CI
+    mot Postgres - slik den gjorde 2026-08-03, da `sharing_preferences` ble
+    satt inn foer `users` uten at noen testkjoering paa SQLite reagerte.
+    """
+    @event.listens_for(eng, "connect")
+    def _pragma(dbapi_conn, _record) -> None:      # noqa: ANN001
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
 
 
 def alembic_compare_opts() -> dict:
@@ -72,6 +87,8 @@ def engine() -> Engine:
         if translate is not None:
             kwargs["execution_options"] = {"schema_translate_map": translate}
         _engine = create_engine(url, **kwargs)
+        if url.startswith("sqlite"):
+            _enforce_sqlite_foreign_keys(_engine)
         _sessionmaker = sessionmaker(bind=_engine)
         if cfg.auto_create_tables:
             # Bekvemmelighet lokalt. I produksjon eier Alembic skjemaet
