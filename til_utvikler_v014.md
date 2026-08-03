@@ -238,3 +238,28 @@ til databasen for §3.1-karantenen (som skal overleve omstart) — tabellen
 - Google OAuth-klient (Google Cloud Console) og Apple-utviklerkonto — begge
   krever nettleser og kan ikke settes opp fra terminalen.
 - Eget domene for redirect-URLene.
+
+## Fase 4 — backup/sync (§2)
+
+Bygget før fase 3, siden auth er blokkert på kontooppsett du må gjøre i
+nettleser. Endepunktene henger på `current_user`, så de er ferdige i det
+innloggingen lander.
+
+`PUT /v1/backup`, `GET /v1/backup`, `GET /v1/backup/meta`, `DELETE /v1/backup`.
+Bloben sendes rå (`application/octet-stream`) med metadata som
+query-parametere — det sparer base64-påslaget på ~33 % på den største
+nyttelasten vi håndterer. Grense 16 MB. `/meta` finnes for at «har jeg noe å
+gjenopprette?» på en ny telefon ikke skal kreve nedlasting av hele bloben.
+
+**Ett tillegg til spec-en, som du bør være enig i:** serveren avviser en `PUT`
+der `client_ts` er eldre enn den lagrede (409). §2 sier last-write-wins per
+post-ID, men den regelen kan bare håndheves *klient-side* — serveren ser ikke
+inn i den krypterte bloben, den lagrer bytes den ikke kan lese. Uten dette
+vernet kunne en telefon som synker for første gang på måneder viske ut alt som
+er logget siden. `?force=true` overstyrer, for det bevisste valget
+«gjenopprett fra denne enheten». Likt tidsstempel godtas, slik at en retry
+etter et avbrutt kall ikke feiler.
+
+12 tester dekker rundturen, vernet, isolasjon mellom brukere og
+størrelsesgrensen. Verifisert live: alle backup-rutene svarer 501 i produksjon,
+også med `X-Debug-User-Id` — den headeren er død i prod, ikke bare frarådet.

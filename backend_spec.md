@@ -31,6 +31,16 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 - **Sync:** `PUT /v1/backup` (kryptert blob: serier + jaktlogg + innstillinger,
   klient-kryptert), `GET /v1/backup`. Konfliktløsning: last-write-wins per post-ID
   (postene har allerede UUID + `ts`).
+- *Implementert 2026-08-03:* bloben sendes som rå `application/octet-stream` med
+  metadataene som query-parametere (sparer base64-påslaget på vår største
+  nyttelast). `GET /v1/backup/meta` gir metadata uten å laste ned bloben, slik at
+  «har jeg noe å gjenopprette?» på en ny telefon er et lite kall.
+  **Tillegg til konfliktløsningen:** serveren avviser en `PUT` der `client_ts` er
+  eldre enn den lagrede (409). Last-write-wins per post-ID kan bare håndheves
+  klient-side — serveren ser ikke inn i den krypterte bloben — så uten dette
+  vernet kunne en telefon som synker første gang på måneder viske ut alt som er
+  logget siden. `?force=true` overstyrer ved et bevisst brukervalg
+  («gjenopprett fra denne enheten»). Grense: 16 MB.
 - **«Flytt til ny telefon»:** kryptert eksportfil (klient) ELLER gjenoppretting fra
   konto-backup. Nøkkel avledet fra bruker-hemmelighet.
 - **Android Auto Backup** dekker oppdateringer; konto-backup dekker reinstall/bytte.

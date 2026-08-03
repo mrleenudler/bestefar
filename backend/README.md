@@ -12,6 +12,10 @@ Ansvarsomraadene er ATSKILTE (kravspec §5):
 3. **`/v1/research`** — forskningsdata, STRUKTURELT ADSKILT (egne tabeller,
    pseudonym skytter-ID, eksplisitt samtykke). Kravspec §6.
 4. **`/v1/feedback`** — melding fra bruker til utvikler (backend_spec §10).
+5. **`/v1/backup`** — klient-kryptert blob med logg og innstillinger (§2).
+   Serveren lagrer bytes den ikke kan lese. `PUT` avviser en blob hvis
+   `client_ts` er eldre enn den lagrede (409) — se docstringen i
+   `app/routers/backup.py` for hvorfor det vernet maa ligge server-side.
 
 `/health` rapporterer database- og e-poststatus, og svarer 200 saa lenge
 prosessen lever (se `app/routers/health.py` for hvorfor).

@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # --- Opplasting (§6) ---
     max_upload_bytes: int = 8 * 1024 * 1024
 
+    # --- Backup (§2) ---
+    # Bloben er serier + jaktlogg + innstillinger, komprimert og kryptert av
+    # klienten. 16 MB er rikelig for mange aars logg og holder minnebruken nede
+    # (hele bloben leses inn i minnet ved opp- og nedlasting).
+    max_backup_bytes: int = 16 * 1024 * 1024
+
     # --- Forskning (§7) ---
     # Hemmelighet som forsknings-pseudonymet avledes med. Uten den svarer
     # /v1/research 503 - vi skal ikke lagre forskningsdata uten pseudonymisering.

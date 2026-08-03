@@ -494,6 +494,21 @@ BACKEND-RUNDE 2 (2026-08-02/03, fase 2 - datamodell + Alembic):
   - Auth mangler til fase 3: deps.current_user svarer 501 i prod og godtar
     headeren X-Debug-User-Id kun naar ENV != prod.
 
+BACKEND-RUNDE 3 (2026-08-03, fase 4 - backup/sync §2):
+  - PUT/GET /v1/backup + GET /v1/backup/meta + DELETE. Bloben er
+    KLIENT-KRYPTERT; serveren lagrer bytes den ikke kan lese.
+  - Raa application/octet-stream med metadata som query-parametere (ikke
+    base64/JSON) - sparer ~33 % paa vaar stoerste nyttelast. Grense 16 MB.
+  - VIKTIG DESIGNVALG: serveren avviser PUT der client_ts er ELDRE enn den
+    lagrede (409, med ?force=true som overstyring). Spec §2 sier
+    last-write-wins per post-ID, men den regelen kan bare haandheves
+    klient-side - serveren ser ikke inn i den krypterte bloben. Uten vernet
+    kunne en telefon som synker foerste gang paa maaneder viske ut alt.
+    Likt client_ts godtas (retry etter avbrutt kall skal ikke feile).
+  - /v1/backup/meta finnes for at «har jeg noe aa gjenopprette?» paa ny
+    telefon ikke skal kreve nedlasting av hele bloben.
+  - Ingen ny migrasjon: Backup-tabellen laa allerede i initial-migrasjonen.
+
 UI-RUNDE 11 (v0.14) - BACKEND-KOBLING, KLIENTSIDEN:
   - Appen hadde NULL nettverkskode for denne runden. Nye filer: Api.kt
     (HttpURLConnection, ingen nytt bibliotek) og Sync.kt (filbasert koe i
