@@ -1,0 +1,108 @@
+"""
+Utgaaende filtrering av vennedata (backend_spec §3).
+
+Prinsippet: SERVEREN filtrerer etter delerens valg. Klienten skal aldri motta
+et felt den ikke har lov til aa vise - da er «deaktivering nuller delte felt»
+en garanti og ikke en klientdetalj som en modifisert app kan omgaa.
+
+Visningsnavn deles alltid (§3) - men bare naar moderasjonen har godkjent det
+(§3, sensur). Er navnet avvist eller til vurdering, eksponeres en noeytral
+plassholder i stedet.
+"""
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session as OrmSession
+
+from ..models import NameStatus, Series, SharingPreference, TeamMember, User
+
+TREND_WINDOW = 5
+NAVN_UNDER_VURDERING = "Ukjent skytter"
+
+
+def _totals(s: OrmSession, user_id: str) -> tuple[int, float]:
+    shots, points = s.execute(
+        select(func.coalesce(func.sum(Series.shot_count), 0),
+               func.coalesce(func.sum(Series.sum_decimal), 0.0))
+        .where(Series.user_id == user_id)).one()
+    return int(shots), float(points)
+
+
+def _season_shots(s: OrmSession, user_id: str) -> int:
+    """Inneavaerende sesong = sesongnoekkelen paa den nyeste serien. Klienten
+    eier definisjonen av en sesong (`season_key`); serveren teller bare."""
+    season = s.scalar(select(Series.season_key).where(Series.user_id == user_id)
+                      .order_by(Series.ts.desc()).limit(1))
+    if not season:
+        return 0
+    return int(s.scalar(
+        select(func.coalesce(func.sum(Series.shot_count), 0))
+        .where(Series.user_id == user_id, Series.season_key == season)) or 0)
+
+
+def _trend(s: OrmSession, user_id: str) -> float | None:
+    """
+    Utvikling: snitt per skudd i de 5 siste seriene minus de 5 foregaaende.
+    Positivt tall = framgang.
+
+    FORELOEPIG DEFINISJON. Spec §3 sier bare «snitt/utvikling»; vindusstoerrelsen
+    er valgt fordi en serie er 5-10 skudd og 5 serier daekker en typisk oekt.
+    Returnerer None foer det finnes 10 serier - et «trendtall» fra to serier
+    ville vaert stoey presentert som innsikt.
+    """
+    rows = list(s.execute(
+        select(Series.sum_decimal, Series.shot_count)
+        .where(Series.user_id == user_id, Series.shot_count > 0)
+        .order_by(Series.ts.desc()).limit(TREND_WINDOW * 2)))
+    if len(rows) < TREND_WINDOW * 2:
+        return None
+
+    def snitt(chunk) -> float:
+        skudd = sum(r[1] for r in chunk)
+        return sum(r[0] for r in chunk) / skudd if skudd else 0.0
+
+    return round(snitt(rows[:TREND_WINDOW]) - snitt(rows[TREND_WINDOW:]), 2)
+
+
+def _team_ids(s: OrmSession, user_id: str) -> list[str]:
+    return list(s.scalars(select(TeamMember.team_id)
+                          .where(TeamMember.user_id == user_id)))
+
+
+def friend_view(s: OrmSession, sharer: User,
+                prefs: SharingPreference | None) -> dict:
+    """Bygger den utgaaende representasjonen av `sharer`, filtrert paa
+    hans/hennes egne delingsvalg."""
+    navn = (sharer.display_name
+            if sharer.display_name_status == NameStatus.approved
+            else NAVN_UNDER_VURDERING)
+    ut: dict = {
+        "id": sharer.id,
+        "public_id": sharer.public_id,
+        "display_name": navn,
+        "team_ids": _team_ids(s, sharer.id),
+    }
+    if prefs is None:
+        return ut
+
+    if prefs.share_phone and sharer.phone:
+        # Klienten viser ring/SMS-ikon naar dette feltet finnes (§3).
+        ut["phone"] = sharer.phone
+    if prefs.share_home_kommune:
+        ut["home_kommune"] = sharer.home_kommune
+
+    # Regn bare ut det som faktisk skal deles.
+    if prefs.share_shots_total or prefs.share_avg_score:
+        shots, points = _totals(s, sharer.id)
+        if prefs.share_shots_total:
+            ut["shots_total"] = shots
+        if prefs.share_avg_score:
+            ut["avg_score"] = round(points / shots, 2) if shots else None
+    if prefs.share_shots_season:
+        ut["shots_season"] = _season_shots(s, sharer.id)
+    if prefs.share_trend:
+        ut["trend"] = _trend(s, sharer.id)
+
+    # `kills` fra §3-modellen mangler med hensikt: jaktloggen ligger inne i den
+    # klient-krypterte backup-bloben (§2), saa serveren kan ikke lese den. Skal
+    # felte dyr deles med venner, maa jaktposter synkes som egne rader - en
+    # spec-avklaring, ikke en implementasjonsdetalj.
+    return ut

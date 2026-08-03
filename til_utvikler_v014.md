@@ -263,3 +263,61 @@ etter et avbrutt kall ikke feiler.
 12 tester dekker rundturen, vernet, isolasjon mellom brukere og
 størrelsesgrensen. Verifisert live: alle backup-rutene svarer 501 i produksjon,
 også med `X-Debug-User-Id` — den headeren er død i prod, ikke bare frarådet.
+
+## Fase 5 — venner (§3, §3.1)
+
+`GET/PUT /v1/profile` og `/v1/profile/sharing`, `GET /v1/users/search`,
+`POST /v1/friends/request` og `/respond`, `GET /v1/friends` og
+`/friends/requests`, `DELETE /v1/friends/{id}`.
+
+**Søk gir kun eksakt treff** på bruker-ID eller telefonnummer, og bare for
+`findable`-brukere. Fritekstsøk på navn ville gjort hele brukerbasen listbar,
+så det finnes ikke. Er sjekksifferet i en ID feil, svarer vi 422 *uten* å slå
+opp — det er en tastefeil, ikke et forsøk på å finne noen, og den skal ikke
+telle som bom.
+
+**Karantenen ligger i databasen**, ikke i minnet slik rate-limiteren på
+`/v1/feedback` gjør. En karantene som forsvinner ved omstart — eller som bare
+gjelder én av Flys to maskiner — er ingen karantene. 5 bom på telefonsøk gir
+1 døgn, gjentakelse gir 7, som spec-en sier. Bare bom telles.
+
+**Filtreringen er utgående og server-side.** Klienten får aldri et felt den
+ikke har lov til å vise, så «deaktivering nuller delte felt» er en garanti og
+ikke noe en modifisert app kan omgå. Visningsnavn deles alltid — men bare når
+moderasjonen har godkjent det; ellers ser andre «Ukjent skytter».
+
+**Navnemoderasjon:** tegnsett og lengde speiler `Ui.nameFilters()` i klienten
+(klientfilteret er bekvemmelighet, ikke sikkerhet), pluss en ordliste satt med
+`DISPLAY_NAME_BLOCKLIST`. Lista er tom som standard — en hardkodet norsk
+banneordliste ville vært både ufullstendig og umulig å vedlikeholde fra repoet.
+Sammenligningen skjer på en foldet form, så «S-t-y-g-t» og «stÿgt» fanges
+også. Avvist navn lagres ikke i det hele tatt.
+
+### To ting du må ta stilling til
+
+**1. `kills[]` i §3-modellen kan ikke leveres.** Jaktloggen ligger inne i den
+klient-krypterte backup-bloben (§2), som serveren ikke kan lese. Skal felte dyr
+deles med venner, må jaktposter synkes som egne rader — det er en
+spec-avklaring, ikke noe jeg kan implementere meg ut av. `avgScore` og `trend`
+er derimot på plass, regnet fra treningsseriene.
+
+**2. `trend` trenger en definisjon fra deg.** Spec-en sier bare
+«snitt/utvikling». Jeg har valgt: snitt per skudd i de 5 siste seriene minus de
+5 foregående, og `null` før det finnes 10 serier — et «trendtall» fra to serier
+ville vært støy presentert som innsikt. Vindusstørrelsen er valgt fordi en
+serie er 5–10 skudd og 5 serier dekker en typisk økt.
+
+### En feil som var verdt å finne
+
+Tester på karantenen avdekket at `utcnow()` ga tidssone-bevisste tidsstempler
+mens kolonnene var naive. Alt som *sammenligner* en ny verdi mot en lagret —
+karantenevinduer, «er denne backupen eldre enn den lagrede?» — kastet
+`can't subtract offset-naive and offset-aware datetimes`. Det slo bare ut på de
+kodestiene som faktisk sammenligner, så resten hadde ligget og ventet.
+
+Fikset i roten: alle tidsstempler bruker nå typen `UtcDateTime`, som garanterer
+tidssone-bevisste verdier i Python og UTC i basen, og tolker naive verdier inn
+som UTC. Migrasjon `4ef8ebf137fc` konverterer kolonnene til `timestamptz`.
+Den måtte skrives for hånd: autogenerate ser ikke typeforskjellen mot SQLite.
+
+74 tester grønne.

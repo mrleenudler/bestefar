@@ -10,17 +10,58 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import DateTime, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase
 
 RESEARCH_SCHEMA = "research"
 
 
+class UtcDateTime(TypeDecorator):
+    """
+    Tidsstempel som ALLTID er tidssone-bevisst i Python og alltid UTC i basen.
+
+    Uten dette blir det en stille felle: `utcnow()` gir en aware datetime, men
+    en naiv `DateTime`-kolonne leverer en naive datetime tilbake. Alt som
+    SAMMENLIGNER en ny verdi med en lagret - karantenevinduer, «er denne
+    backupen eldre enn den lagrede?» - kaster da
+    «can't subtract offset-naive and offset-aware datetimes», og bare paa de
+    kodestiene som faktisk sammenligner. SQLite gjoer det verre ved aa levere
+    naive verdier selv naar kolonnen er erklaert med timezone=True.
+
+    Naive verdier inn (typisk ISO-tidsstempler fra klienten uten offset)
+    tolkes som UTC.
+    """
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+
+
 class Base(DeclarativeBase):
-    pass
+    # Alle `Mapped[datetime]`-kolonner faar UtcDateTime uten aa maatte oppgi
+    # typen eksplisitt.
+    type_annotation_map = {datetime: UtcDateTime()}
 
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def as_utc(value: datetime) -> datetime:
+    """Normaliserer en innkommende datetime (f.eks. fra en query-parameter) til
+    aware UTC, saa den kan sammenlignes med lagrede verdier."""
+    return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None
+            else value.astimezone(timezone.utc))
 
 
 def new_uuid() -> str:

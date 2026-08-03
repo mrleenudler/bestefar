@@ -3,7 +3,7 @@ Drift: feilanalyse-innsending (§6) og melding til utvikler (§10).
 """
 from datetime import datetime
 
-from sqlalchemy import (JSON, DateTime, Enum, Float, ForeignKey, Integer,
+from sqlalchemy import (JSON, Enum, Float, ForeignKey, Integer,
                         LargeBinary, String, Text)
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,7 +22,7 @@ class FailedAnalysis(Base):
     __tablename__ = "failed_analyses"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    submitted_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     user_id: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     series_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
@@ -49,11 +49,11 @@ class Feedback(Base):
     __tablename__ = "feedback"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    received_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     subject: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text)
     app_version: Mapped[str] = mapped_column(String(32), default="")
     device_model: Mapped[str] = mapped_column(String(64), default="")
     user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    forwarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    forwarded_at: Mapped[datetime | None] = mapped_column(nullable=True)
     forward_error: Mapped[str | None] = mapped_column(String(300), nullable=True)

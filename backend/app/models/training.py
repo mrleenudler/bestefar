@@ -9,7 +9,7 @@ maa kunne gruppere serier per vaapen for venners delte statistikk (§3).
 """
 from datetime import datetime
 
-from sqlalchemy import (Boolean, DateTime, Enum, Float, ForeignKey, Integer,
+from sqlalchemy import (Boolean, Enum, Float, ForeignKey, Integer,
                         String, UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,7 +27,7 @@ class Series(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)   # klient-UUID
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
-    ts: Mapped[datetime] = mapped_column(DateTime, index=True)      # klientens tidsstempel
+    ts: Mapped[datetime] = mapped_column(index=True)      # klientens tidsstempel
     weapon_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     ammo_name: Mapped[str] = mapped_column(String(64), default="")
     distance_m: Mapped[int] = mapped_column(Integer)
@@ -43,8 +43,8 @@ class Series(Base):
     shot_count: Mapped[int] = mapped_column(Integer, default=0)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
     shots: Mapped[list["Shot"]] = relationship(back_populates="series",
                                                cascade="all, delete-orphan",

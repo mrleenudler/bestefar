@@ -11,7 +11,7 @@ DPIA er avklart (§7/§9). Klienten har samme sperre (Dialogs.RESEARCH_ENABLED).
 """
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, String, UniqueConstraint
+from sqlalchemy import JSON, Enum, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import RESEARCH_SCHEMA, Base, ResultType, utcnow
@@ -29,8 +29,8 @@ class ResearchConsent(Base):
     pseudonym_id: Mapped[str] = mapped_column(String(64), index=True)
     consent_type: Mapped[ResultType] = mapped_column(
         Enum(ResultType, native_enum=False, length=16))
-    granted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    granted_at: Mapped[datetime] = mapped_column(default=utcnow)
+    revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
 
 class ResearchRecord(Base):
@@ -49,11 +49,11 @@ class ResearchRecord(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     pseudonym_id: Mapped[str] = mapped_column(String(64), index=True)
     session_ref: Mapped[str] = mapped_column(String(64), index=True)  # klient-generert
-    captured_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    captured_at: Mapped[datetime] = mapped_column(index=True)
     result_type: Mapped[ResultType] = mapped_column(
         Enum(ResultType, native_enum=False, length=16))
     payload_json: Mapped[dict] = mapped_column(JSON, default=dict)
-    received_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    received_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
 class ResearchDeletionRequest(Base):
@@ -67,5 +67,5 @@ class ResearchDeletionRequest(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     pseudonym_id: Mapped[str] = mapped_column(String(64), index=True)
-    requested_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)

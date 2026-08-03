@@ -11,7 +11,7 @@ from .base import (RESEARCH_SCHEMA, Base, ChallengeOutcome, DeliveryStatus,
                    ElectionOutcome, FailedTag, FriendshipStatus, InviteTarget,
                    NameStatus, Platform, PosModifier, Position,
                    PositionGranularity, Provider, QuarantineScope, ResultType,
-                   TeamKind, TeamRole, new_uuid, utcnow)
+                   TeamKind, TeamRole, UtcDateTime, as_utc, new_uuid, utcnow)
 from .ops import FailedAnalysis, Feedback
 from .research import (ResearchConsent, ResearchDeletionRequest,
                        ResearchRecord)
@@ -22,7 +22,7 @@ from .user import (AuthIdentity, Backup, Device, ResearchSharingPreference,
                    SearchQuarantine, SharingPreference, User)
 
 __all__ = [
-    "RESEARCH_SCHEMA", "Base", "new_uuid", "utcnow",
+    "RESEARCH_SCHEMA", "Base", "UtcDateTime", "as_utc", "new_uuid", "utcnow",
     # enums
     "ChallengeOutcome", "DeliveryStatus", "ElectionOutcome", "FailedTag",
     "FriendshipStatus", "InviteTarget", "NameStatus", "Platform",

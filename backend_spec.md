@@ -58,6 +58,21 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   `phone` finnes).
 - **Sensur av visningsnavn:** moderasjon server-side før navnet eksponeres for andre
   (regelsett + evt. manuell kø). Avvist navn deles ikke; brukeren varsles.
+- *Implementert 2026-08-03:* regelsettet håndhever tegnsett og lengde (speiler
+  `Ui.nameFilters()` — klientfilteret er bekvemmelighet, ikke sikkerhet) pluss en
+  ordliste satt med `DISPLAY_NAME_BLOCKLIST`. Ordlista sammenlignes på en foldet
+  form (uten aksenter, tegnsetting og store bokstaver), så «S-t-y-g-t» ikke
+  slipper unna. Avvist navn **lagres ikke i det hele tatt** — da kan det heller
+  ikke lekke. Er navnet ikke godkjent, eksponeres «Ukjent skytter» for andre.
+  Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
+  regelsettet godkjennes derfor direkte.
+- **Åpent punkt — `kills[]` kan ikke leveres:** jaktloggen ligger inne i den
+  klient-krypterte backup-bloben (§2), som serveren ikke kan lese. Skal felte dyr
+  deles med venner, må jaktposter synkes som egne rader. Det er en
+  spec-avklaring, ikke en implementasjonsdetalj. `avgScore` og `trend` er
+  implementert fra treningsseriene; `trend` er foreløpig definert som snitt per
+  skudd i de 5 siste seriene minus de 5 foregående, og er `null` før det finnes
+  10 serier.
 
 ## 4. Lag (jaktlag/skytterlag)
 - **Modell:** `Team { id, name, kind(jakt|skytter), memberCount, location?, leaders[] }`.

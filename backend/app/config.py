@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     # bekvemmelighet lokalt, og skal vaere AV i produksjon.
     auto_create_tables: bool = True
 
+    # --- Moderasjon av visningsnavn (§3) ---
+    # Kommaseparert. Tom som standard: en hardkodet norsk banneordliste ville
+    # vaert baade ufullstendig og umulig aa vedlikeholde fra repoet.
+    display_name_blocklist: str = ""
+
+    @property
+    def display_name_blocklist_list(self) -> list[str]:
+        return [w.strip() for w in self.display_name_blocklist.split(",") if w.strip()]
+
     # --- Opplasting (§6) ---
     max_upload_bytes: int = 8 * 1024 * 1024
 

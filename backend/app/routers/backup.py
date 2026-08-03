@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session as OrmSession
 from ..config import settings
 from ..db import db
 from ..deps import current_user
-from ..models import Backup, User, utcnow
+from ..models import Backup, User, as_utc, utcnow
 
 router = APIRouter(prefix="/v1/backup", tags=["backup"])
 
@@ -58,6 +58,10 @@ async def upload_backup(request: Request,
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > cfg.max_backup_bytes:
         raise HTTPException(413, f"Backup er stoerre enn {cfg.max_backup_bytes} byte")
+
+    # Klienten sender ofte ISO-tid uten offset; tolk den som UTC saa den kan
+    # sammenlignes med den lagrede verdien.
+    client_ts = as_utc(client_ts)
 
     payload = await request.body()
     if not payload:

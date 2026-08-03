@@ -509,6 +509,43 @@ BACKEND-RUNDE 3 (2026-08-03, fase 4 - backup/sync §2):
     telefon ikke skal kreve nedlasting av hele bloben.
   - Ingen ny migrasjon: Backup-tabellen laa allerede i initial-migrasjonen.
 
+BACKEND-RUNDE 4 (2026-08-03, fase 5 - venner §3/§3.1):
+  - Nye ruter: GET/PUT /v1/profile (+/sharing), GET /v1/users/search,
+    POST /v1/friends/request|respond, GET /v1/friends(/requests),
+    DELETE /v1/friends/{id}.
+  - TIDSSONE-FELLA (kostet en runde, ikke gjenta): utcnow() gir AWARE
+    datetime, men en naiv DateTime-kolonne leverer NAIVE tilbake. Alt som
+    SAMMENLIGNER ny verdi mot lagret kaster «can't subtract offset-naive and
+    offset-aware datetimes» - og bare paa de kodestiene som sammenligner, saa
+    det dukker opp tilfeldig senere. SQLite gjoer det verre: den leverer naive
+    verdier selv med timezone=True. LOEST med UtcDateTime (TypeDecorator) i
+    models/base.py + type_annotation_map paa Base, saa alle Mapped[datetime]
+    faar den automatisk. mapped_column(DateTime, ...) skal IKKE oppgis lenger.
+    models.as_utc() normaliserer innkommende naive verdier (query-parametere).
+    Migrasjon 4ef8ebf137fc konverterer til timestamptz; no-op paa SQLite.
+  - Autogenerate KAN IKKE brukes for typeendringer her: den maa kjoere mot
+    Postgres for aa se forskjellen, og mot SQLite produserer den bare stoey
+    fra schema_translate_map (rapporterer research-tabellene som slettet).
+    Migrasjonen ble skrevet for haand med kolonnelista generert fra
+    Base.metadata.
+  - Soek: KUN eksakt treff paa public_id eller telefon, kun findable-brukere.
+    Ingen fritekstsoek paa navn - det ville gjort brukerbasen listbar.
+    Sjekksifferfeil i ID gir 422 UTEN oppslag og teller ikke som bom.
+  - Karantene (§3.1) ligger i DATABASEN (services/quarantine.py), ikke i
+    minnet som ratelimit.py: den skal overleve omstart og gjelde paa tvers av
+    Flys to maskiner. Bare BOM telles; treff er normal bruk.
+  - Utgaaende filtrering skjer SERVER-side (services/sharing.py). Da er
+    «deaktivering nuller delte felt» en garanti, ikke en klientdetalj.
+  - FUNN: Friend.kills[] i spec §3 kan IKKE leveres - jaktloggen ligger inne i
+    den klient-krypterte backup-bloben (§2), som serveren ikke kan lese.
+    Krever spec-avklaring (egne jaktrader), ikke bare implementasjon.
+
+FELLE (flyctl, 2026-08-03): ~/.fly/config.yml ble skrevet full av NUL-bytes
+  (1929 byte) da to instanser kjoerte flyctl samtidig -> «yaml: control
+  characters are not allowed» paa ALLE flyctl-kommandoer. Filen holder
+  access-tokenet og kan ikke repareres; krever `flyctl auth login` paa nytt.
+  Unngaa aa kjoere flyctl fra to instanser samtidig.
+
 UI-RUNDE 11 (v0.14) - BACKEND-KOBLING, KLIENTSIDEN:
   - Appen hadde NULL nettverkskode for denne runden. Nye filer: Api.kt
     (HttpURLConnection, ingen nytt bibliotek) og Sync.kt (filbasert koe i

@@ -16,6 +16,30 @@ Ansvarsomraadene er ATSKILTE (kravspec §5):
    Serveren lagrer bytes den ikke kan lese. `PUT` avviser en blob hvis
    `client_ts` er eldre enn den lagrede (409) — se docstringen i
    `app/routers/backup.py` for hvorfor det vernet maa ligge server-side.
+6. **`/v1/profile`**, **`/v1/users/search`**, **`/v1/friends`** — profil,
+   delingsvalg, brukersoek og vennskap (§3, §3.1).
+
+Tre ting styrer venne-delen:
+
+- **Soek gir kun eksakt treff** paa bruker-ID eller telefon, og kun for
+  `findable`-brukere. Fritekstsoek paa navn ville gjort brukerbasen listbar.
+- **Karantenen ligger i databasen** (`services/quarantine.py`), ikke i minnet
+  som `ratelimit.py`: den skal overleve omstart og gjelde paa tvers av Flys
+  maskiner. Bare MISLYKKEDE soek telles - treff er normal bruk.
+- **Filtreringen er utgaaende og server-side** (`services/sharing.py`). Da er
+  «deaktivering nuller delte felt» en garanti, ikke noe en modifisert klient
+  kan omgaa.
+
+## Tidsstempler
+
+Alle `Mapped[datetime]`-kolonner bruker `UtcDateTime` (se
+`app/models/base.py`) via `type_annotation_map` paa `Base` - ikke oppgi
+`DateTime` eksplisitt i `mapped_column`. Typen garanterer at verdier er
+tidssone-bevisste i Python og UTC i basen, og tolker naive verdier inn (typisk
+ISO-tid fra klienten uten offset) som UTC. Uten den kaster enhver
+SAMMENLIGNING mot en lagret verdi «can't subtract offset-naive and
+offset-aware datetimes». Bruk `models.as_utc()` paa datoer som kommer inn som
+query-parametere.
 
 `/health` rapporterer database- og e-poststatus, og svarer 200 saa lenge
 prosessen lever (se `app/routers/health.py` for hvorfor).
