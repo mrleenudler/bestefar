@@ -580,14 +580,46 @@ FELLE - SQLITE HAANDHEVER IKKE FREMMEDNOEKLER (2026-08-03, kostet en CI-runde):
 
 FELLE - CI-LOGGER KAN IKKE LESES ANONYMT: GitHub svarer 403 paa
   /actions/jobs/<id>/logs uten token, ogsaa for offentlige repoer. Jobbnavn og
-  stegstatus er derimot aapent i /actions/runs. Trenger du selve loggen, be
-  brukeren eksportere den (de kan lagre den i repoet som job-logs.txt).
+  stegstatus er derimot aapent i /actions/runs.
+  LOESNING (i bruk i begge workflowene): la steget fange sitt eget utdata til
+  fil og skrive halen som «::error title=...::»-annotasjon ved feil.
+  Annotasjoner ER lesbare uten token, via
+  /repos/<eier>/<repo>/check-runs/<job-id>/annotations. Send BARE halen
+  (~3000 tegn) - GitHub kutter lange annotasjoner fra slutten, saa et stort
+  utdrag skjuler nettopp oppsummeringen man er ute etter. Ikke be brukeren
+  eksportere loggen for haand; det er friksjon for dem.
+  (pytest-github-actions-annotate-failures ble proevd foerst og ga INGENTING
+  naar feilen ligger i en fixture i stedet for i en test.)
+
+FELLE - ENGINES MAA DISPOSES I TESTER (2026-08-04, kostet flere CI-runder):
+  Suiten var groenn paa SQLite og feilet mot Postgres i CI med
+  «OperationalError: connection failed» MIDT i suiten - ikke en testfeil, men
+  en tom tilkoblingspool.
+  Aarsak: migrations/env.py kjoerer to ganger per test (conftest gjoer
+  downgrade base + upgrade head) og lagde en ny create_engine hver gang uten
+  aa lukke den, og testenes egne engines ble bare kastet ut av sys.modules av
+  _reset_app_modules() med poolen fortsatt i live. ~105 tester => Postgres
+  gikk tom for tilkoblinger. SQLite har ingen slik grense og skjulte alt.
+  FIKS: dispose() tre steder - migrations/env.py (try/finally), teardown i
+  conftest.db_url, og test_migrations.py sin egen engine.
+  REGEL: lager du en engine i en test eller i env.py, MAA du lukke den.
+  sys.modules-sletting frigjoer ingenting.
 
 FELLE (flyctl, 2026-08-03): ~/.fly/config.yml ble skrevet full av NUL-bytes
   (1929 byte) da to instanser kjoerte flyctl samtidig -> «yaml: control
   characters are not allowed» paa ALLE flyctl-kommandoer. Filen holder
   access-tokenet og kan ikke repareres; krever `flyctl auth login` paa nytt.
   Unngaa aa kjoere flyctl fra to instanser samtidig.
+  «Error: no access token available» I CI betyr derimot at repo-secreten
+  FLY_API_TOKEN er TOM ved kjoering - typisk lagt inn under Variables i
+  stedet for Secrets, eller under Dependabot secrets. Brukeren maa fikse det
+  selv; tokenet skal aldri inn i chat-loggen.
+
+ARBEIDSFORM - POWERSHELL: brukeren kjoerer Windows/PowerShell, ikke bash.
+  Hold kommandoene KORTE og enkle: lange script-blokker (loekker, flere
+  setninger, her-strenger) utloeser en bekreftelsesdialog hver gang og kan gi
+  «malformed syntax»-advarsel. Foretrekk WebFetch mot aapne
+  GitHub-API-endepunkter framfor Invoke-RestMethod i en script-blokk.
 
 UI-RUNDE 11 (v0.14) - BACKEND-KOBLING, KLIENTSIDEN:
   - Appen hadde NULL nettverkskode for denne runden. Nye filer: Api.kt
