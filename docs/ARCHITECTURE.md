@@ -133,6 +133,35 @@ lagring:
    (trening/jakt) som separate modeller. Konkret feltinnhold er merket
    `# TODO(eier): feltdefinisjoner ikke avklart` per kravspec §6.
 
+## Klientens nettverkslag (Android, v0.14–v0.15)
+
+Appen er **offline-først**: alt virker uten nett, og et mislykket kall er
+normaltilstanden, ikke en feil.
+
+- `Api.kt` — `HttpURLConnection`, ingen nytt bibliotek. Én enkelt-tråds kø, så
+  opplastinger går i rekkefølge og ikke parallelt mot en gratis-tier.
+  Basis-URL fra `BuildConfig.API_BASE_URL`, overstyrbar i DevTools.
+  `Authorization: Bearer` settes fra `Store.authToken` når den er satt.
+  **Feilklassifisering:** `retryable` = kode 0 (nådde aldri fram), 408, 429,
+  ≥ 500. Alt annet er permanent, og køen kaster elementet framfor å vokse.
+- `Sync.kt` — filbasert kø i `filesDir/dev_uploads` mot `/v1/failed-analyses`.
+  Filbasert med vilje: overlever appdrap, omstart og flymodus uten database.
+- `Backup.kt` — klient-kryptert sikkerhetskopi (backend_spec §2). Serveren
+  lagrer bytes den ikke kan lese, så serialisering, kryptering og
+  gjenoppretting er **helt** klientside og testbart uten server.
+  Blob: `"BFBK" | versjon | 16 B salt | 12 B IV | AES-256-GCM`. Nøkkelen
+  utledes med PBKDF2-HMAC-SHA256 (210 000 runder) fra en generert
+  gjenopprettingskode på 20 tegn (100 bit), ikke fra et brukervalgt passord —
+  angriperen har hele bloben, og ingen server kan bremse gjetting.
+  Konsekvensen står i UI-et: mister du koden, er kopien tapt.
+
+**Soft-delete** (v0.15): `SeriesRecord.deletedAt` / `HuntRecord.deletedAt`.
+Sletting setter tidsstempel i stedet for å fjerne raden — uten gravsteinen har
+klienten ingenting å fortelle backenden, og en gjenoppretting ville lagt inn
+igjen det brukeren slettet. `allSeries()`/`allHunts()` filtrerer dem bort, så
+visningskoden er uendret; `allSeriesRaw()`/`allHuntsRaw()` gir hele sannheten
+til synk og sikkerhetskopi.
+
 ## Bygg/CI
 
 - `core/`: CMake ≥3.22. Desktop: MSYS2/MinGW eller Linux (apt libopencv-dev).

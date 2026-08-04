@@ -2,6 +2,7 @@ package no.bestefar.app
 
 import android.content.Context
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
 import java.time.Instant
@@ -284,14 +285,59 @@ class Store private constructor(ctx: Context) {
         set(v) { prefs.edit().putInt("shareDevImagesSeason", v).apply() }
 
     /**
-     * Lagre scannede skjermbilder i telefonens bildearkiv (musingsUI runde 10).
-     * Default PÅ til spørsmålet er stilt etter første scan — bildet er det mest
-     * verdifulle vi har hvis analysen bommer, og svarer brukeren «Nei» slettes
-     * også det første bildet.
+     * Lagre scannede skjermbilder i telefonens bildearkiv (musingsUI runde
+     * 10/12). Tre valg, ikke av/på: de fleste vil ikke ha hver eneste
+     * treningsserie i kamerarullen, men vil gjerne beholde de gode.
+     *
+     * Default ALLE til spørsmålet er stilt etter første scan — bildet er det
+     * mest verdifulle vi har hvis analysen bommer, og svarer brukeren «Nei»
+     * slettes også det første bildet.
+     *
+     * MERK at BESTE ikke kan avgjøres ved fangst: poengene finnes først etter
+     * analysen. Derfor lagrer vi alltid ved fangst når valget ikke er ALDRI, og
+     * [ResultActivity] rydder bort bildet igjen hvis serien ikke kvalifiserer.
      */
-    var saveScansToGallery: Boolean
-        get() = prefs.getBoolean("saveScansToGallery", true)
-        set(v) { prefs.edit().putBoolean("saveScansToGallery", v).apply() }
+    enum class GallerySave { ALDRI, ALLE, BESTE }
+
+    var saveScansMode: GallerySave
+        get() = when (prefs.getString("saveScansMode", null)) {
+            "aldri" -> GallerySave.ALDRI
+            "beste" -> GallerySave.BESTE
+            "alle" -> GallerySave.ALLE
+            // Migrasjon fra av/på-bryteren i runde 10.
+            else -> if (prefs.getBoolean("saveScansToGallery", true))
+                GallerySave.ALLE else GallerySave.ALDRI
+        }
+        set(v) {
+            prefs.edit().putString("saveScansMode", when (v) {
+                GallerySave.ALDRI -> "aldri"
+                GallerySave.ALLE -> "alle"
+                GallerySave.BESTE -> "beste"
+            }).apply()
+        }
+
+    /** Skal skjermbildet i det hele tatt skrives til galleriet ved fangst? */
+    val saveScansToGallery: Boolean get() = saveScansMode != GallerySave.ALDRI
+
+    /**
+     * Kvalifiserer serien for «De beste»? Definisjonen er bevisst enkel nok til
+     * å forklares i én setning i innstillingene: blant de 25 % beste i SAMME
+     * stilling, eller beste serie noensinne. Stilling er med fordi en liggende
+     * serie ellers ville utkonkurrert alt stående for alltid.
+     *
+     * Med få serier kvalifiserer alt — det er riktig: da er alle bildene de
+     * beste vi har.
+     */
+    fun isTopSeries(r: SeriesRecord): Boolean {
+        val all = allSeries().filter { it.id != r.id }
+        if (all.isEmpty()) return true
+        if (r.sumDecimal >= all.maxOf { it.sumDecimal }) return true
+        val samePos = all.filter { it.position == r.position }
+        if (samePos.size < 4) return true
+        val cutoff = samePos.map { it.sumDecimal }.sorted()[
+            (samePos.size * 3) / 4]
+        return r.sumDecimal >= cutoff
+    }
 
     var saveScansAsked: Boolean
         get() = prefs.getBoolean("saveScansAsked", false)
@@ -312,6 +358,32 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getLong("lastSyncTs", 0L)
         set(v) { prefs.edit().putLong("lastSyncTs", v).apply() }
 
+    /**
+     * Access-token fra innloggingen (backend_spec §1). Tom = ikke innlogget;
+     * da svarer alt som krever bruker 401, som er riktig. Klientens
+     * innloggingsflyt er ikke bygget ennå — feltet finnes så
+     * transportlaget kan sette Authorization-headeren i det den lander.
+     */
+    var authToken: String
+        get() = prefs.getString("authToken", "") ?: ""
+        set(v) { prefs.edit().putString("authToken", v).apply() }
+
+    /** Gjenopprettingskoden er VIST for brukeren (backend_spec §2). */
+    var backupCodeShown: Boolean
+        get() = prefs.getBoolean("backupCodeShown", false)
+        set(v) { prefs.edit().putBoolean("backupCodeShown", v).apply() }
+
+    /**
+     * Gjenopprettingskoden. Den ligger her fordi den ellers måtte skrives inn
+     * på nytt ved HVER sikkerhetskopi — og en bruker som må taste 20 tegn hver
+     * gang, tar ingen kopi. Koden beskytter mot at BACKENDEN kan lese dataene,
+     * ikke mot noen som allerede har telefonen ulåst i hånda; det er den
+     * trusselen §2 faktisk adresserer.
+     */
+    var backupCode: String
+        get() = prefs.getString("backupCode", "") ?: ""
+        set(v) { prefs.edit().putString("backupCode", v).apply() }
+
     /** Utvikler: overstyr API-adressen i felt. Tom = BuildConfig.API_BASE_URL. */
     var apiBaseUrl: String
         get() = prefs.getString("apiBaseUrl", "") ?: ""
@@ -319,8 +391,16 @@ class Store private constructor(ctx: Context) {
 
     // ---------- Serier ----------
 
+    /**
+     * Alle serier brukeren kan se. Slettede (soft-delete, musingsUI runde 12)
+     * er filtrert bort her, slik at alle eksisterende kallsteder oppfører seg
+     * nøyaktig som før. Trenger du gravsteinene også — synk, backup — bruk
+     * [allSeriesRaw].
+     */
+    fun allSeries(): List<SeriesRecord> = allSeriesRaw().filter { !it.deleted }
+
     @Synchronized
-    fun allSeries(): List<SeriesRecord> {
+    fun allSeriesRaw(): List<SeriesRecord> {
         seriesCache?.let { return it }
         val list = mutableListOf<SeriesRecord>()
         if (seriesFile.exists()) {
@@ -335,22 +415,30 @@ class Store private constructor(ctx: Context) {
 
     @Synchronized
     fun addSeries(r: SeriesRecord) {
-        val list = allSeries().toMutableList().apply { add(r) }
+        val list = allSeriesRaw().toMutableList().apply { add(r) }
         seriesCache = list
         writeSeries(list)
     }
 
     @Synchronized
     fun updateSeries(r: SeriesRecord) {
-        val list = allSeries().map { if (it.id == r.id) r else it }.toMutableList()
+        val list = allSeriesRaw().map { if (it.id == r.id) r else it }.toMutableList()
         seriesCache = list
         writeSeries(list)
     }
 
+    /**
+     * SOFT-DELETE (musingsUI runde 12): raden blir stående med `deletedAt` satt.
+     * Uten gravsteinen har vi ingenting å sende backenden når synken kommer —
+     * serverens kopi ville bare lagt serien inn igjen ved neste gjenoppretting.
+     * Rekkefølgen er viktig: dette må være på plass FØR synk slås på, ellers er
+     * slettinger gjort i mellomtiden allerede tapt.
+     */
     @Synchronized
     fun deleteSeries(ids: Collection<String>) {
-        val list = allSeries().filter { it.id !in ids }.toMutableList()
-        seriesCache = list
+        val now = System.currentTimeMillis()
+        val list = allSeriesRaw().onEach { if (it.id in ids && !it.deleted) it.deletedAt = now }
+        seriesCache = list.toMutableList()
         writeSeries(list)
     }
 
@@ -388,8 +476,11 @@ class Store private constructor(ctx: Context) {
 
     // ---------- Jaktlogg ----------
 
+    /** Jaktposter brukeren kan se; gravsteiner filtreres bort (jf. [allSeries]). */
+    fun allHunts(): List<HuntRecord> = allHuntsRaw().filter { !it.deleted }
+
     @Synchronized
-    fun allHunts(): List<HuntRecord> {
+    fun allHuntsRaw(): List<HuntRecord> {
         huntCache?.let { return it }
         val list = mutableListOf<HuntRecord>()
         if (huntFile.exists()) {
@@ -404,22 +495,24 @@ class Store private constructor(ctx: Context) {
 
     @Synchronized
     fun addHunt(r: HuntRecord) {
-        val list = allHunts().toMutableList().apply { add(r) }
+        val list = allHuntsRaw().toMutableList().apply { add(r) }
         huntCache = list
         writeHunts(list)
     }
 
     @Synchronized
     fun updateHunt(r: HuntRecord) {
-        val list = allHunts().map { if (it.id == r.id) r else it }.toMutableList()
+        val list = allHuntsRaw().map { if (it.id == r.id) r else it }.toMutableList()
         huntCache = list
         writeHunts(list)
     }
 
+    /** Soft-delete, se [deleteSeries]. Backenden skal få et «deleted»-flagg. */
     @Synchronized
     fun deleteHunts(ids: Collection<String>) {
-        val list = allHunts().filter { it.id !in ids }.toMutableList()
-        huntCache = list
+        val now = System.currentTimeMillis()
+        val list = allHuntsRaw().onEach { if (it.id in ids && !it.deleted) it.deletedAt = now }
+        huntCache = list.toMutableList()
         writeHunts(list)
     }
 
@@ -461,5 +554,61 @@ class Store private constructor(ctx: Context) {
         seriesFile.delete(); huntFile.delete()
         seriesCache = null; huntCache = null
         prefs.edit().clear().apply()
+    }
+
+    // ---------- Sikkerhetskopi (backend_spec §2) ----------
+
+    /**
+     * Alle innstillinger som JSON. Generisk over `prefs.all` framfor en
+     * håndskrevet feltliste: en ny innstilling skal ikke kunne bli glemt i
+     * sikkerhetskopien fordi noen la til et felt uten å tenke på backup.
+     * Typen kodes med ett prefiks-tegn, siden JSON ikke skiller Int fra Long.
+     */
+    @Synchronized
+    fun exportPrefs(): JSONObject = JSONObject().apply {
+        prefs.all.forEach { (k, v) ->
+            when (v) {
+                is Boolean -> put(k, "b$v")
+                is Int -> put(k, "i$v")
+                is Long -> put(k, "l$v")
+                is Float -> put(k, "f$v")
+                is String -> put(k, "s$v")
+                is Set<*> -> put(k, "S" + JSONArray().apply {
+                    v.forEach { put(it as? String ?: return@forEach) }
+                })
+                else -> Unit   // ukjent type: hopp over framfor å ødelegge kopien
+            }
+        }
+    }
+
+    @Synchronized
+    fun importPrefs(o: JSONObject) {
+        val e = prefs.edit().clear()
+        o.keys().forEach { k ->
+            val raw = o.optString(k, "")
+            if (raw.isEmpty()) return@forEach
+            val v = raw.substring(1)
+            when (raw[0]) {
+                'b' -> e.putBoolean(k, v.toBoolean())
+                'i' -> v.toIntOrNull()?.let { e.putInt(k, it) }
+                'l' -> v.toLongOrNull()?.let { e.putLong(k, it) }
+                'f' -> v.toFloatOrNull()?.let { e.putFloat(k, it) }
+                's' -> e.putString(k, v)
+                'S' -> {
+                    val arr = JSONArray(v)
+                    e.putStringSet(k, (0 until arr.length()).map { arr.getString(it) }.toSet())
+                }
+            }
+        }
+        e.apply()
+    }
+
+    /** Erstatt hele serie-/jaktloggen fra en gjenopprettet kopi. */
+    @Synchronized
+    fun replaceAll(series: List<SeriesRecord>, hunts: List<HuntRecord>) {
+        seriesCache = series.toMutableList()
+        huntCache = hunts.toMutableList()
+        writeSeries(series)
+        writeHunts(hunts)
     }
 }

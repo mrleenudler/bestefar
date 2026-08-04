@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Equalizer/slider-ikon for «Avanserte innstillinger» (musingsUI runde 12).
+     Tre spor med hver sin knott i ulik posisjon; tegnet for hånd framfor
+     portert, siden det er ren geometri. Fylles med #FF000000 og tintes i UI. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- Spor -->
+    <path android:fillColor="#FF000000"
+        android:pathData="M3,5.25 L21,5.25 L21,6.75 L3,6.75 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M3,11.25 L21,11.25 L21,12.75 L3,12.75 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M3,17.25 L21,17.25 L21,18.75 L3,18.75 Z"/>
+    <!-- Knotter: øverst til høyre, midten til venstre, nederst midt på -->
+    <path android:fillColor="#FF000000"
+        android:pathData="M15.5,2.5 L18.5,2.5 A1.5,1.5 0 0 1 20,4 L20,8 A1.5,1.5 0 0 1 18.5,9.5 L15.5,9.5 A1.5,1.5 0 0 1 14,8 L14,4 A1.5,1.5 0 0 1 15.5,2.5 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M5.5,8.5 L8.5,8.5 A1.5,1.5 0 0 1 10,10 L10,14 A1.5,1.5 0 0 1 8.5,15.5 L5.5,15.5 A1.5,1.5 0 0 1 4,14 L4,10 A1.5,1.5 0 0 1 5.5,8.5 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M10.5,14.5 L13.5,14.5 A1.5,1.5 0 0 1 15,16 L15,20 A1.5,1.5 0 0 1 13.5,21.5 L10.5,21.5 A1.5,1.5 0 0 1 9,20 L9,16 A1.5,1.5 0 0 1 10.5,14.5 Z"/>
+</vector>

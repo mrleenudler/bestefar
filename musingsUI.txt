@@ -1,5 +1,7 @@
 claude --resume 14f581a8-72d7-476d-880c-5dc0da4df6c3
 
+Du er i et Powershell miljø
+
 Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
 Always read CLAUDE_CONTEXT.TXT after compacting.
 
@@ -7,64 +9,63 @@ Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måt
 
 UI-grafikkelementer ligger i mappen UI
 
-Oppdater Bestefar_UI_spec til å stemme med endringene.
+fly_api_token ligger som repo secret, men flyctl må logges inn på nytt i powershell med jevne mellomrom.
+
+Oppdater Bestefar_UI_spec, flytskjema.md, ARCHITECTURE.MD til å stemme med endringene.
 Oppdater backend_spec.md ved behov
 Les siste versjon av til_utvikler_v##.md for å se hva som ble gjort i forrige iterasjon.
 Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
-
-=> OCR: Identifiserte poeng skal bare vises hvis de avviker > 0.1p fra leste poeng (er det implementert alt?)
-
-Det ser ut til at hvis poengene er like, defineres seriene som like. (Fra erfaringer med opp-ned bildene) Serier må også ha samme treffpunkter med en liten margin (<= 0,1p) for at vi skal defiere dem som like og vise lik-serie dialogen.
+Oppdater docs/flytskjema.md og docs/ARCHITECTURE.mdved behov.
+------------------------------------------------------
 
 
-Forskning: Vi legger den i bakgrunnen så lenge
-	Skjul dialogen i oppstart
-	Endre "Del med forskning" checkbox i logg jaktskudd til "Detaljert visning"
-	Lås checkboxen i Avanserte innstillinger til unchecked.
-
-Lys visning: Telefonens statusikoner må ha svart bakgrunn, også i lys visning.
-
-OCR/poengskjerm: 
-	Når OCR-resultater finnes, brukes de direkte i poengvisningen, og tar presendens over identifiserte treff. Da skal poengene ikke være sortert etter verdi, men stå i den rekkefølgen de er oppført på skjermen. Identifiserte treff vises nederst på skjermen, i.e. de to visningene bytter plass når det ikke er samsvar mellom dem.
-	Endring: "Appen klarte ikke å se poengene rikitg.\nVil du lagre serien likevel?
-		Tekst på knappen: "Lagre leste poeng"
-
-Når serier lengre ned på listen merkes, hopper skjermen til start for hver ny som merkes. Skjermen må ikke flyttes.
-
-- Startup: the image-donate popup no longer appears — moved to a "Del bilder med utvikler" toggle in Advanced settings.
-	->Den skal dukke opp første gang appen åpnes.
-		-> Når "Vis oppstartsmelding hver gang" er valgt i Utviklermodus, skal meldingen for bildedeling også vises.
 
 
-Vi låser alle skjermbildene til vertikal visning. Bare Scan skal være horisontal.
+Image donate: 
+	Oppstartsmeldingen er litt flat. Prøv å legge til en stor takk/be emoji over teksten. Tror du forresten emojien vil trigge gamle, uutdannede, rasistiske vestlendinger? Bør vi velge noe annet?
 
+Lys visning: Telefonens statusikoner må ha svart bakgrunn, også i lys visning. (Ikke implemenetrt)
+
+"Bildet ble ikke korrekt analysert": 
+	<Scan> -> <Scan på ny>
+	Lag knapp/ring rundt <Send bildet til feilanalyse>
 
 Innsikt: 
-	Nå passer ikonene mye bedre, men avstandene skal gå så langt ned at 200m står rett til høyre for vilt-posisjon valgene. Det vil si at avstandene(Eller alle valg-ikonene) skal være like høye som vilt-ikonene. Vi ønsker også at alt innholdet skal passe på én skjerm. Pass på at de auto-skaleres.
-	Legg inn silhuetter for [rein_silhuett_skrå]
+	Legg inn silhuetter for [rådyr] 
 		
 
 Scan-bilde:
-	La poengene være midt-aligned med "Poeng:", ikke venstre-aligned
-		-> Nå ser jeg det er blyanten som blokkerer plassen til høyre. Fjern den. Vi lar OCR ta den rollen, og heller be om en re-capture om analysen feiler.
-			-> Kan vi anbefale re-scan når bildet ikke blir korrekt analysert, eller trenger vi et cue fra CV-kjernen(-> Nei.)? "Bildet ble ikke korrekt analysert. Scan bildet på ny." <Avbryt><Scan>	
+	(La poengene være midt-aligned med "Poeng:", ikke venstre-aligned)
+		Rettelse: La både "Poeng:" og poenglisten være aligned med høyresiden av skjermen.
+
+"Ønsker du at skjermbildet(->"Skjermbildene") skal lagres i bildearkivet ditt?"
+	Valg: Nei, Alle, De beste
+
+Avanserte innstillinger:
+	Når "avanserte innstillinger" blir referert til, vis også et slider/equalizer ikon som også kan åpne avanserte innstillinger.
+		Gi meg en liste over alle sider der ikonet blir lagt til.
+	Valg om å lagre scannede bilder i bildearkivet -> Endre til valg: Aldri, Alle, De beste
+
 
 Logg jaktskudd:
 	"Rediger" for skudd:
-		Animasjonen er litt lite oppmerksomhetsfangende. Kan vi blåse opp fonststørrelsen samtidig som vi fader ut?
-		-> Fadingen ble ikke helt som jeg hadde tenkt. La skriftstørrelsen vokse til det dobbelte, og la den begvege seg opp mot høyre. 
-	Skudd som slettes i appen, og som er overført til backend, skal ha et "deleted" flagg i backend.
+		Fjern linjen fra animasjonen, behold bare tallet.
+	Når man sletter skudd, legg inn et advarsel-ikon i advarselen. Er det flere dialoger som bør ha et advarsel-ikon?
 
-Avanserte innstillinger: 
-	Valg om å lagre scannede bilder i bildearkivet. 
-	Etter første scan, må det åpnes en dialog: "Ønsker du at skjermbildet skal lagres i bildearkivet ditt?" <Ja><Nei> -> Ny dialog: "Du kan endre dette valget i \"Avanserte innstillinger\""
+3. Soft-delete i jaktloggen. musingsUI.txt:61 sier slettede skudd skal ha et deleted-flagg i backend. Poenget: modellendringen må skje i klienten før synk kobles på, ellers er slettinger gjort i mellomtiden allerede tapt når synken starter. Dette er argumentet for å gjøre det nå framfor senere.
+-> Jeg er litt usikker på hva dette konkret betyr. Betyr det at vi soft-deleter på klientsiden også? Det bør ikke være noe problem, det er ikke data som tar noe plass. 
 
+4. Backup-blobben (§2). Serveren lagrer bytes den ikke kan lese — altså er kryptering, serialisering og gjenoppretting helt klientside, og det er den vanskelige delen. Kan bygges og testes lokalt uten en eneste innlogging. Når auth lander er det bare en header som mangler.
+-> Dette må du utdype. Mener du vi skal bygge den nå? Kjør på.
 
+5. Serie-synk-kø mot PUT /v1/stats/series/{id}. Endepunktet er idempotent med vilje (klientens egen UUID som nøkkel), så køen kan bygges nå og slås på senere. SeriesRecord.uploaded står fortsatt urørt.
+-> Hva betyr det?
+ 
+(Svar til backend rettes der)
 
-Kontroller at backend_spec.md inneholder hva den trenger.
-
+<ignore>
 Venner: 
-<ignore>(forhåpentligvis implementert)Dersom laget har flere medlemmer, men ingen leder, skal det være en "Velg leder" knapp samme sted.
+	(forhåpentligvis implementert)Dersom laget har flere medlemmer, men ingen leder, skal det være en "Velg leder" knapp samme sted.
 		"Velg leder" åpner en dialog der man kan klikke på det medlemmet man ønsker som leder. 
 		Rett under overskriften, er en timer som teller ned avstemningen. Den starter på 7 dager. Den viser først bare dager, så timer når det er mindre enn 24, og til slutt minutter når det er mindre enn 120.
 		Alle medlemmer får et push varsel når leder skal velges.
@@ -75,40 +76,61 @@ Venner:
 		else push melding sendes til lagleder og timer settes til 7 dager
 			Hvis leder logger på, avbrytes nedtellingen
 			else leder mister lederstatus, men forblir i laget. Laget kan stemme over ny leder fra leder mangler-funksjonaliteten.	
+
+Logg jaktskudd: 
+	<Krever_backend_verifisering>Skudd som slettes i appen, og som er overført til backend, skal ha et "deleted" flagg i backend.
+
+<krever_feltverifisering>
+=> OCR: Identifiserte poeng skal bare vises hvis de avviker > 0.1p fra leste poeng (er det implementert alt?)
+
+=>Det ser ut til at hvis poengene er like, defineres seriene som like. (Fra erfaringer med opp-ned bildene) Serier må også ha samme treffpunkter med en liten margin (<= 0,1p) for at vi skal defiere dem som like og vise lik-serie dialogen.
+
+
+OCR/poengskjerm: 
+	Når OCR-resultater finnes, brukes de direkte i poengvisningen, og tar presendens over identifiserte treff. Da skal poengene ikke være sortert etter verdi, men stå i den rekkefølgen de er oppført på skjermen. Identifiserte treff vises nederst på skjermen, i.e. de to visningene bytter plass når det ikke er samsvar mellom dem.
+	Endring: "Appen klarte ikke å se poengene rikitg.\nVil du lagre serien likevel?
+		Tekst på knappen: "Lagre leste poeng"
+</krever_feltverifisering>
+
 </ignore>
 
 ----------------------------------------------------
 Alt nedenfor skal ignoreres
 ------------------------------------------------------
 
-TODO: Opp-ned bilder gir feil poengberegning. Sjekk at det forsvinner med oppdatering av skjermorientering.
+- Google OAuth-klient i Google Cloud Console
+- Apple-utviklerkonto
+- Eget domene for redirect-URLene
+
+
+TODO: Nå er gatingen for auto-capture for svar igjen. Den tar bilder av hva som helst.
+
+SILHUETTER: MAngler skrå for elg og villsvin
+SILHUETTER: Bestefar må se på vilt-silhuettene. Hvilke er ikke tydelige? Skal størrelsen justeres?TODO: Åpne funksjonaliteten for forskning.
+*TODO: Opp-ned bilder gir feil poengberegning. Sjekk at det forsvinner med oppdatering av skjermorientering.
 TODO: Vurder begrenset med nevnere for Innsikt
 TODO: vurder UI ved lys profil
 TODO: Homogenisering av UI
+
 TODO: Søk og bakenforliggende funksjons- og kunnskapsartikler
+	Jegeropplæring.no har masse artikler som kan forenkles til korte faktasnutter i appen, og lenkes til.(Ikke implementer denne nå)
 TODO: Avansert statistikk
-TODO: Implementere vennefunksjon (backend)
+*TODO: Implementere vennefunksjon (backend)
 TODO: Implementere innsamling av forskningsdata
-TODO: Eksporter/flytt/backup data/konto
-TODO: Når et lag fjernes, overføres venner til utenfor laglisten. -> Det er korrekt oppførsel. Reflekter over andre scenarier.
+*TODO: Eksporter/flytt/backup data/konto
 TODO: Endring av teksten i "Mitt jaktmål" dialogen: Hva skal den være?
 TODO: Brukerlagring av bilder: Beste serie / over terskel / alle ; Koble til Dropbox/Onedrive/GDisk mv.
+	Bilder som ikke skal lagres, bør/må slettes.
 TODO: Hvordan er treffpunkter lagret? Hvordan kan jeg verifisere reliabilitet? 
 TODO: Farge for statusbaren kan møte problemer senere: 
-	
-- Den svarte statuslinjen krevde windowOptOutEdgeToEdgeEnforcement — med targetSdk 36 ignoreres statusBarColor ellers helt. Flagget er Googles midlertidige opt-out og forsvinner i en framtidig SDK; da må vi tegne baren selv. Bieffekt: Ui.applyInsets() blir en no-op av seg selv, så innholdet ligger nå litt høyere enn før.
+	- Den svarte statuslinjen krevde windowOptOutEdgeToEdgeEnforcement — med targetSdk 36 ignoreres statusBarColor ellers helt. Flagget er Googles midlertidige opt-out og forsvinner i en framtidig SDK; da må vi tegne baren selv. Bieffekt: Ui.applyInsets() blir en no-op av seg selv, så innholdet ligger nå litt høyere enn før.
+TODO:(i): Hvilke elementer skal ha informasjonsikon? (Ikke svar på denne, det er utviklers jobb å bestemme)
+TODO: Mer arbeid med intro/veiledning:
 
-
-
-(i): Hvilke elementer skal ha informasjonsikon? (Ikke svar på denne, det er utviklers jobb å bestemme)
-
-Note to self: Mer arbeid med intro/veiledning:
-
-Jegeropplæring.no har masse artikler som kan forenkles til korte faktasnutter i appen, og lenkes til.(Ikke implementer denne nå)
-
+TODO: Kjernen må ha versjonsnavn.
+One open question for you, also noted in the til_utvikler: core_version in the donations is currently the app's versionName, since the CV core exposes no version over FFI. Worth adding a bf_version() to bestefar_ffi.h?
 
 ?Kan vi koble opp mot statens app? Jegerprofil? (Ikke implementer denne nå)
-
 ->Vurder UI-støtte av tutorial (på lengre sikt)
 
 

@@ -81,10 +81,10 @@ class InnsiktFragment : RebuildFragment() {
     }
 
     /**
-     * Viltsilhuett for art + vinkling (musingsUI runde 9/10): Elg, Villsvin og
-     * Villrein har egne side/front-silhuetter; øvrige bruker hjort. Villrein er
-     * den eneste med EGEN skrå-silhuett; elg/villsvin mangler den, så skrå
-     * bruker deres side-silhuett.
+     * Viltsilhuett for art + vinkling (musingsUI runde 9/10/12): Elg, Villsvin,
+     * Villrein og Rådyr har egne silhuetter; øvrige bruker hjort. Villrein og
+     * Rådyr er de eneste med EGEN skrå-silhuett; elg/villsvin mangler den, så
+     * skrå bruker deres side-silhuett.
      */
     private fun angleSil(sp: Species, a: Angle): Int {
         val front = a == Angle.FRONT
@@ -96,6 +96,14 @@ class InnsiktFragment : RebuildFragment() {
                 Angle.FRONT -> R.drawable.ic_rein_front
                 Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_rein_skraa
                 else -> R.drawable.ic_rein_side
+            }
+            // Rådyr falt tidligere gjennom til HJORT — feil art, og den eneste
+            // arten der forveksling faktisk betyr noe for skuddvurderingen:
+            // dødelig sone er under halvparten så stor (musingsUI runde 12).
+            Species.RAADYR -> when (a) {
+                Angle.FRONT -> R.drawable.ic_raadyr_front
+                Angle.SKRAA30, Angle.SKRAA60 -> R.drawable.ic_raadyr_skraa
+                else -> R.drawable.ic_raadyr_side
             }
             else -> when (a) {
                 Angle.FRONT -> R.drawable.ic_hjort_front

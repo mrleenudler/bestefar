@@ -25,7 +25,22 @@ class AvansertActivity : AppCompatActivity() {
         Ui.applyInsets(scroller)
         setContentView(scroller)
 
-        content.addView(Ui.title(this, getString(R.string.profile_advanced)))
+        // Tittelrad med equalizer-ikonet (musingsUI runde 12). Her er ikonet
+        // sidens identitet og IKKE klikkbart — vi er allerede framme.
+        val titleRow = Ui.row(this)
+        titleRow.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_settings_sliders)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            androidx.core.widget.ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(Ui.themeColor(
+                    this@AvansertActivity,
+                    com.google.android.material.R.attr.colorPrimary)))
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                Ui.dp(this@AvansertActivity, 28), Ui.dp(this@AvansertActivity, 28))
+                .apply { marginEnd = Ui.dp(this@AvansertActivity, 10) }
+        })
+        titleRow.addView(Ui.title(this, getString(R.string.profile_advanced)))
+        content.addView(titleRow)
 
         fun entry(label: String, onClick: () -> Unit) {
             content.addView(MaterialButton(this, null,
@@ -41,7 +56,7 @@ class AvansertActivity : AppCompatActivity() {
             Ui.toast(this, R.string.profile_move_todo)
         }
         entry(getString(R.string.profile_delete)) {
-            AlertDialog.Builder(this)
+            Ui.warningDialog(this)
                 .setMessage(R.string.profile_delete_confirm)
                 .setPositiveButton(R.string.profile_delete) { _, _ -> store.wipeAll(); finish() }
                 .setNegativeButton(R.string.cancel, null)
@@ -50,6 +65,9 @@ class AvansertActivity : AppCompatActivity() {
 
         // «Fjern inaktiv lagleder» (musingsUI runde 6/9) — FRONT-END-SKJELETT.
         entry(getString(R.string.team_remove_inactive)) { removeInactiveLeader() }
+
+        // Sikkerhetskopi (backend_spec §2, musingsUI runde 12)
+        entry(getString(R.string.backup_title)) { backupMenu() }
 
         // Del med forskning av/på (musingsUI runde 8): valget bor nå her, ikke i
         // en oppstartspopup. På = "ja", av = "aldri". LÅST AV i runde 10 —
@@ -111,15 +129,39 @@ class AvansertActivity : AppCompatActivity() {
         content.addView(hint)
         updateQueueUi()
 
-        // Lagre scannede skjermbilder i bildearkivet (musingsUI runde 10)
-        content.addView(SwitchCompat(this).apply {
-            text = getString(R.string.save_scans_gallery)
-            isChecked = store.saveScansToGallery
+        // Lagre scannede skjermbilder i bildearkivet (musingsUI runde 10/12).
+        // Tre valg, ikke av/på: «alle» fyller kamerarullen med treningsserier,
+        // «aldri» kaster bildene man faktisk ville beholdt.
+        content.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.save_scans_gallery_choice)
             setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
-                0, Ui.dp(this@AvansertActivity, 12))
-            setOnCheckedChangeListener { _, on -> store.saveScansToGallery = on }
+                0, Ui.dp(this@AvansertActivity, 4))
         })
+        val galleryRow = Ui.row(this)
+        val galleryModes = listOf(
+            Store.GallerySave.ALDRI to R.string.save_scans_never,
+            Store.GallerySave.ALLE to R.string.save_scans_all,
+            Store.GallerySave.BESTE to R.string.save_scans_best)
+        lateinit var fillGallery: () -> Unit
+        fillGallery = {
+            galleryRow.removeAllViews()
+            galleryModes.forEach { (mode, res) ->
+                galleryRow.addView(Ui.choiceButton(this, getString(res),
+                    store.saveScansMode == mode, small = true) {
+                    store.saveScansMode = mode
+                    fillGallery()
+                }.apply {
+                    layoutParams = android.widget.LinearLayout.LayoutParams(0,
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginEnd = Ui.dp(this@AvansertActivity, 6)
+                    }
+                })
+            }
+        }
+        fillGallery()
+        content.addView(galleryRow, Ui.matchWrap(0, this))
         content.addView(Ui.hint(this, getString(R.string.save_scans_gallery_hint)))
+        content.addView(Ui.hint(this, getString(R.string.save_scans_best_hint)))
 
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {
@@ -178,6 +220,116 @@ class AvansertActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- Sikkerhetskopi (backend_spec §2) ----------
+
+    private fun backupMenu() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.backup_title)
+            .setItems(arrayOf(getString(R.string.backup_show_code),
+                getString(R.string.backup_now),
+                getString(R.string.backup_restore))) { _, which ->
+                when (which) {
+                    0 -> showRecoveryCode()
+                    1 -> ensureCode { doBackup(force = false) }
+                    2 -> confirmRestore()
+                }
+            }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    /**
+     * Koden lages ved første behov og vises ÉN gang med en tydelig beskjed om
+     * hva den er til. Den kan hentes fram igjen herfra — alternativet ville
+     * vært en kode brukeren aldri kan finne igjen, og da tar ingen kopi.
+     */
+    private fun ensureCode(after: () -> Unit) {
+        if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
+        if (store.backupCodeShown) { after(); return }
+        showRecoveryCode(after)
+    }
+
+    private fun showRecoveryCode(after: (() -> Unit)? = null) {
+        if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
+        val col = Ui.col(this, 24)
+        col.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.backup_code_body)
+            textSize = 15f
+        })
+        col.addView(android.widget.TextView(this).apply {
+            text = Backup.formatCode(store.backupCode)
+            textSize = 22f
+            typeface = android.graphics.Typeface.MONOSPACE
+            gravity = android.view.Gravity.CENTER
+            setTextIsSelectable(true)          // så koden kan kopieres ut
+            setPadding(0, Ui.dp(this@AvansertActivity, 20), 0, 0)
+        })
+        AlertDialog.Builder(this)
+            .setTitle(R.string.backup_code_title)
+            .setView(androidx.core.widget.NestedScrollView(this).apply { addView(col) })
+            .setPositiveButton(R.string.backup_code_saved) { _, _ ->
+                store.backupCodeShown = true
+                after?.invoke()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun doBackup(force: Boolean) {
+        Ui.toast(this, R.string.backup_working)
+        Api.io {
+            val resp = Backup.upload(this, store.backupCode, force)
+            Api.ui {
+                when {
+                    resp.ok -> Ui.toast(this, getString(R.string.backup_done,
+                        resp.body.length.coerceAtLeast(1)))
+                    resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
+                    // 409: serveren har en NYERE kopi. Overskriving er et
+                    // bevisst valg («gjenopprett fra denne enheten»), ikke noe
+                    // vi skal gjøre automatisk.
+                    resp.code == 409 -> Ui.warningDialog(this)
+                        .setMessage(R.string.backup_conflict)
+                        .setPositiveButton(R.string.overwrite) { _, _ -> doBackup(force = true) }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
+                    else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
+                }
+            }
+        }
+    }
+
+    private fun confirmRestore() {
+        Ui.warningDialog(this)
+            .setMessage(R.string.backup_restore_confirm)
+            .setPositiveButton(R.string.backup_restore) { _, _ -> doRestore() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun doRestore() {
+        Ui.toast(this, R.string.backup_working)
+        Api.io {
+            val result = try {
+                Backup.downloadAndRestore(this, store.backupCode) to null
+            } catch (e: Backup.BadCodeException) {
+                null to e
+            }
+            val resp = result.first
+            Api.ui {
+                when {
+                    result.second != null -> Ui.toast(this, R.string.backup_bad_code)
+                    resp == null -> Unit
+                    resp.ok -> { Ui.toast(this, R.string.backup_restored); recreate() }
+                    resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
+                    resp.code == 404 -> Ui.toast(this, R.string.backup_none)
+                    resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
+                    else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
+                }
+            }
+        }
+    }
+
     /**
      * «Fjern inaktiv lagleder» (musingsUI runde 9): dialogen med jaktlag-valg
      * vises KUN når flere lag har inaktiv lagleder; ellers toast «Ingen inaktive
@@ -215,13 +367,22 @@ class AvansertActivity : AppCompatActivity() {
                 getString(R.string.dev_always_startup) + ": " +
                     (if (store.alwaysShowStartup) "på" else "av"),
                 getString(R.string.dev_add_friend),
-                getString(R.string.dev_api_url))) { _, which ->
+                getString(R.string.dev_api_url),
+                getString(R.string.dev_backup_selftest))) { _, which ->
                 when (which) {
                     0 -> DevTools.generateSeries(this)
                     1 -> DevTools.dummyScan(this)
                     2 -> store.alwaysShowStartup = !store.alwaysShowStartup
                     3 -> DevTools.addFriendDialog(this)
                     4 -> apiUrlDialog()
+                    // Verifiserer blobformatet uten server og uten innlogging.
+                    5 -> Api.io {
+                        val r = Backup.selfTest(this)
+                        Api.ui { AlertDialog.Builder(this)
+                            .setTitle(R.string.dev_backup_selftest)
+                            .setMessage(r)
+                            .setPositiveButton(R.string.ok, null).show() }
+                    }
                 }
             }
             .setNegativeButton(R.string.cancel, null)

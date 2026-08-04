@@ -137,23 +137,61 @@ class ResultActivity : AppCompatActivity() {
     private fun askGallerySave(onDone: () -> Unit) {
         if (store.saveScansAsked) { onDone(); return }
         store.saveScansAsked = true
+        // Tre valg (musingsUI runde 12) i en liste framfor tre knapperader:
+        // knapperekkefølgen i AlertDialog er nøytral–negativ–positiv, som ikke
+        // er lesbar når valgene er likestilte.
+        val labels = arrayOf<CharSequence>(
+            getString(R.string.gallery_save_never),
+            getString(R.string.gallery_save_all),
+            getString(R.string.gallery_save_best))
         AlertDialog.Builder(this)
             .setMessage(R.string.gallery_save_ask)
-            .setPositiveButton(R.string.yes) { _, _ ->
-                store.saveScansToGallery = true; galleryInfo(onDone)
-            }
-            .setNegativeButton(R.string.no) { _, _ ->
-                store.saveScansToGallery = false
-                deleteGalleryImage()
+            .setItems(labels) { _, which ->
+                store.saveScansMode = when (which) {
+                    0 -> Store.GallerySave.ALDRI
+                    1 -> Store.GallerySave.ALLE
+                    else -> Store.GallerySave.BESTE
+                }
+                // «Nei» skal også fjerne bildet fra DENNE scanen —
+                // CaptureActivity lagrer først og spør etterpå.
+                if (store.saveScansMode == Store.GallerySave.ALDRI) deleteGalleryImage()
                 galleryInfo(onDone)
             }
             .setCancelable(false)
             .show()
     }
 
+    /**
+     * «De beste» kan først avgjøres her: poengene finnes ikke ved fangst.
+     * Kvalifiserer serien ikke, fjernes bildet igjen fra bildearkivet.
+     */
+    private fun pruneGalleryImage(r: SeriesRecord) {
+        if (store.saveScansMode != Store.GallerySave.BESTE) return
+        if (!store.isTopSeries(r)) deleteGalleryImage()
+    }
+
+    /**
+     * «Du kan endre dette valget i Avanserte innstillinger» — med equalizer-
+     * ikonet ved siden av (musingsUI runde 12), og ikonet tar deg dit. En
+     * beskjed om hvor et valg bor, uten en vei dit, er bare en oppfordring til
+     * å lete selv.
+     */
     private fun galleryInfo(onDone: () -> Unit) {
+        val row = Ui.row(this).apply {
+            val p = Ui.dp(this@ResultActivity, 24)
+            setPadding(p, p, p, 0)
+        }
+        row.addView(Ui.advancedIcon(this))
+        row.addView(TextView(this).apply {
+            text = getString(R.string.gallery_save_info)
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = Ui.dp(this@ResultActivity, 12)
+            }
+        })
         AlertDialog.Builder(this)
-            .setMessage(R.string.gallery_save_info)
+            .setView(row)
             .setPositiveButton(R.string.ok) { _, _ -> onDone() }
             .setOnCancelListener { onDone() }
             .show()
@@ -211,7 +249,9 @@ class ResultActivity : AppCompatActivity() {
     }
 
     private fun askSaveLastTwo(firstToday: SeriesRecord, proceed: () -> Unit) {
-        AlertDialog.Builder(this)
+        // Advarselsikon (musingsUI runde 12): «Ikke lagre» her sletter også
+        // dagens FØRSTE serie, ikke bare denne.
+        Ui.warningDialog(this)
             .setTitle(R.string.sightin_savetwo_title)
             .setPositiveButton(R.string.sightin_save_anyway) { _, _ -> proceed() }
             .setNegativeButton(R.string.sightin_dont_save) { _, _ ->
@@ -291,8 +331,11 @@ class ResultActivity : AppCompatActivity() {
         // kjernen (§6). Knappen er et EKSPLISITT samtykke for akkurat dette
         // bildet, uavhengig av den generelle bildedelings-innstillingen.
         if (imagePath != null) {
+            // Egen ramme (musingsUI runde 12): borderless leste som brødtekst,
+            // og et avvist bilde er nettopp det vi helst vil at brukeren trykker
+            // på — da må det se ut som en knapp.
             content.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = getString(R.string.result_send_fail)
                 layoutParams = Ui.matchWrap(16, this@ResultActivity)
                 setOnClickListener {
@@ -405,22 +448,24 @@ class ResultActivity : AppCompatActivity() {
     private fun pointsColumn(title: String, values: List<Double>, size: Float): LinearLayout {
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            // Poengene midtstilles under «Poeng:» (musingsUI runde 9)
-            gravity = Gravity.CENTER_HORIZONTAL
+            // Både «Poeng:» og verdiene ligger inntil HØYRE skjermkant
+            // (musingsUI runde 12). Midtstilling (runde 9) lot lista flyte
+            // mellom skiva og kanten uten noen loddrett linje å hvile mot.
+            gravity = Gravity.END
             setPadding(Ui.dp(this@ResultActivity, 8), 0, 0, 0)
         }
         col.addView(TextView(this).apply {
             text = title
             // Samme størrelse som poengene under, i fet (musingsUI runde 8)
             textSize = size
-            gravity = Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.END
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         values.forEach { v ->
             col.addView(TextView(this).apply {
                 text = "%.1f".format(v)
                 textSize = size
-                gravity = Gravity.CENTER
+                gravity = Gravity.END
                 minWidth = Ui.dp(this@ResultActivity, 40)
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -513,6 +558,9 @@ class ResultActivity : AppCompatActivity() {
     private fun commitAndFinish() {
         val r = record ?: return finish()
         if (!saved) { store.addSeries(r); saved = true }
+        // Etter lagring, så «beste noensinne» måles mot en historikk som
+        // inkluderer denne serien.
+        pruneGalleryImage(r)
         if (r.corrected && !r.sendToFailChannel) {
             Dialogs.failChannelConsent(this) { yes ->
                 if (yes) { r.sendToFailChannel = true; store.updateSeries(r) }

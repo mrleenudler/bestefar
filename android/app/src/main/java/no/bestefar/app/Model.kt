@@ -216,7 +216,15 @@ data class SeriesRecord(
     var corrected: Boolean = false,
     var sendToFailChannel: Boolean = false,
     var uploaded: Boolean = false,
+    /**
+     * SOFT-DELETE (musingsUI runde 12). 0 = i live. Sletting nuller ikke raden,
+     * den setter tidsstempelet — ellers har vi ingen måte å fortelle backenden
+     * at posten ER slettet, og en synk ville bare lagt den inn igjen fra
+     * serverens kopi. Radene er noen hundre byte, så prisen er null.
+     */
+    var deletedAt: Long = 0L,
 ) {
+    val deleted get() = deletedAt > 0L
     val sumDecimal get() = shots.sumOf { it.decimal }
     val sumInteger get() = shots.sumOf { it.integer }
     /** Alle øvelsesserier teller nå (benk fjernet, musingsUI runde 4). */
@@ -230,6 +238,7 @@ data class SeriesRecord(
         put("shots", JSONArray().apply { shots.forEach { put(it.toJson()) } })
         put("corrected", corrected); put("sendFail", sendToFailChannel)
         put("uploaded", uploaded)
+        put("deletedAt", deletedAt)
     }
     companion object {
         fun fromJson(o: JSONObject): SeriesRecord {
@@ -245,6 +254,7 @@ data class SeriesRecord(
                 corrected = o.optBoolean("corrected", false),
                 sendToFailChannel = o.optBoolean("sendFail", false),
                 uploaded = o.optBoolean("uploaded", false),
+                deletedAt = o.optLong("deletedAt", 0L),
             )
         }
     }
@@ -269,7 +279,11 @@ data class HuntRecord(
     val clockPos: Int? = null,      // vinkling som klokkeposisjon 1–6 (placeholder)
     val created: Long = ts,         // faktisk opprettelsestid (tie-break på lik dato)
     val fellingSuccess: Boolean = true,  // «felling vellykket» (musingsUI runde 6)
+    /** Soft-delete, se [SeriesRecord.deletedAt] (musingsUI runde 12). */
+    var deletedAt: Long = 0L,
 ) {
+    val deleted get() = deletedAt > 0L
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("ts", ts); put("species", species.name)
         put("distanceM", distanceM); put("angle", angle.name); put("moving", moving)
@@ -282,6 +296,7 @@ data class HuntRecord(
         put("ranM", ranM ?: JSONObject.NULL)
         put("clockPos", clockPos ?: JSONObject.NULL)
         put("created", created); put("fellingSuccess", fellingSuccess)
+        put("deletedAt", deletedAt)
     }
     companion object {
         fun fromJson(o: JSONObject): HuntRecord {
@@ -304,6 +319,7 @@ data class HuntRecord(
                 clockPos = if (o.isNull("clockPos")) null else o.getInt("clockPos"),
                 created = o.optLong("created", ts),
                 fellingSuccess = o.optBoolean("fellingSuccess", true),
+                deletedAt = o.optLong("deletedAt", 0L),
             )
         }
     }

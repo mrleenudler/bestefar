@@ -400,3 +400,62 @@ uten nett — offline-først er ikke svekket, bare supplert.
 - Ingen nye tillatelser brukeren merker: `INTERNET` og `ACCESS_NETWORK_STATE`
   krever ikke samtykke. Ingen data forlater telefonen uten at brukeren har sagt ja
   til bildedeling eller selv trykket «Send».
+
+## 20. Endringslogg v0.15 (musingsUI runde 12)
+
+### Systemlinjer
+- **Svart statuslinje også i lys visning.** Fungerte i runde 10, sluttet å virke
+  da `targetSdk` gikk til 36: Android ignorerer da
+  `windowOptOutEdgeToEdgeEnforcement`, og `statusBarColor` blir en no-op.
+  Appen tegner nå baren selv (`Ui.paintSystemBars`, registrert globalt i
+  `BestefarApp`). No-op på enheter der opt-out-en fortsatt virker.
+
+### Bildearkiv
+- **«Lagre skjermbildene i bildearkivet?» har tre valg: Nei / Alle / De beste.**
+  Erstatter av/på. «De beste» = blant de 25 % beste i SAMME stilling, eller
+  beste serie noensinne. Valget kan ikke avgjøres ved fangst (poengene finnes
+  først etter analysen), så bildet lagres alltid og ryddes bort igjen hvis
+  serien ikke kvalifiserer. Gammel bryter migreres: på → Alle, av → Aldri.
+- Samme tre valg i Avanserte innstillinger (Aldri / Alle / De beste).
+
+### Avanserte innstillinger
+- **Equalizer-ikon** (`ic_settings_sliders`) følger enhver henvisning til siden
+  og åpner den: knappen i Min profil, dialogen etter første scan, og sidens egen
+  tittel (der uten klikk — vi er framme). `Ui.advancedIcon()` er hjelperen nye
+  henvisninger skal bruke.
+- **Ny oppføring «Sikkerhetskopi»**: vis gjenopprettingskode, lag kopi,
+  gjenopprett.
+
+### Advarselsikon
+- Rød advarselstrekant (`Ui.warningDialog()`) på dialoger der noe forsvinner og
+  ikke kan hentes tilbake: slett skudd, slett serier, slett alle data,
+  innskytingens «Ikke lagre» (som også sletter dagens første serie), og
+  overskriv nyere sikkerhetskopi. **Ikke** på bekreftelser som bare er et
+  veivalg — ellers slites ikonet ut.
+
+### Scan og resultat
+- «Poeng:» og poenglista ligger nå inntil **høyre** skjermkant.
+- Avvist-skjermen: knappen heter «Scan på ny», og «Send bildet til feilanalyse»
+  har fått ramme (var borderless og leste som brødtekst).
+
+### Innsikt
+- **Rådyr har egne silhuetter** (front/skrå/side). Falt tidligere gjennom til
+  hjort — feil art, og den arten der forveksling betyr mest for
+  skuddvurderingen.
+
+### Jaktlogg
+- Rediger-animasjonen viser bare tallet; feltets understrek fjernes mens
+  animasjonen står på og settes tilbake etterpå (også ved avbrudd).
+
+### Oppstart
+- Bildedelings-meldingen har en stor emoji over teksten. Emojien ligger i
+  `startup_donate_emoji` og kan byttes uten kodeendring.
+
+### Data (ikke synlig i UI, men merkbart i oppførsel)
+- **Soft-delete:** slettede serier og jaktposter blir stående som gravsteiner
+  med `deletedAt`. Uten dem ville en gjenoppretting fra sikkerhetskopi legge
+  inn igjen det brukeren har slettet.
+- **Klient-kryptert sikkerhetskopi** (backend_spec §2). Nøkkelen utledes fra en
+  generert gjenopprettingskode på 20 tegn som vises én gang. Mister brukeren
+  koden, er kopien tapt — det står eksplisitt i dialogen, og følger av at
+  serveren ikke kan lese bloben.

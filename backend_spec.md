@@ -367,3 +367,29 @@ Klientsiden av kontrakten. Bygget mot fase 1-endepunktene og verifisert mot
 - **Ikke koblet inn ennå:** `/v1/stats` (krever `deps.current_user`) og
   `/v1/research` (sperret av `Dialogs.RESEARCH_ENABLED`). `SeriesRecord.uploaded`
   står fortsatt urørt og venter på konto (§1).
+
+## 13. Klientsiden av backup-bloben (Android, v0.15)
+Tillegg til §2. Serveren skal fortsatt ikke kunne lese noe av dette — det står
+her bare så backend-siden vet hva de ugjennomsiktige bytene er.
+
+- **Blob-format** (`Backup.kt`):
+  `"BFBK" | 1 B versjon | 16 B salt | 12 B IV | AES-256-GCM (tag 128 bit)`.
+  Klartekst er JSON: `{v, app, ts, prefs, series[], hunts[]}` — `series`/`hunts`
+  er **rå**, altså inkludert soft-slettede poster.
+- **Nøkkel:** PBKDF2-HMAC-SHA256, 210 000 runder, over en generert
+  gjenopprettingskode på 20 tegn (Crockford-base32 minus I/L/O/U ⇒ 100 bit).
+  Ikke et brukervalgt passord: angriperen har hele bloben og kan gjette offline,
+  så ingen server kan bremse ham. Konsekvensen står i UI-et — mister brukeren
+  koden, er kopien tapt, og **serveren kan ikke hjelpe**. Ikke bygg noe
+  «gjenopprett kopien min»-endepunkt; det finnes ingen ærlig implementasjon.
+- **Klienten bruker `client_ts`** = tidspunktet snapshotet ble laget, og setter
+  `?force=true` kun når brukeren har svart ja på «overskriv den nyere kopien».
+  409 vises som en egen dialog, ikke som en feil.
+- **Soft-delete er innført klientside:** `SeriesRecord.deletedAt` /
+  `HuntRecord.deletedAt` (0 = lever). Gravsteinene ligger i bloben, så
+  last-write-wins per post-ID kan faktisk håndheves ved gjenoppretting. Når
+  §5-synken kommer, må slettede poster sendes som gravstein — ikke utelates.
+- **Serie-synk-køen er bevisst IKKE bygget ennå.** To parallelle synkveier over
+  samme data (blob + per-post `/v1/stats`) bør ikke finnes før det er avgjort
+  hvilken som eier sannheten. Forslag: bloben eier «alt mitt», `/v1/stats` eier
+  det som skal kunne deles/aggregeres.

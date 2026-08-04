@@ -276,6 +276,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (!ask) { if (!store.tutorialSeen) showTutorial(); return }
         overlayMessage(null, getString(R.string.startup_donate),
+            emoji = getString(R.string.startup_donate_emoji),
             positive = getString(R.string.donate_accept),
             negative = getString(R.string.no_thanks),
             onPositive = {
@@ -289,7 +290,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun overlayMessage(title: String?, body: String, positive: String,
-                               negative: String? = null,
+                               negative: String? = null, emoji: String? = null,
                                onPositive: () -> Unit, onNegative: () -> Unit = {}) {
         val overlay = FrameLayout(this).apply {
             // Nesten ugjennomsiktig flate så knappen bak er dekket
@@ -297,6 +298,16 @@ class MainActivity : AppCompatActivity() {
             isClickable = true
         }
         val col = Ui.col(this, 28)
+        // Stor emoji over teksten (musingsUI runde 12): meldingen var ren tekst
+        // og leste som en systemdialog. Emojien ligger i en egen streng slik at
+        // den kan byttes uten kodeendring.
+        if (emoji != null) col.addView(TextView(this).apply {
+            text = emoji
+            textSize = 56f
+            gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = Ui.matchWrap(0, this@MainActivity)
+            setPadding(0, 0, 0, Ui.dp(this@MainActivity, 16))
+        })
         if (title != null) col.addView(TextView(this).apply {
             text = title; textSize = 24f
             setPadding(0, 0, 0, Ui.dp(this@MainActivity, 16))

@@ -110,29 +110,72 @@ object Api {
 
     private fun OutputStream.ascii(s: String) = write(s.toByteArray(Charsets.UTF_8))
 
-    private fun request(ctx: Context, path: String, contentType: String,
+    /**
+     * Rå kropp med valgfri metode — sikkerhetskopien sendes som
+     * `application/octet-stream` med metadata i query-strengen (backend_spec
+     * §2), ikke som base64 i JSON. Det sparer ~33 % på den største
+     * nyttelasten appen har.
+     */
+    fun send(ctx: Context, method: String, path: String, contentType: String? = null,
+             body: ByteArray? = null): Resp =
+        request(ctx, path, contentType, method) { out -> body?.let { out.write(it) } }
+
+    /** Som [send], men svaret leses som bytes (nedlasting av kopien). */
+    fun download(ctx: Context, path: String): Pair<Resp, ByteArray?> {
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = open(ctx, path, "GET", null, output = false)
+            val code = conn.responseCode
+            if (code in 200..299) {
+                val bytes = conn.inputStream.use { it.readBytes() }
+                Log.d(TAG, "GET $path -> $code (${bytes.size} byte)")
+                Resp(code, "") to bytes
+            } else {
+                val text = conn.errorStream?.bufferedReader(Charsets.UTF_8)
+                    ?.use { it.readText() } ?: ""
+                Log.d(TAG, "GET $path -> $code")
+                Resp(code, text) to null
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "GET $path feilet: ${e.message}")
+            Resp(0, e.message ?: "") to null
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    private fun open(ctx: Context, path: String, method: String,
+                     contentType: String?, output: Boolean): HttpURLConnection =
+        (URL(baseUrl(ctx) + path).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = CONNECT_MS
+            readTimeout = READ_MS
+            doOutput = output
+            contentType?.let { setRequestProperty("Content-Type", it) }
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "Bestefar/${BuildConfig.VERSION_NAME} (Android)")
+            // Innlogging (backend_spec §1). Tom til fase 3 er koblet inn i
+            // klienten; endepunktene som krever bruker svarer da 401, som er
+            // riktig oppførsel og ikke en feil å skjule.
+            val token = Store.get(ctx).authToken
+            if (token.isNotEmpty()) setRequestProperty("Authorization", "Bearer $token")
+            if (output) setChunkedStreamingMode(0)   // ukjent kroppslengde
+        }
+
+    private fun request(ctx: Context, path: String, contentType: String?,
+                        method: String = "POST",
                         writeBody: (OutputStream) -> Unit): Resp {
         var conn: HttpURLConnection? = null
         return try {
-            conn = (URL(baseUrl(ctx) + path).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = CONNECT_MS
-                readTimeout = READ_MS
-                doOutput = true
-                setRequestProperty("Content-Type", contentType)
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("User-Agent", "Bestefar/${BuildConfig.VERSION_NAME} (Android)")
-                // Ukjent kroppslengde (fil kan være stor) -> chunked.
-                setChunkedStreamingMode(0)
-            }
+            conn = open(ctx, path, method, contentType, output = true)
             conn.outputStream.use(writeBody)
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            Log.d(TAG, "POST $path -> $code")
+            Log.d(TAG, "$method $path -> $code")
             Resp(code, text)
         } catch (e: Exception) {
-            Log.d(TAG, "POST $path feilet: ${e.message}")
+            Log.d(TAG, "$method $path feilet: ${e.message}")
             Resp(0, e.message ?: "")
         } finally {
             conn?.disconnect()

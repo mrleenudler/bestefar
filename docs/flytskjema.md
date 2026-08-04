@@ -4,7 +4,7 @@ To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
 (`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
 `BestefarCore.analyze()` i `CaptureActivity`.
 
-Diagrammene er avledet fra koden slik den står i v0.13, ikke fra spesifikasjonen.
+Diagrammene er avledet fra koden slik den står i v0.15, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
 
 ---
@@ -138,14 +138,14 @@ flowchart TD
     subgraph SCANFLYT ["Scan-flyten"]
         direction TB
         SCAN["CaptureActivity<br/>eneste LIGGENDE skjerm"]
-        SCAN --> GALS["Lagre JPEG i Bilder/Bestefar<br/>hvis saveScansToGallery"]
+        SCAN --> GALS["Lagre JPEG i Bilder/Bestefar<br/>hvis saveScansMode ≠ ALDRI"]
         GALS --> ANA["BestefarCore.analyze — JNI"]
         ANA --> SIDE["JSON-sidecar i app-mappen"]
         SIDE --> RES["Resultatkort · ResultActivity"]
         RES --> ST{"status"}
-        ST -->|"avvist"| RSC["«Bildet ble ikke korrekt analysert.<br/>Scan bildet på ny.»<br/>Avbryt · Scan"]
+        ST -->|"avvist"| RSC["«Bildet ble ikke korrekt analysert.<br/>Scan bildet på ny.»<br/>Avbryt · Scan på ny<br/>+ ⌷ Send bildet til feilanalyse"]
         ST -->|"OK"| GAL{"Første scan?"}
-        GAL -->|"ja"| GALQ["«Lagre skjermbildet i bildearkivet?»<br/>→ «Kan endres i Avanserte innstillinger»"]
+        GAL -->|"ja"| GALQ["«Ønsker du at skjermbildene skal<br/>lagres i bildearkivet ditt?»<br/>Nei · Alle · De beste<br/>→ 🎛 «Kan endres i Avanserte innstillinger»"]
         GAL -->|"nei"| POS
         GALQ --> POS["Stillingsvelger<br/>liggende · sittende · knestående · stående<br/>+ anlegg / reim"]
         POS --> SI{"Ser innskutt skjevt ut?<br/>Stats.looksMiscalibrated"}
@@ -184,7 +184,8 @@ flowchart TD
         MENY --> M5["Send melding"]
         MENY --> M6["Veiledning"]
         M1 --> M1a["Mine lag"]
-        M1 --> M1b["Avanserte innstillinger<br/>våpen · bildearkiv · bildedeling ·<br/>venstrehånd · utviklermeny"]
+        M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
+        M1b --> M1c["Sikkerhetskopi<br/>Vis gjenopprettingskode ·<br/>Sikkerhetskopier nå · Gjenopprett"]
         M2 --> M2a["Logg jaktskudd<br/>«Detaljert visning» av → enkel side<br/>på → to sider"]
         M2 --> M2b["Se registrerte skudd → Rediger"]
         M3 --> M3a["Lagside"]
@@ -204,5 +205,17 @@ flowchart TD
   kalibrert skiva»; OCR-uenighet fanger den vanskeligere klassen der analysen
   *lyktes* men leste feil — typisk opp-ned-bildene.
 - **Alt er offline.** `Store` skriver `series.json` / `hunts.json` i appens egen
-  filkatalog. Ingen konto, ingen backend; venner/lag er front-end-skjelett (se
-  `backend_spec.md`).
+  filkatalog. Appen virker uten konto; venner/lag er front-end-skjelett (se
+  `backend_spec.md`). Nett brukes kun til feilanalyse-køen og sikkerhetskopien.
+
+### Nytt i v0.15
+
+- **Sletting er soft-delete.** `deleteSeries`/`deleteHunts` setter `deletedAt`
+  i stedet for å fjerne raden. Visningskoden ser ingen forskjell
+  (`allSeries()`/`allHunts()` filtrerer), men `…Raw()` beholder gravsteinen så
+  en gjenoppretting ikke legger inn igjen det brukeren har slettet.
+- **Sikkerhetskopien er klient-kryptert.** `Backup.build()` → AES-256-GCM med
+  nøkkel utledet fra en generert gjenopprettingskode; serveren lagrer bytes den
+  ikke kan lese. Mister brukeren koden, er kopien tapt — og det står i dialogen.
+- **🎛-ikonet.** Overalt der «Avanserte innstillinger» nevnes ligger det et
+  equalizer-ikon som åpner siden direkte (`Ui.advancedIcon`).

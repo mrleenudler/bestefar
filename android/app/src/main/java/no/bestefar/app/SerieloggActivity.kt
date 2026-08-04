@@ -341,7 +341,7 @@ class SerieloggActivity : AppCompatActivity() {
     }
 
     private fun confirmDelete(ids: Set<String>) {
-        AlertDialog.Builder(this)
+        Ui.warningDialog(this)
             .setMessage(resources.getQuantityString(
                 R.plurals.serielogg_delete_confirm, ids.size, ids.size))
             .setPositiveButton(R.string.serielogg_delete) { _, _ ->

@@ -710,3 +710,59 @@ UI-RUNDE 11 (v0.14) - BACKEND-KOBLING, KLIENTSIDEN:
   - Backend-agenten jobbet i samme repo SAMTIDIG (backend/app/models.py ble
     til pakken backend/app/models/, og backend_spec.md ble skrevet av begge).
     Rediger kun android/ + egne docs-seksjoner naar to instanser kjoerer.
+
+UI-RUNDE 12 (v0.15) LAERDOMMER:
+  - targetSdk 36 DREPER windowOptOutEdgeToEdgeEnforcement. Flagget virket paa
+    35, men Android ignorerer det for apper som targeter 36: edge-to-edge
+    tvinges, android:statusBarColor blir en NO-OP, og systemlinjene tegnes rett
+    oppaa appbakgrunnen. Symptomet er ASYMMETRISK og derfor forvirrende: i
+    moerk visning ser det riktig ut (bakgrunnen er nesten svart fra foer), i
+    LYS visning blir de hvite systemikonene uleselige paa lys brunt.
+    LOESNING: tegn baren selv (Ui.paintSystemBars) - svarte flater lagt i
+    android.R.id.content med hoeyde = systemBars-innsettene. Registrert én gang
+    i BestefarApp via ActivityLifecycleCallbacks, ikke i tolv aktiviteter.
+    No-op der opt-out-en fortsatt virker (innsett = 0). NB: en
+    setOnApplyWindowInsetsListener paa en ViewGroup MAA returnere insettene
+    UKONSUMERT, ellers slutter barna aa faa dem.
+  - TO SVG-FORMATER i UI/, og de kan IKKE konverteres likt:
+    (a) plain: <svg viewBox><path fill=currentColor> -> _convert_species_svgs.py
+    (b) potrace: hvitt bakgrunnsrektangel + HULL som <path fill="white"> oppaa.
+    Kjoerer (b) gjennom (a)-konverteren blir ikonet en SOLID KLUMP, fordi vi
+    tinter drawablen og «hvit» ikke finnes som farge der. Konverteren oppdager
+    naa varianten: kaster bakgrunnsrektangelet (bbox ~= hele lerretet) og slaar
+    resten sammen til ÉN path med android:fillType="evenOdd" - det er nettopp
+    hull-semantikken potrace koder med de hvite konturene. Sjekk alltid
+    per-path-bboksene foer du stoler paa resultatet.
+  - EditText-ens understrek er en del av VIEWET: en animasjon som skalerer/
+    flytter feltet tar streken med seg. Vil du animere bare tallet, sett
+    background = null under animasjonen. FELLE: animate().cancel() kaller ALDRI
+    withEndAction, saa gjenopprettingen maa ogsaa staa i alle avbrudds-stiene,
+    ellers mister feltet understreken for godt.
+  - SOFT-DELETE (deletedAt) maa inn FOER synk/backup, ikke samtidig: uten
+    gravstein finnes ingen forskjell paa «har aldri eksistert» og «brukeren
+    slettet den», og en gjenoppretting legger inn igjen slettede poster.
+    Slettinger gjort i mellomtiden kan ikke gjenskapes i ettertid.
+    MOENSTER: allSeries()/allHunts() filtrerer bort gravsteiner (all
+    visningskode uendret), allSeriesRaw()/allHuntsRaw() gir hele sannheten til
+    synk/backup. add/update/delete MAA bruke Raw-varianten, ellers slettes
+    gravsteinene av neste skriving.
+  - BACKUP-NOEKKELEN er problemet, ikke kryptoen. En noekkel som bare finnes paa
+    telefonen er verdiloes i akkurat det scenarioet kopien finnes for
+    (telefonen er borte). Derfor: generert gjenopprettingskode paa 20 tegn
+    (100 bit) -> PBKDF2-HMAC-SHA256, 210k runder -> AES-256-GCM. IKKE
+    brukervalgt passord: angriperen har hele bloben, ingen server bremser
+    gjetting. Blob: "BFBK" | versjon | 16B salt | 12B IV | chiffertekst.
+    Konsekvensen (mister du koden, er kopien tapt) MAA staa i UI-et.
+  - Store.exportPrefs() er generisk over prefs.all med ett typeprefiks-tegn
+    ('b','i','l','f','s','S'), ikke en haandskrevet feltliste: en ny
+    innstilling skal ikke kunne bli glemt i sikkerhetskopien.
+  - Store.kt importerte KUN JSONArray, ikke JSONObject - la til.
+  - AlertDialog.setItems() framfor tre knapper naar valgene er LIKESTILTE
+    (Nei/Alle/De beste): knapperekkefoelgen er noeytral-negativ-positiv og blir
+    uleselig for tre jevnbyrdige valg.
+  - «De beste»-valg som avhenger av POENGENE kan ikke avgjoeres ved fangst.
+    Loesning: lagre alltid, rydd bort i ResultActivity naar serien ikke
+    kvalifiserer (Store.isTopSeries).
+  - FELLE (eierens filer endrer seg UNDERVEIS): raadyr-side-SVGen ble doept om
+    fra "..._side_utilfredsstillende.svg" til "..._side.svg" midt i runden.
+    Faar du FileNotFoundError paa en fil du nettopp listet: list paa nytt.

@@ -166,10 +166,15 @@ class ProfilActivity : AppCompatActivity() {
         })
         content.addView(goalRow)
 
-        // Avanserte innstillinger som egen knapp -> undermeny
+        // Avanserte innstillinger som egen knapp -> undermeny. Equalizer-ikonet
+        // (musingsUI runde 12) følger enhver henvisning til siden, så brukeren
+        // lærer symbolet og finner tilbake.
         content.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.profile_advanced)
+            icon = androidx.core.content.ContextCompat.getDrawable(
+                this@ProfilActivity, R.drawable.ic_settings_sliders)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
             layoutParams = Ui.matchWrap(20, this@ProfilActivity)
             setOnClickListener { startActivity(Intent(this@ProfilActivity, AvansertActivity::class.java)) }
         })

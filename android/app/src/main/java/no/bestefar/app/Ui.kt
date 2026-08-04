@@ -96,6 +96,83 @@ object Ui {
         }
     }
 
+    /**
+     * Svarte systemlinjer — TEGNET AV OSS (musingsUI runde 12).
+     *
+     * `android:statusBarColor` + `windowOptOutEdgeToEdgeEnforcement` i themes.xml
+     * holdt bare fram til targetSdk 36: fra og med da ignorerer Android
+     * opt-out-en, edge-to-edge tvinges, og systemlinjene tegnes rett oppå
+     * appbakgrunnen. I MØRK visning merkes det ikke (bakgrunnen er nesten svart
+     * fra før), men i LYS visning står de hvite systemikonene på lys brunt og
+     * blir uleselige. Derfor legger vi selv en svart flate bak hver linje.
+     *
+     * Flatene legges i `android.R.id.content` ETTER appens rot, så de tegnes
+     * over den; høyden settes fra innsettene, som er 0 på enheter der
+     * opt-out-en fortsatt virker. Da blir dette en no-op i stedet for en
+     * dobbel-tegning.
+     */
+    fun paintSystemBars(a: android.app.Activity) {
+        val content = a.findViewById<android.widget.FrameLayout>(android.R.id.content) ?: return
+        fun scrim(gravity: Int) = View(a).apply {
+            setBackgroundColor(Color.BLACK)
+            layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, gravity)
+        }
+        val top = scrim(Gravity.TOP)
+        val bottom = scrim(Gravity.BOTTOM)
+        content.addView(top)
+        content.addView(bottom)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(content) { _, wi ->
+            val i = wi.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            top.layoutParams = top.layoutParams.also { it.height = i.top }
+            bottom.layoutParams = bottom.layoutParams.also { it.height = i.bottom }
+            wi
+        }
+        // Hvite systemikoner (svart bakgrunn) uansett lys/mørk visning.
+        androidx.core.view.WindowCompat.getInsetsController(a.window, a.window.decorView)
+            .apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
+    }
+
+    /**
+     * Dialogbygger for DESTRUKTIVE valg (musingsUI runde 12): rød
+     * advarselstrekant i tittelen. Brukes der noe forsvinner og ikke kan hentes
+     * tilbake — sletting av skudd, serier og «slett alle data». Bekreftelser
+     * som bare er et veivalg (f.eks. «lik serie, lagre likevel?») skal IKKE ha
+     * den; da slites ikonet ut og slutter å bety noe.
+     */
+    fun warningDialog(a: android.app.Activity): androidx.appcompat.app.AlertDialog.Builder {
+        val icon = androidx.core.content.ContextCompat.getDrawable(
+            a, R.drawable.ic_warning)?.mutate()
+        icon?.setTint(android.graphics.Color.parseColor("#C62828"))
+        return androidx.appcompat.app.AlertDialog.Builder(a)
+            .setIcon(icon)
+            .setTitle(R.string.warning_title)
+    }
+
+    /**
+     * Equalizer-ikonet som følger enhver henvisning til «Avanserte
+     * innstillinger» (musingsUI runde 12). Det er alltid klikkbart og går rett
+     * dit — en tekst som forteller hvor valget bor, men ikke tar deg dit, er
+     * bare en beskjed om å lete selv.
+     */
+    fun advancedIcon(a: android.app.Activity, sizeDp: Int = 28): View =
+        android.widget.ImageButton(a).apply {
+            setImageResource(R.drawable.ic_settings_sliders)
+            background = null
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            androidx.core.widget.ImageViewCompat.setImageTintList(this,
+                android.content.res.ColorStateList.valueOf(
+                    themeColor(a, com.google.android.material.R.attr.colorPrimary)))
+            contentDescription = a.getString(R.string.advanced_open)
+            layoutParams = LinearLayout.LayoutParams(dp(a, sizeDp), dp(a, sizeDp))
+            setOnClickListener {
+                a.startActivity(android.content.Intent(a, AvansertActivity::class.java))
+            }
+        }
+
     fun matchWrap(topDp: Int = 0, c: Context? = null): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT).apply {

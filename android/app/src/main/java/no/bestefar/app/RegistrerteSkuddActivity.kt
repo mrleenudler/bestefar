@@ -149,7 +149,7 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
     private fun exitSelection() { selectionMode = false; selected.clear(); renderList() }
 
     private fun confirmDeleteAll() {
-        AlertDialog.Builder(this)
+        Ui.warningDialog(this)
             .setMessage(R.string.delete_all_confirm)
             .setPositiveButton(R.string.delete_all) { _, _ ->
                 Store.get(this).deleteHunts(selected.toSet()); reload(); exitSelection()
@@ -302,10 +302,15 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
         // gir da ingen mening. Første gang settes tilstanden stille; endres den
         // av brukeren, fades tallet elegant ut før det slettes (musingsUI runde 8).
         var ranBlockInit = false
+        // Feltets egen understrek, tatt vare på én gang. Animasjonen skjuler
+        // den, og et avbrudd (animate().cancel()) kaller ALDRI withEndAction —
+        // uten dette ville understreken kunne bli borte for godt.
+        var ranUnderline: android.graphics.drawable.Drawable? = null
         fun setRanBlocked() {
             val block = outcome == Outcome.BOM ||
                 (outcome == Outcome.SKADE && notFoundBox.isChecked)
             ran.animate().cancel()
+            if (ranUnderline == null) ranUnderline = ran.background
             if (block) {
                 // Blokker innskriving UMIDDELBART (musingsUI runde 9): ikke bare
                 // deaktiver, men fjern fokuserbarhet så tastaturet ikke kan brukes.
@@ -316,6 +321,13 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
                     // Tallet vokser til DOBBEL størrelse og flyr opp mot høyre
                     // mens det fader ut (musingsUI runde 10). Pivot i venstre
                     // kant/bunn så veksten skjer oppover-høyre, ikke sentrert.
+                    //
+                    // Bakgrunnen tas bort mens det står på (musingsUI runde 12):
+                    // EditText-ens understrek er en del av VIEWET og ble derfor
+                    // skalert og flyttet sammen med tallet — det så ut som en
+                    // strek som fløy avgårde. Den settes tilbake når animasjonen
+                    // er ferdig, ellers mister feltet understreken for godt.
+                    ran.background = null
                     ran.pivotX = 0f
                     ran.pivotY = ran.height.toFloat()
                     ran.animate()
@@ -327,17 +339,20 @@ class RegistrerteSkuddActivity : AppCompatActivity() {
                         .setInterpolator(android.view.animation.AccelerateInterpolator())
                         .withEndAction {
                             ran.setText("")
+                            ran.background = ranUnderline
                             ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
                             ran.translationX = 0f; ran.translationY = 0f
                         }.start()
                 } else {
-                    ran.setText(""); ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
+                    ran.setText(""); ran.background = ranUnderline
+                    ran.scaleX = 1f; ran.scaleY = 1f; ran.alpha = 1f
                     ran.translationX = 0f; ran.translationY = 0f
                 }
             } else {
                 ran.isEnabled = true
                 ran.isFocusable = true
                 ran.isFocusableInTouchMode = true
+                ran.background = ranUnderline
                 ran.alpha = 1f; ran.scaleX = 1f; ran.scaleY = 1f
                 ran.translationX = 0f; ran.translationY = 0f
             }

@@ -327,8 +327,8 @@
     <!-- musingsUI runde 10 -->
     <string name="result_detected_label">Identifiserte treff:</string>
     <string name="rescan_body">Bildet ble ikke korrekt analysert. Scan bildet på ny.</string>
-    <string name="rescan_scan">Scan</string>
-    <string name="gallery_save_ask">Ønsker du at skjermbildet skal lagres i bildearkivet ditt?</string>
+    <string name="rescan_scan">Scan på ny</string>
+    <string name="gallery_save_ask">Ønsker du at skjermbildene skal lagres i bildearkivet ditt?</string>
     <string name="gallery_save_info">Du kan endre dette valget i «Avanserte innstillinger»</string>
     <string name="save_scans_gallery">Lagre scannede bilder i bildearkivet</string>
     <string name="save_scans_gallery_hint">Skjermbildet fra hver scan legges i Bilder/Bestefar, sammen med antall treff og sum.</string>
@@ -500,4 +500,47 @@
     <string name="innsikt_train_pos">øv på\nstillingen</string>
     <string name="innsikt_info_title">Min innsikt</string>
     <string name="innsikt_info_body">Her kan du utforske hva som er trygge hold og stillinger for ditt jaktmål.\n\nGrønn tekst betyr at du i denne situasjonen har nådd jaktmålet ditt, mens rød tekst betyr at det i denne situasjonen ikke er trygt for deg å skyte.\n\nHusk at de fleste skadeskudd skjer på dyr i bevegelse. Appen kan ikke fortelle deg hva som er trygt når dyr beveger seg, for det varierer fra situasjon til situasjon.</string>
+
+    <!-- ============ Runde 12 (v0.15) ============ -->
+    <!-- Emojien i oppstartsmeldingen står alene i en streng slik at den kan
+         byttes uten kodeendring. -->
+    <string name="startup_donate_emoji">🙏</string>
+
+    <!-- Galleri-lagring: tre valg i stedet for av/på (musingsUI runde 12) -->
+    <string name="gallery_save_never">Nei</string>
+    <string name="gallery_save_all">Alle</string>
+    <string name="gallery_save_best">De beste</string>
+    <string name="save_scans_gallery_choice">Lagre scannede bilder i bildearkivet</string>
+    <string name="save_scans_never">Aldri</string>
+    <string name="save_scans_all">Alle</string>
+    <string name="save_scans_best">De beste</string>
+    <string name="save_scans_best_hint">«De beste» lagrer seriene som er blant dine 25 %% beste i samme stilling, og alltid din beste serie noensinne.</string>
+
+    <!-- Snarvei til Avanserte innstillinger -->
+    <string name="advanced_open">Åpne Avanserte innstillinger</string>
+    <string name="advanced_settings_name">Avanserte innstillinger</string>
+
+    <!-- Advarselsdialoger -->
+    <string name="warning_title">Er du sikker?</string>
+
+    <!-- Sikkerhetskopi (backend_spec §2) -->
+    <string name="backup_title">Sikkerhetskopi</string>
+    <string name="backup_code_title">Gjenopprettingskoden din</string>
+    <string name="backup_code_body">Skriv ned denne koden og ta vare på den et annet sted enn på telefonen.\n\nSikkerhetskopien er kryptert på telefonen din før den sendes. Verken vi eller noen andre kan lese den uten koden — og mister du koden, er kopien tapt.</string>
+    <string name="backup_code_saved">Jeg har skrevet den ned</string>
+    <string name="backup_show_code">Vis gjenopprettingskoden</string>
+    <string name="backup_now">Lag sikkerhetskopi nå</string>
+    <string name="backup_restore">Gjenopprett fra sikkerhetskopi</string>
+    <string name="backup_restore_confirm">Gjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i sikkerhetskopien. Det som ligger her nå, blir borte.</string>
+    <string name="backup_working">Jobber …</string>
+    <string name="backup_done">Sikkerhetskopi lagret (%1$d KB)</string>
+    <string name="backup_restored">Sikkerhetskopi gjenopprettet</string>
+    <string name="backup_need_login">Du må være innlogget for å bruke sikkerhetskopi. Innlogging kommer i neste versjon.</string>
+    <string name="backup_none">Ingen sikkerhetskopi funnet</string>
+    <string name="backup_conflict">Sikkerhetskopien på serveren er nyere enn dataene her. Vil du overskrive den likevel?</string>
+    <string name="backup_bad_code">Feil gjenopprettingskode, eller skadet kopi.</string>
+    <string name="backup_failed">Sikkerhetskopien feilet (%1$d)</string>
+    <string name="backup_offline">Ingen nettforbindelse</string>
+    <string name="overwrite">Overskriv</string>
+    <string name="dev_backup_selftest">Test sikkerhetskopi (rundtur)</string>
 </resources>
