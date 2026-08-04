@@ -99,6 +99,22 @@ def test_epost_invitasjon_gir_lenke_og_kvittering(client):
     assert r.json()["url"].startswith("http")
 
 
+def test_invitasjonen_sendes_til_den_inviterte(client, monkeypatch):
+    """Regresjonsvern: mailer.send() var skrevet for §10, der mottakeren alltid
+    er utviklerens innboks. Uten `to=` havnet lag-invitasjonene der i stedet
+    for hos den inviterte, og `delivery_status: sent` saa helt riktig ut."""
+    from app.routers import teams as teams_router
+    sendt: list = []
+    monkeypatch.setattr(teams_router.mailer, "send",
+                        lambda cfg, subject, body, reply_to=None, to=None:
+                        sendt.append(to))
+
+    lag = _lag(client)
+    client.post(f"/v1/teams/{lag['id']}/invite",
+                json={"email_or_phone": "kari@example.com"}, headers=AUTH)
+    assert sendt == ["kari@example.com"]
+
+
 def test_telefonnummer_normaliseres_og_melder_at_sms_mangler(client):
     lag = _lag(client)
     r = client.post(f"/v1/teams/{lag['id']}/invite",

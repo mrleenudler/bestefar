@@ -365,3 +365,87 @@ måned?».
 
 104 tester grønne. Ingen ny migrasjon — lag-tabellene lå allerede i
 initial-migrasjonen fra fase 2.
+
+---
+
+## Fase 3 — innlogging (§1)
+
+Dette er den runden som endrer noe for klienten. Fram til nå har alt som
+krever bruker svart `501`; nå svarer det `401`, og det finnes en ekte vei inn.
+
+### Det klienten må gjøre
+
+| Endepunkt | Inn | Ut |
+|---|---|---|
+| `POST /v1/auth/google` | `{"id_token": "..."}` | tokenpar |
+| `POST /v1/auth/apple` | `{"id_token": "..."}` | tokenpar |
+| `POST /v1/auth/email/start` | `{"email": "..."}` | `202` |
+| `POST /v1/auth/email/verify` | `{"email": "...", "code": "123456"}` | tokenpar |
+| `POST /v1/auth/refresh` | `{"refresh_token": "..."}` | nytt tokenpar |
+| `POST /v1/auth/logout` | `{"refresh_token": "..."}` | `204` |
+
+Tokenparet er:
+
+```json
+{"access_token": "...", "refresh_token": "...", "token_type": "Bearer",
+ "expires_in": 3600, "user_id": "...", "public_id": "BF-7Q4K-9F2M",
+ "display_name": "Ola", "is_new": true}
+```
+
+Alt annet tar `Authorization: Bearer <access_token>`. I `Api.kt` er det én
+header å legge på — som forutsatt da transportlaget ble skrevet.
+
+### Tre ting som påvirker klientkoden
+
+**Access-tokenet varer én time, refresh-tokenet 90 dager.** Får du `401` på et
+vanlig kall, prøv `refresh` én gang og gjenta kallet. Feiler *den* også, er
+brukeren logget ut på ekte og må inn i innloggingsskjermen — ikke prøv i loop.
+
+**Refresh-tokenet roterer.** Hvert kall til `/refresh` gir et nytt og
+ugyldiggjør det gamle, så det må lagres på nytt hver gang. Og viktigere:
+sender du det *samme* refresh-tokenet to ganger, tolkes det som et token på
+avveie og **alle** brukerens økter tilbakekalles. To parallelle kall som begge
+prøver å fornye vil altså logge brukeren ut. Serialiser fornyelsen — én mutex
+rundt refresh, ikke ett kall per kø-element.
+
+**`is_new: true`** betyr at kontoen ble opprettet nå. Det er signalet til å
+tilby «gjenopprett fra backup» (`GET /v1/backup/meta`) i stedet for å starte
+tomt.
+
+### Det du ikke trenger å gjøre
+
+Ingenting i `Sync.kt` sin feilklassifisering endres. `401` er fortsatt
+permanent for et køelement — men *etter* at fornyelsen over er forsøkt.
+
+### Én ting jeg vil advare mot
+
+Ikke lagre `access_token` i `SharedPreferences` uten videre. Det er en time
+gyldig og kan ikke tilbakekalles. `refresh_token` bør inn i `EncryptedSharedPreferences`
+eller Keystore — det er 90 dager gyldig og er i praksis brukerens konto.
+
+### Hva som gjenstår før dette virker i produksjon
+
+Fire ting, og alle er eierens å skaffe:
+
+1. **`JWT_SECRET`** som Fly-secret — minst 32 tegn (`openssl rand -base64 48`).
+   Uten den svarer `/v1/auth/*` 503.
+2. **`GOOGLE_CLIENT_IDS`** fra Google Cloud Console. Android- og iOS-klienten
+   har hver sin, og begge må stå der (kommaseparert) — de sjekkes mot `aud` i
+   ID-tokenet.
+3. **`APPLE_CLIENT_IDS`** — krever Apple-utviklerkonto.
+4. **En e-postleverandør** (`RESEND_API_KEY` eller SMTP). Uten den blir
+   innloggingskoden bare logget, ikke sendt.
+
+Google og Apple kan settes uavhengig; leverandøren som mangler klient-ID
+svarer 503, de andre virker.
+
+### En feil fra forrige runde, funnet nå
+
+`mailer.send()` hadde ingen mottakerparameter — den var skrevet for §10, der
+mottakeren alltid er utviklerens innboks. Da lag-invitasjonene i fase 6
+gjenbrukte den, gikk **invitasjonene til utviklerens innboks** i stedet for
+til den inviterte. Typesystemet fanget det ikke, og testen sjekket bare at
+`delivery_status` ble `sent`. Fikset, og testen sjekker nå mottakeren.
+
+123 tester grønne. Én ny migrasjon (`a7c14b93d502`): `auth_sessions` og
+`email_login_codes`.
