@@ -32,12 +32,7 @@ def current_user(authorization: str | None = Header(default=None),
         if skjema.lower() != "bearer" or not token:
             raise HTTPException(401, "Forventet «Authorization: Bearer <token>».")
         user = s.get(User, tokens.les_access_token(cfg, token))
-        # Et gyldig token til en slettet konto skal ikke gi tilgang. Tokenet
-        # kan ikke tilbakekalles, saa sjekken MAA skje her ved hvert kall.
-        if user is None or user.deleted_at is not None:
-            raise HTTPException(401, "Kontoen finnes ikke.")
-        touch(s, user)
-        return user
+        return _sjekk(s, user)
 
     if cfg.is_prod or not x_debug_user_id:
         raise HTTPException(401, "Innlogging kreves.")
@@ -53,6 +48,17 @@ def current_user(authorization: str | None = Header(default=None),
         s.flush()
         s.add(SharingPreference(user_id=user.id))
         s.commit()
+    return _sjekk(s, user)
+
+
+def _sjekk(s: OrmSession, user: User | None) -> User:
+    """
+    En slettet konto (§9) skal ikke ha tilgang. Access-tokenet kan ikke
+    tilbakekalles, saa sjekken MAA skje ved hvert kall - ellers har den
+    slettede kontoen tilgang helt til tokenet utloeper.
+    """
+    if user is None or user.deleted_at is not None:
+        raise HTTPException(401, "Kontoen finnes ikke.")
     touch(s, user)
     return user
 

@@ -591,6 +591,35 @@ BACKEND-RUNDE 6 (2026-08-04, fase 3 - innlogging §1):
     APPLE_CLIENT_IDS (Apple-utviklerkonto), JWT_SECRET som Fly-secret, og en
     ekte e-postleverandoer (RESEND_API_KEY/SMTP) foer e-postkoder virker.
 
+BACKEND-RUNDE 7 (2026-08-04, fase 7 - forskningsdata §7 + sletting §9):
+  - Endepunktet fra fase 2 var bare HALVE §7: modellens docstring sa at
+    jakt-payloaden «filtreres FOER innsending», men ingenting gjorde det, og
+    ResearchSharingPreference hadde ingen endepunkter. Nytt:
+    GET/PUT /v1/research/sharing + services/research_filter.py.
+  - TILLATELSESLISTE, IKKE FORBUDSLISTE. Feltinnholdet er ikke avklart
+    (TODO(eier)); med forbudsliste ville hvert NYTT felt vaert delt som
+    standard til noen kom paa aa forby det. Ukjente noekler droppes stille.
+  - Posisjonsgrovhet velger HVILKE stedsfelt som lagres, ikke hvor mye
+    koordinatene avrundes. Serveren har ingen kommunegrenser aa slaa opp i, og
+    «kommune» er et navn - ikke et antall desimaler. Klienten sender navnet.
+  - Uten datosamtykke lagres bare AARET (captured_at er obligatorisk, saa
+    alternativet var aa avvise hele raden).
+  - Skadedata har ingen bryter og staar ikke paa tillatelseslista => aldri.
+  - DELETE /v1/account (§9, routers/account.py): brukerraden SLETTES IKKE, den
+    toemmes - public_id maa staa igjen saa den ikke gjenbrukes.
+    Forskningsskjemaet roeres ikke; det legges inn en sletteanmodning paa
+    pseudonymet. Pseudonymet avledes selv om RESEARCH_ENABLED er AV, siden
+    brukeren kan ha sendt inn data mens den var paa.
+  - FELLE: FK-ene har ondelete=CASCADE, men vi sletter ikke brukerraden - saa
+    ingen cascade fyrer. Alt maa slettes eksplisitt. Series->Shot maatte gaa
+    via ORM (relationship-cascade), resten via delete().
+  - deps.current_user sjekker naa deleted_at paa BEGGE veier (Bearer og
+    debug-headeren). Access-tokenet kan ikke tilbakekalles.
+  - Ingen ny migrasjon: alle tabellene laa i initial-migrasjonen.
+  - Gjenstaar (ikke kode): personvernerklaering + DPIA-vurdering foer
+    RESEARCH_ENABLED kan slaas paa, og en rutine for aa faktisk toemme
+    research.deletion_requests (completed_at kvitteres der).
+
 FELLE - SQLITE HAANDHEVER IKKE FREMMEDNOEKLER (2026-08-03, kostet en CI-runde):
   82 av 105 tester feilet i CI mot Postgres mens ALLE passerte paa SQLite.
   Aarsak: SQLAlchemy satte inn sharing_preferences FOER users. Det finnes

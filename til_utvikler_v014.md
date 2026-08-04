@@ -449,3 +449,75 @@ til den inviterte. Typesystemet fanget det ikke, og testen sjekket bare at
 
 123 tester grønne. Én ny migrasjon (`a7c14b93d502`): `auth_sessions` og
 `email_login_codes`.
+
+---
+
+## Fase 7 — forskningsdata (§7) og kontosletting (§9)
+
+Endepunktet fra fase 2 viste seg å være halve jobben. Modellens egen docstring
+sa at jakt-payloaden «filtreres før innsending» — men ingenting gjorde det, og
+brukerens valg (`ResearchSharingPreference`) hadde ingen endepunkter i det hele
+tatt. Et samtykke til jakt-typen delte i praksis *alt* klienten sendte.
+
+### Nytt
+
+- `GET/PUT /v1/research/sharing` — `{share_species, share_date,
+  share_shot_situation, position_granularity}`. Alt av som standard,
+  `position_granularity: "none"`.
+- `DELETE /v1/account` — §9.
+
+### Filtreringen skjer på serveren, og den er streng
+
+Payloaden for `result_type: "hunt"` går gjennom en **tillatelsesliste**. Sender
+du en nøkkel som ikke står der, forsvinner den stille. Det er med vilje:
+feltinnholdet er ikke endelig avklart, og med en forbudsliste ville hvert nytt
+felt vært delt som standard helt til noen kom på å forby det.
+
+Kanoniske nøkler i dag:
+
+| Valg | Nøkler som slipper gjennom |
+|---|---|
+| `share_species` | `species` |
+| `share_shot_situation` | `shot_situation`, `shooting_position`, `position_modifier`, `distance_m`, `rest_used` |
+| `position_granularity: exact` | `lat`, `lon`, `kommune`, `fylke` |
+| `position_granularity: kommune` | `kommune`, `fylke` |
+| `position_granularity: fylke` | `fylke` |
+| `position_granularity: none` | ingen |
+
+Merk at grovheten velger *hvilke felt* som lagres, ikke hvor mye koordinatene
+avrundes. Serveren har ingen kommunegrenser å slå opp i, og «kommune» er et
+navn — ikke et antall desimaler. Klienten kjenner stedet og sender navnet.
+
+To ting til: **uten `share_date` beholdes bare året** (datoen settes til 1.
+januar), og **skadedata lagres aldri** — de har ingen bryter, og «private som
+standard» uten en måte å slå dem på betyr aldri.
+
+Svaret fra `POST /v1/research/records` inneholder nå `stored_fields`. Bruk den
+til å vise brukeren hva som faktisk ble delt, i stedet for å påstå noe annet.
+Treningsdata filtreres ikke — §7 gir ingen felt-for-felt-valg for dem.
+
+### Kontosletting
+
+`DELETE /v1/account` tømmer brukerskjemaet med det samme: serier, treff,
+backup, venner, lagmedlemskap, stemmer, enheter og innlogginger. **Brukerraden
+slettes ikke, den tømmes** — `public_id` må stå igjen så den ikke gjenbrukes
+av en ny konto, ellers ser en venn som har ID-en lagret plutselig en fremmed.
+
+Forskningsskjemaet røres ikke herfra. Radene er pseudonymiserte, og §7 forbyr
+koblingen tilbake — det er hele poenget. I stedet legges det inn en
+sletteanmodning på pseudonymet, og samtykkene trekkes tilbake med én gang.
+Svaret sier `research_deletion_requested: true/false`.
+
+For klienten: etter et vellykket kall er alle tokens verdiløse (`401` ved
+neste kall, også innenfor access-tokenets time), og lokal state bør nullstilles
+uten å prøve `refresh`.
+
+### Det som gjenstår er ikke kode
+
+`RESEARCH_ENABLED` står fortsatt av, og skal stå av til personvernerklæringen
+foreligger og DPIA-behovet er avklart. I tillegg finnes det ingen jobbkjører
+som faktisk tømmer `research.deletion_requests` — det er et driftsansvar, og
+`completed_at` er kolonnen det kvitteres i.
+
+141 tester grønne. Ingen ny migrasjon — tabellene lå allerede i
+initial-migrasjonen fra fase 2.

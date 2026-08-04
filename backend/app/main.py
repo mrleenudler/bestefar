@@ -3,6 +3,7 @@ Bestefar backend (backend_spec.md).
 
 Ansvarsomraadene er atskilte routere (kravspec §5):
   /v1/auth             innlogging: Google, Apple, e-postkode (§1)
+  /v1/account          kontosletting (§9)
   /v1/profile          profil og delingsvalg (§1, §3)
   /v1/users, /v1/friends  soek, venneforespoersler, delt statistikk (§3, §3.1)
   /v1/teams            lag, invitasjoner, lederskap og avstemning (§4, §11)
@@ -18,8 +19,9 @@ import logging
 from fastapi import FastAPI
 
 from .config import settings
-from .routers import (auth, backup, failed_analyses, feedback, friends, health,
-                      messages, profile, research, stats, teams)
+from .routers import (account, auth, backup, failed_analyses, feedback,
+                      friends, health, messages, profile, research, stats,
+                      teams)
 
 cfg = settings()
 logging.basicConfig(level=cfg.log_level.upper(),
@@ -32,6 +34,7 @@ app = FastAPI(title="Bestefar backend", version="0.2",
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(feedback.router)
 app.include_router(profile.router)
 app.include_router(friends.router)

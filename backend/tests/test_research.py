@@ -73,3 +73,126 @@ def test_forskningsraden_inneholder_ingen_konto_id(paa, client, session):
     row = session.query(ResearchRecord).one()
     assert row.pseudonym_id != USER_ID
     assert USER_ID not in row.pseudonym_id
+
+
+# --------------------------------------------------------------------
+# Delingsvalg og filtrering av jaktdata (§7)
+# --------------------------------------------------------------------
+
+JAKT = {"session_ref": "jakt-1", "captured_at": "2026-09-21T07:30:00",
+        "result_type": "hunt",
+        "payload": {"species": "elg", "shot_situation": "staaende dyr",
+                    "shooting_position": "STAAENDE", "distance_m": 85,
+                    "lat": 60.1234, "lon": 10.5678,
+                    "kommune": "Kongsberg", "fylke": "Buskerud",
+                    "injury": "skadeskutt", "tracking_distance_m": 400}}
+
+
+def _jakt_samtykke(client):
+    assert client.post("/v1/research/consent", json={"consent_type": "hunt"},
+                       headers=AUTH).status_code == 201
+
+
+def test_ingenting_deles_som_standard(paa, client):
+    """§7: valgene starter avslaatt. Et samtykke til jakt-typen betyr ikke at
+    hvert felt i den er delt."""
+    assert client.get("/v1/research/sharing", headers=AUTH).json() == {
+        "share_species": False, "share_date": False,
+        "share_shot_situation": False, "position_granularity": "none"}
+
+    _jakt_samtykke(client)
+    r = client.post("/v1/research/records", json=JAKT, headers=AUTH)
+    assert r.status_code == 201
+    assert r.json()["stored_fields"] == []
+
+
+def test_bare_valgte_felt_lagres(paa, client, session):
+    client.put("/v1/research/sharing", headers=AUTH,
+               json={"share_species": True, "share_shot_situation": True})
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", json=JAKT, headers=AUTH)
+
+    from app.models import ResearchRecord
+    lagret = session.query(ResearchRecord).one().payload_json
+    assert set(lagret) == {"species", "shot_situation", "shooting_position",
+                           "distance_m"}
+
+
+def test_skadedata_lagres_aldri(paa, client, session):
+    """§7: skadedata er private som standard, og det finnes ingen bryter for
+    dem - «som standard» uten en maate aa slaa dem paa betyr aldri."""
+    client.put("/v1/research/sharing", headers=AUTH,
+               json={"share_species": True, "share_date": True,
+                     "share_shot_situation": True,
+                     "position_granularity": "exact"})
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", json=JAKT, headers=AUTH)
+
+    from app.models import ResearchRecord
+    lagret = session.query(ResearchRecord).one().payload_json
+    assert "injury" not in lagret
+    assert "tracking_distance_m" not in lagret
+
+
+def test_ukjent_felt_droppes(paa, client, session):
+    """Tillatelsesliste, ikke forbudsliste: feltinnholdet er ikke endelig
+    avklart, og et nytt felt skal ikke vaere delt til noen forbyr det."""
+    client.put("/v1/research/sharing", headers=AUTH,
+               json={"share_species": True})
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", headers=AUTH,
+                json={**JAKT, "payload": {"species": "elg",
+                                          "helt_nytt_felt": "hemmelig"}})
+
+    from app.models import ResearchRecord
+    assert set(session.query(ResearchRecord).one().payload_json) == {"species"}
+
+
+@pytest.mark.parametrize("grovhet,forventet", [
+    ("none", set()),
+    ("fylke", {"fylke"}),
+    ("kommune", {"kommune", "fylke"}),
+    ("exact", {"lat", "lon", "kommune", "fylke"}),
+])
+def test_posisjonsgrovhet_styrer_stedsfelt(paa, client, session, grovhet, forventet):
+    client.put("/v1/research/sharing", headers=AUTH,
+               json={"position_granularity": grovhet})
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", headers=AUTH,
+                json={**JAKT, "payload": {k: JAKT["payload"][k]
+                                          for k in ("lat", "lon", "kommune", "fylke")}})
+
+    from app.models import ResearchRecord
+    assert set(session.query(ResearchRecord).one().payload_json) == forventet
+
+
+def test_uten_datosamtykke_beholdes_bare_aaret(paa, client, session):
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", json=JAKT, headers=AUTH)
+
+    from app.models import ResearchRecord
+    lagret = session.query(ResearchRecord).one().captured_at
+    assert (lagret.year, lagret.month, lagret.day) == (2026, 1, 1)
+
+
+def test_med_datosamtykke_beholdes_datoen(paa, client, session):
+    client.put("/v1/research/sharing", headers=AUTH, json={"share_date": True})
+    _jakt_samtykke(client)
+    client.post("/v1/research/records", json=JAKT, headers=AUTH)
+
+    from app.models import ResearchRecord
+    lagret = session.query(ResearchRecord).one().captured_at
+    assert (lagret.month, lagret.day) == (9, 21)
+
+
+def test_treningsdata_filtreres_ikke(paa, client, session):
+    """§7 gir ingen felt-for-felt-valg for trening - samtykket gjelder hele
+    resultattypen."""
+    client.post("/v1/research/consent", json={"consent_type": "training"},
+                headers=AUTH)
+    client.post("/v1/research/records", headers=AUTH,
+                json={**RECORD, "payload": {"note": "test", "hva som helst": 1}})
+
+    from app.models import ResearchRecord
+    assert set(session.query(ResearchRecord).one().payload_json) == {
+        "note", "hva som helst"}

@@ -168,6 +168,29 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   bryte koblingen til allerede innsamlede forskningsdata.
 - Endepunktet er sperret av flagget `RESEARCH_ENABLED` (av som standard), på
   linje med `Dialogs.RESEARCH_ENABLED` i klienten.
+- *Implementert 2026-08-04 (fase 7):* `GET/PUT /v1/research/sharing` leser og
+  setter valgene, og **serveren filtrerer innkommende jakt-payload etter dem**
+  (`services/research_filter.py`). Samtykket sier at resultattypen kan deles;
+  delingsvalgene sier hva *av* den. Begge må gjelde.
+  - **Tillatelsesliste, ikke forbudsliste.** Feltinnholdet er ikke endelig
+    avklart, og med en forbudsliste ville hvert nytt felt vært delt som
+    standard til noen kom på å forby det. Ukjente nøkler droppes stille. Når
+    feltlista foreligger, er `research_filter.py` stedet den utvides.
+  - **Posisjonsgrovheten styrer hvilke stedsfelt som lagres**, ikke hvor mye
+    koordinatene avrundes: `exact` → `lat`/`lon`/`kommune`/`fylke`,
+    `kommune` → `kommune`/`fylke`, `fylke` → `fylke`, `none` → ingenting.
+    Serveren har ingen kommunegrenser å slå opp i, og en avrunding av
+    koordinater ville uansett ikke vært det brukeren valgte — «kommune» er et
+    navn, ikke et antall desimaler. Klienten kjenner stedet og sender navnet;
+    serveren håndhever hva som lagres.
+  - **Uten datosamtykke beholdes bare året** (1. januar). Kolonnen er
+    obligatorisk, så alternativet var å avvise hele innsendingen; året alene
+    sier ikke når noen var på jakt, men lar materialet grupperes per sesong.
+  - **Skadedata lagres aldri.** De har ingen bryter, og «private som standard»
+    uten en måte å slå dem på betyr aldri.
+  - Svaret inneholder `stored_fields`, så klienten kan vise brukeren hva som
+    faktisk ble delt i stedet for å påstå noe annet.
+  - Treningsdata filtreres ikke — §7 gir ingen felt-for-felt-valg for dem.
 - `# TODO(eier): konkret feltinnhold for forskning ikke endelig avklart` (jf. kjerne-spec §6).
 - **Forutsetning før aktivering i produksjon:** personvernerklæring må foreligge,
   og det må avklares om Datatilsynet krever DPIA (sannsynlig, gitt forskningsformålet
@@ -193,6 +216,26 @@ Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
 - All PII kryptert i ro og i transitt. Forsknings-ID ikke reversibelt koblet til konto.
 - Sletting: `DELETE /v1/account` (lokalt + sletteanmodning via pseudonym-ID for
   forskningslageret).
+- *Implementert 2026-08-04:* de to lagrene ryddes ulikt, og må gjøre det.
+  Brukerskjemaet tømmes med det samme — serier, treff, backup, venner,
+  lagmedlemskap, stemmer, enheter og innlogginger er borte når kallet
+  returnerer. Forskningsskjemaet kan vi *ikke* røre herfra: radene er
+  pseudonymiserte, og §7 forbyr koblingen tilbake. I stedet legges det inn en
+  sletteanmodning på pseudonymet, og alle samtykker trekkes tilbake med én
+  gang så ingenting nytt kommer inn mens anmodningen behandles.
+  - **Brukerraden slettes ikke, den tømmes.** `public_id` må stå igjen så den
+    ikke kan gjenbrukes av en ny konto — en venn som fortsatt har ID-en
+    lagret skal ikke plutselig se en fremmed.
+  - Pseudonymet avledes så lenge `RESEARCH_PSEUDONYM_SECRET` finnes, også når
+    `RESEARCH_ENABLED` er av: brukeren kan ha sendt inn data i en periode da
+    den var på. Uten hemmeligheten kunne det aldri vært lagret noe, og da er
+    det ingenting å be om (`research_deletion_requested: false`).
+  - `deleted_at` sjekkes ved **hvert** kall i `deps.current_user`.
+    Access-tokenet kan ikke tilbakekalles, så uten den sjekken ville en
+    slettet konto hatt tilgang helt til tokenet utløp.
+  - Selve slettingen i forskningslageret er et **manuelt/driftsansvar** — det
+    finnes ingen jobbkjører som tømmer `research.deletion_requests`.
+    `completed_at` er kolonnen den kvitteres i.
 - **Personvernerklæring + DPIA:** se §7 — forutsetning for aktivering av
   forskningsdatainnsamling, ikke bare en implementasjonsdetalj.
 

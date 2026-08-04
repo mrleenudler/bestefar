@@ -24,8 +24,9 @@ from sqlalchemy.orm import Session as OrmSession
 from ..config import settings
 from ..db import db
 from ..deps import current_user
-from ..models import ResearchConsent, ResearchRecord, ResultType, User, utcnow
-from ..services import pseudonym
+from ..models import (PositionGranularity, ResearchConsent, ResearchRecord,
+                      ResearchSharingPreference, ResultType, User, utcnow)
+from ..services import pseudonym, research_filter
 
 router = APIRouter(prefix="/v1/research", tags=["forskning"])
 
@@ -40,6 +41,20 @@ def _pseudonym_for(user: User) -> str:
         return pseudonym.for_user(cfg, user.id)
     except pseudonym.PseudonymNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+
+
+def _sharing(s: OrmSession, user: User) -> ResearchSharingPreference:
+    """
+    Valgene ligger i BRUKERSKJEMAET, ikke i forskningsskjemaet: selve valget er
+    persondata, mens forskningslageret kun skal inneholde pseudonymiserte
+    observasjoner (§7). Standardverdiene deler ingenting.
+    """
+    row = s.get(ResearchSharingPreference, user.id)
+    if row is None:
+        row = ResearchSharingPreference(user_id=user.id)
+        s.add(row)
+        s.commit()
+    return row
 
 
 class ConsentIn(BaseModel):
@@ -79,6 +94,53 @@ def revoke_consent(consent_type: ResultType, user: User = Depends(current_user),
     return {"consent_id": c.id, "status": "tilbaketrukket"}
 
 
+# --------------------------------------------------------------------
+# Delingsvalg for jaktdata (§7)
+# --------------------------------------------------------------------
+
+SHARING_FELT = ["share_species", "share_date", "share_shot_situation"]
+
+
+class ResearchSharingIn(BaseModel):
+    share_species: bool | None = None
+    share_date: bool | None = None
+    share_shot_situation: bool | None = None
+    position_granularity: PositionGranularity | None = None
+
+
+def _sharing_ut(row: ResearchSharingPreference) -> dict:
+    ut = {f: getattr(row, f) for f in SHARING_FELT}
+    ut["position_granularity"] = row.position_granularity.value
+    return ut
+
+
+@router.get("/sharing")
+def get_research_sharing(user: User = Depends(current_user),
+                         s: OrmSession = Depends(db)) -> dict:
+    return _sharing_ut(_sharing(s, user))
+
+
+@router.put("/sharing")
+def update_research_sharing(body: ResearchSharingIn,
+                            user: User = Depends(current_user),
+                            s: OrmSession = Depends(db)) -> dict:
+    """
+    Endringen gjelder framover. Den rydder IKKE i allerede innsendte rader:
+    de er pseudonymiserte og kan ikke knyttes til kontoen herfra - det er hele
+    poenget med §7. Vil brukeren ha dem bort, er veien `DELETE /v1/account`,
+    som legger inn en sletteanmodning paa pseudonymet.
+    """
+    row = _sharing(s, user)
+    for f in SHARING_FELT:
+        verdi = getattr(body, f)
+        if verdi is not None:
+            setattr(row, f, verdi)
+    if body.position_granularity is not None:
+        row.position_granularity = body.position_granularity
+    s.commit()
+    return _sharing_ut(row)
+
+
 class ResearchIn(BaseModel):
     session_ref: str = Field(max_length=64)
     captured_at: datetime
@@ -99,9 +161,19 @@ def submit_research(body: ResearchIn, user: User = Depends(current_user),
     if consent is None:
         raise HTTPException(403, "Mangler gyldig samtykke for denne resultattypen")
 
+    # Samtykket sier at resultattypen kan deles; delingsvalgene sier HVA av
+    # den som kan deles. Begge maa gjelde, og filtreringen skjer her - ikke i
+    # klienten, som kan vaere modifisert.
+    pref = _sharing(s, user)
+    payload = research_filter.filtrer_payload(body.result_type, body.payload, pref)
+    captured_at = research_filter.filtrer_tidspunkt(body.result_type,
+                                                    body.captured_at, pref)
+
     r = ResearchRecord(pseudonym_id=pid, session_ref=body.session_ref,
-                       captured_at=body.captured_at, result_type=body.result_type,
-                       payload_json=body.payload)
+                       captured_at=captured_at, result_type=body.result_type,
+                       payload_json=payload)
     s.add(r)
     s.commit()
-    return {"record_id": r.id}
+    # `stored_fields` gjoer filtreringen synlig for klienten, saa den kan vise
+    # brukeren hva som faktisk ble delt i stedet for aa paastaa noe annet.
+    return {"record_id": r.id, "stored_fields": sorted(payload)}
