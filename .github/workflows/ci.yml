@@ -68,8 +68,21 @@ jobs:
       - name: pytest (SQLite)
         working-directory: backend
         run: python -m pytest tests -q
+      # Utdataet sendes som ::error-annotasjon ved feil. Selve jobbloggen
+      # svarer 403 uten token - ogsaa for offentlige repoer - mens
+      # annotasjoner er aapne. Uten dette maa loggen eksporteres for haand
+      # hver gang noe feiler her men ikke paa SQLite.
       - name: pytest (Postgres)
         working-directory: backend
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bestefar_test
-        run: python -m pytest tests -q
+        run: |
+          set +e
+          python -m pytest tests -q --tb=short > pytest-out.txt 2>&1
+          code=$?
+          set -e
+          cat pytest-out.txt
+          if [ $code -ne 0 ]; then
+            python -c "t=open('pytest-out.txt',encoding='utf-8',errors='replace').read()[-8000:];print('::error title=pytest Postgres::'+t.replace('%','%25').replace(chr(13),'').replace(chr(10),'%0A'))"
+          fi
+          exit $code
