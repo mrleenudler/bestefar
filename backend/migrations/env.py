@@ -42,11 +42,19 @@ def run_migrations_online() -> None:
         kwargs["execution_options"] = {"schema_translate_map": translate}
     connectable = create_engine(URL, **kwargs)
 
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata,
-                          **COMPARE_OPTS)
-        with context.begin_transaction():
-            context.run_migrations()
+    try:
+        with connectable.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata,
+                              **COMPARE_OPTS)
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        # MAA lukkes. Ved deploy spiller det ingen rolle - prosessen doer
+        # like etterpaa - men testene kjoerer env.py to ganger per test
+        # (downgrade + upgrade), og en udisponert pool holder socketen
+        # aapen. Mot Postgres i CI gikk basen tom for tilkoblinger midtveis
+        # i suiten, med «connection failed» i stedet for en testfeil.
+        connectable.dispose()
 
 
 if context.is_offline_mode():

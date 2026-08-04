@@ -34,8 +34,11 @@ def test_modeller_og_migrasjoner_er_i_takt(db_url):
     engine = create_engine(url, **kwargs)
 
     # Samme innstillinger som migrations/env.py bruker - se docstringen der.
-    with engine.connect() as conn:
-        ctx = MigrationContext.configure(conn, opts=alembic_compare_opts())
-        diff = compare_metadata(ctx, Base.metadata)
+    try:
+        with engine.connect() as conn:
+            ctx = MigrationContext.configure(conn, opts=alembic_compare_opts())
+            diff = compare_metadata(ctx, Base.metadata)
+    finally:
+        engine.dispose()
 
     assert diff == [], f"Modellene og migrasjonene spriker: {diff}"

@@ -50,7 +50,15 @@ def db_url(tmp_path, monkeypatch) -> str:
     # settings(). Nullstill paa nytt, saa fixtures som kjoerer ETTER denne
     # (f.eks. `paa` i test_research.py) faar sine miljoevariabler lest.
     _reset_app_modules()
-    return url
+    yield url
+
+    # Lukk forbindelsene testen aapnet. `_reset_app_modules` kaster bare
+    # modulen ut av sys.modules; engine-en lever videre med poolen sin og
+    # holder socketene aapne til GC en gang tar den. Mot Postgres i CI gikk
+    # basen tom for tilkoblinger midt i suiten.
+    mod = sys.modules.get("app.db")
+    if mod is not None and getattr(mod, "_engine", None) is not None:
+        mod._engine.dispose()
 
 
 @pytest.fixture()
