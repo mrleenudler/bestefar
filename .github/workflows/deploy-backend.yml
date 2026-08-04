@@ -47,6 +47,19 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       # NB: kjoer fra backend/. `--config backend/fly.toml ./backend` tolkes
       # relativt til app-katalogen og feiler med "missing an app name".
+      # Skiller «secreten mangler» fra «deployen feilet». flyctl sier bare
+      # «no access token available», som ogsaa er det den sier naar man rett
+      # og slett ikke er logget inn - to helt ulike aarsaker, samme melding.
+      - name: Sjekk at FLY_API_TOKEN er synlig for jobben
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error title=FLY_API_TOKEN mangler::Secreten er TOM i denne jobben. Den maa ligge under Settings > Secrets and variables > Actions, fanen Secrets - ikke Variables og ikke Dependabot - med navnet noeyaktig FLY_API_TOKEN. Environment-secrets er ogsaa usynlige her, siden jobben ikke deklarerer environment:."
+            exit 1
+          fi
+          echo "FLY_API_TOKEN er satt (${#FLY_API_TOKEN} tegn)."
+
       # Utdataet sendes som ::error-annotasjon ved feil. Jobbloggen svarer 403
       # uten token - ogsaa for offentlige repoer - mens annotasjoner er aapne.
       - name: flyctl deploy
