@@ -35,6 +35,38 @@ class Settings(BaseSettings):
     app_store_url: str = ("https://play.google.com/store/apps/details"
                           "?id=no.bestefar.app")
 
+    # --- Innlogging (§1) ---
+    # Noekkelen vaare EGNE tokens signeres med (HS256). Tom => alle
+    # /v1/auth/*-endepunktene svarer 503: uten den kan vi ikke utstede noe som
+    # helst, og aa falle tilbake paa en standardverdi ville gjort tokens
+    # forfalskbare av hvem som helst som leser repoet.
+    jwt_secret: str = ""
+    # Kort levetid paa access-tokenet fordi det ikke kan tilbakekalles - det
+    # verifiseres med signatur alene, uten oppslag i basen. Refresh-tokenet er
+    # ugjenkjennelig for oss (vi lagrer bare hashen) og KAN tilbakekalles.
+    access_token_ttl_minutes: int = 60
+    refresh_token_ttl_days: int = 90
+
+    # Kommaseparerte, gyldige `aud`-verdier fra leverandoerene. Android- og
+    # iOS-klientene har hver sin klient-ID, og begge maa staa her.
+    # Tom liste => den leverandoeren svarer 503.
+    google_client_ids: str = ""
+    apple_client_ids: str = ""          # bundle-ID / services-ID
+
+    # E-postinnlogging: engangskode. Seks siffer er nok naar koden er
+    # kortlivet, har faa forsoek og er ratebegrenset.
+    email_code_ttl_minutes: int = 15
+    email_code_max_attempts: int = 5
+    email_code_rate_per_hour: int = 5   # per e-postadresse
+
+    @property
+    def google_client_id_list(self) -> list[str]:
+        return [s.strip() for s in self.google_client_ids.split(",") if s.strip()]
+
+    @property
+    def apple_client_id_list(self) -> list[str]:
+        return [s.strip() for s in self.apple_client_ids.split(",") if s.strip()]
+
     # --- Moderasjon av visningsnavn (§3) ---
     # Kommaseparert. Tom som standard: en hardkodet norsk banneordliste ville
     # vaert baade ufullstendig og umulig aa vedlikeholde fra repoet.

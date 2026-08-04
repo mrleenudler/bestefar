@@ -94,7 +94,7 @@ def test_sletting(client):
     assert client.delete("/v1/backup", headers=AUTH).status_code == 204
 
 
-def test_uten_innlogging_svarer_501(client):
-    assert client.get("/v1/backup").status_code == 501
+def test_uten_innlogging_svarer_401(client):
+    assert client.get("/v1/backup").status_code == 401
     assert client.put("/v1/backup", content=BLOB,
-                      params={"client_ts": "2026-08-01T12:00:00"}).status_code == 501
+                      params={"client_ts": "2026-08-01T12:00:00"}).status_code == 401

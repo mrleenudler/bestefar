@@ -359,6 +359,6 @@ def test_frist_uten_paalogging_fjerner_lederstatus(client, session):
     assert AUTH["X-Debug-User-Id"] in [m["user_id"] for m in detalj["members"]]
 
 
-def test_uten_innlogging_svarer_501(client):
-    assert client.get("/v1/teams").status_code == 501
-    assert client.get("/v1/messages").status_code == 501
+def test_uten_innlogging_svarer_401(client):
+    assert client.get("/v1/teams").status_code == 401
+    assert client.get("/v1/messages").status_code == 401

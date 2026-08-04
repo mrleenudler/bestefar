@@ -1,11 +1,15 @@
 """
 Felles FastAPI-avhengigheter.
 
-`current_user` er MIDLERTIDIG: ekte innlogging (Google/Apple/e-post) kommer i
-fase 3. Til da svarer alle endepunkter som krever bruker 501 i produksjon -
-bevisst, saa ingenting kan tas i bruk uautentisert ved et uhell. Lokalt og i
-tester kan brukeren angis med headeren `X-Debug-User-Id`, slik at
-datamodellen fra fase 2 kan proevekjoeres.
+`current_user` godtar to ting:
+
+  Authorization: Bearer <access-token>   den ekte veien (fase 3, §1)
+  X-Debug-User-Id: <uuid>                KUN utenfor produksjon
+
+Debug-headeren er igjen fordi testene for §2-§11 ble skrevet foer innloggingen
+fantes, og fordi den gjoer det mulig aa proevekjoere endepunkter lokalt uten aa
+sette opp Google-klienter. Den er DOED i produksjon - sjekken staar foerst, og
+det finnes ingen konfigurasjon som slaar den paa.
 """
 from datetime import timedelta
 
@@ -15,14 +19,28 @@ from sqlalchemy.orm import Session as OrmSession
 from .config import settings
 from .db import db
 from .models import SharingPreference, User, utcnow
-from .services import ids
+from .services import ids, tokens
 
 
-def current_user(x_debug_user_id: str | None = Header(default=None),
+def current_user(authorization: str | None = Header(default=None),
+                 x_debug_user_id: str | None = Header(default=None),
                  s: OrmSession = Depends(db)) -> User:
     cfg = settings()
+
+    if authorization:
+        skjema, _, token = authorization.partition(" ")
+        if skjema.lower() != "bearer" or not token:
+            raise HTTPException(401, "Forventet «Authorization: Bearer <token>».")
+        user = s.get(User, tokens.les_access_token(cfg, token))
+        # Et gyldig token til en slettet konto skal ikke gi tilgang. Tokenet
+        # kan ikke tilbakekalles, saa sjekken MAA skje her ved hvert kall.
+        if user is None or user.deleted_at is not None:
+            raise HTTPException(401, "Kontoen finnes ikke.")
+        touch(s, user)
+        return user
+
     if cfg.is_prod or not x_debug_user_id:
-        raise HTTPException(501, "Innlogging er ikke implementert ennaa (fase 3).")
+        raise HTTPException(401, "Innlogging kreves.")
 
     user = s.get(User, x_debug_user_id)
     if user is None:

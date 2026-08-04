@@ -35,6 +35,8 @@ def db_url(tmp_path, monkeypatch) -> str:
     monkeypatch.setenv("FEEDBACK_TO", "")
     monkeypatch.setenv("RESEARCH_ENABLED", "false")
     monkeypatch.setenv("RESEARCH_PSEUDONYM_SECRET", "test-hemmelighet")
+    # Minst 32 tegn - kortere avvises av tokens.krev_hemmelighet.
+    monkeypatch.setenv("JWT_SECRET", "test-signeringsnoekkel-minst-32-tegn-lang")
     _reset_app_modules()
 
     from alembic import command

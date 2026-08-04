@@ -29,15 +29,27 @@ def backend_name(cfg: Settings) -> str:
     return "log"
 
 
-def send(cfg: Settings, subject: str, body: str, reply_to: str | None = None) -> None:
-    """Sender e-post til cfg.feedback_to. Kaster ved feil (kalleren logger)."""
-    if not cfg.feedback_to:
-        log.info("Ingen FEEDBACK_TO satt - e-post ikke sendt. Emne: %s", subject)
+def send(cfg: Settings, subject: str, body: str, reply_to: str | None = None,
+         to: str | None = None) -> None:
+    """
+    Sender e-post. `to` er mottakeren; uten den gaar meldingen til
+    cfg.feedback_to (utviklerens innboks), som er riktig for §10.
+
+    NB: parameteren MAA brukes for alt som gaar til en sluttbruker -
+    lag-invitasjoner (§4) og innloggingskoder (§1). Uten den havnet
+    invitasjonene i utviklerinnboksen i stedet for hos den inviterte.
+
+    Kaster ved feil (kalleren logger).
+    """
+    mottaker = to or cfg.feedback_to
+    if not mottaker:
+        log.info("Ingen mottaker (FEEDBACK_TO er tom) - e-post ikke sendt. Emne: %s",
+                 subject)
         return
 
     name = backend_name(cfg)
     if name == "resend":
-        payload: dict = {"from": cfg.feedback_from, "to": [cfg.feedback_to],
+        payload: dict = {"from": cfg.feedback_from, "to": [mottaker],
                          "subject": subject, "text": body}
         if reply_to:
             payload["reply_to"] = reply_to

@@ -78,5 +78,5 @@ def test_delingsvalg_kan_endres_enkeltvis(client):
     assert valg["share_avg_score"] is False
 
 
-def test_uten_innlogging_svarer_501(client):
-    assert client.get("/v1/profile").status_code == 501
+def test_uten_innlogging_svarer_401(client):
+    assert client.get("/v1/profile").status_code == 401

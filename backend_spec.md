@@ -26,6 +26,50 @@ Trengs for backup, venner og lag.
   (egenrapportert), hjemkommune (valgfri), findable-flagg.
 - **Endepunkter:** `POST /v1/auth/*`, `GET/PUT /v1/profile`.
 
+*Implementert 2026-08-04 (fase 3):*
+
+| Endepunkt | Inn | Ut |
+|---|---|---|
+| `POST /v1/auth/google` | `{id_token}` | tokenpar + `is_new` |
+| `POST /v1/auth/apple` | `{id_token}` | tokenpar + `is_new` |
+| `POST /v1/auth/email/start` | `{email}` | 202 `{status:"sendt"}` |
+| `POST /v1/auth/email/verify` | `{email, code}` | tokenpar + `is_new` |
+| `POST /v1/auth/refresh` | `{refresh_token}` | nytt tokenpar |
+| `POST /v1/auth/logout` | `{refresh_token}` | 204 |
+
+Tokenparet er `{access_token, refresh_token, token_type:"Bearer", expires_in,
+user_id, public_id, display_name}`. Alle andre endepunkter tar
+`Authorization: Bearer <access_token>`.
+
+- **To ulike tokentyper, med vilje.** Access-tokenet er et kortlivet JWT
+  (HS256, 60 min) som verifiseres med signatur alene — ingen databaseoppslag
+  per forespørsel. Prisen er at det ikke kan tilbakekalles; derfor er
+  levetiden kort, og `deleted_at` sjekkes ved hvert kall. Refresh-tokenet er
+  32 tilfeldige byte, lagret som SHA-256 (`auth_sessions`), og *kan*
+  tilbakekalles.
+- **Rotasjon med tyverideteksjon:** hver bruk av refresh-tokenet gir et nytt
+  og merker det gamle brukt. Dukker et allerede brukt token opp igjen,
+  tilbakekalles *alle* brukerens økter. Vi kan ikke skille en kopi på avveie
+  fra et dobbeltkjørt forsøk, og da er det trygge valget riktig.
+- **Kontosammenslåing på verifisert e-post.** Samme person med Google én gang
+  og e-postkode neste gang skal ha én konto. Uverifisert e-post kobles
+  *aldri* — ellers kunne en konto opprettet med en annen persons adresse hos
+  en slapp leverandør overta kontoen deres.
+- **`aud` sjekkes alltid.** Uten `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` svarer
+  den leverandøren 503. Et gyldig Google-token utstedt til en *annen* app
+  skal ikke gi tilgang her.
+- **E-postkode:** seks siffer, 15 min, maks 5 forsøk, maks 5 koder per adresse
+  per time (telles i basen, ikke i minnet — Fly kjører to maskiner).
+  `/email/start` svarer alltid 202, også for ukjent adresse: et svar som
+  skilte kjent fra ukjent ville gjort endepunktet til et oppslagsverk over
+  hvem som bruker appen.
+- **`JWT_SECRET` må være ≥ 32 tegn** (RFC 7518 §3.2). Kortere avvises med 503
+  — en HMAC-nøkkel som kan brutes lar hvem som helst utstede tokens for hvem
+  som helst.
+- **`X-Debug-User-Id`** finnes fortsatt, men *bare* utenfor produksjon. Den
+  gjør at testene for §2–§11 slipper å sette opp Google-klienter.
+- **Telefon-OTP** er fortsatt utsatt til v2 (ingen SMS-leverandør).
+
 ## 2. Backup / dataoverføring (løser «mister loggen»)
 Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 - **Sync:** `PUT /v1/backup` (kryptert blob: serier + jaktlogg + innstillinger,

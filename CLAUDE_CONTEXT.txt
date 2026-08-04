@@ -564,6 +564,33 @@ BACKEND-RUNDE 5 (2026-08-03, fase 6 - lag §4/§11):
     hvilke lag som eksisterer.
   - Ingen ny migrasjon: alle lag-tabellene laa i initial-migrasjonen.
 
+BACKEND-RUNDE 6 (2026-08-04, fase 3 - innlogging §1):
+  - Nye filer: routers/auth.py, services/tokens.py, services/oidc.py.
+    Nye tabeller: auth_sessions, email_login_codes (migrasjon a7c14b93d502,
+    skrevet for HAAND - autogenerate mot SQLite drar med hele research-
+    skjemaet, se migrasjonens docstring).
+  - Nye avhengigheter: pyjwt[crypto] (begge veier: vi signerer HS256, vi
+    verifiserer Googles/Apples RS256) og email-validator (EmailStr).
+  - TO TOKENTYPER: kortlivet JWT (ingen DB-oppslag per kall, kan ikke
+    tilbakekalles) + ugjennomsiktig refresh-token (hashet i basen, KAN
+    tilbakekalles, roteres ved hver bruk). Gjenbrukt refresh-token =>
+    ALLE brukerens oekter tilbakekalles.
+  - deps.current_user svarer naa 401, ikke 501. Fem tester oppdatert.
+    X-Debug-User-Id lever videre, men er doed i produksjon.
+  - FEIL FUNNET I FASE 6: mailer.send() hadde ingen mottakerparameter, saa
+    LAG-INVITASJONER paa e-post gikk til utviklerens innboks (feedback_to) i
+    stedet for til den inviterte. Fikset med `to=`. REGEL: naar en tjeneste
+    er skrevet for ÉN mottaker (§10) og senere gjenbrukes for sluttbrukere,
+    sjekk mottakeren - typesystemet fanger det ikke.
+  - PyJWT advarer om HMAC-noekler under 32 byte (RFC 7518 §3.2). Vi avviser
+    dem naa med 503 i stedet for aa signere med en noekkel som kan brutes.
+  - Kontosammenslaaing skjer paa VERIFISERT e-post. Uverifisert kobles aldri:
+    ellers kunne en konto laget med en annen persons adresse hos en slapp
+    leverandoer overta kontoen deres.
+  - Gjenstaar til brukeren: GOOGLE_CLIENT_IDS (Google Cloud Console),
+    APPLE_CLIENT_IDS (Apple-utviklerkonto), JWT_SECRET som Fly-secret, og en
+    ekte e-postleverandoer (RESEND_API_KEY/SMTP) foer e-postkoder virker.
+
 FELLE - SQLITE HAANDHEVER IKKE FREMMEDNOEKLER (2026-08-03, kostet en CI-runde):
   82 av 105 tester feilet i CI mot Postgres mens ALLE passerte paa SQLite.
   Aarsak: SQLAlchemy satte inn sharing_preferences FOER users. Det finnes

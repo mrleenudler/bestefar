@@ -195,7 +195,8 @@ def invite(team_id: str, body: InviteIn, user: User = Depends(current_user),
         try:
             mailer.send(cfg, f"Invitasjon til {team.name}",
                         f"{user.display_name} har invitert deg til {team.name} "
-                        f"i Bestefar.\n\nAapne lenken for aa bli med:\n{lenke}\n")
+                        f"i Bestefar.\n\nAapne lenken for aa bli med:\n{lenke}\n",
+                        to=verdi)
             rad.delivery_status = DeliveryStatus.sent
             rad.sent_at = utcnow()
         except Exception as exc:                   # noqa: BLE001 - meldes tilbake

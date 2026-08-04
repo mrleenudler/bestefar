@@ -247,6 +247,6 @@ def test_uvurdert_navn_eksponeres_ikke(client, session):
         == "Ukjent skytter"
 
 
-def test_uten_innlogging_svarer_501(client):
-    assert client.get("/v1/friends").status_code == 501
-    assert client.get("/v1/users/search", params={"q": "BF-7Q4K-9F2M"}).status_code == 501
+def test_uten_innlogging_svarer_401(client):
+    assert client.get("/v1/friends").status_code == 401
+    assert client.get("/v1/users/search", params={"q": "BF-7Q4K-9F2M"}).status_code == 401

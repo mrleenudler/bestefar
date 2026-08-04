@@ -18,8 +18,9 @@ from .research import (ResearchConsent, ResearchDeletionRequest,
 from .social import (Friendship, LeaderChallenge, PendingMessage, Team,
                      TeamElection, TeamInvite, TeamMember, TeamVote)
 from .training import Series, Shot
-from .user import (AuthIdentity, Backup, Device, ResearchSharingPreference,
-                   SearchQuarantine, SharingPreference, User)
+from .user import (AuthIdentity, AuthSession, Backup, Device, EmailLoginCode,
+                   ResearchSharingPreference, SearchQuarantine,
+                   SharingPreference, User)
 
 __all__ = [
     "RESEARCH_SCHEMA", "Base", "UtcDateTime", "as_utc", "new_uuid", "utcnow",
@@ -29,7 +30,8 @@ __all__ = [
     "PosModifier", "Position", "PositionGranularity", "Provider",
     "QuarantineScope", "ResultType", "TeamKind", "TeamRole",
     # tabeller
-    "AuthIdentity", "Backup", "Device", "FailedAnalysis", "Feedback",
+    "AuthIdentity", "AuthSession", "Backup", "Device", "EmailLoginCode",
+    "FailedAnalysis", "Feedback",
     "Friendship", "LeaderChallenge", "PendingMessage",
     "ResearchConsent", "ResearchDeletionRequest", "ResearchRecord",
     "ResearchSharingPreference", "SearchQuarantine", "Series",

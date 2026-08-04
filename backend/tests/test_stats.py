@@ -72,7 +72,7 @@ def test_filtrering_paa_sesong(client):
     assert len(client.get("/v1/stats/series?season_key=2026", headers=AUTH).json()) == 1
 
 
-def test_uten_innlogging_svarer_501(client):
+def test_uten_innlogging_svarer_401(client):
     """Auth kommer i fase 3; til da skal endepunktet ikke vaere brukbart."""
-    assert client.get("/v1/stats/series").status_code == 501
+    assert client.get("/v1/stats/series").status_code == 401
     assert USER_ID  # brukt av de andre testene via AUTH

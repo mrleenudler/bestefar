@@ -64,6 +64,52 @@ class AuthIdentity(Base):
     user: Mapped[User] = relationship(back_populates="identities")
 
 
+class AuthSession(Base):
+    """
+    §1: en innlogget enhet. Holder refresh-tokenet, ikke access-tokenet -
+    det siste er kortlivet og verifiseres med signatur alene.
+
+    Vi lagrer bare SHA-256 av refresh-tokenet. En lekket databasedump gir da
+    ingen brukbare tokens, og siden tokenet er 32 tilfeldige byte trengs ingen
+    langsom hash (det er ingen gjettbar passordentropi aa beskytte).
+
+    Rotasjon: hver bruk av refresh-tokenet gir et nytt og ugyldiggjoer det
+    gamle. Dukker et allerede brukt token opp igjen, er det enten en kopi paa
+    avveie eller et nettverksforsoek som ble kjoert to ganger - vi kan ikke
+    skille, saa hele oekten tilbakekalles. Det er det trygge valget.
+    """
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    refresh_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_agent: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column()
+    revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
+class EmailLoginCode(Base):
+    """
+    §1: engangskode for e-postinnlogging.
+
+    Koden lagres hashet av samme grunn som refresh-tokenet. Raden beholdes
+    etter bruk (`consumed_at`) saa den samme koden ikke kan spilles av paa
+    nytt, og `attempts` gjoer at koden brenner opp etter faa gjett - seks
+    siffer taaler ikke ubegrenset proeving.
+    """
+    __tablename__ = "email_login_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column()
+    consumed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
 class Device(Base):
     """Push-registrering per enhet (§11). FCM/APNs-token."""
     __tablename__ = "devices"
