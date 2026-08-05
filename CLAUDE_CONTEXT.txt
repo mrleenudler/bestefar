@@ -792,3 +792,25 @@ BACKEND-RUNDE 8 (roeyktest av innlogging mot produksjon)
     C:/Users/mrlee/Desktop/Bestefar/backend/.venv/Scripts/python.exe.
   - Access-tokenet overlever /logout (statsloest JWT, 60 min). Det er BEVISST,
     men klienten maa slette tokenene selv. Staar i til_utvikler_v014.md.
+
+BACKEND-RUNDE 9 (fase 8: push)
+  - teamgov.varsle er ENESTE stedet §11-varsler oppstaar. Push hektes derfor
+    paa der, ikke i hvert endepunkt. Koeraden legges inn FOERST; push er best
+    effort og kastes aldri oppover (baade push.send og _push svelger alt).
+  - SYNKRON push, med vilje. En bakgrunnstraad hoeres riktigere ut, men Fly
+    skalerer til null og dreper traaden naar maskinen sovner. Prisen er
+    svartid, og den holdes nede av PUSH_BUDGET_SECONDS.
+  - FCM HTTP v1 tar ÉN mottaker per kall - ingen multicast. Et lag paa tjue
+    medlemmer blir tjue HTTP-kall. Derfor delt httpx.Client (gjenbrukt TLS) og
+    et samlet tidsbudsjett som bare avbryter resten. Det er IKKE datatap:
+    meldingskoeen er garantien.
+  - Ikke google-auth: vi trenger bare et OAuth-token fra tjenestekontoen, og
+    PyJWT med krypto laa der alt fra §1. Ett avhengighetstre mindre.
+  - Doede tokens (UNREGISTERED/INVALID_ARGUMENT/NOT_FOUND) slettes. Uten det
+    vokser devices-tabellen med adresser vi aldri naar, og hver av dem koster
+    et kall av budsjettet ved neste varsel.
+  - push_token er unik paa tvers av brukere, og raden FOELGER tokenet ved ny
+    innlogging. Ellers ville varsler til forrige bruker havnet paa en telefon
+    som naa er logget inn som noen andre.
+  - FELLE: jeg gjettet PATCH /v1/teams/{id} for navneendring - den er PUT.
+    Fire tester feilet paa 405. SJEKK ruten i routeren foer du skriver testen.

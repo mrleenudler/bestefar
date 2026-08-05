@@ -67,6 +67,20 @@ class Settings(BaseSettings):
     def apple_client_id_list(self) -> list[str]:
         return [s.strip() for s in self.apple_client_ids.split(",") if s.strip()]
 
+    # --- Push (§11, fase 8) ---
+    # Tjenestekontoen fra Firebase, som RÅ JSON i én miljoevariabel. Tom =>
+    # push logges bare, og meldingskoeen alene baerer varselet. Prosjekt-ID-en
+    # leses fra JSON-en om den ikke settes eksplisitt.
+    fcm_service_account_json: str = ""
+    fcm_project_id: str = ""
+    # Per HTTP-kall mot FCM. Kort med vilje: kallet skjer inne i
+    # forespoerselen, og et tregt varsel skal ikke henge en lagoperasjon.
+    push_timeout_seconds: float = 5.0
+    # Samlet budsjett for én varsling. FCM HTTP v1 tar én mottaker per kall,
+    # saa et stort lag betyr mange kall. Naar budsjettet er brukt opp, droppes
+    # resten - meldingskoeen er garantien, push er bare det raske varselet.
+    push_budget_seconds: float = 6.0
+
     # --- Moderasjon av visningsnavn (§3) ---
     # Kommaseparert. Tom som standard: en hardkodet norsk banneordliste ville
     # vaert baade ufullstendig og umulig aa vedlikeholde fra repoet.

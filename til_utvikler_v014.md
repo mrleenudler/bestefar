@@ -566,3 +566,54 @@ statusen noen gang ble satt. Rettet i `_ny_bruker`; regresjonstest
 
 Kontoer opprettet før denne rettelsen ligger fortsatt med `pending` i basen.
 Det gjelder foreløpig bare testkontoen min, men merk det hvis dere ser det.
+
+## Fase 8: push (§11)
+
+### Enhetsregistrering
+
+```
+PUT  /v1/devices              {"push_token": "...", "platform": "android",
+                               "app_version": "0.15", "model": "Pixel 8"}
+GET  /v1/devices              -> liste, UTEN push_token
+POST /v1/devices/unregister   {"push_token": "..."}  -> 204
+```
+
+`PUT` er idempotent — kall det ved **hver** oppstart og hver gang Firebase
+roterer tokenet. Dere trenger ikke holde rede på om tokenet er nytt.
+
+`platform` er `android` eller `ios` og defaulter til `android`.
+
+**Kall `/unregister` ved utlogging**, sammen med `/v1/auth/logout`. Gjør dere
+ikke det, fortsetter telefonen å få varsler for en konto som er logget ut.
+
+Logger en annen bruker inn på samme telefon, flyttes enheten automatisk til den
+nye kontoen — ellers ville varsler til forrige bruker havnet på en telefon som
+nå er noen andres.
+
+### Hva dere får i varselet
+
+Ved siden av `notification.title`/`body` følger en `data`-blokk:
+
+```json
+{"kind": "team_renamed", "team_id": "..."}
+```
+
+`kind` er den samme som i meldingskøen, så trykk på varselet kan åpne riktig
+skjerm direkte. Alle verdier er **strenger** — FCM tillater ikke annet.
+
+### Push erstatter ikke meldingskøen
+
+Dette er den viktigste setningen i hele avsnittet. `GET /v1/messages` er
+fortsatt garantien for at en melding når fram; push er bare det som når
+brukeren mens appen er lukket. Serveren dropper bevisst push når det tar for
+lang tid, og et varsel som feiler logges og glemmes.
+
+**Klienten må derfor fortsatt hente køen ved oppstart, akkurat som før.** Bygg
+ikke noe som antar at push kom fram.
+
+### Ikke slått på ennå
+
+`/health` viser `"push": "log"` til `FCM_SERVICE_ACCOUNT_JSON` er satt som
+Fly-secret. Endepunktene virker uansett — dere kan registrere enheter og bygge
+hele flyten nå, varslene sendes bare ikke ut. Når den er satt, viser `/health`
+`"push": "fcm"`.

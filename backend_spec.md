@@ -314,6 +314,14 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   leder på, avbrytes; ellers mister leder lederstatus (forblir medlem), og laget
   kan velge ny leder.
 - **Push-varsler:** krever FCM/APNs-registrering per enhet.
+- *Implementert 2026-08-05 (fase 8):* `PUT /v1/devices` (idempotent registrering),
+  `GET /v1/devices` (uten `push_token` i svaret), `POST /v1/devices/unregister`.
+  Utsending skjer i `teamgov.varsle`, som er eneste stedet §11-varsler oppstår —
+  køraden legges inn **først**, push er best effort og kastes aldri oppover.
+  FCM HTTP v1 tar én mottaker per kall, så et stort lag blir mange kall; derfor
+  et samlet tidsbudsjett (`PUSH_BUDGET_SECONDS`) som avbryter resten. Det er
+  ikke datatap — køen bærer meldingen. Døde tokens (`UNREGISTERED`) slettes.
+  Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare, og køen står alene.
 - *Implementert 2026-08-03:* meldingskøen er `GET /v1/messages` +
   `POST /v1/messages/ack`. Kvittering **markerer** raden som levert i stedet for
   å slette den, så en klient som krasjer mellom henting og visning ikke mister

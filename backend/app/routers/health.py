@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from .. import db as database
 from ..config import settings
-from ..services import mailer
+from ..services import mailer, push
 
 router = APIRouter(tags=["drift"])
 
@@ -28,4 +28,5 @@ def health() -> dict:
         "env": cfg.env,
         "database": _database_status(),
         "mailer": mailer.backend_name(cfg),
+        "push": push.backend_name(cfg),
     }
