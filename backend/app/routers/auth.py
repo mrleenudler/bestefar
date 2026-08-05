@@ -52,7 +52,15 @@ def _navn_fra_epost(epost: str | None) -> str:
 
 
 def _ny_bruker(s: OrmSession, epost: str | None) -> User:
-    user = User(public_id=ids.generate(), display_name=_navn_fra_epost(epost))
+    # Statusen MAA settes eksplisitt. `_navn_fra_epost` lagrer bare navn som
+    # har passert moderasjonen - ellers reservenavnet - saa navnet ER godkjent,
+    # men standardverdien paa kolonnen er `pending`. Uten dette viste
+    # sharing.friend_view «Navn under vurdering» til venner og lagkamerater for
+    # hver eneste nye konto, helt til brukeren tilfeldigvis lagret profilen sin
+    # paa nytt; PUT /v1/profile var det eneste stedet statusen ble satt.
+    user = User(public_id=ids.generate(), display_name=_navn_fra_epost(epost),
+                display_name_status=NameStatus.approved,
+                display_name_reviewed_at=utcnow())
     s.add(user)
     # MAA skylles foer radene som peker paa den: det finnes ingen
     # relationship() mellom User og SharingPreference, saa SQLAlchemy har

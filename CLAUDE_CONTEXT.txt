@@ -766,3 +766,29 @@ UI-RUNDE 12 (v0.15) LAERDOMMER:
   - FELLE (eierens filer endrer seg UNDERVEIS): raadyr-side-SVGen ble doept om
     fra "..._side_utilfredsstillende.svg" til "..._side.svg" midt i runden.
     Faar du FileNotFoundError paa en fil du nettopp listet: list paa nytt.
+
+BACKEND-RUNDE 8 (roeyktest av innlogging mot produksjon)
+  - FLY_API_TOKEN virker naa. Fase 3 og 7 er deployet; mailer=resend,
+    JWT_SECRET satt. E-postinnlogging er verifisert ende-til-ende mot
+    bestefar-api.fly.dev med en ekte adresse.
+  - FEIL FUNNET AV PRODUKSJONSTESTEN, ikke av testsuiten: _ny_bruker satte
+    aldri display_name_status, saa den ble staaende paa standardverdien
+    `pending` - mens navnet ALLEREDE var moderert av _navn_fra_epost. Resultat:
+    sharing.friend_view viste «Navn under vurdering» for hver eneste nye konto,
+    permanent, fordi PUT /v1/profile var det eneste stedet statusen ble satt.
+    LAERDOMMEN: naar en kolonne har en default som betyr «ikke behandlet ennaa»,
+    MAA hver ny kodesti som oppretter raden sette den eksplisitt. Testsuiten
+    saa det ikke fordi ingen test koblet nyregistrering til vennevisning - to
+    moduler som hver for seg var riktige.
+  - FELLE (jeg mistet tokens jeg nettopp hentet): la `rm -f $D/*.json` paa
+    slutten av det samme skriptet som skrev og LESTE filene. Feilet lesingen,
+    kjoerte rm likevel, og engangskoden var allerede brukt opp. Rydd ALDRI i
+    samme kjoering som produserer data du kan trenge paa nytt - scratchpad-en
+    er der nettopp for at det ikke haster.
+  - FELLE (Git Bash vs. Windows-Python): .venv-python er en Windows-binaer og
+    forstaar ikke MSYS-stier som /c/Users/... . Skriv "C:/Users/..." naar en
+    sti skal videre til python.exe. Bash-omdirigering takler begge.
+  - `python` finnes ikke paa PATH i Bash-verktoeyet heller - bruk
+    C:/Users/mrlee/Desktop/Bestefar/backend/.venv/Scripts/python.exe.
+  - Access-tokenet overlever /logout (statsloest JWT, 60 min). Det er BEVISST,
+    men klienten maa slette tokenene selv. Staar i til_utvikler_v014.md.

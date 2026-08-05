@@ -521,3 +521,48 @@ som faktisk tømmer `research.deletion_requests` — det er et driftsansvar, og
 
 141 tester grønne. Ingen ny migrasjon — tabellene lå allerede i
 initial-migrasjonen fra fase 2.
+
+## Innlogging er live i produksjon
+
+Fase 3 og 7 er deployet. `JWT_SECRET` og Resend er satt opp, og hele
+e-postflyten er røyktestet mot `https://bestefar-api.fly.dev` med en ekte
+adresse: kode sendt, konto opprettet, access-token gir profiltilgang,
+refresh roterer, gjenbruk av et brukt refresh-token tilbakekaller alle økter,
+utlogging er idempotent.
+
+Google og Apple er fortsatt ikke konfigurert (`GOOGLE_CLIENT_IDS` /
+`APPLE_CLIENT_IDS` er tomme), så `/v1/auth/google` og `/v1/auth/apple` svarer
+**503**. E-postkode er altså den eneste innloggingen som virker nå, men den
+virker fullt ut og kan bygges mot.
+
+### To ting klienten MÅ håndtere
+
+**`/logout` gjør ikke access-tokenet ugyldig.** Verifisert mot produksjon:
+etter 204 fra `/logout` svarer `GET /v1/profile` fortsatt 200 med det samme
+access-tokenet. Det er ikke en feil — tokenet er en statsløs JWT og kan ikke
+tilbakekalles, derfor er levetiden bare 60 minutter. Men **klienten må selv
+slette begge tokenene ved utlogging.** Gjør den ikke det, har en utlogget
+bruker full tilgang i opptil en time.
+
+**Ikke kjør to `/refresh` parallelt.** Refresh-tokenet roteres ved hver bruk,
+og et allerede brukt token som dukker opp igjen tolkes som en lekkasje — da
+tilbakekalles *alle* brukerens økter og hen må logge inn på nytt. To samtidige
+kall logger altså ut brukeren. Serialiser fornyelsen bak én lås.
+
+### `code` må sendes som streng
+
+`{"code": 42731}` gir 422. Koden er sekssifret og kan starte med null
+(`"042731"`); som JSON-tall forsvinner nullen. Bekreftet mot produksjon.
+
+### Rettet: nye kontoer fikk «Navn under vurdering»
+
+Visningsnavnet som utledes av e-postadressen er allerede kjørt gjennom
+moderasjonen, men `display_name_status` ble stående på standardverdien
+`pending`. `sharing.friend_view` viser bare navnet når statusen er `approved`,
+så **hver nyopprettede konto framsto som «Navn under vurdering» for venner og
+lagkamerater** — permanent, siden `PUT /v1/profile` var det eneste stedet
+statusen noen gang ble satt. Rettet i `_ny_bruker`; regresjonstest
+`test_nytt_navn_er_ferdig_moderert`.
+
+Kontoer opprettet før denne rettelsen ligger fortsatt med `pending` i basen.
+Det gjelder foreløpig bare testkontoen min, men merk det hvis dere ser det.

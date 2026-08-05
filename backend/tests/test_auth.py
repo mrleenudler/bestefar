@@ -77,6 +77,25 @@ def test_access_token_gir_tilgang(client, sendte):
     assert r.json()["id"] == data["user_id"]
 
 
+def test_nytt_navn_er_ferdig_moderert(client, sendte):
+    """
+    Navnet som utledes av e-postadressen er allerede kjoert gjennom
+    moderasjonen, saa statusen maa si `approved`. Sto den paa standardverdien
+    `pending`, viste sharing.friend_view «Navn under vurdering» til venner og
+    lagkamerater for hver eneste nye konto - og ingenting satte den noen gang,
+    med mindre brukeren tilfeldigvis lagret profilen sin paa nytt.
+    """
+    client.post("/v1/auth/email/start", json={"email": "nina@example.com"})
+    data = client.post("/v1/auth/email/verify",
+                       json={"email": "nina@example.com",
+                             "code": _kode(sendte)}).json()
+
+    h = {"Authorization": f"Bearer {data['access_token']}"}
+    profil = client.get("/v1/profile", headers=h).json()
+    assert profil["display_name"] == "nina"
+    assert profil["display_name_status"] == "approved"
+
+
 def test_andre_gangs_innlogging_gir_samme_konto(client, sendte):
     client.post("/v1/auth/email/start", json={"email": "per@example.com"})
     foerste = client.post("/v1/auth/email/verify",
