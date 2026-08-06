@@ -1038,3 +1038,14 @@ PUSH I KLIENTEN (v0.18):
     (msg.getNotification()) med @Suppress("UsePropertyAccessSyntax"). IKKE
     skru av lintVital - da skjules alle framtidige EKTE funn for aa komme
     rundt én verktoeybug.
+  - FELLE (to instanser, DELT INDEKS): git-indeksen er FELLES for begge
+    instansene i samme arbeidskopi. Jeg staget hele v0.18-runden, og den
+    andre instansen kjoerte `git commit` foer jeg rakk det - hele runden min
+    havnet i DERES commit (d04edc9 «Foer runde 11-12 inn i musings_backend»)
+    og ble pushet. Ingenting gikk tapt, men historikken er feilmerket, og
+    commit-en kan ikke skrives om naar den foerst er pushet.
+    REGEL: naar to instanser deler arbeidskopi, ikke bruk `git add` + `git
+    commit` i to steg. Bruk `git commit <sti> ... -F melding.txt` med
+    EKSPLISITTE STIER paa selve commit-kommandoen - da tas kun de filene med,
+    uansett hva som ligger i indeksen. Tidsvinduet mellom add og commit er
+    hele problemet.
