@@ -957,3 +957,29 @@ INNLOGGING I KLIENTEN (v0.17):
   - Sperrefristen for «send ny kode» leses fra 202-svaret
     (resend_after_seconds), ikke hardkodes. Nedtellingen er bekvemmelighet;
     serverens 429 haandhever.
+
+BACKEND-RUNDE 12 (utskiftbar escrow-hemmelighet)
+  - JEG BYGDE ET ENKELTPUNKT UTEN AA SIKRE DET. BACKUP_ESCROW_SECRET var
+    uerstattelig: fantes bare i Fly, og en `flyctl secrets set` for mye ville
+    gjort alt deponert materiale uleselig. Utvikleren maatte spoerre om det -
+    jeg hadde skrevet «roteres ALDRI uten en plan» og latt det bli med det.
+    LAGER DU ET ENKELTPUNKT: bygg utskiftningsveien I SAMME RUNDE. En advarsel
+    i en kommentar er ikke et tiltak.
+  - Feil som foerst oppdages naar en bruker rammes, er en designfeil. En feil
+    escrow-hemmelighet ville vist seg foerste gang noen proevde aa gjenopprette
+    kopien sin - verst tenkelige tidspunkt, og hos den gruppen som er daarligst
+    rustet. Derfor noekkel-ID paa raden og status i /health.
+  - Noekkel-ID = HMAC over en KONSTANT streng under den avledede noekkelen. Den
+    kan ligge i basen: den identifiserer hvilken hemmelighet som er brukt, uten
+    aa si noe om hva den er. Standard KCV-teknikk.
+  - `updated_at` maa leses FOER en omkryptering. Kolonnen har onupdate=utcnow,
+    saa en servervedlikeholds-skriving ville ellers sett ut som «brukeren
+    deponerte paa nytt».
+  - FELLE: jeg skrev `database.session()` i health.py. Den finnes ikke - db.py
+    har `db()` som FastAPI-avhengighet. SJEKK API-et i modulen foer du kaller
+    det, ogsaa i moduler du selv har lest tidligere.
+  - PRODUKSJONSTEST MOT EKTE KONTO: jeg la en testblob i utviklerens egen
+    backup UTEN aa sjekke `GET /v1/backup/meta` foerst. Hadde det ligget en
+    ekte kopi der med eldre client_ts, ville jeg overskrevet den - 409-vernet
+    beskytter bare mot ELDRE innsendinger. SJEKK ALLTID hva som ligger der foer
+    du skriver til en produksjonskonto.

@@ -567,3 +567,87 @@ er nettopp den de slo på valget for å slippe.
 `e5b0c72a94d1` — ny tabell `backup_key_escrow`, ny kolonne
 `research_sharing_preferences.share_injury_data` (`server_default false`, så
 ingen eksisterende bruker får utvidet deling av en migrasjon).
+
+---
+
+# Backend — runde 12 (deponering verifisert i produksjon)
+
+**188 tester grønne.** Deponeringsflyten er kjørt mot `bestefar-api.fly.dev`
+med en ekte konto, ikke bare mot testsuiten.
+
+## Verifisert i produksjon
+
+| Steg | Resultat |
+|---|---|
+| `GET /v1/backup/key-escrow` før deponering | 404 |
+| `PUT /v1/backup` | 200, `escrowed: false` |
+| `PUT /v1/backup/key-escrow` | 200, `escrowed: true` |
+| `GET /v1/backup/key-escrow` | 200 — **identisk materiale tilbake** |
+| `GET /v1/backup/meta` | `escrowed: true` |
+| `DELETE /v1/backup` → `GET key-escrow` | 204 → **200**, deponeringen står |
+| `DELETE key-escrow` ×2 → `GET` | 204, 204, 404 |
+| `/email/start` to ganger innen 60 s | 202, så **429 med `Retry-After: 48`** |
+
+Rundturen gjennom AES-256-GCM under produksjonshemmeligheten fungerer. Kontoen
+er ryddet etterpå — ingen testblob og ingen deponering ligger igjen.
+
+## Hemmeligheten er selv et enkeltpunkt
+
+Spørsmålet fra utvikler: `BACKUP_ESCROW_SECRET` lever bare i Fly, og ble
+autogenerert uten kopi. Mister Fly den, er de deponerte nøklene borte.
+
+**Det er ikke datatap.** Bloben ligger fortsatt der, fortsatt kryptert med
+brukerens egen nøkkel, fortsatt åpningsbar med den 20-tegns
+gjenopprettingskoden. Systemet degraderer til slik det var før deponering
+fantes.
+
+**Men tapet treffer skjevt.** De som slo på «gjenopprett uten kode», gjorde det
+stort sett fordi de ikke ville forholde seg til en kode — og har derfor med
+stor sannsynlighet ikke tatt vare på den. Feilen rammer presis den gruppen som
+er dårligst rustet til å tåle den.
+
+**Den realistiske trusselen er ikke at Fly går under**, men
+`flyctl secrets set BACKUP_ESCROW_SECRET=...` kjørt en gang for mye. Menneskelig
+feil, ikke leverandørsvikt.
+
+### Bygget som svar
+
+1. **`BACKUP_ESCROW_SECRET_OLD`** — rader som ikke åpnes av den gjeldende
+   hemmeligheten prøves med den forrige, og **krypteres om ved første lesing**.
+   En utskiftning migrerer seg selv. Rekkefølge: sett `_OLD` = dagens, sett ny,
+   følg `/health` til den sier `ok`, fjern `_OLD`.
+2. **Nøkkel-ID på hver rad** (`key_check`) — HMAC over en fast streng under den
+   avledede nøkkelen. Et fingeravtrykk som ikke røper hemmeligheten, men lar
+   `/health` si `escrow: "av" | "ok" | "N rader paa annen hemmelighet"`. Uten
+   det ville en feilsatt hemmelighet først vist seg den dagen en bruker prøvde
+   å gjenopprette.
+
+Forkastet: envelope-kryptering med KMS. Flytter holdbarhetsproblemet til noen
+med bedre SLA, men koster en avhengighet — og en KMS-nøkkel har samme
+egenskap: sletter du den, er den borte.
+
+### Anbefaling: lag en ny hemmelighet nå
+
+Den nåværende ble autogenerert uten at verdien ble sett, så det finnes ingen
+kopi noe sted. **Akkurat nå er det gratis å bytte:** funksjonen er timer gammel,
+ingen klient bruker den ennå, og det ligger null deponerte nøkler i basen.
+
+Generer en ny slik at du *ser* verdien, legg den i passordhvelvet ditt, og sett
+den så:
+
+```powershell
+$ny = [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
+$ny                     # les den, lagre den i hvelvet
+flyctl secrets set BACKUP_ESCROW_SECRET=$ny -a bestefar-api
+```
+
+Regelen om at hemmeligheter ikke skal i chat-loggen gjelder transkriptet, ikke
+passordhvelvet ditt. Denne verdien *bør* skrives ned: den gir ingenting alene
+(uten databasen er den verdiløs), skal aldri roteres rutinemessig, og utløper
+ikke.
+
+## Migrasjon
+
+`f1a7d3c8e206` — `backup_key_escrow.key_check` (`server_default ""`).
+Eksisterende rader rapporteres som avvikende og retter seg selv ved
+første lesing.

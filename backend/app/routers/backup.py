@@ -204,7 +204,7 @@ def deponer_noekkel(body: EscrowIn, user: User = Depends(current_user),
     if row is None:
         row = BackupKeyEscrow(user_id=user.id)
         s.add(row)
-    row.material = escrow.krypter(cfg, raa, user.id)
+    row.material, row.key_check = escrow.krypter(cfg, raa, user.id)
     row.updated_at = utcnow()
     s.commit()
     return {"escrowed": True, "updated_at": row.updated_at}
@@ -219,11 +219,21 @@ def hent_noekkel(user: User = Depends(current_user),
     if row is None:
         raise HTTPException(404, "Ingen nøkkel er deponert.")
     try:
-        raa = escrow.dekrypter(cfg, row.material, user.id)
+        raa, gammel = escrow.dekrypter(cfg, row.material, user.id)
     except escrow.EscrowUnreadable as exc:
         raise HTTPException(503, str(exc)) from exc
+
+    # Leses FOER en eventuell omkryptering: `updated_at` skal fortsatt bety
+    # «sist brukeren deponerte», ikke «sist serveren stelte med raden».
+    deponert = row.updated_at
+    if gammel:
+        # Raden laa paa forrige hemmelighet. Krypter om naa, saa en utskiftning
+        # migrerer seg selv etter hvert som radene leses - i stedet for aa
+        # kreve en engangsjobb ingen husker aa kjoere.
+        row.material, row.key_check = escrow.krypter(cfg, raa, user.id)
+        s.commit()
     return {"key_material": base64.b64encode(raa).decode(),
-            "updated_at": row.updated_at}
+            "updated_at": deponert}
 
 
 @router.delete("/key-escrow", status_code=204)

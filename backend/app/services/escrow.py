@@ -1,5 +1,5 @@
 """
-Kryptering i ro av deponert noekkelmateriale (backend_spec §2).
+Kryptering i ro av deponert noekkelmateriale (backend_spec §2.1).
 
 Deponeringen er frivillig og betyr at serveren kan aapne backup-bloben. Det
 kan vi ikke gjoere noe med - det er hele poenget med valget. Det vi KAN gjoere,
@@ -14,8 +14,23 @@ flyttes fra én bruker til en annen i basen uten at dekrypteringen feiler.
 
 Formatet er versjonert (1 byte) fordi noekkelmateriale er det siste man vil
 maatte gjette seg til om fem aar.
+
+TO TING SOM GJOER EN UTSKIFTNING OVERLEVBAR:
+
+  `BACKUP_ESCROW_SECRET_OLD` proeves naar den gjeldende hemmeligheten ikke
+  aapner raden, og raden krypteres om ved foerste lesing. En utskiftning blir
+  da en gradvis migrering i stedet for et stup - og en hemmelighet satt ved et
+  uhell kan angres saa lenge den gamle fortsatt staar.
+
+  NOEKKEL-ID-en (`noekkel_id`) er et fingeravtrykk av den avledede noekkelen -
+  HMAC over en fast streng, altsaa ingenting om selve hemmeligheten. Den lagres
+  paa raden, saa /health kan si «N rader ligger paa en annen hemmelighet enn
+  den som staar naa». Uten den ville en feilsatt hemmelighet foerst vist seg
+  den dagen en bruker proevde aa gjenopprette - verst tenkelige tidspunkt.
 """
+import hmac
 import os
+from hashlib import sha256
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
@@ -27,6 +42,7 @@ from ..config import Settings
 VERSJON = 1
 NONCE_BYTES = 12
 _INFO = b"bestefar-backup-key-escrow-v1"
+_KCV = b"bestefar-escrow-kcv"
 
 
 class EscrowNotConfigured(RuntimeError):
@@ -34,39 +50,74 @@ class EscrowNotConfigured(RuntimeError):
 
 
 class EscrowUnreadable(RuntimeError):
-    """Raden finnes, men kan ikke dekrypteres - som regel rotert hemmelighet."""
+    """Raden finnes, men ingen av hemmelighetene aapner den."""
 
 
 def er_konfigurert(cfg: Settings) -> bool:
     return bool(cfg.backup_escrow_secret.strip())
 
 
-def _noekkel(cfg: Settings) -> bytes:
-    hemmelighet = cfg.backup_escrow_secret.strip()
-    if not hemmelighet:
-        raise EscrowNotConfigured(
-            "Noekkeldeponering er ikke konfigurert paa serveren.")
+def _avled(hemmelighet: str) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                 info=_INFO).derive(hemmelighet.encode("utf-8"))
 
 
-def krypter(cfg: Settings, klartekst: bytes, user_id: str) -> bytes:
+def _noekler(cfg: Settings) -> list[bytes]:
+    """Gjeldende hemmelighet foerst, deretter den forrige om den er satt."""
+    ut = []
+    for raa in (cfg.backup_escrow_secret, cfg.backup_escrow_secret_old):
+        raa = raa.strip()
+        if raa:
+            ut.append(_avled(raa))
+    if not ut:
+        raise EscrowNotConfigured(
+            "Noekkeldeponering er ikke konfigurert paa serveren.")
+    return ut
+
+
+def _id_for(noekkel: bytes) -> str:
+    # Fingeravtrykk, ikke hemmelighet: HMAC over en KONSTANT streng. Verdien er
+    # lik for alle rader kryptert med samme hemmelighet, og sier ingenting om
+    # hva hemmeligheten er.
+    return hmac.new(noekkel, _KCV, sha256).hexdigest()[:16]
+
+
+def noekkel_id(cfg: Settings) -> str:
+    """ID-en til hemmeligheten som gjelder NAA. Tom hvis ingen er satt."""
+    raa = cfg.backup_escrow_secret.strip()
+    return _id_for(_avled(raa)) if raa else ""
+
+
+def krypter(cfg: Settings, klartekst: bytes, user_id: str) -> tuple[bytes, str]:
+    """Returnerer (lagringsklar blob, noekkel-ID)."""
+    noekkel = _noekler(cfg)[0]
     nonce = os.urandom(NONCE_BYTES)
-    ciph = AESGCM(_noekkel(cfg)).encrypt(nonce, klartekst, user_id.encode())
-    return bytes([VERSJON]) + nonce + ciph
+    ciph = AESGCM(noekkel).encrypt(nonce, klartekst, user_id.encode())
+    return bytes([VERSJON]) + nonce + ciph, _id_for(noekkel)
 
 
-def dekrypter(cfg: Settings, lagret: bytes, user_id: str) -> bytes:
+def dekrypter(cfg: Settings, lagret: bytes,
+              user_id: str) -> tuple[bytes, bool]:
+    """
+    Returnerer (klartekst, om den GAMLE hemmeligheten maatte til).
+
+    Kalleren bruker det andre elementet til aa kryptere raden om, slik at en
+    utskiftning migrerer seg selv etter hvert som radene leses.
+    """
     if not lagret or lagret[0] != VERSJON:
         raise EscrowUnreadable("Ukjent format paa deponert noekkelmateriale.")
     nonce = lagret[1:1 + NONCE_BYTES]
-    try:
-        return AESGCM(_noekkel(cfg)).decrypt(nonce, lagret[1 + NONCE_BYTES:],
-                                             user_id.encode())
-    except InvalidTag as exc:
-        # Hemmeligheten er rotert, eller raden er flyttet mellom brukere.
-        # Begge deler er en driftsfeil, ikke en brukerfeil - men resultatet for
-        # brukeren er det samme: materialet er tapt, koden maa brukes.
-        raise EscrowUnreadable(
-            "Deponert noekkelmateriale kan ikke leses. Bruk "
-            "gjenopprettingskoden.") from exc
+    ciph = lagret[1 + NONCE_BYTES:]
+
+    for i, noekkel in enumerate(_noekler(cfg)):
+        try:
+            return AESGCM(noekkel).decrypt(nonce, ciph, user_id.encode()), i > 0
+        except InvalidTag:
+            continue
+
+    # Hemmeligheten er skiftet ut uten at den gamle ble beholdt, eller raden er
+    # flyttet mellom brukere. Begge deler er en driftsfeil, ikke en brukerfeil -
+    # men resultatet for brukeren er det samme: materialet er tapt, koden maa
+    # brukes.
+    raise EscrowUnreadable(
+        "Deponert noekkelmateriale kan ikke leses. Bruk gjenopprettingskoden.")

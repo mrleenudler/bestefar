@@ -94,6 +94,87 @@ def test_rotert_hemmelighet_gir_503_ikke_soppel(paa, client, monkeypatch):
     assert "gjenopprettingskoden" in r.json()["detail"]
 
 
+# --------------------------------------------------------------------
+# Utskiftning av hemmeligheten
+# --------------------------------------------------------------------
+
+def _skift(monkeypatch, ny: str, gammel: str = "test-escrow-hemmelighet"):
+    monkeypatch.setenv("BACKUP_ESCROW_SECRET", ny)
+    monkeypatch.setenv("BACKUP_ESCROW_SECRET_OLD", gammel)
+    from app.config import settings
+    settings.cache_clear()
+
+
+def test_gammel_hemmelighet_aapner_fortsatt_raden(paa, client, monkeypatch):
+    """Uten dette er en utskiftning et stup: alt deponert materiale blir
+    uleselig i samme oeyeblikk hemmeligheten byttes."""
+    _put(client)
+    _skift(monkeypatch, "ny-escrow-hemmelighet")
+    r = client.get("/v1/backup/key-escrow", headers=AUTH)
+    assert r.status_code == 200
+    assert r.json()["key_material"] == MATERIALE
+
+
+def test_raden_krypteres_om_ved_lesing(paa, client, session, monkeypatch):
+    """Utskiftningen migrerer seg selv etter hvert som radene leses, i stedet
+    for aa kreve en engangsjobb ingen husker aa kjoere."""
+    _put(client)
+    from app.models import BackupKeyEscrow
+    foer = session.get(BackupKeyEscrow, USER_ID).key_check
+
+    _skift(monkeypatch, "ny-escrow-hemmelighet")
+    client.get("/v1/backup/key-escrow", headers=AUTH)
+
+    session.expire_all()
+    rad = session.get(BackupKeyEscrow, USER_ID)
+    assert rad.key_check != foer
+
+    # Og naa aapnes den av den NYE alene - den gamle kan fjernes.
+    monkeypatch.setenv("BACKUP_ESCROW_SECRET_OLD", "")
+    from app.config import settings
+    settings.cache_clear()
+    assert client.get("/v1/backup/key-escrow",
+                      headers=AUTH).json()["key_material"] == MATERIALE
+
+
+def test_omkryptering_flytter_ikke_deponeringstidspunktet(paa, client,
+                                                          monkeypatch):
+    """`updated_at` skal bety «sist brukeren deponerte», ikke «sist serveren
+    stelte med raden»."""
+    deponert = _put(client).json()["updated_at"]
+    _skift(monkeypatch, "ny-escrow-hemmelighet")
+    assert client.get("/v1/backup/key-escrow",
+                      headers=AUTH).json()["updated_at"] == deponert
+
+
+def test_health_melder_fra_om_feil_hemmelighet(paa, client, monkeypatch):
+    """En feilsatt hemmelighet skal dukke opp i overvaakningen, ikke hos en
+    bruker midt i en gjenoppretting."""
+    assert client.get("/health").json()["escrow"] == "ok"
+    _put(client)
+    assert client.get("/health").json()["escrow"] == "ok"
+
+    # Byttet ut UTEN aa beholde den gamle - det verste tilfellet.
+    monkeypatch.setenv("BACKUP_ESCROW_SECRET", "en helt annen hemmelighet")
+    from app.config import settings
+    settings.cache_clear()
+    assert client.get("/health").json()["escrow"] == "1 rader paa annen hemmelighet"
+
+
+def test_health_sier_av_uten_hemmelighet(client):
+    assert client.get("/health").json()["escrow"] == "av"
+
+
+def test_noekkel_id_roeper_ikke_hemmeligheten(paa, client, session):
+    """Fingeravtrykket er HMAC over en KONSTANT streng. Det skal kunne ligge i
+    basen uten aa si noe om hva hemmeligheten er."""
+    _put(client)
+    from app.models import BackupKeyEscrow
+    kcv = session.get(BackupKeyEscrow, USER_ID).key_check
+    assert kcv and "test-escrow-hemmelighet" not in kcv
+    assert len(kcv) == 16
+
+
 def test_deponering_er_isolert_per_bruker(paa, client):
     _put(client)
     assert client.get("/v1/backup/key-escrow", headers=ANNEN).status_code == 404

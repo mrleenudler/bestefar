@@ -217,6 +217,12 @@ class BackupKeyEscrow(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"),
                                          primary_key=True)
     material: Mapped[bytes] = mapped_column(LargeBinary)
+    # Fingeravtrykk av hemmeligheten raden er kryptert med - HMAC over en fast
+    # streng, ikke noe om selve hemmeligheten. Finnes for at /health skal kunne
+    # si «N rader ligger paa en annen hemmelighet enn den som staar naa». Uten
+    # den ville en feilsatt BACKUP_ESCROW_SECRET foerst vist seg den dagen en
+    # bruker proevde aa gjenopprette.
+    key_check: Mapped[str] = mapped_column(String(32), default="")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 

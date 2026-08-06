@@ -119,6 +119,12 @@ class Settings(BaseSettings):
     # aa lagre noekler i klartekst. Roteres den, blir alle deponerte noekler
     # uleselige og brukerne maa falle tilbake paa gjenopprettingskoden.
     backup_escrow_secret: str = ""
+    # Den FORRIGE hemmeligheten. Settes bare mens en utskiftning paagaar:
+    # rader som ikke aapnes av den gjeldende proeves med denne, og krypteres
+    # om ved foerste lesing. Uten den er en utskiftning et stup - alt deponert
+    # materiale blir uleselig i samme oeyeblikk. /health teller hvor mange
+    # rader som fortsatt ligger paa den gamle, saa man vet naar den kan fjernes.
+    backup_escrow_secret_old: str = ""
     # Deponert materiale er en noekkel eller en gjenopprettingskode, ikke data.
     # Grensen finnes for aa hindre at endepunktet blir en ekstra lagringsplass.
     max_escrow_bytes: int = 512

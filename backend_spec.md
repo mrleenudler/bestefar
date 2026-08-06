@@ -125,8 +125,37 @@ Det vi *kan* gjøre, og gjør: materialet krypteres i ro med AES-256-GCM
 Fly-secret, altså **et annet sted enn databasen** — en Supabase-dump alene
 gir ingen nøkler, og en rad kan ikke flyttes fra én bruker til en annen.
 Uten hemmeligheten svarer endepunktene 503; vi lagrer heller ingenting enn
-å lagre nøkler i klartekst. Roteres den, blir alle deponerte nøkler uleselige
-og `GET` svarer 503 med en beskjed om å bruke koden.
+å lagre nøkler i klartekst.
+
+**Hemmeligheten er selv et enkeltpunkt, og behandles deretter** (2026-08-06).
+Mistes den, er ikke dataene tapt — bloben er fortsatt brukerens, fortsatt
+åpningsbar med gjenopprettingskoden — men funksjonen degraderer til «som om
+deponering aldri var slått på». Det treffer skjevt: nettopp de som slo den på,
+er de som minst sannsynlig tok vare på koden. Tre tiltak:
+
+1. **En kopi utenfor Fly.** Dette er en konfigurasjonsverdi, ikke en
+   brukerlegitimasjon: den gir ingenting alene (uten databasen er den
+   verdiløs), skal aldri roteres rutinemessig og utløper ikke. En kopi i
+   utviklerens passordhvelv er det enkleste og mest virkningsfulle tiltaket
+   som finnes, og det koster ingenting.
+2. **`BACKUP_ESCROW_SECRET_OLD`.** Rader som ikke åpnes av den gjeldende
+   hemmeligheten prøves med den forrige, og **krypteres om ved første
+   lesing**. En utskiftning blir da en gradvis migrering i stedet for et stup,
+   og en hemmelighet satt ved et uhell kan angres så lenge den gamle står.
+   Rekkefølgen er: sett `_OLD` = dagens, sett ny, følg `/health` til den sier
+   `ok`, fjern `_OLD`.
+3. **Nøkkel-ID på hver rad** (`key_check`) — HMAC over en fast streng under
+   den avledede nøkkelen, altså et fingeravtrykk som ikke sier noe om selve
+   hemmeligheten. `GET /health` rapporterer `escrow`: `"av"`, `"ok"`, eller
+   `"N rader paa annen hemmelighet"`. Uten dette ville en feilsatt hemmelighet
+   først vist seg den dagen en bruker prøvde å gjenopprette — verst tenkelige
+   tidspunkt.
+
+Vurdert og forkastet: **envelope-kryptering med en KMS.** Det flytter
+holdbarhetsproblemet til en leverandør med bedre SLA, men innfører en
+avhengighet og en kostnad — og en KMS-nøkkel har nøyaktig samme egenskap:
+slettes den, er den borte. Ikke proporsjonalt når fallback-kjeden i §2.1
+allerede finnes.
 
 Detaljer som har betydning for klienten:
 - `key_material` er base64 av ugjennomsiktige byte (≤ 512 byte). Serveren
