@@ -23,8 +23,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "0.15"
+        versionCode = 16
+        versionName = "0.16"
 
         externalNativeBuild {
             cmake {
@@ -98,4 +98,10 @@ dependencies {
     // On-device OCR: leser skjermens poengtall for aa kontrollere de
     // detekterte treffene (musingsUI runde 4). Bundlet latinsk modell.
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Opplaasing foran jaktloggen (musingsUI runde 13). Biometri ELLER
+    // skjermlaas - androidx.biometric haandterer fallbacken helt ned til v26.
+    implementation("androidx.biometric:biometric:1.1.0")
+    // Block Store: noekkelen til sikkerhetskopien overlever telefonbytte uten
+    // at brukeren maa taste en kode (musingsUI runde 13).
+    implementation("com.google.android.gms:play-services-auth-blockstore:16.4.0")
 }

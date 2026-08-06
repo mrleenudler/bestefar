@@ -202,6 +202,95 @@ object Stats {
         return best
     }
 
+    // ---------- Trend (musingsUI runde 13) ----------
+
+    /**
+     * Vinduet er 20 SKUDD, ikke 20 serier: en serie er 5–10 skudd, så «fem
+     * serier» ville betydd 25 for én bruker og 50 for en annen.
+     */
+    const val TREND_WINDOW = 20
+
+    /**
+     * Ett punkt per dag det er skutt.
+     *
+     * @param value  det som tegnes: rullende snitt over de siste [TREND_WINDOW]
+     *               skuddene — eller dagens eget snitt når dagen alene har
+     *               flere enn 20 skudd (da er dagen sitt eget vindu).
+     * @param dayValue dagens eget snitt, uansett antall. Tegnes som en svak
+     *               prikk ved siden av linja, se [TrendView].
+     * @param shots  antall skudd i vinduet. Under 20 betyr «foreløpig», og det
+     *               vises — et halvfylt vindu skal ikke se ut som et helt.
+     */
+    class TrendPoint(
+        val date: java.time.LocalDate,
+        val value: Double,
+        val dayValue: Double,
+        val dayShots: Int,
+        val shots: Int,
+    ) {
+        val partial: Boolean get() = shots < TREND_WINDOW
+    }
+
+    /**
+     * Trendkurven for de siste to jaktårene (musingsUI runde 13). Når det
+     * tredje jaktåret starter, faller det første ut av seg selv — vi filtrerer
+     * på sesongnøkkel, ikke på «730 dager siden», slik at grafen bytter
+     * innhold på samme dato som resten av appen bytter sesong.
+     */
+    fun trendPoints(series: List<SeriesRecord>): List<TrendPoint> {
+        val nowSeason = Store.seasonKey(System.currentTimeMillis())
+        val kept = series
+            .filter { Store.seasonKey(it.ts) >= nowSeason - 1 }
+            .sortedBy { it.ts }
+        if (kept.isEmpty()) return emptyList()
+
+        val zone = java.time.ZoneId.systemDefault()
+        fun dayOf(ts: Long) = java.time.Instant.ofEpochMilli(ts).atZone(zone).toLocalDate()
+
+        // Flat, kronologisk skuddliste — vinduet går på tvers av dager.
+        val shots = kept.flatMap { s -> s.shots.map { dayOf(s.ts) to it.decimal } }
+        val byDay = shots.groupBy({ it.first }, { it.second })
+
+        val out = ArrayList<TrendPoint>(byDay.size)
+        var idx = 0
+        byDay.keys.sorted().forEach { day ->
+            val own = byDay.getValue(day)
+            idx += own.size
+            val dayMean = own.average()
+            if (own.size > TREND_WINDOW) {
+                out.add(TrendPoint(day, dayMean, dayMean, own.size, own.size))
+            } else {
+                val window = shots.subList((idx - TREND_WINDOW).coerceAtLeast(0), idx)
+                out.add(TrendPoint(day, window.map { it.second }.average(),
+                    dayMean, own.size, window.size))
+            }
+        }
+        return out
+    }
+
+    /**
+     * Y-aksen for trendgrafen (musingsUI runde 13): «avstanden fra laveste
+     * datapunkt til sentrum skal aldri være mindre enn 25 % av aksen».
+     *
+     * Regnet ut: med `lo = min − a` og `hi = maks + b` gir kravet
+     * `(R + b − a)/2 >= (R + a + b)/4`, altså `a <= (R + b)/3`. I praksis
+     * betyr det at det laveste punktet aldri får ligge høyere enn en firedel
+     * opp på aksen — luft under kurven er nettopp det som får en flat trend
+     * til å se ut som framgang.
+     *
+     * [minHeight] hindrer at et enkelt punkt havner på gulvet når spennet er 0.
+     */
+    fun trendAxis(values: List<Double>, minHeight: Double = 1.0): Pair<Double, Double> {
+        if (values.isEmpty()) return 0.0 to minHeight
+        val m = values.min()
+        val M = values.max()
+        val r = M - m
+        // Litt luft over, og nok totalhøyde til at en flat kurve ikke støyer.
+        val b = maxOf(r * 0.15, (minHeight - r) * 0.75, 0.05)
+        val a = minOf(maxOf(r * 0.15, (minHeight - r) * 0.25), (r + b) / 3.0)
+        return (m - a) to (M + b)
+    }
+
     /** Vinkling i grader for visning (BH-sirkelen kommer, placeholder-tekst). */
     fun angleDeg(a: Angle): Int = when (a) {
         Angle.SIDE -> 90; Angle.SKRAA30 -> 60; Angle.SKRAA60 -> 30

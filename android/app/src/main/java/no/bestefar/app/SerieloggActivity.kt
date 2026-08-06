@@ -125,6 +125,21 @@ class SerieloggActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
         content.addView(toggle)
 
+        // Trendgrafen (musingsUI runde 13). Den står øverst i Serier fordi det
+        // er her brukeren allerede kommer for å se på utviklingen sin — og den
+        // viser alltid to jaktår, uavhengig av sesongfilteret under, siden en
+        // trend som stopper 1. april ikke er en trend.
+        val trend = Stats.trendPoints(store.allSeries())
+        if (trend.isNotEmpty()) {
+            content.addView(Ui.hint(this, getString(R.string.trend_title)))
+            content.addView(TrendView(this).apply { setData(trend) },
+                Ui.matchWrap(0, this))
+            val last = trend.last()
+            content.addView(Ui.hint(this, if (last.partial)
+                getString(R.string.trend_partial, "%.1f".format(last.value), last.shots)
+                else getString(R.string.trend_now, "%.1f".format(last.value))))
+        }
+
         val source = if (seasonOnly) store.currentSeasonSeries() else store.allSeries()
         val all = source.sortedByDescending { it.ts }
         if (all.isEmpty()) {

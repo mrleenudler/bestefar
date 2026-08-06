@@ -143,13 +143,25 @@ object Ui {
      * som bare er et veivalg (f.eks. «lik serie, lagre likevel?») skal IKKE ha
      * den; da slites ikonet ut og slutter å bety noe.
      */
-    fun warningDialog(a: android.app.Activity): androidx.appcompat.app.AlertDialog.Builder {
-        val icon = androidx.core.content.ContextCompat.getDrawable(
-            a, R.drawable.ic_warning)?.mutate()
+    fun warningDialog(a: android.app.Activity): androidx.appcompat.app.AlertDialog.Builder =
+        dangerDialog(a, R.drawable.ic_warning, R.string.warning_title)
+
+    /**
+     * Som [warningDialog], men med STOP-skilt (musingsUI runde 13). Forbeholdt
+     * det ene valget som ikke bare sletter noe, men ALT — «Slett alle data».
+     * Trekanten betyr «tenk deg om»; åttekanten betyr «her stopper du».
+     * Skillet er verdiløst hvis det brukes to steder, så det brukes ett.
+     */
+    fun stopDialog(a: android.app.Activity): androidx.appcompat.app.AlertDialog.Builder =
+        dangerDialog(a, R.drawable.ic_stop, R.string.stop_title)
+
+    private fun dangerDialog(a: android.app.Activity, iconRes: Int, titleRes: Int):
+        androidx.appcompat.app.AlertDialog.Builder {
+        val icon = androidx.core.content.ContextCompat.getDrawable(a, iconRes)?.mutate()
         icon?.setTint(android.graphics.Color.parseColor("#C62828"))
         return androidx.appcompat.app.AlertDialog.Builder(a)
             .setIcon(icon)
-            .setTitle(R.string.warning_title)
+            .setTitle(titleRes)
     }
 
     /**

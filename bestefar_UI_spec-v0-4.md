@@ -459,3 +459,51 @@ uten nett — offline-først er ikke svekket, bare supplert.
   generert gjenopprettingskode på 20 tegn som vises én gang. Mister brukeren
   koden, er kopien tapt — det står eksplisitt i dialogen, og følger av at
   serveren ikke kan lese bloben.
+
+## 21. Endringslogg v0.16 (musingsUI runde 13)
+
+### Dialoger
+- **STOP-ikon** (`ic_stop`, `Ui.stopDialog`) på «Slett alle data» — det ene
+  valget som fjerner alt. Advarselstrekanten betyr «tenk deg om»; åttekanten
+  betyr «her stopper du». Skillet er verdiløst hvis åttekanten brukes to steder,
+  så den brukes ett.
+- **Innskyting, «Nei, ikke lagre»** har fått en tekst som sier hva som
+  forsvinner: begge dagens serier, ikke bare den man står i. Logikken er
+  uendret fra runde 4 — det var teksten som manglet.
+
+### Jakt
+- **Forhåndsvisning av felling-varselet.** Etter en vellykket felling vises den
+  nøyaktige setningen vennene får («Ola har felt et villsvin i Molde.»), med
+  stedet i et redigerbart felt som kan tømmes. Teksten oppdateres mens man
+  skriver. Bare vellykkede fellinger tilbys; bom og ettersøk kunngjøres ikke.
+  Kunngjøringen kommer etter lagringen og kan aldri stoppe den.
+- **Valgfri opplåsing foran jaktloggen** (av som standard). Biometri eller
+  skjermlås på «Registrer jaktskudd» og «Se registrerte skudd», med fem
+  minutters frist. Avvist opplåsing lar brukeren stå der de sto. Resten av
+  appen — scan, innsikt, serier, profil — er aldri låst; scan-flyten skal virke
+  med hansker. Bryteren skjules helt på enheter uten skjermlås.
+
+### Serier
+- **Trendgraf** øverst på Serier-siden. X = dato over inntil to jaktår med
+  sesongskiftet 1. april som loddrett strek; Y = poeng per skudd som rullende
+  snitt over 20 skudd (dagens eget snitt når dagen har flere). Y-aksen skaleres
+  slik at laveste punkt aldri ligger høyere enn en firedel opp — luft under
+  kurven er nettopp det som får en flat utvikling til å se ut som framgang.
+  Dagens eget snitt vises som en svak prikk ved siden av linja, og siste punkt
+  tegnes åpent så lenge vinduet ikke er fullt. **Ingenting framskrives.**
+
+### Sikkerhetskopi
+- **Gjenopprettingskoden er degradert til nødutgang.** «Sikkerhetskopier nå»
+  spør ikke lenger om noe: nøkkelen ligger i Block Store (når enheten har
+  ende-til-ende-kryptering der), og koden vises bare når brukeren ber om den.
+- **Nytt valg «Gjenopprett uten kode»** (av som standard). Hjelpeteksten sier
+  rett ut at vi da holder nøkkelen og kan låse opp kopien — og at det kan den
+  som bryter seg inn hos oss også.
+- **Gjenoppretting spør om koden bare når ingen annen kilde har nøkkelen.**
+
+### Konto (ikke synlig ennå, men bestemmende for oppførsel)
+- Tokenene ligger Keystore-kryptert i en egen prefs-fil, utenfor
+  sikkerhetskopien. Utlogging avregistrerer enheten for push, tilbakekaller
+  refresh-tokenet og sletter begge tokenene lokalt — også offline. Fornyelse er
+  serialisert bak én lås; to parallelle ville logget brukeren ut overalt.
+- **Utlogging sletter aldri lokale data.**

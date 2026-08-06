@@ -4,7 +4,7 @@ To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
 (`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
 `BestefarCore.analyze()` i `CaptureActivity`.
 
-Diagrammene er avledet fra koden slik den står i v0.15, ikke fra spesifikasjonen.
+Diagrammene er avledet fra koden slik den står i v0.16, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
 
 ---
@@ -181,13 +181,21 @@ flowchart TD
         MENY --> M2["Jakt"]
         MENY --> M3["Venner"]
         MENY --> M4["Serier · Serielogg"]
+        M4 --> TRD["📈 Trendgraf øverst<br/>x = dato, 2 jaktår · y = 20-skudds snitt<br/>ingen framskriving"]
         MENY --> M5["Send melding"]
         MENY --> M6["Veiledning"]
         M1 --> M1a["Mine lag"]
         M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
-        M1b --> M1c["Sikkerhetskopi<br/>Vis gjenopprettingskode ·<br/>Sikkerhetskopier nå · Gjenopprett"]
-        M2 --> M2a["Logg jaktskudd<br/>«Detaljert visning» av → enkel side<br/>på → to sider"]
-        M2 --> M2b["Se registrerte skudd → Rediger"]
+        M1b --> M1c["Sikkerhetskopi<br/>Sikkerhetskopier nå · Gjenopprett ·<br/>Vis gjenopprettingskode (nødutgang)"]
+        M1b --> M1d["🔑 Gjenopprett uten kode (av)<br/>🔒 Krev opplåsing for jaktloggen (av)"]
+        M2 --> LOCK{"🔒 Krev opplåsing?<br/>av som standard"}
+        LOCK -->|"på"| BIO["BiometricPrompt<br/>biometri ELLER skjermlås<br/>5 min frist · avvist = bli stående"]
+        LOCK -->|"av"| M2a
+        BIO --> M2a["Logg jaktskudd<br/>«Detaljert visning» av → enkel side<br/>på → to sider"]
+        BIO --> M2b["Se registrerte skudd → Rediger"]
+        LOCK -->|"av"| M2b
+        M2a --> ANN{"Vellykket felling?"}
+        ANN -->|"ja"| ANNP["Forhåndsvis varselet<br/>«Ola har felt et villsvin i Molde.»<br/>Send · Ikke send"]
         M3 --> M3a["Lagside"]
     end
 
@@ -219,3 +227,18 @@ flowchart TD
   ikke kan lese. Mister brukeren koden, er kopien tapt — og det står i dialogen.
 - **🎛-ikonet.** Overalt der «Avanserte innstillinger» nevnes ligger det et
   equalizer-ikon som åpner siden direkte (`Ui.advancedIcon`).
+
+### Nytt i v0.16
+
+- **Nøkkelen til kopien søkes opp i tre lag** (`BackupKeys.resolve`): lokalt →
+  Block Store → deponering hos serveren. Brukeren blir bedt om
+  gjenopprettingskoden *bare* når ingen av dem har noe. Derfor spør
+  «Sikkerhetskopier nå» ikke lenger om noe i det hele tatt.
+- **Jaktloggen kan låses**, resten av appen aldri. Låsen ligger foran begge
+  inngangene i Jakt-menyen, med fem minutters frist. Avvist opplåsing lukker
+  ingenting — brukeren blir stående.
+- **Felling-varselet forhåndsvises.** Setningen vennene får bygges i klienten
+  (`Announce.speciesPhrase` eier bøyningen) og vises ordrett før den sendes.
+- **Utlogging** (`Auth.logout`) er tre steg i fast rekkefølge: avregistrer
+  enheten for push → tilbakekall refresh-tokenet → slett begge tokenene lokalt.
+  Siste steg skjer uansett, også offline.

@@ -83,8 +83,9 @@ object Api {
 
     // ---------- Forespørsler ----------
 
-    fun postJson(ctx: Context, path: String, body: JSONObject): Resp =
-        request(ctx, path, "application/json; charset=utf-8") { out ->
+    fun postJson(ctx: Context, path: String, body: JSONObject,
+                 authRetry: Boolean = true): Resp =
+        request(ctx, path, "application/json; charset=utf-8", authRetry = authRetry) { out ->
             out.write(body.toString().toByteArray(Charsets.UTF_8))
         }
 
@@ -121,11 +122,15 @@ object Api {
         request(ctx, path, contentType, method) { out -> body?.let { out.write(it) } }
 
     /** Som [send], men svaret leses som bytes (nedlasting av kopien). */
-    fun download(ctx: Context, path: String): Pair<Resp, ByteArray?> {
+    fun download(ctx: Context, path: String, attempt: Int = 0): Pair<Resp, ByteArray?> {
         var conn: HttpURLConnection? = null
         return try {
             conn = open(ctx, path, "GET", null, output = false)
             val code = conn.responseCode
+            if (attempt == 0 && shouldRetryAuth(ctx, code, authRetry = true)) {
+                conn.disconnect(); conn = null
+                return download(ctx, path, 1)
+            }
             if (code in 200..299) {
                 val bytes = conn.inputStream.use { it.readBytes() }
                 Log.d(TAG, "GET $path -> $code (${bytes.size} byte)")
@@ -154,16 +159,25 @@ object Api {
             contentType?.let { setRequestProperty("Content-Type", it) }
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "Bestefar/${BuildConfig.VERSION_NAME} (Android)")
-            // Innlogging (backend_spec §1). Tom til fase 3 er koblet inn i
-            // klienten; endepunktene som krever bruker svarer da 401, som er
-            // riktig oppførsel og ikke en feil å skjule.
-            val token = Store.get(ctx).authToken
+            // Innlogging (backend_spec §1). Tom uten konto; endepunktene som
+            // krever bruker svarer da 401, som er riktig oppførsel og ikke en
+            // feil å skjule.
+            val token = Auth.accessToken(ctx)
             if (token.isNotEmpty()) setRequestProperty("Authorization", "Bearer $token")
             if (output) setChunkedStreamingMode(0)   // ukjent kroppslengde
         }
 
+    /**
+     * Fornyer økten og sier fra om det er verdt å prøve forespørselen på nytt.
+     * `authRetry = false` brukes av auth-kallene selv — ellers ville et 401 fra
+     * `/v1/auth/refresh` utløst en ny fornyelse, i ring.
+     */
+    private fun shouldRetryAuth(ctx: Context, code: Int, authRetry: Boolean): Boolean =
+        code == 401 && authRetry && Auth.isLoggedIn(ctx) && Auth.refresh(ctx)
+
     private fun request(ctx: Context, path: String, contentType: String?,
-                        method: String = "POST",
+                        method: String = "POST", authRetry: Boolean = true,
+                        attempt: Int = 0,
                         writeBody: (OutputStream) -> Unit): Resp {
         var conn: HttpURLConnection? = null
         return try {
@@ -173,6 +187,13 @@ object Api {
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
             Log.d(TAG, "$method $path -> $code")
+            // Nøyaktig ETT nytt forsøk. Lykkes fornyelsen og vi likevel får 401,
+            // er det ikke tokenet som er problemet, og en løkke ville bare
+            // brent refresh-tokener.
+            if (attempt == 0 && shouldRetryAuth(ctx, code, authRetry)) {
+                conn.disconnect(); conn = null
+                return request(ctx, path, contentType, method, authRetry, 1, writeBody)
+            }
             Resp(code, text)
         } catch (e: Exception) {
             Log.d(TAG, "$method $path feilet: ${e.message}")

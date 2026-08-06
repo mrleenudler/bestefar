@@ -19,10 +19,25 @@ Oppdater docs/flytskjema.md og docs/ARCHITECTURE.mdved behov.
 ------------------------------------------------------
 
 
+Warning ikon: La ikonet for "Sllett alle data" være et STOP ikon, ikke warning.
+
+Innskyting: «Ikke lagre» — den sletter også dagens første serie, ikke bare den du står i. Det var ikke tydelig fra teksten alene
+	Kan du beskrive litt nærmere hva som skjer her?
+
+To ting klienten MÅ håndtere
+/logout gjør ikke access-tokenet ugyldig. Verifisert mot produksjon: etter 204 fra /logout svarer GET /v1/profile fortsatt 200 med det samme tokenet. Ikke en feil — tokenet er en statsløs JWT og kan ikke tilbakekalles, derfor er levetiden bare 60 minutter. Klienten må selv slette begge tokenene, og kalle POST /v1/devices/unregister samtidig. Ellers har en utlogget bruker full tilgang i opptil en time og fortsetter å få varsler.
+
+Ikke kjør to /refresh parallelt. Refresh-tokenet roteres ved hver bruk, og et allerede brukt token som dukker opp igjen tolkes som en lekkasje — da tilbakekalles alle brukerens økter. To samtidige kall logger altså ut brukeren. Serialiser fornyelsen bak én lås.
 
 
-Image donate: 
-	Oppstartsmeldingen er litt flat. Prøv å legge til en stor takk/be emoji over teksten. Tror du forresten emojien vil trigge gamle, uutdannede, rasistiske vestlendinger? Bør vi velge noe annet?
+Backend Fase 7:
+	Det bør være mulig å lagre skadedata for forskning. Det er sentral informasjon.
+
+Push varsel felling: Backend anbefaler "Vis teksten for brukeren før dere sender, så hen ser hva vennene får." Eks: Sender «Ola har felt et villsvin i Molde»
+
+Trendvisning: Jeg vil ikke ha den som at avvik fra snittet, men som en graf som viser hvor skytteren ligger nå. førsteaksen skal være tid(dato) opp til 2 år. Når tredje sesong/jaktår startes, fjernes det første fra grafen. Andreaksen er 20-skudds rolling average. Avpass aksen slik at avstanden fra laveste datapunkt til sentrum aldri blir mindre enn 25% av andreaksen.
+	Nå ser jeg også at 20-skudds rolling average ikke går sammen med visningen min. La oss bruke gjennomsnittet for dagen, dersom det skytes mer enn 20 skudd på en dag. Hva er beste løsning for siste økt? Fremskrive trenden og justere når neste serie kommer?
+
 
 Lys visning: Telefonens statusikoner må ha svart bakgrunn, også i lys visning. (Ikke implemenetrt)
 
@@ -52,16 +67,40 @@ Logg jaktskudd:
 		Fjern linjen fra animasjonen, behold bare tallet.
 	Når man sletter skudd, legg inn et advarsel-ikon i advarselen. Er det flere dialoger som bør ha et advarsel-ikon?
 
-3. Soft-delete i jaktloggen. musingsUI.txt:61 sier slettede skudd skal ha et deleted-flagg i backend. Poenget: modellendringen må skje i klienten før synk kobles på, ellers er slettinger gjort i mellomtiden allerede tapt når synken starter. Dette er argumentet for å gjøre det nå framfor senere.
--> Jeg er litt usikker på hva dette konkret betyr. Betyr det at vi soft-deleter på klientsiden også? Det bør ikke være noe problem, det er ikke data som tar noe plass. 
 
-4. Backup-blobben (§2). Serveren lagrer bytes den ikke kan lese — altså er kryptering, serialisering og gjenoppretting helt klientside, og det er den vanskelige delen. Kan bygges og testes lokalt uten en eneste innlogging. Når auth lander er det bare en header som mangler.
--> Dette må du utdype. Mener du vi skal bygge den nå? Kjør på.
+Sikkerhetskopi — nøkkelforvaltning (erstatter dagens 20-tegns kode som primærmekanisme)
+KLIENT (Android):
+1. Nøkkelen til backup-bloben lagres i Block Store med shouldBackUpToCloud=true
+   når isEndToEndEncryptionAvailable() er sann. Hentes med retrieveBytes() ved
+   oppstart; finnes den, er gjenoppretting ett trykk uten kode.
+2. Gjenopprettingskoden beholdes, men degraderes til nødutgang: vises under
+   Avanserte innstillinger -> Sikkerhetskopi, ikke som en dialog brukeren må
+   forholde seg til ved første kopi.
+3. Nytt valg i Avanserte innstillinger:
+   "Sikkerhetskopi:  Gjenopprett uten kode"
+   På: nøkkelen deponeres hos serveren (se under). Av (default): kun Block Store
+   + kode. Hjelpeteksten sier rett ut at serveren da kan lese kopien -> (Merk: Tilpass teksten dersom jeg har misforstått funksjonaliteten.) "Datasikkerhet: Hvis du slår dette alternativet på, er det lettere å gjenopprette dataene dine dersom du skulle miste eller ødelegge telefonene din.\n\n MEN dataene dine er ikke krypterte på serveren, slik at de er lettere å lese dersom vi skulle bli hacket.\n\nDet viktige spørsmålet du må stille deg før du slår valget på, er: \"Hvor krise er det for meg om venner eller familie eller hackere kan lese alt jeg har på appen?\""
+4. Nytt valg i Avanserte innstillinger:
+   "Sikkerhet:  Krev opplåsing for jaktloggen"  (av som standard)
 
-5. Serie-synk-kø mot PUT /v1/stats/series/{id}. Endepunktet er idempotent med vilje (klientens egen UUID som nøkkel), så køen kan bygges nå og slås på senere. SeriesRecord.uploaded står fortsatt urørt.
--> Hva betyr det?
- 
-(Svar til backend rettes der)
+   På: BiometricPrompt (med DEVICE_CREDENTIAL-fallback) vises når brukeren åpner
+   Jakt -> "Se registrerte skudd" og "Registrer jaktskudd". Avvist -> tilbake til
+   forrige skjerm, ikke appavslutning. Resten av appen (Scan, Innsikt, Serier,
+   Profil) er aldri gatet — scan-flyten skal fungere med hansker.
+
+   Gaten gjelder per fremmøte i jaktloggen, med en kort inaktivitetsfrist
+   (foreslag: 5 min) så en tur ut og inn i loggen under samme økt ikke ber om
+   fingeravtrykk hver gang.
+
+   Har enheten verken biometri eller skjermlås (canAuthenticate() != SUCCESS),
+   skjules bryteren med et hint om at telefonen må ha skjermlås.
+
+   Merk: dette er en dør foran skjermen, ikke kryptering — jaktloggen ligger
+   like lesbar på disk uansett. Trusselen den dekker er én ulåst telefon i feil
+   hender, og det er den eneste påstanden UI-teksten skal gjøre.5. Brukeren forblir permanent innlogget. Refresh serialiseres bak én lås (to
+   parallelle /refresh revokerer alle økter). Tokens i EncryptedSharedPreferences.
+   Feilet refresh -> ordinær innlogging, aldri tap av lokale data.
+
 
 <ignore>
 Venner: 
@@ -98,12 +137,11 @@ OCR/poengskjerm:
 Alt nedenfor skal ignoreres
 ------------------------------------------------------
 
-- Google OAuth-klient i Google Cloud Console
-- Apple-utviklerkonto
-- Eget domene for redirect-URLene
+- Apple-utviklerkonto (På is)
+- Eget domene for redirect-URLene (ferdig?)
 
 
-TODO: Nå er gatingen for auto-capture for svar igjen. Den tar bilder av hva som helst.
+TODO: Nå er gatingen for auto-capture for svak igjen. Den tar bilder av hva som helst.
 
 SILHUETTER: MAngler skrå for elg og villsvin
 SILHUETTER: Bestefar må se på vilt-silhuettene. Hvilke er ikke tydelige? Skal størrelsen justeres?TODO: Åpne funksjonaliteten for forskning.
@@ -122,13 +160,15 @@ TODO: Endring av teksten i "Mitt jaktmål" dialogen: Hva skal den være?
 TODO: Brukerlagring av bilder: Beste serie / over terskel / alle ; Koble til Dropbox/Onedrive/GDisk mv.
 	Bilder som ikke skal lagres, bør/må slettes.
 TODO: Hvordan er treffpunkter lagret? Hvordan kan jeg verifisere reliabilitet? 
-TODO: Farge for statusbaren kan møte problemer senere: 
+*TODO: Farge for statusbaren kan møte problemer senere: 
 	- Den svarte statuslinjen krevde windowOptOutEdgeToEdgeEnforcement — med targetSdk 36 ignoreres statusBarColor ellers helt. Flagget er Googles midlertidige opt-out og forsvinner i en framtidig SDK; da må vi tegne baren selv. Bieffekt: Ui.applyInsets() blir en no-op av seg selv, så innholdet ligger nå litt høyere enn før.
 TODO:(i): Hvilke elementer skal ha informasjonsikon? (Ikke svar på denne, det er utviklers jobb å bestemme)
 TODO: Mer arbeid med intro/veiledning:
 
-TODO: Kjernen må ha versjonsnavn.
-One open question for you, also noted in the til_utvikler: core_version in the donations is currently the app's versionName, since the CV core exposes no version over FFI. Worth adding a bf_version() to bestefar_ffi.h?
+*TODO: Kjernen må ha versjonsnavn.
+	One open question for you, also noted in the til_utvikler: core_version in the donations is currently the app's versionName, since the CV core exposes no version over FFI. Worth adding a bf_version() to bestefar_ffi.h?
+TODO: Hva er greia med rådyr-silhuetten? Se tilbakemelding v015. -> Visuell sjekk -> ??
+TODO: Vurder å legge stillingsikonet over lagrede bilder.
 
 ?Kan vi koble opp mot statens app? Jegerprofil? (Ikke implementer denne nå)
 ->Vurder UI-støtte av tutorial (på lengre sikt)

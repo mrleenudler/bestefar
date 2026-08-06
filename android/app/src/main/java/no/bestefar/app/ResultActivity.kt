@@ -250,9 +250,11 @@ class ResultActivity : AppCompatActivity() {
 
     private fun askSaveLastTwo(firstToday: SeriesRecord, proceed: () -> Unit) {
         // Advarselsikon (musingsUI runde 12): «Ikke lagre» her sletter også
-        // dagens FØRSTE serie, ikke bare denne.
+        // dagens FØRSTE serie, ikke bare denne. Runde 13: det står nå i
+        // teksten også — ikonet alene fortalte ikke HVA som forsvinner.
         Ui.warningDialog(this)
             .setTitle(R.string.sightin_savetwo_title)
+            .setMessage(R.string.sightin_savetwo_body)
             .setPositiveButton(R.string.sightin_save_anyway) { _, _ -> proceed() }
             .setNegativeButton(R.string.sightin_dont_save) { _, _ ->
                 // Forkast begge: slett dagens første og ikke lagre denne

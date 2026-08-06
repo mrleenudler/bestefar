@@ -29,8 +29,13 @@ class JaktActivity : AppCompatActivity() {
             layoutParams = Ui.matchWrap(8, this@JaktActivity)
                 .apply { height = Ui.dp(this@JaktActivity, 64) }
             setOnClickListener {
-                Dialogs.maybeHuntConsent(this@JaktActivity, store) {
-                    startActivity(Intent(this@JaktActivity, HuntLogActivity::class.java))
+                // Låsen kommer FØRST: samtykkedialogen viser ikke jaktdata,
+                // men den skal heller ikke kunne brukes til å bekrefte at
+                // noen har en jaktlogg her.
+                Lock.guard(this@JaktActivity) {
+                    Dialogs.maybeHuntConsent(this@JaktActivity, store) {
+                        startActivity(Intent(this@JaktActivity, HuntLogActivity::class.java))
+                    }
                 }
             }
         })
@@ -41,7 +46,9 @@ class JaktActivity : AppCompatActivity() {
             layoutParams = Ui.matchWrap(8, this@JaktActivity)
                 .apply { height = Ui.dp(this@JaktActivity, 64) }
             setOnClickListener {
-                startActivity(Intent(this@JaktActivity, RegistrerteSkuddActivity::class.java))
+                Lock.guard(this@JaktActivity) {
+                    startActivity(Intent(this@JaktActivity, RegistrerteSkuddActivity::class.java))
+                }
             }
         })
 

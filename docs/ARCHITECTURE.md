@@ -155,6 +155,27 @@ normaltilstanden, ikke en feil.
   angriperen har hele bloben, og ingen server kan bremse gjetting.
   Konsekvensen står i UI-et: mister du koden, er kopien tapt.
 
+### Økt og hemmeligheter (v0.16)
+
+- `Secrets.kt` — AES-256-GCM-nøkkel i **Android Keystore**, chiffertekst i en
+  **egen** prefs-fil (`bestefar_secrets`). Egen fil er ikke kosmetikk:
+  `Store.exportPrefs()` er generisk over hele `bestefar_ui`, så alt som legges
+  der havner i sikkerhetskopien. Tokener og gjenopprettingskoden hører ikke
+  hjemme i en kopi som skal flyttes til en annen telefon.
+  `androidx.security:security-crypto` ble vraket — den er avviklet av Google, og
+  Keystore er grunnmuren den sto på uansett.
+- `Auth.kt` — access-token (statsløs JWT, 60 min, kan ikke tilbakekalles) +
+  refresh-token (roteres ved hver bruk). `refresh()` er `@Synchronized` fordi to
+  parallelle fornyelser ville sett ut som en tokenlekkasje for serveren og
+  tilbakekalt alle brukerens økter. `logout()` avregistrerer enheten for push
+  **først** (mens tokenet virker), tilbakekaller så refresh-tokenet, og sletter
+  begge lokalt uansett utfall. `Api` prøver på nytt etter 401 nøyaktig én gang.
+- `BackupKeys.kt` — nøkkelen til kopien i tre lag: lokalt → **Block Store**
+  (kun når `isEndToEndEncryptionAvailable()`) → frivillig deponering hos
+  serveren (`/v1/backup/key-escrow`, av som standard). Koden er nødutgangen.
+- `Lock.kt` — `BiometricPrompt` foran jaktloggen, av som standard, fem minutters
+  frist. En dør, ikke kryptering; loggen ligger like lesbar på disk.
+
 **Soft-delete** (v0.15): `SeriesRecord.deletedAt` / `HuntRecord.deletedAt`.
 Sletting setter tidsstempel i stedet for å fjerne raden — uten gravsteinen har
 klienten ingenting å fortelle backenden, og en gjenoppretting ville lagt inn

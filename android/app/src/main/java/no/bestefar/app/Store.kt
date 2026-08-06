@@ -33,6 +33,7 @@ class Store private constructor(ctx: Context) {
         fun seasonLabel(key: Int) = "$key/${(key + 1) % 100}"
     }
 
+    private val app: Context = ctx
     private val prefs = ctx.getSharedPreferences("bestefar_ui", Context.MODE_PRIVATE)
     private val seriesFile = File(ctx.filesDir, "series.json")
     private val huntFile = File(ctx.filesDir, "hunts.json")
@@ -358,15 +359,42 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getLong("lastSyncTs", 0L)
         set(v) { prefs.edit().putLong("lastSyncTs", v).apply() }
 
+    // ---------- Konto (backend_spec §1) ----------
+
     /**
-     * Access-token fra innloggingen (backend_spec §1). Tom = ikke innlogget;
-     * da svarer alt som krever bruker 401, som er riktig. Klientens
-     * innloggingsflyt er ikke bygget ennå — feltet finnes så
-     * transportlaget kan sette Authorization-headeren i det den lander.
+     * Runde 12 la access-tokenet her, i klartekst. Fra runde 13 eier [Auth]
+     * tokenene og legger dem i [Secrets]; dette feltet finnes bare så den gamle
+     * verdien kan flyttes over én gang. Ikke bruk det til noe annet.
      */
-    var authToken: String
+    @Deprecated("Bruk Auth.accessToken(ctx)")
+    var legacyAuthToken: String
         get() = prefs.getString("authToken", "") ?: ""
         set(v) { prefs.edit().putString("authToken", v).apply() }
+
+    /** Når access-tokenet utløper (ms). 0 = ukjent/ikke innlogget. */
+    var authExpiresAt: Long
+        get() = prefs.getLong("authExpiresAt", 0L)
+        set(v) { prefs.edit().putLong("authExpiresAt", v).apply() }
+
+    /** Kontoens offentlige ID (den vennene søker opp). Tom = ingen konto. */
+    var accountPublicId: String
+        get() = prefs.getString("accountPublicId", "") ?: ""
+        set(v) { prefs.edit().putString("accountPublicId", v).apply() }
+
+    /** Visningsnavnet slik serveren kjenner det. */
+    var accountName: String
+        get() = prefs.getString("accountName", "") ?: ""
+        set(v) { prefs.edit().putString("accountName", v).apply() }
+
+    /**
+     * FCM-tokenet, altså adressen til denne telefonen. Ikke en hemmelighet,
+     * men det må tas vare på: uten det kan vi ikke avregistrere enheten ved
+     * utlogging, og brukeren fortsetter å få varsler ment for kontoen de
+     * nettopp forlot.
+     */
+    var pushToken: String
+        get() = prefs.getString("pushToken", "") ?: ""
+        set(v) { prefs.edit().putString("pushToken", v).apply() }
 
     /** Gjenopprettingskoden er VIST for brukeren (backend_spec §2). */
     var backupCodeShown: Boolean
@@ -374,15 +402,44 @@ class Store private constructor(ctx: Context) {
         set(v) { prefs.edit().putBoolean("backupCodeShown", v).apply() }
 
     /**
-     * Gjenopprettingskoden. Den ligger her fordi den ellers måtte skrives inn
-     * på nytt ved HVER sikkerhetskopi — og en bruker som må taste 20 tegn hver
-     * gang, tar ingen kopi. Koden beskytter mot at BACKENDEN kan lese dataene,
-     * ikke mot noen som allerede har telefonen ulåst i hånda; det er den
-     * trusselen §2 faktisk adresserer.
+     * Skal serveren kunne låse opp kopien for deg? (musingsUI runde 13)
+     * AV som standard. På = nøkkelen deponeres hos oss, og da kan vi — og den
+     * som eventuelt bryter seg inn hos oss — lese innholdet.
+     */
+    var backupEscrow: Boolean
+        get() = prefs.getBoolean("backupEscrow", false)
+        set(v) { prefs.edit().putBoolean("backupEscrow", v).apply() }
+
+    /**
+     * Krev opplåsing (biometri/skjermlås) foran jaktloggen (musingsUI runde 13).
+     * AV som standard: dette er et personvernvalg, ikke en standardinnstilling
+     * vi skal ta for brukeren.
+     */
+    var lockHuntLog: Boolean
+        get() = prefs.getBoolean("lockHuntLog", false)
+        set(v) { prefs.edit().putBoolean("lockHuntLog", v).apply() }
+
+    /**
+     * Gjenopprettingskoden — nøkkelen til sikkerhetskopien.
+     *
+     * Den ligger i [Secrets], ikke i `bestefar_ui`, av to grunner: den er en
+     * nøkkel og hører hjemme bak Keystore, og `bestefar_ui` går i sin helhet
+     * inn i sikkerhetskopien via [exportPrefs] — en kopi som inneholder sin
+     * egen nøkkel er en sirkel vi ikke skal tegne.
+     *
+     * Runde 12-verdier flyttes over ved første oppslag.
      */
     var backupCode: String
-        get() = prefs.getString("backupCode", "") ?: ""
-        set(v) { prefs.edit().putString("backupCode", v).apply() }
+        get() {
+            val old = prefs.getString("backupCode", "") ?: ""
+            if (old.isNotEmpty()) {
+                Secrets.put(app, "backup_code", old)
+                prefs.edit().remove("backupCode").apply()
+                return old
+            }
+            return Secrets.get(app, "backup_code")
+        }
+        set(v) { Secrets.put(app, "backup_code", v) }
 
     /** Utvikler: overstyr API-adressen i felt. Tom = BuildConfig.API_BASE_URL. */
     var apiBaseUrl: String
@@ -564,9 +621,18 @@ class Store private constructor(ctx: Context) {
      * sikkerhetskopien fordi noen la til et felt uten å tenke på backup.
      * Typen kodes med ett prefiks-tegn, siden JSON ikke skiller Int fra Long.
      */
+    /**
+     * Nøkler som ALDRI skal inn i en sikkerhetskopi. Kopien flyttes til en ny
+     * telefon; innloggingsøkten og enhetens push-adresse hører til DENNE
+     * telefonen, og en gjenoppretting som drar med seg dem ville gitt to
+     * enheter som tror de er den samme.
+     */
+    private val neverBackedUp = setOf("authToken", "authExpiresAt", "pushToken")
+
     @Synchronized
     fun exportPrefs(): JSONObject = JSONObject().apply {
         prefs.all.forEach { (k, v) ->
+            if (k in neverBackedUp) return@forEach
             when (v) {
                 is Boolean -> put(k, "b$v")
                 is Int -> put(k, "i$v")
@@ -583,8 +649,22 @@ class Store private constructor(ctx: Context) {
 
     @Synchronized
     fun importPrefs(o: JSONObject) {
+        // Ta vare på det som hører telefonen til, ikke kopien: clear() ville
+        // ellers logget brukeren ut midt i en gjenoppretting.
+        val keep = neverBackedUp.mapNotNull { k -> prefs.all[k]?.let { k to it } }
         val e = prefs.edit().clear()
+        keep.forEach { (k, v) ->
+            when (v) {
+                is Boolean -> e.putBoolean(k, v)
+                is Int -> e.putInt(k, v)
+                is Long -> e.putLong(k, v)
+                is Float -> e.putFloat(k, v)
+                is String -> e.putString(k, v)
+                else -> Unit
+            }
+        }
         o.keys().forEach { k ->
+            if (k in neverBackedUp) return@forEach
             val raw = o.optString(k, "")
             if (raw.isEmpty()) return@forEach
             val v = raw.substring(1)

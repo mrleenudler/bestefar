@@ -874,3 +874,59 @@ BACKEND-RUNDE 11 (noekkeldeponering, skadedata, sperrefrist)
   - backend_spec.md redigeres av UI-instansen SAMTIDIG. Edit-verktoeyet meldte
     «modified since read» to ganger. Gjoer smaa, maalrettede endringer og les
     omraadet paa nytt foer du redigerer noe som avhenger av konteksten rundt.
+
+UI-RUNDE 13 (v0.16) LAERDOMMER:
+  - KOTLIN-BLOKKOMMENTARER ER NESTEDE. En KDoc som inneholder tegnsekvensen
+    /* (f.eks. stien `/v1/auth/*` i backticks) aapner en NESTET kommentar, og
+    linjens egen */ lukker bare den. Resten av fila blir kommentar ->
+    «Syntax error: Missing '}'» langt nede + «Unclosed comment» paa siste
+    linje. Symptomet peker ALDRI paa aarsaken. Skriv aldri /v1/auth/* i en
+    kommentar; skriv «auth-endepunktene».
+  - @Suppress("DEPRECATION") kan IKKE staa foran en tilordning
+    (store.felt = ""). Annotasjonen maa paa funksjonen. Feilmeldingen er
+    ogsaa her «Missing '}'», ikke noe om annotasjoner.
+  - En lokal `val store = Store.get(ctx)` SKYGGER for en medlemsfunksjon
+    `store(ctx, code)` i samme object -> «unresolved»/invoke-feil. Ikke kall en
+    lagringsfunksjon det samme som Store-instansen.
+  - androidx.security:security-crypto (EncryptedSharedPreferences) er AVVIKLET
+    av Google. Bruk Android Keystore direkte: én AES-256-GCM-noekkel +
+    base64(iv|ct) i prefs = ~60 linjer (Secrets.kt), ingen avhengighet.
+    Keystore-noekkelen KAN bli ugyldig (fabrikkgjenoppretting) -> dekryptering
+    kaster; fang det, slett verdien og returner tom streng.
+  - HEMMELIGHETER MAA LIGGE I EN EGEN PREFS-FIL. Store.exportPrefs() er
+    generisk over hele bestefar_ui, saa alt som legges der havner i
+    sikkerhetskopien. Tokener/noekler i «bestefar_secrets»; authToken,
+    authExpiresAt og pushToken staar dessuten paa en neverBackedUp-liste, og
+    importPrefs MAA bevare dem gjennom clear() (ellers logges brukeren ut av
+    sin egen gjenoppretting).
+  - /logout gjoer IKKE access-tokenet ugyldig (statsloest JWT, 60 min).
+    Klienten maa: (1) POST /v1/devices/unregister FOERST, mens tokenet virker,
+    (2) POST /v1/auth/logout, (3) slette begge tokenene lokalt UANSETT - ogsaa
+    naar nettet er nede.
+  - ALDRI to /refresh parallelt: refresh-tokenet roteres, og et gjenbrukt
+    token tolkes som lekkasje -> alle brukerens oekter tilbakekalles. refresh()
+    er @Synchronized og sjekker paa nytt etter aa ha faatt laasen. Retry paa
+    401 skjer NOEYAKTIG én gang, og auth-kallene selv gaar med
+    authRetry = false (ellers loeper 401 fra /refresh i ring).
+  - TO INSTANSER, SAMME SPEC: backend-instansen skrev sin egen §2.1 om
+    noekkeldeponering i backend_spec.md mens jeg skrev min. Begge landet paa
+    samme design, men ULIK RUTE (/v1/backup/key-escrow med {key_material:
+    base64} vs. mitt foreslaatte /v1/backup/key). LES SPECEN PAA NYTT foer du
+    skriver klientkode mot et endepunkt du selv har «foreslaatt» - det kan
+    allerede vaere bygget. Rediger-verktoeyet varsler naar fila er endret paa
+    disk; ta det varselet alvorlig.
+  - Trendvindu telles i SKUDD (20), ikke serier. Y-akseregelen «laveste punkt
+    minst 25 % under sentrum» loeser til a <= (R+b)/3, altsaa: luften UNDER
+    kurven er begrenset - det laveste punktet havner aldri hoeyere enn en
+    firedel opp. Ett enkelt datapunkt krever en minste aksehoeyde, ellers
+    tvinger regelen punktet ned paa gulvet.
+  - IKKE FRAMSKRIV en trend til «naa». Et beregnet punkt kan ikke skilles fra
+    et maalt, og det staar der brukeren ser noeyest etter. Vis heller dagens
+    eget snitt som en egen svak prikk og tegn siste punkt AAPENT saa lenge
+    vinduet ikke er fullt.
+  - FEIL JEG GJORDE: brukte Write (full overskriving) paa til_utvikler_v016.md
+    som backend-instansen ALLEREDE hadde opprettet. Deres seksjon forsvant og
+    maatte legges inn paa nytt av dem. Regelen sto allerede i denne fila fra
+    backend-runde 10, men i motsatt retning - den gjelder BEGGE veier:
+    til_utvikler_v0NN.md og backend_spec.md DELES. Sjekk om fila finnes
+    (ls / git ls-files) og APPEND en egen seksjon; bruk aldri Write paa dem.

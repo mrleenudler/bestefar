@@ -543,4 +543,52 @@
     <string name="backup_offline">Ingen nettforbindelse</string>
     <string name="overwrite">Overskriv</string>
     <string name="dev_backup_selftest">Test sikkerhetskopi (rundtur)</string>
+
+    <!-- ===== Runde 13 (v0.16) ===== -->
+    <string name="stop_title">Dette kan ikke angres</string>
+    <string name="sightin_savetwo_body">Du svarte at våpenet ikke er innskutt. Da er begge dagens serier skutt med et våpen som ikke traff der du siktet.\n\n«Nei, ikke lagre» sletter BEGGE — denne serien og dagens første. De teller da ikke med i statistikken din.</string>
+
+    <!-- Kunngjøring av felt dyr (backend_spec §3) -->
+    <string name="announce_title">Del med vennene dine?</string>
+    <string name="announce_body">Vennene dine får denne meldingen som varsel:</string>
+    <string name="announce_place_label">Sted (kan endres eller stå tomt)</string>
+    <string name="announce_place_hint">Kommune</string>
+    <string name="announce_note">Meldingen sendes én gang og lagres ikke. Vi tar vare på tidspunktet, ingenting om hva du felte eller hvor.</string>
+    <string name="announce_send">Send</string>
+    <string name="announce_skip">Ikke send</string>
+    <string name="announce_you">Du</string>
+    <string name="announce_sent">Sendt til %1$d enheter</string>
+    <string name="announce_sent_none">Ingen venner hadde varsler på akkurat nå</string>
+    <string name="announce_need_login">Krever innlogging</string>
+    <string name="announce_sharing_off">Du har ikke slått på deling av felte dyr</string>
+    <string name="announce_too_soon">Du kunngjorde nettopp et dyr. Vent noen minutter.</string>
+    <string name="announce_offline">Ingen nettforbindelse — meldingen ble ikke sendt</string>
+    <string name="announce_failed">Kunne ikke sende (%1$d)</string>
+
+    <!-- Sikkerhetskopi: nøkkelforvaltning -->
+    <string name="backup_escrow_toggle">Sikkerhetskopi: gjenopprett uten kode</string>
+    <string name="backup_escrow_hint">Av: bare denne telefonen og gjenopprettingskoden kan låse opp kopien din. På: vi tar vare på nøkkelen for deg.</string>
+    <string name="backup_escrow_explain">Slår du dette på, kan du hente dataene dine tilbake selv om du mister både telefonen og gjenopprettingskoden.\n\nMEN: da oppbevarer vi nøkkelen til kopien din. Kopien er fortsatt kryptert, men vi kan låse den opp — og det kan også noen som bryter seg inn hos oss.\n\nSpørsmålet du bør stille deg er: «Hvor ille er det for meg om andre kan lese alt jeg har i appen?»</string>
+    <string name="backup_escrow_accept">Ja, ta vare på nøkkelen</string>
+    <string name="backup_escrow_on">Nøkkelen er lagret hos oss</string>
+    <string name="backup_escrow_off">Nøkkelen er slettet hos oss</string>
+    <string name="backup_escrow_unavailable">Serveren tar ikke imot nøkler nå. Bruk gjenopprettingskoden.</string>
+    <string name="backup_code_enter">Skriv inn gjenopprettingskoden</string>
+    <string name="backup_code_enter_body">Vi fant ingen nøkkel på denne telefonen. Har du kopien fra en annen telefon, trenger vi koden du fikk der.</string>
+    <string name="backup_code_hint">XXXXX-XXXXX-XXXXX-XXXXX</string>
+
+    <!-- Opplåsing foran jaktloggen -->
+    <string name="lock_hunt_toggle">Sikkerhet: krev opplåsing for jaktloggen</string>
+    <string name="lock_hunt_hint">Jakt-sidene ber om fingeravtrykk eller skjermlås. Resten av appen — scan, innsikt, serier — er aldri låst.\n\nMerk: dette er en dør foran skjermen, ikke kryptering. Den beskytter mot en ulåst telefon i feil hender.</string>
+    <string name="lock_hunt_unavailable">Vil du kunne låse jaktloggen, må telefonen ha skjermlås eller fingeravtrykk.</string>
+    <string name="lock_hunt_prompt_title">Lås opp jaktloggen</string>
+    <string name="lock_hunt_prompt_body">Bestefar er satt til å kreve opplåsing her.</string>
+
+    <!-- Trendgraf -->
+    <string name="trend_title">Utvikling</string>
+    <string name="trend_empty">Ingen serier ennå</string>
+    <string name="trend_desc">Utviklingskurve. Du ligger nå på %1$s poeng per skudd.</string>
+    <string name="trend_axis_x">Dato · siste to jaktår</string>
+    <string name="trend_now">Du ligger nå på %1$s poeng per skudd (snitt av de siste 20).</string>
+    <string name="trend_partial">Du ligger nå på %1$s poeng per skudd — foreløpig, basert på %2$d skudd.</string>
 </resources>

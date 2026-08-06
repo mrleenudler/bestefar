@@ -56,7 +56,9 @@ class AvansertActivity : AppCompatActivity() {
             Ui.toast(this, R.string.profile_move_todo)
         }
         entry(getString(R.string.profile_delete)) {
-            Ui.warningDialog(this)
+            // STOP-ikon, ikke advarsel (musingsUI runde 13): dette er det eneste
+            // valget i appen som fjerner alt på én gang.
+            Ui.stopDialog(this)
                 .setMessage(R.string.profile_delete_confirm)
                 .setPositiveButton(R.string.profile_delete) { _, _ -> store.wipeAll(); finish() }
                 .setNegativeButton(R.string.cancel, null)
@@ -163,6 +165,41 @@ class AvansertActivity : AppCompatActivity() {
         content.addView(Ui.hint(this, getString(R.string.save_scans_gallery_hint)))
         content.addView(Ui.hint(this, getString(R.string.save_scans_best_hint)))
 
+        // «Gjenopprett uten kode» (musingsUI runde 13). AV som standard, og
+        // hjelpeteksten sier rett ut hva prisen er. Et personvernvalg som
+        // selger seg selv som «enklere» uten å nevne konsekvensen, er ikke et
+        // valg brukeren har tatt.
+        content.addView(SwitchCompat(this).apply {
+            text = getString(R.string.backup_escrow_toggle)
+            isChecked = store.backupEscrow
+            setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
+                0, Ui.dp(this@AvansertActivity, 12))
+            setOnCheckedChangeListener { _, on ->
+                if (on) confirmEscrow { ok -> if (!ok) isChecked = false }
+                else disableEscrow()
+            }
+        })
+        content.addView(Ui.hint(this, getString(R.string.backup_escrow_hint)))
+
+        // «Krev opplåsing for jaktloggen» (musingsUI runde 13). Bryteren skjules
+        // helt når enheten verken har biometri eller skjermlås — en bryter som
+        // ikke kan virke, skal ikke stå der og se ut som en mulighet.
+        if (Lock.available(this)) {
+            content.addView(SwitchCompat(this).apply {
+                text = getString(R.string.lock_hunt_toggle)
+                isChecked = store.lockHuntLog
+                setPadding(Ui.dp(this@AvansertActivity, 4), Ui.dp(this@AvansertActivity, 12),
+                    0, Ui.dp(this@AvansertActivity, 12))
+                setOnCheckedChangeListener { _, on ->
+                    store.lockHuntLog = on
+                    Lock.forget()      // slå av og på skal ikke arve en åpen frist
+                }
+            })
+            content.addView(Ui.hint(this, getString(R.string.lock_hunt_hint)))
+        } else {
+            content.addView(Ui.hint(this, getString(R.string.lock_hunt_unavailable)))
+        }
+
         // Venstrehåndsmodus (musingsUI runde 5): speiler UI horisontalt
         content.addView(SwitchCompat(this).apply {
             text = getString(R.string.left_handed)
@@ -225,13 +262,15 @@ class AvansertActivity : AppCompatActivity() {
     private fun backupMenu() {
         AlertDialog.Builder(this)
             .setTitle(R.string.backup_title)
-            .setItems(arrayOf(getString(R.string.backup_show_code),
-                getString(R.string.backup_now),
-                getString(R.string.backup_restore))) { _, which ->
+            .setItems(arrayOf(getString(R.string.backup_now),
+                getString(R.string.backup_restore),
+                getString(R.string.backup_show_code))) { _, which ->
                 when (which) {
-                    0 -> showRecoveryCode()
-                    1 -> ensureCode { doBackup(force = false) }
-                    2 -> confirmRestore()
+                    // Runde 13: kopien tas UTEN å be brukeren om noe. Nøkkelen
+                    // ordner BackupKeys — Block Store først, kode som nødutgang.
+                    0 -> doBackup(force = false)
+                    1 -> confirmRestore()
+                    2 -> showRecoveryCode()
                 }
             }
             .setNegativeButton(R.string.close, null)
@@ -239,16 +278,11 @@ class AvansertActivity : AppCompatActivity() {
     }
 
     /**
-     * Koden lages ved første behov og vises ÉN gang med en tydelig beskjed om
-     * hva den er til. Den kan hentes fram igjen herfra — alternativet ville
-     * vært en kode brukeren aldri kan finne igjen, og da tar ingen kopi.
+     * Gjenopprettingskoden er fra runde 13 en NØDUTGANG, ikke et hinder man må
+     * forbi ved første kopi. Den vises når brukeren spør etter den, og teksten
+     * sier hvorfor den finnes: Block Store dekker det vanlige tilfellet, koden
+     * dekker det som gjenstår.
      */
-    private fun ensureCode(after: () -> Unit) {
-        if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
-        if (store.backupCodeShown) { after(); return }
-        showRecoveryCode(after)
-    }
-
     private fun showRecoveryCode(after: (() -> Unit)? = null) {
         if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
         val col = Ui.col(this, 24)
@@ -275,10 +309,60 @@ class AvansertActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * Slår på deponering. Teksten er den ærlige versjonen: bloben er fortsatt
+     * kryptert, men vi holder nøkkelen — altså KAN vi lese den, og det kan i
+     * prinsippet også den som bryter seg inn hos oss.
+     */
+    private fun confirmEscrow(done: (Boolean) -> Unit) {
+        Ui.warningDialog(this)
+            .setTitle(R.string.backup_escrow_toggle)
+            .setMessage(R.string.backup_escrow_explain)
+            .setPositiveButton(R.string.backup_escrow_accept) { _, _ ->
+                store.backupEscrow = true
+                Ui.toast(this, R.string.backup_working)
+                Api.io {
+                    val code = BackupKeys.ensure(this)
+                    val resp = BackupKeys.escrowPut(this, code)
+                    Api.ui {
+                        when {
+                            resp.ok -> Ui.toast(this, R.string.backup_escrow_on)
+                            resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
+                            // 503 = deponering er ikke konfigurert på serveren
+                            // (backend_spec §2.1). Det er ikke noe brukeren har
+                            // gjort feil, og valget skal ikke bli stående på og
+                            // late som om nøkkelen ligger trygt hos oss.
+                            resp.code == 503 || resp.code == 404 || resp.code == 405 ->
+                                Ui.toast(this, R.string.backup_escrow_unavailable)
+                            resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
+                            else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
+                        }
+                        done(resp.ok)
+                        if (!resp.ok) store.backupEscrow = false
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> done(false) }
+            .setOnCancelListener { done(false) }
+            .show()
+    }
+
+    private fun disableEscrow() {
+        store.backupEscrow = false
+        Api.io {
+            BackupKeys.escrowDelete(this)
+            Api.ui { Ui.toast(this, R.string.backup_escrow_off) }
+        }
+    }
+
     private fun doBackup(force: Boolean) {
         Ui.toast(this, R.string.backup_working)
         Api.io {
-            val resp = Backup.upload(this, store.backupCode, force)
+            // Nøkkelen skaffes og lagres (Block Store + evt. deponering) FØR
+            // bloben lastes opp. En kopi på serveren uten en nøkkel noe sted er
+            // det eneste utfallet som er verre enn ingen kopi.
+            val code = BackupKeys.ensure(this)
+            val resp = Backup.upload(this, code, force)
             Api.ui {
                 when {
                     resp.ok -> Ui.toast(this, getString(R.string.backup_done,
@@ -307,25 +391,64 @@ class AvansertActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * Gjenoppretting i tre steg (musingsUI runde 13): finn nøkkelen der den
+     * måtte være (lokalt → Block Store → deponering), og spør BARE hvis ingen
+     * av dem har den. På en ny telefon som er gjenopprettet fra Google er
+     * dette ett trykk uten kode — som er hele poenget med runden.
+     */
     private fun doRestore() {
         Ui.toast(this, R.string.backup_working)
         Api.io {
-            val result = try {
-                Backup.downloadAndRestore(this, store.backupCode) to null
-            } catch (e: Backup.BadCodeException) {
-                null to e
+            val code = BackupKeys.resolve(this)
+            if (code.isEmpty()) Api.ui { askForCode() } else restoreWith(code)
+        }
+    }
+
+    private fun askForCode() {
+        val field = android.widget.EditText(this).apply {
+            hint = getString(R.string.backup_code_hint)
+            inputType = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            filters = arrayOf(android.text.InputFilter.LengthFilter(29))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.backup_code_enter)
+            .setMessage(R.string.backup_code_enter_body)
+            .setView(Ui.col(this, 16).apply { addView(field) })
+            .setPositiveButton(R.string.backup_restore) { _, _ ->
+                val code = Backup.normalizeCode(field.text.toString())
+                if (code.isEmpty()) { Ui.toast(this, R.string.backup_bad_code); return@setPositiveButton }
+                Ui.toast(this, R.string.backup_working)
+                Api.io { restoreWith(code) }
             }
-            val resp = result.first
-            Api.ui {
-                when {
-                    result.second != null -> Ui.toast(this, R.string.backup_bad_code)
-                    resp == null -> Unit
-                    resp.ok -> { Ui.toast(this, R.string.backup_restored); recreate() }
-                    resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
-                    resp.code == 404 -> Ui.toast(this, R.string.backup_none)
-                    resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
-                    else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Blokkerende; kalles fra [Api.io]. */
+    private fun restoreWith(code: String) {
+        val result = try {
+            Backup.downloadAndRestore(this, code) to null
+        } catch (e: Backup.BadCodeException) {
+            null to e
+        }
+        val resp = result.first
+        Api.ui {
+            when {
+                result.second != null -> Ui.toast(this, R.string.backup_bad_code)
+                resp == null -> Unit
+                resp.ok -> {
+                    // Koden virket: ta vare på den slik at neste gjenoppretting
+                    // ikke spør igjen.
+                    store.backupCode = code
+                    Api.io { BackupKeys.store(this, code) }
+                    Ui.toast(this, R.string.backup_restored)
+                    recreate()
                 }
+                resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
+                resp.code == 404 -> Ui.toast(this, R.string.backup_none)
+                resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
+                else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
             }
         }
     }

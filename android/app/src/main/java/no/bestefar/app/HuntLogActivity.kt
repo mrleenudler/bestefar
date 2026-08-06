@@ -327,16 +327,18 @@ class HuntLogActivity : AppCompatActivity() {
      * logges også her (musingsUI runde 7 — tidligere kun ved forskningsdeling).
      */
     private fun saveSimple(fellingSuccess: Boolean) {
-        store.addHunt(HuntRecord(
+        val rec = HuntRecord(
             id = Store.newId(), ts = tsForDate(),
             species = species ?: Species.ANNET, distanceM = 0,
             angle = Angle.SIDE, moving = false, outcome = Outcome.DOEDELIG,
             lat = lat, lon = lon, placeName = placeName,
             weaponId = store.selectedWeapon()?.id, speciesOther = speciesOther,
             created = System.currentTimeMillis(), fellingSuccess = fellingSuccess,
-        ))
+        )
+        store.addHunt(rec)
         Ui.toast(this, R.string.hunt_saved)
-        finish()
+        // Kunngjøringen kommer ETTER lagringen og kan aldri stoppe den (§3).
+        Announce.offer(this, rec) { finish() }
     }
 
     // ---------- Side 2 ----------
@@ -471,7 +473,7 @@ class HuntLogActivity : AppCompatActivity() {
             1 -> Angle.FRONT; 3 -> Angle.SKRAA30; else -> Angle.SIDE
         }
         val now = System.currentTimeMillis()
-        store.addHunt(HuntRecord(
+        val rec = HuntRecord(
             id = Store.newId(), ts = tsForDate(),
             species = species ?: Species.ANNET, distanceM = distanceM ?: 0,
             angle = angle, moving = false, outcome = outcome,
@@ -480,8 +482,9 @@ class HuntLogActivity : AppCompatActivity() {
             placeName = placeName, speciesOther = speciesOther,
             ranM = ranM, clockPos = posSel,
             created = now, fellingSuccess = fellingSuccess,
-        ))
+        )
+        store.addHunt(rec)
         Ui.toast(this, R.string.hunt_saved)
-        finish()
+        Announce.offer(this, rec) { finish() }
     }
 }
