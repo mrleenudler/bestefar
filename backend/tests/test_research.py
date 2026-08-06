@@ -98,7 +98,8 @@ def test_ingenting_deles_som_standard(paa, client):
     hvert felt i den er delt."""
     assert client.get("/v1/research/sharing", headers=AUTH).json() == {
         "share_species": False, "share_date": False,
-        "share_shot_situation": False, "position_granularity": "none"}
+        "share_shot_situation": False, "share_injury_data": False,
+        "position_granularity": "none"}
 
     _jakt_samtykke(client)
     r = client.post("/v1/research/records", json=JAKT, headers=AUTH)
@@ -118,9 +119,10 @@ def test_bare_valgte_felt_lagres(paa, client, session):
                            "distance_m"}
 
 
-def test_skadedata_lagres_aldri(paa, client, session):
-    """§7: skadedata er private som standard, og det finnes ingen bryter for
-    dem - «som standard» uten en maate aa slaa dem paa betyr aldri."""
+def test_skadedata_krever_sin_egen_bryter(paa, client, session):
+    """§7: skadedata er private som standard. Alle de ANDRE bryterne paa
+    endrer ikke det - de er skilt fra hverandre med vilje, fordi «jeg skjoet
+    staaende paa 85 meter» og «dyret ble skadeskutt» ikke er samme opplysning."""
     client.put("/v1/research/sharing", headers=AUTH,
                json={"share_species": True, "share_date": True,
                      "share_shot_situation": True,
@@ -132,6 +134,22 @@ def test_skadedata_lagres_aldri(paa, client, session):
     lagret = session.query(ResearchRecord).one().payload_json
     assert "injury" not in lagret
     assert "tracking_distance_m" not in lagret
+
+
+def test_skadedata_lagres_naar_bryteren_er_paa(paa, client, session):
+    """Ettersoeksdata er den mest verdifulle delen av materialet, og skal
+    kunne deles av den som vil."""
+    client.put("/v1/research/sharing", headers=AUTH,
+               json={"share_injury_data": True})
+    _jakt_samtykke(client)
+    r = client.post("/v1/research/records", json=JAKT, headers=AUTH)
+    assert set(r.json()["stored_fields"]) == {"injury", "tracking_distance_m"}
+
+    from app.models import ResearchRecord
+    lagret = session.query(ResearchRecord).one().payload_json
+    # Bryteren aapner BARE skadedata - art og sted staar fortsatt av.
+    assert "species" not in lagret
+    assert "kommune" not in lagret
 
 
 def test_ukjent_felt_droppes(paa, client, session):

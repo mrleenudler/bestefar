@@ -18,8 +18,8 @@ from .research import (ResearchConsent, ResearchDeletionRequest,
 from .social import (Friendship, LeaderChallenge, PendingMessage, Team,
                      TeamElection, TeamInvite, TeamMember, TeamVote)
 from .training import Series, Shot
-from .user import (AuthIdentity, AuthSession, Backup, Device, EmailLoginCode,
-                   ResearchSharingPreference, SearchQuarantine,
+from .user import (AuthIdentity, AuthSession, Backup, BackupKeyEscrow, Device,
+                   EmailLoginCode, ResearchSharingPreference, SearchQuarantine,
                    SharingPreference, User)
 
 __all__ = [
@@ -30,7 +30,8 @@ __all__ = [
     "PosModifier", "Position", "PositionGranularity", "Provider",
     "QuarantineScope", "ResultType", "TeamKind", "TeamRole",
     # tabeller
-    "AuthIdentity", "AuthSession", "Backup", "Device", "EmailLoginCode",
+    "AuthIdentity", "AuthSession", "Backup", "BackupKeyEscrow", "Device",
+    "EmailLoginCode",
     "FailedAnalysis", "Feedback",
     "Friendship", "LeaderChallenge", "PendingMessage",
     "ResearchConsent", "ResearchDeletionRequest", "ResearchRecord",

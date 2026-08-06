@@ -836,3 +836,41 @@ BACKEND-RUNDE 10 (gjennomgang av musings_backend)
     serier kunne bety 25 eller 50 og gjorde tallet uleselig paa tvers av
     brukere. En trend er en DIFFERANSE (retning), ikke et loepende snitt - de
     to blir lett blandet i samtale med utvikler.
+
+BACKEND-RUNDE 11 (noekkeldeponering, skadedata, sperrefrist)
+  - SPEC-EN KAN OMGJOERES, OG DA MAA DET STAA HVORFOR. §13 sa uttrykkelig
+    «ikke bygg noe gjenopprett-kopien-min-endepunkt; det finnes ingen aerlig
+    implementasjon». Utvikleren ba likevel om noekkeldeponering. Det var ikke
+    en motsigelse: forbudet gjaldt aa hjelpe UTEN aa ha noekkelen. Naar
+    brukeren uttrykkelig gir oss den, finnes implementasjonen. Jeg strøk ikke
+    setningen - jeg lot den staa og skrev hva som endret seg. En spec der
+    gamle forbud bare forsvinner, kan ingen stole paa.
+  - «PRIVAT SOM STANDARD» UTEN EN BRYTER ER «ALDRI». §7 sa skadedata er
+    private som standard, og jeg hadde implementert det som «ingen bryter,
+    aldri lagret» - og skrevet i spec-en at det var riktig lesning. Det gjorde
+    den mest verdifulle delen av forskningsmaterialet umulig aa samle inn.
+    Standardverdien False oppfyller kravet; umulighet er noe annet enn
+    standard.
+  - Bryteren for skadedata staar FOR SEG SELV, ikke sammen med
+    share_shot_situation. «Jeg skjoet staaende paa 85 meter» og «dyret ble
+    skadeskutt og aldri funnet» er ikke samme opplysning aa dele om seg selv.
+    Slaa aldri sammen delingsvalg som har ulik sosial kostnad.
+  - EN NY GRENSE KAN VELTE HELE SUITEN. Sperrefristen paa «send ny kode» (60 s)
+    brøt ni innloggingstester som ber om flere koder til samme adresse paa
+    millisekunder. Loesningen var EMAIL_CODE_RESEND_COOLDOWN_SECONDS=0 i
+    conftest pluss egne tester som slaar den paa. Naar du innfoerer en
+    tidsgrense: sjekk foerst hvem som allerede kaller endepunktet i loekke.
+  - Klienten skal ikke hardkode serverens tall. /v1/auth/email/start returnerer
+    naa resend_after_seconds og expires_in_minutes, slik at nedtellingen og
+    «gyldig i N minutter» ikke blir staaende igjen paa gamle verdier.
+  - DELETE /v1/backup fjerner bloben, IKKE deponeringen. Slettet vi begge,
+    ville neste opplasting stilltiende vaert udeponert med bryteren staaende
+    paa. En sletting skal ikke i stillhet skru av en innstilling.
+  - DELETE /v1/backup/key-escrow virker OGSAA uten BACKUP_ESCROW_SECRET. Veien
+    UT av et personvernvalg skal aldri kunne feile paa en driftsinnstilling.
+  - cryptography lagt eksplisitt i requirements. Den kom allerede transitivt
+    med pyjwt[crypto], men noekkelkryptering skal ikke hvile paa en
+    avhengighet noen andre drar inn.
+  - backend_spec.md redigeres av UI-instansen SAMTIDIG. Edit-verktoeyet meldte
+    «modified since read» to ganger. Gjoer smaa, maalrettede endringer og les
+    omraadet paa nytt foer du redigerer noe som avhenger av konteksten rundt.

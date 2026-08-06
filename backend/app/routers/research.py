@@ -98,13 +98,19 @@ def revoke_consent(consent_type: ResultType, user: User = Depends(current_user),
 # Delingsvalg for jaktdata (§7)
 # --------------------------------------------------------------------
 
-SHARING_FELT = ["share_species", "share_date", "share_shot_situation"]
+SHARING_FELT = ["share_species", "share_date", "share_shot_situation",
+                "share_injury_data"]
 
 
 class ResearchSharingIn(BaseModel):
     share_species: bool | None = None
     share_date: bool | None = None
     share_shot_situation: bool | None = None
+    # Skadedata (ettersoek, treffpunkt, om dyret ble funnet). Egen bryter, av
+    # som standard. Den er bevisst skilt fra share_shot_situation: aa fortelle
+    # at man skjoet staaende paa 80 meter er noe annet enn aa fortelle at dyret
+    # ble skadeskutt og ikke funnet.
+    share_injury_data: bool | None = None
     position_granularity: PositionGranularity | None = None
 
 

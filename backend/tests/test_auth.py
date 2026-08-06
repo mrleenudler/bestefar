@@ -155,6 +155,36 @@ def test_for_mange_koder_ratebegrenses(client, sendte):
                        json={"email": "spam@example.com"}).status_code == 429
 
 
+def test_ny_kode_er_sperret_en_stund(client, sendte, monkeypatch):
+    """«Send ny kode» har en sperrefrist paa SERVEREN, ikke bare en nedtelling
+    i klienten. Nedtellingen kan endres bort; e-postene kan ikke tas tilbake."""
+    monkeypatch.setenv("EMAIL_CODE_RESEND_COOLDOWN_SECONDS", "60")
+    from app.config import settings
+    settings.cache_clear()
+
+    assert client.post("/v1/auth/email/start",
+                       json={"email": "ola@example.com"}).status_code == 202
+    r = client.post("/v1/auth/email/start", json={"email": "ola@example.com"})
+    assert r.status_code == 429
+    # Klienten trenger et tall aa telle ned paa, ikke bare et avslag.
+    assert 0 < int(r.headers["retry-after"]) <= 60
+    assert len(sendte) == 1, "Sperret forespoersel skal ikke sende e-post"
+
+
+def test_svaret_forteller_klienten_hvor_lenge_den_skal_telle(client, sendte,
+                                                             monkeypatch):
+    """Verdiene skal komme fra serveren, saa nedtellingen og «gyldig i N
+    minutter» ikke blir staaende igjen paa gamle tall i klienten."""
+    monkeypatch.setenv("EMAIL_CODE_RESEND_COOLDOWN_SECONDS", "45")
+    from app.config import settings
+    settings.cache_clear()
+
+    ut = client.post("/v1/auth/email/start",
+                     json={"email": "ola@example.com"}).json()
+    assert ut["resend_after_seconds"] == 45
+    assert ut["expires_in_minutes"] == settings().email_code_ttl_minutes
+
+
 # --------------------------------------------------------------------
 # Google / Apple
 # --------------------------------------------------------------------

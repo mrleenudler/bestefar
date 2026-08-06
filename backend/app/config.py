@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     # langt under det som trengs for aa gjette en sekssifret kode, som uansett
     # er vernet av email_code_max_attempts.
     email_code_rate_per_hour: int = 10
+    # Sperrefrist foer «send ny kode» kan brukes igjen. Klienten viser en
+    # nedtelling paa den samme verdien (den faar den tilbake i svaret fra
+    # /email/start), men KNAPPEN er ikke vernet - en klient kan endres, og en
+    # gratis e-post til en fremmed adresse er akkurat det man ikke vil kunne
+    # sende i loekke. Timeren maa derfor finnes begge steder.
+    email_code_resend_cooldown_seconds: int = 60
 
     @property
     def google_client_id_list(self) -> list[str]:
@@ -108,6 +114,14 @@ class Settings(BaseSettings):
     # klienten. 16 MB er rikelig for mange aars logg og holder minnebruken nede
     # (hele bloben leses inn i minnet ved opp- og nedlasting).
     max_backup_bytes: int = 16 * 1024 * 1024
+    # Noekkeldeponering (§2): hemmeligheten det DEPONERTE noekkelmaterialet
+    # krypteres med i ro. Tom => /v1/backup/key-escrow svarer 503 i stedet for
+    # aa lagre noekler i klartekst. Roteres den, blir alle deponerte noekler
+    # uleselige og brukerne maa falle tilbake paa gjenopprettingskoden.
+    backup_escrow_secret: str = ""
+    # Deponert materiale er en noekkel eller en gjenopprettingskode, ikke data.
+    # Grensen finnes for aa hindre at endepunktet blir en ekstra lagringsplass.
+    max_escrow_bytes: int = 512
 
     # --- Forskning (§7) ---
     # Hemmelighet som forsknings-pseudonymet avledes med. Uten den svarer

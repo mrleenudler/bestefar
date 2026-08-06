@@ -9,6 +9,10 @@ email-validator>=2.1
 # verifiserer Google/Apple sine ID-tokens (RS256/ES256). [crypto] gir
 # asymmetriske algoritmer og PyJWKClient, som cacher leverandoerenes noekler.
 pyjwt[crypto]>=2.8
+# Eksplisitt, selv om pyjwt[crypto] allerede drar den inn: services/escrow.py
+# bruker AES-GCM og HKDF direkte, og en transitiv avhengighet er ikke noe aa
+# hvile noekkelkryptering paa.
+cryptography>=42
 psycopg[binary]>=3.2
 httpx>=0.27
 python-multipart>=0.0.9

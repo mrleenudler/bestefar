@@ -169,19 +169,32 @@ def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
     cfg = settings()
     tokens.krev_hemmelighet(cfg)
     epost = body.email.lower()
+    naa = utcnow()
 
     # Ratebegrensning i BASEN, ikke i minnet: Fly kjoerer to maskiner, og en
     # teller per prosess ville i praksis doblet grensen.
-    grense = utcnow() - timedelta(hours=1)
-    antall = len(list(s.scalars(select(EmailLoginCode).where(
-        EmailLoginCode.email == epost, EmailLoginCode.created_at >= grense))))
-    if antall >= cfg.email_code_rate_per_hour:
+    grense = naa - timedelta(hours=1)
+    rader = list(s.scalars(select(EmailLoginCode).where(
+        EmailLoginCode.email == epost, EmailLoginCode.created_at >= grense)
+        .order_by(EmailLoginCode.id.desc())))
+    if len(rader) >= cfg.email_code_rate_per_hour:
         raise HTTPException(429, "For mange koder er sendt til denne adressen. "
                                  "Prøv igjen om en time.")
 
+    # Sperrefristen paa «send ny kode». Klienten teller ned paa den samme
+    # verdien, men den timeren er bekvemmelighet - dette er vernet. Uten den
+    # kan hvem som helst sende ti e-poster i slengen til en fremmed adresse,
+    # og klient-timeren er da bare noe som kan klikkes bort.
+    if rader:
+        gaar_igjen = cfg.email_code_resend_cooldown_seconds - int(
+            (naa - as_utc(rader[0].created_at)).total_seconds())
+        if gaar_igjen > 0:
+            raise HTTPException(429, "Vent litt før du ber om en ny kode.",
+                                headers={"Retry-After": str(gaar_igjen)})
+
     kode, hash_ = tokens.ny_engangskode()
     s.add(EmailLoginCode(email=epost, code_hash=hash_,
-                         expires_at=utcnow() + timedelta(minutes=cfg.email_code_ttl_minutes)))
+                         expires_at=naa + timedelta(minutes=cfg.email_code_ttl_minutes)))
     s.commit()
 
     try:
@@ -194,7 +207,12 @@ def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
         # Vi roeper ikke at utsendingen feilet - det ville ogsaa vaert et
         # signal om adressen. Feilen logges, brukeren ber om ny kode.
         log.exception("Kunne ikke sende innloggingskode")
-    return {"status": "sendt"}
+    # Verdiene ligger i svaret saa klienten slipper aa hardkode dem: nedtellingen
+    # paa «Send ny kode» og «koden er gyldig i N minutter» skal si det samme som
+    # serveren faktisk haandhever, ogsaa etter at verdiene er endret her.
+    return {"status": "sendt",
+            "resend_after_seconds": cfg.email_code_resend_cooldown_seconds,
+            "expires_in_minutes": cfg.email_code_ttl_minutes}
 
 
 @router.post("/email/verify")

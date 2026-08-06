@@ -37,6 +37,11 @@ def db_url(tmp_path, monkeypatch) -> str:
     monkeypatch.setenv("RESEARCH_PSEUDONYM_SECRET", "test-hemmelighet")
     # Minst 32 tegn - kortere avvises av tokens.krev_hemmelighet.
     monkeypatch.setenv("JWT_SECRET", "test-signeringsnoekkel-minst-32-tegn-lang")
+    # Sperrefristen paa «send ny kode» er AV i tester. Nesten hver
+    # innloggingstest ber om flere koder til samme adresse paa millisekunder,
+    # og alternativet var aa la testene sove et minutt. Selve fristen har sine
+    # egne tester i test_auth.py, som slaar den paa eksplisitt.
+    monkeypatch.setenv("EMAIL_CODE_RESEND_COOLDOWN_SECONDS", "0")
     _reset_app_modules()
 
     from alembic import command

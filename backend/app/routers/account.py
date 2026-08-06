@@ -26,10 +26,11 @@ from sqlalchemy.orm import Session as OrmSession
 from ..config import settings
 from ..db import db
 from ..deps import current_user
-from ..models import (AuthIdentity, AuthSession, Backup, Device, Friendship,
-                      PendingMessage, ResearchConsent, ResearchDeletionRequest,
-                      ResearchSharingPreference, Series, SharingPreference,
-                      TeamMember, TeamVote, User, utcnow)
+from ..models import (AuthIdentity, AuthSession, Backup, BackupKeyEscrow,
+                      Device, Friendship, PendingMessage, ResearchConsent,
+                      ResearchDeletionRequest, ResearchSharingPreference,
+                      Series, SharingPreference, TeamMember, TeamVote, User,
+                      utcnow)
 from ..services import pseudonym
 
 log = logging.getLogger(__name__)
@@ -43,8 +44,12 @@ def _slett_brukerdata(s: OrmSession, user_id: str) -> None:
     for serie in s.scalars(select(Series).where(Series.user_id == user_id)):
         s.delete(serie)
 
-    for modell in (AuthIdentity, AuthSession, Backup, Device, PendingMessage,
-                   SharingPreference, ResearchSharingPreference, TeamMember):
+    # BackupKeyEscrow er med her fordi §2 lover at deponert noekkelmateriale
+    # slettes sammen med resten av brukerskjemaet. Det er det eneste stedet
+    # serveren har hatt noe som kan aapne bloben.
+    for modell in (AuthIdentity, AuthSession, Backup, BackupKeyEscrow, Device,
+                   PendingMessage, SharingPreference,
+                   ResearchSharingPreference, TeamMember):
         s.execute(delete(modell).where(modell.user_id == user_id))
 
     s.execute(delete(Friendship).where(

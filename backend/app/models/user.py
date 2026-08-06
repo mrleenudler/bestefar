@@ -168,7 +168,11 @@ class ResearchSharingPreference(Base):
     position_granularity: Mapped[PositionGranularity] = mapped_column(
         Enum(PositionGranularity, native_enum=False, length=16),
         default=PositionGranularity.none)
-    # Skadedata er private som standard (§7) og har ingen bryter her.
+    # Skadedata (ettersoek, treffpunkt, om dyret ble funnet). §7 sier «private
+    # som standard» - standardverdien er derfor False, men de har naa en bryter.
+    # Uten den var «som standard» i praksis «aldri», og det er nettopp disse
+    # radene som gjoer materialet verdt aa samle inn.
+    share_injury_data: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
 
@@ -187,6 +191,33 @@ class Backup(Base):
     schema_version: Mapped[int] = mapped_column(Integer, default=1)
     device_id: Mapped[str] = mapped_column(String(64), default="")
     client_ts: Mapped[datetime | None] = mapped_column(nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class BackupKeyEscrow(Base):
+    """
+    §2/§13: FRIVILLIG deponering av noekkelen til backup-bloben.
+
+    Standardveien er fortsatt Block Store paa telefonen pluss den 20-tegns
+    gjenopprettingskoden, og serveren kan da ikke lese kopien. Slaar brukeren
+    paa «gjenopprett uten kode», legges noekkelmaterialet her - og da KAN
+    serveren lese bloben. Det er hele avveiningen, og den skal staa i klartekst
+    i UI-teksten, ikke gjemmes bort.
+
+    `material` er kryptert i ro (services/escrow.py) med en server-hemmelighet
+    som ikke ligger i basen. En databasedump alene er derfor ikke nok - det
+    kreves ogsaa tilgang til Fly-hemmeligheten. Det gjoer ikke deponeringen
+    like sterk som ingen deponering, men det er forskjellen paa «lekket base»
+    og «lekket base + lekket driftsmiljoe».
+
+    Ingen andre endepunkter leser denne tabellen.
+    """
+    __tablename__ = "backup_key_escrow"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"),
+                                         primary_key=True)
+    material: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
 

@@ -2,8 +2,8 @@
 Filtrering av forskningsdata etter brukerens valg (backend_spec §7).
 
 §7 sier at jakt-deling styres av brukerens valg - `{ vilt?, dato?,
-posisjon(grovhet)?, skuddsituasjon? }` - og at skadedata er private som
-standard. Dette laget haandhever det.
+posisjon(grovhet)?, skuddsituasjon?, skadedata? }` - og at skadedata er private
+som standard. Dette laget haandhever det.
 
 TO PRINSIPPER, begge bevisste:
 
@@ -33,12 +33,14 @@ POSISJON_EKSAKT = ("lat", "lon")
 POSISJON_KOMMUNE = ("kommune",)
 POSISJON_FYLKE = ("fylke",)
 
-# Skadedata har INGEN bryter i ResearchSharingPreference - §7 gjoer dem
-# private som standard, og «som standard» uten en maate aa slaa dem paa er
-# det samme som «aldri». De er listet her for at det skal staa skriftlig hva
-# som faller bort, ikke fordi de behandles saerskilt: de er uansett ikke paa
-# tillatelseslista.
-SKADEDATA = ("injury", "wounded", "tracking_distance_m", "recovered")
+# Skadedata: gikk fra «aldri» til egen bryter (share_injury_data), fordi
+# ettersoeksdata er den mest verdifulle delen av materialet - hvor ofte dyr
+# skadeskytes, hvor langt de gaar, og om de blir funnet. §7 sier «private som
+# standard», og det er standardverdien False som oppfyller: det kreves et
+# aktivt valg, og bryteren staar for seg selv, ikke sammen med art og sted.
+SKADEDATA = ("wounded", "injury", "hit_placement", "shots_fired",
+             "tracking_distance_m", "tracking_time_min", "dog_used",
+             "recovered")
 
 
 def _tillatte_noekler(pref: ResearchSharingPreference) -> set[str]:
@@ -47,6 +49,8 @@ def _tillatte_noekler(pref: ResearchSharingPreference) -> set[str]:
         lov.update(ART)
     if pref.share_shot_situation:
         lov.update(SKUDDSITUASJON)
+    if pref.share_injury_data:
+        lov.update(SKADEDATA)
 
     # Grovheten bestemmer HVILKE stedsfelt som slipper gjennom, ikke hvor mye
     # vi avrunder dem. Serveren har ingen kommune- eller fylkesgrenser aa slaa

@@ -32,7 +32,7 @@ Trengs for backup, venner og lag.
 |---|---|---|
 | `POST /v1/auth/google` | `{id_token}` | tokenpar + `is_new` |
 | `POST /v1/auth/apple` | `{id_token}` | tokenpar + `is_new` |
-| `POST /v1/auth/email/start` | `{email}` | 202 `{status:"sendt"}` |
+| `POST /v1/auth/email/start` | `{email}` | 202 `{status:"sendt", resend_after_seconds, expires_in_minutes}` |
 | `POST /v1/auth/email/verify` | `{email, code}` | tokenpar + `is_new` |
 | `POST /v1/auth/refresh` | `{refresh_token}` | nytt tokenpar |
 | `POST /v1/auth/logout` | `{refresh_token}` | 204 |
@@ -58,6 +58,14 @@ user_id, public_id, display_name}`. Alle andre endepunkter tar
 - **`aud` sjekkes alltid.** Uten `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` svarer
   den leverandøren 503. Et gyldig Google-token utstedt til en *annen* app
   skal ikke gi tilgang her.
+- *Tillegg 2026-08-06:* **«Send ny kode» har en sperrefrist på serveren**
+  (`EMAIL_CODE_RESEND_COOLDOWN_SECONDS`, 60 s). Innen fristen svarer
+  `/email/start` 429 med `Retry-After`, og ingen e-post sendes. Nedtellingen i
+  klienten er bekvemmelighet — en klient kan endres, og en gratis e-post til en
+  fremmed adresse er akkurat det man ikke vil kunne sende i løkke. Verdiene
+  ligger i 202-svaret (`resend_after_seconds`, `expires_in_minutes`) så
+  klienten slipper å hardkode dem. Kvoten på 10 koder per adresse per time
+  gjelder i tillegg.
 - **E-postkode:** seks siffer, 15 min, maks 5 forsøk, maks 10 koder per adresse
   per time (telles i basen, ikke i minnet — Fly kjører to maskiner). Kvoten
   teller **forespørsler**, ikke leveranser, så den er satt romslig: en bruker
@@ -91,6 +99,55 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 - **«Flytt til ny telefon»:** kryptert eksportfil (klient) ELLER gjenoppretting fra
   konto-backup. Nøkkel avledet fra bruker-hemmelighet.
 - **Android Auto Backup** dekker oppdateringer; konto-backup dekker reinstall/bytte.
+
+### 2.1 Nøkkelforvaltning — tredelt (2026-08-06)
+Nøkkelen til bloben forvaltes tre steder, i denne rekkefølgen:
+
+1. **Block Store på telefonen** (`shouldBackUpToCloud=true` når
+   `isEndToEndEncryptionAvailable()`). Standardveien: gjenoppretting er ett
+   trykk uten kode. Serveren er ikke involvert.
+2. **Den 20-tegns gjenopprettingskoden** (§13). Nødutgangen når telefonen er
+   borte og Block Store ikke fulgte med. Degradert fra primærmekanisme til
+   noe som ligger under Avanserte innstillinger — ikke en dialog brukeren må
+   forholde seg til ved første kopi.
+3. **Frivillig deponering hos oss** — `PUT/GET/DELETE /v1/backup/key-escrow`.
+   Av som standard.
+
+**Deponering er det eneste tilfellet der serveren kan lese bloben.** Har vi
+både bloben og nøkkelen, er kryptering på disk ikke lenger et vern mot oss.
+Det skal stå rett ut i UI-teksten, ikke gjemmes bort — brukeren bytter
+lesbarhet mot å slippe å miste alt sammen med telefonen, og det er et
+legitimt valg å ta så lenge det er tatt bevisst.
+
+Det vi *kan* gjøre, og gjør: materialet krypteres i ro med AES-256-GCM
+(`services/escrow.py`), nøkkel avledet med HKDF-SHA256 fra
+`BACKUP_ESCROW_SECRET`, med bruker-ID-en som AAD. Hemmeligheten ligger som
+Fly-secret, altså **et annet sted enn databasen** — en Supabase-dump alene
+gir ingen nøkler, og en rad kan ikke flyttes fra én bruker til en annen.
+Uten hemmeligheten svarer endepunktene 503; vi lagrer heller ingenting enn
+å lagre nøkler i klartekst. Roteres den, blir alle deponerte nøkler uleselige
+og `GET` svarer 503 med en beskjed om å bruke koden.
+
+Detaljer som har betydning for klienten:
+- `key_material` er base64 av ugjennomsiktige byte (≤ 512 byte). Serveren
+  bryr seg ikke om det er en nøkkel eller en gjenopprettingskode.
+- `GET /v1/backup/meta` har fått **`escrowed: true/false`**, så en ny telefon
+  kan si «kopien kan gjenopprettes uten kode» *før* den laster ned 16 MB.
+- `DELETE /v1/backup` fjerner **bloben, ikke deponeringen**. Deponeringen er
+  en innstilling brukeren har slått på, ikke en følge av at det finnes en
+  kopi akkurat nå; slettet vi den her, ville neste opplasting stilltiende
+  vært udeponert med bryteren stående på. Å slå av valget er
+  `DELETE /v1/backup/key-escrow`, og den virker også når hemmeligheten
+  mangler — å komme seg *ut* av valget skal aldri kunne feile.
+- `DELETE /v1/account` (§9) fjerner begge deler.
+
+**Klientsiden (v0.16, musingsUI runde 13)** er bygget mot nettopp denne
+kontrakten — se §13 og §15. De to sidene landet uavhengig på samme tredeling og
+samme krav om at UI-teksten skal si rett ut hva deponering betyr. Konkret fra
+klienten: `key_material` er gjenopprettingskoden som ASCII, base64-kodet;
+bryteren «Gjenopprett uten kode» er av som standard og går tilbake til av hvis
+`PUT` ikke svarer 2xx, og **503 vises som «ikke slått på på serveren»**, ikke
+som en feil brukeren har gjort.
 
 ## 3. Venner (front-end finnes i `VennerActivity`)
 - **Modell:** `Friend { id, displayName, teamIds[], phone?, homeKommune?,
@@ -172,7 +229,7 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 ## 7. Forskningsdata (`/v1/research`, strukturelt adskilt)
 - To resultattyper: **trening** og **jakt**, som separate modeller.
 - Jakt-deling styres av brukerens valg: `{ vilt?, dato?, posisjon(grovhet)?,
-  skuddsituasjon? }`. Skadedata private som standard.
+  skuddsituasjon?, skadedata? }`. Skadedata private som standard.
 - Samtykketabell: `{ pseudonymId, type(trening|jakt), granted_at, revoked_at? }`.
 - *Implementert 2026-08-02:* tabellene ligger i et eget Postgres-**skjema**
   (`research.consents`, `research.records`, `research.deletion_requests`) uten
@@ -201,8 +258,37 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   - **Uten datosamtykke beholdes bare året** (1. januar). Kolonnen er
     obligatorisk, så alternativet var å avvise hele innsendingen; året alene
     sier ikke når noen var på jakt, men lar materialet grupperes per sesong.
-  - **Skadedata lagres aldri.** De har ingen bryter, og «private som standard»
-    uten en måte å slå dem på betyr aldri.
+  - ~~**Skadedata lagres aldri.**~~ *Endret 2026-08-06:* skadedata har fått
+    sin **egen bryter** (`share_injury_data`, av som standard). «Private som
+    standard» er oppfylt av standardverdien og av at det kreves et aktivt
+    valg — ikke av at det er umulig. Ettersøksdata er den mest verdifulle
+    delen av materialet: hvor ofte dyr skadeskytes, hvor langt de går, om de
+    blir funnet. Bryteren står **for seg selv**, ikke sammen med art og sted,
+    fordi «jeg skjøt stående på 85 meter» og «dyret ble skadeskutt og aldri
+    funnet» ikke er samme opplysning å dele. Felt på tillatelseslista:
+    `wounded`, `injury`, `hit_placement`, `shots_fired`,
+    `tracking_distance_m`, `tracking_time_min`, `dog_used`, `recovered`.
+  - **EIERAVKLARING 2026-08-06 (musingsUI runde 13): dette skal endres.**
+    Eierens ord: *«Det bør være mulig å lagre skadedata for forskning. Det er
+    sentral informasjon.»* Og det er den faglig riktige innvendingen — et
+    materiale som bare inneholder de vellykkede fellingene, kan ikke brukes til
+    å si noe om skadeskyting, som er nettopp det ettersøks- og
+    forsvarlighetsforskningen finnes for. Et datasett uten bommene svarer på et
+    spørsmål ingen stilte.
+    Krav til implementasjonen, i denne rekkefølgen:
+    1. **Egen bryter** i `ResearchSharingPreference` (forslag:
+       `share_wound_data`), **av som standard**. Skadedata er det mest
+       sensitive i loggen — det er der en jeger kan bli hengt ut — så det skal
+       aldri følge med på kjøpet av et annet ja.
+    2. `outcome`, `follow_up` og `ran_m` inn på **tillatelseslista** i
+       `research_filter.py`, gatet på den bryteren alene.
+    3. Delingsvalget må vises i klienten før det kan slås på. Klientens
+       forskningsflyt er fortsatt sperret av `Dialogs.RESEARCH_ENABLED`, så
+       rekkefølgen er: backend først, klient-UI når `/v1/research/sharing`
+       faktisk kan lagre valget.
+    Merk at dette ikke rører forutsetningen nederst i paragrafen:
+    personvernerklæring og DPIA-vurdering gjelder like fullt, og et *mer*
+    sensitivt felt gjør ikke den vurderingen mindre nødvendig.
   - Svaret inneholder `stored_fields`, så klienten kan vise brukeren hva som
     faktisk ble delt i stedet for å påstå noe annet.
   - Treningsdata filtreres ikke — §7 gir ingen felt-for-felt-valg for dem.
@@ -392,8 +478,9 @@ Klientsiden av kontrakten. Bygget mot fase 1-endepunktene og verifisert mot
   står fortsatt urørt og venter på konto (§1).
 
 ## 13. Klientsiden av backup-bloben (Android, v0.15)
-Tillegg til §2. Serveren skal fortsatt ikke kunne lese noe av dette — det står
-her bare så backend-siden vet hva de ugjennomsiktige bytene er.
+Tillegg til §2. Serveren skal ikke kunne lese noe av dette — det står her bare
+så backend-siden vet hva de ugjennomsiktige bytene er. Det ene unntaket er
+frivillig nøkkeldeponering (§2.1), som brukeren må slå på selv.
 
 - **Blob-format** (`Backup.kt`):
   `"BFBK" | 1 B versjon | 16 B salt | 12 B IV | AES-256-GCM (tag 128 bit)`.
@@ -403,8 +490,11 @@ her bare så backend-siden vet hva de ugjennomsiktige bytene er.
   gjenopprettingskode på 20 tegn (Crockford-base32 minus I/L/O/U ⇒ 100 bit).
   Ikke et brukervalgt passord: angriperen har hele bloben og kan gjette offline,
   så ingen server kan bremse ham. Konsekvensen står i UI-et — mister brukeren
-  koden, er kopien tapt, og **serveren kan ikke hjelpe**. Ikke bygg noe
-  «gjenopprett kopien min»-endepunkt; det finnes ingen ærlig implementasjon.
+  koden, er kopien tapt, og **serveren kan ikke hjelpe**.
+  *Presisert i runde 13:* det gjelder fortsatt så lenge nøkkelen er brukerens.
+  Den ene ærlige måten å hjelpe på er at brukeren uttrykkelig gir oss nøkkelen —
+  se §2.1. Ikke bygg noen annen vei inn; en «gjenopprett kopien min» uten det
+  samtykket finnes det ingen implementasjon av som er sann.
 - **Klienten bruker `client_ts`** = tidspunktet snapshotet ble laget, og setter
   `?force=true` kun når brukeren har svart ja på «overskriv den nyere kopien».
   409 vises som en egen dialog, ikke som en feil.
@@ -416,3 +506,28 @@ her bare så backend-siden vet hva de ugjennomsiktige bytene er.
   samme data (blob + per-post `/v1/stats`) bør ikke finnes før det er avgjort
   hvilken som eier sannheten. Forslag: bloben eier «alt mitt», `/v1/stats` eier
   det som skal kunne deles/aggregeres.
+
+## 14. Klientens økthåndtering (Android, v0.16)
+Svar på de to punktene backend meldte som «må håndteres av klienten». Begge er
+implementert i v0.16; dette står her så begge sider vet at kontrakten holdes.
+
+- **`/logout` gjør ikke access-tokenet ugyldig, og klienten later ikke som.**
+  `Auth.logout()` kaller `POST /v1/devices/unregister` *først* (mens tokenet
+  fortsatt virker), så `POST /v1/auth/logout`, og sletter deretter **begge**
+  tokenene lokalt — også når nettet er nede. Rekkefølgen er poenget: en
+  utlogging som avbrytes av dårlig dekning skal ikke etterlate et gyldig
+  access-token og en telefon som fortsetter å få varsler.
+- **Aldri to `/refresh` parallelt.** `Auth.refresh()` er `@Synchronized` og er
+  eneste vei inn. En tråd som ventet på låsen sjekker om tokenet allerede er
+  fornyet og gjør da ingenting. `Api` prøver en forespørsel på nytt etter 401
+  **nøyaktig én gang**; auth-kallene selv går med `authRetry = false`, ellers
+  hadde et 401 fra `/refresh` utløst en ny fornyelse i ring.
+- **Tokenene ligger ikke i klartekst.** `Secrets.kt` krypterer dem med en
+  AES-256-GCM-nøkkel i Android Keystore, i en **egen** prefs-fil. Grunnen er
+  konkret: `Store.exportPrefs()` er generisk over hele `bestefar_ui`, så et
+  token lagret der ville havnet inne i sikkerhetskopien. `authToken`,
+  `authExpiresAt` og `pushToken` er dessuten eksplisitt utelatt fra kopien —
+  de hører til telefonen, ikke til dataene.
+- **Utlogging sletter ikke lokale data.** Verken serier, jaktlogg eller
+  gjenopprettingskode. En app som mister loggen når man logger ut, er en app
+  ingen tør logge ut av.
