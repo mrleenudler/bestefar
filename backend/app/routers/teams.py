@@ -43,7 +43,7 @@ def _medlemskap(s: OrmSession, team_id: str, user_id: str) -> TeamMember:
 def _krev_leder(s: OrmSession, team_id: str, user_id: str) -> TeamMember:
     rad = _medlemskap(s, team_id, user_id)
     if rad.role != TeamRole.leader:
-        raise HTTPException(403, "Bare lagleder kan gjoere dette.")
+        raise HTTPException(403, "Bare lagleder kan gjøre dette.")
     return rad
 
 
@@ -159,7 +159,7 @@ def rename_team(team_id: str, body: RenameIn, user: User = Depends(current_user)
         teamgov.varsle(
             s, [m.user_id for m in teamgov.medlemmer(s, team_id) if m.user_id != user.id],
             "team_renamed", "Navneendring",
-            f"Lagleder for {gammelt} har endret navnet paa laget til {team.name}.",
+            f"Lagleder for {gammelt} har endret navnet på laget til {team.name}.",
             team_id)
     s.commit()
     return _team_ut(s, team)
@@ -300,7 +300,7 @@ def offer_leadership(team_id: str, member_id: str,
 
     team = s.get(Team, team_id)
     teamgov.varsle(s, [member_id], "leadership_offered", "Tilbud om lederskap",
-                   f"{user.display_name} vil gjoere deg til lagleder for "
+                   f"{user.display_name} vil gjøre deg til lagleder for "
                    f"{team.name}. Bekreft i appen.", team_id)
     s.commit()
     return {"status": "avventer_bekreftelse", "member_id": member_id}
@@ -317,14 +317,14 @@ def start_election(team_id: str, user: User = Depends(current_user),
     if teamgov.ledere(s, team_id):
         raise HTTPException(409, "Laget har allerede en lagleder.")
     if teamgov.active_election(s, team_id) is not None:
-        raise HTTPException(409, "Det paagaar allerede en avstemning.")
+        raise HTTPException(409, "Det pågår allerede en avstemning.")
 
     valg = TeamElection(team_id=team_id, closes_at=utcnow() + teamgov.FRIST)
     s.add(valg)
     team = s.get(Team, team_id)
     teamgov.varsle(s, [m.user_id for m in teamgov.medlemmer(s, team_id)],
                    "election_started", "Velg lagleder",
-                   f"{team.name} skal velge lagleder. Avstemningen er aapen i "
+                   f"{team.name} skal velge lagleder. Avstemningen er åpen i "
                    "7 dager.", team_id)
     s.commit()
     return {"election_id": valg.id, "closes_at": valg.closes_at}
@@ -340,7 +340,7 @@ def cast_vote(team_id: str, body: VoteIn, user: User = Depends(current_user),
     _medlemskap(s, team_id, user.id)
     valg = teamgov.active_election(s, team_id)
     if valg is None:
-        raise HTTPException(404, "Ingen paagaaende avstemning.")
+        raise HTTPException(404, "Ingen pågående avstemning.")
     if s.scalar(select(TeamMember).where(
             TeamMember.team_id == team_id,
             TeamMember.user_id == body.candidate_id)) is None:
@@ -401,7 +401,7 @@ def challenge_leader(team_id: str, user: User = Depends(current_user),
     if not lagledere:
         raise HTTPException(409, "Laget har ingen lagleder.")
     if teamgov.active_challenge(s, team_id) is not None:
-        raise HTTPException(409, "Det paagaar allerede en slik prosess.")
+        raise HTTPException(409, "Det pågår allerede en slik prosess.")
 
     leder = s.get(User, lagledere[0].user_id)
     grense = utcnow() - teamgov.INAKTIV_GRENSE
@@ -415,8 +415,8 @@ def challenge_leader(team_id: str, user: User = Depends(current_user),
     s.add(ch)
     team = s.get(Team, team_id)
     teamgov.varsle(s, [leder.id], "leader_challenged", "Er du fortsatt aktiv?",
-                   f"Et medlem har meldt at {team.name} staar uten aktiv "
-                   "lagleder. Logger du paa innen 7 dager, skjer ingenting.",
+                   f"Et medlem har meldt at {team.name} står uten aktiv "
+                   "lagleder. Logger du på innen 7 dager, skjer ingenting.",
                    team_id)
     s.commit()
     return {"challenge_id": ch.id, "deadline_at": ch.deadline_at}
@@ -429,7 +429,7 @@ def challenge_status(team_id: str, user: User = Depends(current_user),
     ch = s.scalar(select(LeaderChallenge).where(LeaderChallenge.team_id == team_id)
                   .order_by(LeaderChallenge.opened_at.desc()))
     if ch is None:
-        raise HTTPException(404, "Ingen paagaaende prosess.")
+        raise HTTPException(404, "Ingen pågående prosess.")
     ch = teamgov.resolve_challenge(s, ch)
     return {"challenge_id": ch.id, "outcome": ch.outcome.value,
             "leader_id": ch.leader_id, "deadline_at": ch.deadline_at,

@@ -58,8 +58,11 @@ user_id, public_id, display_name}`. Alle andre endepunkter tar
 - **`aud` sjekkes alltid.** Uten `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` svarer
   den leverandøren 503. Et gyldig Google-token utstedt til en *annen* app
   skal ikke gi tilgang her.
-- **E-postkode:** seks siffer, 15 min, maks 5 forsøk, maks 5 koder per adresse
-  per time (telles i basen, ikke i minnet — Fly kjører to maskiner).
+- **E-postkode:** seks siffer, 15 min, maks 5 forsøk, maks 10 koder per adresse
+  per time (telles i basen, ikke i minnet — Fly kjører to maskiner). Kvoten
+  teller **forespørsler**, ikke leveranser, så den er satt romslig: en bruker
+  som ber om ny kode fordi e-posten er treg, skal ikke bli utestengt. Vernet mot
+  gjetting er de fem forsøkene, ikke antall koder.
   `/email/start` svarer alltid 202, også for ukjent adresse: et svar som
   skilte kjent fra ukjent ville gjort endepunktet til et oppslagsverk over
   hvem som bruker appen.
@@ -110,13 +113,25 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
   ikke lekke. Er navnet ikke godkjent, eksponeres «Ukjent skytter» for andre.
   Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
   regelsettet godkjennes derfor direkte.
-- **Åpent punkt — `kills[]` kan ikke leveres:** jaktloggen ligger inne i den
-  klient-krypterte backup-bloben (§2), som serveren ikke kan lese. Skal felte dyr
-  deles med venner, må jaktposter synkes som egne rader. Det er en
-  spec-avklaring, ikke en implementasjonsdetalj. `avgScore` og `trend` er
-  implementert fra treningsseriene; `trend` er foreløpig definert som snitt per
-  skudd i de 5 siste seriene minus de 5 foregående, og er `null` før det finnes
-  10 serier.
+- **`kills[]` — avklart 2026-08-05, løst som flyktig kunngjøring:** feltet kunne
+  ikke leveres som en liste. Jaktloggen ligger inne i den klient-krypterte
+  backup-bloben (§2), og å synke jaktposter som egne rader ville lagt hele
+  loggen i klartekst på serveren — nettopp det §2 unngår.
+  I stedet: `POST /v1/hunts/announce` sender «{navn} har felt {art} i
+  {kommune}» som push til vennene, og så er den borte. Ingen `PendingMessage`,
+  ingenting i basen om hva som ble felt eller hvor; kun `users.hunt_announced_at`
+  (et tidsstempel, for å bremse gjentatte kunngjøringer med 5 minutter).
+  Krever `share_kills`, som allerede fantes i delingsvalgene. Et varsel som ikke
+  når fram, er tapt — det er meningen. Dette er en gladmelding i øyeblikket,
+  ikke en logg. `kills[]` i modellen over er dermed ikke en serverleveranse.
+- **`trend` — definert 2026-08-05:** snitt per skudd i de siste ~20 skuddene
+  minus de ~20 foregående; `null` før begge vinduene er fulle. Vinduet telles i
+  **skudd**, ikke serier, fordi en serie er 5–10 skudd og fem serier derfor
+  kunne bety alt fra 25 til 50 skudd. Hele serier samles til vinduet er fullt —
+  å kutte en serie på midten ville blandet to økter i samme tall.
+  Merk at dette er en **retning** (en differanse), ikke et løpende snitt. Skal
+  klienten vise nivået over de siste tjue skuddene, er det `avgScore` med et
+  vindu — et annet felt og et annet delingsvalg.
 
 ## 4. Lag (jaktlag/skytterlag)
 - **Modell:** `Team { id, name, kind(jakt|skytter), memberCount, location?, leaders[] }`.

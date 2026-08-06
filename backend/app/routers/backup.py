@@ -57,7 +57,7 @@ async def upload_backup(request: Request,
     cfg = settings()
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > cfg.max_backup_bytes:
-        raise HTTPException(413, f"Backup er stoerre enn {cfg.max_backup_bytes} byte")
+        raise HTTPException(413, f"Backup er større enn {cfg.max_backup_bytes} byte")
 
     # Klienten sender ofte ISO-tid uten offset; tolk den som UTC saa den kan
     # sammenlignes med den lagrede verdien.
@@ -67,7 +67,7 @@ async def upload_backup(request: Request,
     if not payload:
         raise HTTPException(422, "Tom backup")
     if len(payload) > cfg.max_backup_bytes:
-        raise HTTPException(413, f"Backup er stoerre enn {cfg.max_backup_bytes} byte")
+        raise HTTPException(413, f"Backup er større enn {cfg.max_backup_bytes} byte")
 
     row = s.get(Backup, user.id)
     if row is not None and not force and row.client_ts is not None \

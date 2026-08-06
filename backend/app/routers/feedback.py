@@ -74,7 +74,7 @@ def _forward(cfg: Settings, feedback_id: int, payload: FeedbackIn) -> None:
 def submit_feedback(body: FeedbackIn, request: Request, tasks: BackgroundTasks,
                     s: OrmSession = Depends(db)) -> dict:
     if not limiter().allow(client_ip(request)):
-        raise HTTPException(429, "For mange meldinger. Proev igjen senere.")
+        raise HTTPException(429, "For mange meldinger. Prøv igjen senere.")
 
     row = Feedback(subject=body.subject, body=body.body,
                    app_version=body.app_version, device_model=body.device_model,

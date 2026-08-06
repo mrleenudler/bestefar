@@ -40,6 +40,12 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
     last_seen_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # §3: naar brukeren sist kunngjorde et felt dyr til vennene sine. KUN et
+    # tidsstempel - art og sted lagres ALDRI. Jaktloggen ligger med vilje i den
+    # klient-krypterte bloben (§2), og en serverkolonne med «hva ble felt hvor»
+    # ville gjenskapt nettopp den loggen i klartekst. Kolonnen finnes bare for
+    # aa kunne bremse gjentatte kunngjoeringer.
+    hunt_announced_at: Mapped[datetime | None] = mapped_column(nullable=True)
     # §9: sletting. Raden beholdes kort for aa hindre gjenbruk av public_id.
     deleted_at: Mapped[datetime | None] = mapped_column(nullable=True, index=True)
 

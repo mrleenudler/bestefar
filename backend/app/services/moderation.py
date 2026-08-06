@@ -54,9 +54,9 @@ def review(raw: str, blocklist: list[str]) -> tuple[str, NameStatus, str]:
     """
     name = normalize(raw)
     if not name:
-        return name, NameStatus.rejected, "Visningsnavnet kan ikke vaere tomt."
+        return name, NameStatus.rejected, "Visningsnavnet kan ikke være tomt."
     if len(name) > NAME_MAX:
-        return name, NameStatus.rejected, f"Visningsnavnet kan ha hoeyst {NAME_MAX} tegn."
+        return name, NameStatus.rejected, f"Visningsnavnet kan ha høyst {NAME_MAX} tegn."
     ulovlige = sorted({c for c in name if not _allowed_char(c)})
     if ulovlige:
         return name, NameStatus.rejected, (

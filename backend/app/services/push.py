@@ -20,6 +20,7 @@ Hvorfor ikke google-auth-biblioteket: vi trenger noeyaktig én ting derfra -
 et OAuth-token fra en tjenestekonto - og har allerede PyJWT med krypto for
 §1. Ett avhengighetstre mindre aa holde oppdatert.
 """
+import base64
 import json
 import logging
 import time
@@ -45,10 +46,26 @@ _token_cache: tuple[str, float] | None = None
 
 
 def _konto(cfg: Settings) -> dict | None:
-    if not cfg.fcm_service_account_json:
+    """
+    Tjenestekontoen, enten som raa JSON eller base64-kodet.
+
+    Begge godtas med vilje. Raa JSON er det enkleste naar man kan lime inn,
+    men noekkelfilen er flerlinjes og inneholder «private_key» med
+    \\n-sekvenser - i PowerShell blir sitering av den en felle. Base64 er
+    én linje uten spesialtegn og overlever enhver kommandolinje.
+    """
+    raa = cfg.fcm_service_account_json.strip()
+    if not raa:
         return None
+    if not raa.startswith("{"):
+        try:
+            raa = base64.b64decode(raa, validate=True).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            log.error("FCM_SERVICE_ACCOUNT_JSON er verken JSON eller gyldig "
+                      "base64 - push er av.")
+            return None
     try:
-        return json.loads(cfg.fcm_service_account_json)
+        return json.loads(raa)
     except ValueError:
         log.error("FCM_SERVICE_ACCOUNT_JSON er ikke gyldig JSON - push er av.")
         return None

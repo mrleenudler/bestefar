@@ -177,7 +177,7 @@ def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
         EmailLoginCode.email == epost, EmailLoginCode.created_at >= grense))))
     if antall >= cfg.email_code_rate_per_hour:
         raise HTTPException(429, "For mange koder er sendt til denne adressen. "
-                                 "Proev igjen om en time.")
+                                 "Prøv igjen om en time.")
 
     kode, hash_ = tokens.ny_engangskode()
     s.add(EmailLoginCode(email=epost, code_hash=hash_,
@@ -188,7 +188,7 @@ def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
         mailer.send(cfg, "Innloggingskode til Bestefar",
                     f"Koden din er {kode}.\n\n"
                     f"Den er gyldig i {cfg.email_code_ttl_minutes} minutter.\n"
-                    "Har du ikke bedt om aa logge inn, kan du se bort fra denne "
+                    "Har du ikke bedt om å logge inn, kan du se bort fra denne "
                     "meldingen.\n", to=epost)
     except Exception:                                  # noqa: BLE001
         # Vi roeper ikke at utsendingen feilet - det ville ogsaa vaert et
@@ -209,14 +209,14 @@ def verifiser_kode(body: KodeIn, user_agent: str = Header(default=""),
         EmailLoginCode.email == epost,
         EmailLoginCode.consumed_at.is_(None)).order_by(EmailLoginCode.id.desc()))
     if rad is None or as_utc(rad.expires_at) < naa:
-        raise HTTPException(401, "Koden er ugyldig eller utloept.")
+        raise HTTPException(401, "Koden er ugyldig eller utløpt.")
     if rad.attempts >= cfg.email_code_max_attempts:
-        raise HTTPException(429, "For mange forsoek. Be om en ny kode.")
+        raise HTTPException(429, "For mange forsøk. Be om en ny kode.")
 
     rad.attempts += 1
     if not tokens.koder_er_like(body.code, rad.code_hash):
         s.commit()
-        raise HTTPException(401, "Koden er ugyldig eller utloept.")
+        raise HTTPException(401, "Koden er ugyldig eller utløpt.")
 
     rad.consumed_at = naa
     ident = oidc.Identitet(provider=Provider.email, subject=epost,
@@ -257,9 +257,9 @@ def forny(body: RefreshIn, user_agent: str = Header(default=""),
                 AuthSession.revoked_at.is_(None))):
             annen.revoked_at = naa
         s.commit()
-        raise HTTPException(401, "Oekten er tilbakekalt. Logg inn paa nytt.")
+        raise HTTPException(401, "Økten er tilbakekalt. Logg inn på nytt.")
     if as_utc(oekt.expires_at) < naa:
-        raise HTTPException(401, "Oekten er utloept. Logg inn paa nytt.")
+        raise HTTPException(401, "Økten er utløpt. Logg inn på nytt.")
 
     user = s.get(User, oekt.user_id)
     if user is None or user.deleted_at is not None:

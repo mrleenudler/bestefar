@@ -44,7 +44,7 @@ def krev_hemmelighet(cfg: Settings) -> str:
         raise HTTPException(503, "Innlogging er ikke konfigurert (JWT_SECRET mangler).")
     if len(cfg.jwt_secret.encode()) < MIN_SECRET_BYTES:
         raise HTTPException(503, "Innlogging er feilkonfigurert: JWT_SECRET maa "
-                                 f"vaere minst {MIN_SECRET_BYTES} tegn.")
+                                 f"være minst {MIN_SECRET_BYTES} tegn.")
     return cfg.jwt_secret
 
 
@@ -67,7 +67,7 @@ def les_access_token(cfg: Settings, token: str) -> str:
         # alg=none blitt godtatt uten signatur.
         data = jwt.decode(token, hemmelighet, algorithms=[ALGORITHM], issuer=ISSUER)
     except jwt.ExpiredSignatureError as exc:
-        raise HTTPException(401, "Tokenet er utloept.") from exc
+        raise HTTPException(401, "Tokenet er utløpt.") from exc
     except jwt.InvalidTokenError as exc:
         raise HTTPException(401, "Ugyldig token.") from exc
     sub = data.get("sub")

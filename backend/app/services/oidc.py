@@ -72,7 +72,7 @@ def _verifiser(token: str, jwks_url: str, issuers: tuple[str, ...],
         # feil eller leverandoerens, ikke klientens - derfor 503 og ikke 401,
         # saa klienten proever igjen i stedet for aa logge brukeren ut.
         log.warning("Kunne ikke hente signeringsnoekkel fra %s: %s", navn, exc)
-        raise HTTPException(503, f"Fikk ikke kontakt med {navn}. Proev igjen.") from exc
+        raise HTTPException(503, f"Fikk ikke kontakt med {navn}. Prøv igjen.") from exc
     except jwt.InvalidTokenError as exc:
         log.info("Avvist %s-token: %s", navn, exc)
         raise HTTPException(401, f"Ugyldig {navn}-token.") from exc

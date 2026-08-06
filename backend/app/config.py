@@ -47,9 +47,14 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 60
     refresh_token_ttl_days: int = 90
 
-    # Kommaseparerte, gyldige `aud`-verdier fra leverandoerene. Android- og
-    # iOS-klientene har hver sin klient-ID, og begge maa staa her.
+    # Gyldige `aud`-verdier fra leverandoerene, kommaseparert.
     # Tom liste => den leverandoeren svarer 503.
+    #
+    # GOOGLE: dette er WEB-klient-ID-en, ikke Android-klient-ID-en. Android
+    # trenger sin egen klient (for SHA-1-bindingen), men Credential Manager
+    # utsteder ID-tokens med web-klienten som `aud` - den samme verdien
+    # klienten sender til setServerClientId(). Legger man inn Android-ID-en
+    # her, avvises hvert eneste token med «Ugyldig Google-token».
     google_client_ids: str = ""
     apple_client_ids: str = ""          # bundle-ID / services-ID
 
@@ -57,7 +62,12 @@ class Settings(BaseSettings):
     # kortlivet, har faa forsoek og er ratebegrenset.
     email_code_ttl_minutes: int = 15
     email_code_max_attempts: int = 5
-    email_code_rate_per_hour: int = 5   # per e-postadresse
+    # Per e-postadresse. Hevet fra 5 til 10: grensen teller FORESPOERSLER, ikke
+    # leveranser, saa en bruker som ber om ny kode fordi e-posten er treg
+    # brenner opp kvoten sin uten aa ha gjort noe galt. Ti forsoek er fortsatt
+    # langt under det som trengs for aa gjette en sekssifret kode, som uansett
+    # er vernet av email_code_max_attempts.
+    email_code_rate_per_hour: int = 10
 
     @property
     def google_client_id_list(self) -> list[str]:

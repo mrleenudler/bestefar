@@ -142,7 +142,13 @@ def test_ukjent_adresse_roeper_ingenting(client, sendte):
 
 
 def test_for_mange_koder_ratebegrenses(client, sendte):
-    for _ in range(5):
+    # Grensen leses fra konfigurasjonen. Hardkodet tall her betyr at en
+    # justering av kvoten gir en rod test i stedet for et svar paa om
+    # begrensningen virker.
+    from app.config import settings
+    grense = settings().email_code_rate_per_hour
+
+    for _ in range(grense):
         assert client.post("/v1/auth/email/start",
                            json={"email": "spam@example.com"}).status_code == 202
     assert client.post("/v1/auth/email/start",

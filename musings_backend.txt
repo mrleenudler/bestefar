@@ -1,0 +1,135 @@
+claude --resume 314ae3d6-dada-4733-8850-959febaca667
+
+=====================================================================
+ARBEIDSFORM
+=====================================================================
+Du er i et PowerShell-miljø. Korte kommandoer, unngå script-blokker og
+subexpressions - de krever bekreftelse hver gang.
+
+`python` finnes ikke på PATH. Bruk:
+    C:\Users\mrlee\Desktop\Bestefar\backend\.venv\Scripts\python.exe
+I Bash-verktøyet må stier som sendes videre til python.exe skrives
+"C:/Users/..." - den er en Windows-binær og forstår ikke /c/Users/...
+
+Oppdater backend_spec.md ved behov.
+Les siste til_utvikler_v##.md for å se hva som ble gjort forrige runde.
+Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md.
+NB: den filen deles med UI-instansen. Legg til en backend-seksjon nederst,
+ikke overskriv.
+
+Fortsett å føre feil du gjør i CLAUDE_CONTEXT.TXT - ting som burde vært
+husket. Les CLAUDE_CONTEXT.TXT etter komprimering.
+
+Plan_for_backend_implementering.odt + backend_spec.md beskriver oppgaven.
+bestefar_UI_spec-v0-4.md har UI-informasjon ved behov.
+
+=====================================================================
+KONTOER OG INFRASTRUKTUR
+=====================================================================
+Domene:    www.jegeropplæring.no
+           punycode: www.xn--jegeropplring-cgb.no
+           E-POSTADRESSER MÅ BRUKE PUNYCODE-FORMEN.
+
+Fly.io:    app `bestefar-api`, region ams, scale-to-zero, 2 maskiner.
+           flyctl installert og innlogget.
+           Auto-deploy fra GitHub Actions ved push til main. Virker.
+
+Supabase:  Bestefar_base, ref puioipitfilhqnarrsup
+           https://puioipitfilhqnarrsup.supabase.co
+           Direct connection string og DB-passord er lagret hos utvikler.
+
+Cloudflare R2: konto opprettet, API-token/Access Key/Secret/S3-endepunkt
+           lagret. IKKE tatt i bruk av backenden ennå.
+
+Firebase:  prosjekt opprettet, tjenestekonto-nøkkel klar.
+
+SECRETS SETTES AV UTVIKLER SELV med `flyctl secrets set ... -a bestefar-api`.
+Passord og tokens skal aldri inn i chat-loggen.
+
+=====================================================================
+STATUS PER 2026-08-05
+=====================================================================
+Alle faser (0-8) i planen er implementert og deployet.
+165 tester grønne mot SQLite og Postgres.
+
+Satt i produksjon:  DATABASE_URL, JWT_SECRET, RESEND_API_KEY, FEEDBACK_*
+Ikke satt ennå:     FCM_SERVICE_ACCOUNT_JSON, GOOGLE_CLIENT_IDS,
+                    APPLE_CLIENT_IDS, RESEARCH_ENABLED (skal stå av)
+
+=====================================================================
+GJENSTÅENDE - KREVER UTVIKLER, IKKE KODE
+=====================================================================
+1. FCM_SERVICE_ACCOUNT_JSON. Rå JSON eller base64 - koden godtar begge.
+   PowerShell:
+     $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("noekkel.json"))
+     flyctl secrets set FCM_SERVICE_ACCOUNT_JSON=$b64 -a bestefar-api
+   Til det er satt: /health viser "push":"log", varsler sendes ikke ut.
+
+2. GOOGLE_CLIENT_IDS. WEB-klient-ID-en, ikke Android-klientens.
+   Android trenger sin egen klient for SHA-1-bindingen, men Credential
+   Manager utsteder ID-tokens med web-klienten som `aud`. Samme verdi skal
+   inn i setServerClientId() på klientsiden.
+
+3. APPLE_CLIENT_IDS. Krever Apple Developer Program (99 USD/år) + verifisert
+   domene, fordi Sign in with Apple på Android går via web-flyten. Services
+   ID-en er verdien. Vurder å utsette - uten iOS-app er nytten liten.
+
+4. FEEDBACK_FROM må bruke punycode: bestefar@xn--jegeropplring-cgb.no
+   Sjekk SPF, DKIM og DMARC hos Resend. Det er den største enkeltfaktoren
+   for om innloggingskoden havner i søppelpost.
+
+5. Personvernerklæring + DPIA-vurdering før RESEARCH_ENABLED slås på.
+
+6. Rutine som faktisk tømmer research.deletion_requests. Driftsansvar;
+   completed_at er kolonnen det kvitteres i. Ingen jobbkjører finnes.
+
+7. Push mot ekte enhet kan bare verifiseres av klientutvikleren - det krever
+   Firebase-SDK som produserer et gyldig token.
+
+=====================================================================
+TEKNISK GJELD - VURDER I SENERE RUNDER
+=====================================================================
+- Rate-limiteren for /v1/feedback ligger i MINNET per maskin. Med to
+  Fly-maskiner er den reelle grensen 10/time, ikke 5. Flytt til basen slik
+  e-postkodene allerede er.
+- GET /v1/teams/near sorterer i Python. Trenger PostGIS eller en
+  geohash-kolonne når tabellen vokser.
+- Push blir ett HTTP-kall per mottaker (FCM HTTP v1 har ingen multicast).
+  Tidsbudsjettet gjør det trygt, men store lag bør til en jobbkø.
+- Frister (lederavstemning, inaktiv leder) avgjøres LAT, første gang noen
+  spør. Nå som push finnes bør et periodisk kall legges inn, så varselet går
+  ut på fristen og ikke ved neste besøk.
+- Manuell moderasjonskø for visningsnavn krever en admin-flate som ikke
+  finnes. Navn som passerer regelsettet godkjennes derfor direkte.
+- R2 er betalt for og ubrukt. Avklar om feilanalysebilder skal dit i stedet
+  for basen.
+
+=====================================================================
+ÅPNE SPØRSMÅL TIL UTVIKLER
+=====================================================================
+- `trend` er nå definert som siste ~20 skudd minus de ~20 foregående. Det er
+  en RETNING, ikke et løpende snitt. Ville du heller hatt nivået over de
+  siste tjue skuddene? Da er det avgScore med et vindu - annet felt, annet
+  delingsvalg. Si fra, så legges det til.
+- Emnefeltet «Innloggingskode til Bestefar» og avsendernavnet er fortsatt
+  plassholdere. Bestem endelig ordlyd.
+- Kunngjøring av felt dyr (POST /v1/hunts/announce) er bygget etter ditt
+  forslag. Teksten er «{navn} har felt {art} i {kommune}.» - godkjenn eller
+  endre ordlyden.
+
+=====================================================================
+AVKLART - IKKE TA OPP IGJEN
+=====================================================================
+- kills[] kan ikke leveres som liste. Løst som flyktig push-kunngjøring
+  (§3). Ingenting om art eller sted lagres på serveren.
+- Backup-vernet mot utdatert enhet (409 ved eldre client_ts, ?force=true
+  overstyrer) er implementert. Ført i backend_spec.md §2.
+- «aa» i e-posten var korrektur, ikke system. ASCII-translitterering er
+  konvensjonen for KOMMENTARER i kodebasen; den lakk ut i brukertekst.
+  Rettet i 29 strenger. Ny regel: kommentarer og logg er ASCII, alt
+  brukeren ser skal ha æøå.
+- E-postkodekvoten er hevet fra 5 til 10 per adresse per time.
+- core_version er appens versionName, fordi CV-kjernen ikke eksponerer noen
+  versjon over FFI.
+
+TODO: Vurderes implementert senere: SMS-støtte med Twilio.

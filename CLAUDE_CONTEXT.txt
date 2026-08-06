@@ -814,3 +814,25 @@ BACKEND-RUNDE 9 (fase 8: push)
     som naa er logget inn som noen andre.
   - FELLE: jeg gjettet PATCH /v1/teams/{id} for navneendring - den er PUT.
     Fire tester feilet paa 405. SJEKK ruten i routeren foer du skriver testen.
+
+BACKEND-RUNDE 10 (gjennomgang av musings_backend)
+  - REGEL SOM MANGLET: ASCII-translitterering (aa/oe/ae) er konvensjonen for
+    KOMMENTARER og LOGG i denne kodebasen. Den skal ALDRI ut i tekst brukeren
+    ser. Den lakk ut i 29 strenger - innloggingskoden paa e-post, feilmeldinger
+    fra /v1/auth, /v1/friends og /v1/teams, moderasjonens begrunnelser og alle
+    §11-varseltekstene. Utvikleren oppdaget det i sin egen innboks.
+    Skriver du en streng som naar en sluttbruker: bruk æøå.
+  - FELLE (testen laaste en konfigurasjonsverdi): test_for_mange_koder_
+    ratebegrenses hardkodet 5. Da kvoten ble hevet til 10, feilet testen paa
+    kvoten i stedet for paa oppfoerselen. Les grensen fra settings().
+  - til_utvikler_v0NN.md DELES med UI-instansen. v015 fantes allerede med
+    UI-innhold da jeg skulle skrive backend-delen. LES FOERST, legg til en
+    seksjon nederst - ikke overskriv.
+  - Kunngjoering av felt dyr (§3): loeser kills[] uten aa legge jaktloggen i
+    klartekst. KUN et tidsstempel lagres (users.hunt_announced_at). Fristelsen
+    til aa lagre art og sted «for statistikkens skyld» er nettopp det §2
+    unngaar - ikke gi etter for den senere.
+  - Trendvinduet telles i SKUDD, ikke serier: en serie er 5-10 skudd, saa fem
+    serier kunne bety 25 eller 50 og gjorde tallet uleselig paa tvers av
+    brukere. En trend er en DIFFERANSE (retning), ikke et loepende snitt - de
+    to blir lett blandet i samtale med utvikler.

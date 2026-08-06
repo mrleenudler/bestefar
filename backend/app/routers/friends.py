@@ -37,7 +37,7 @@ def _guard(s: OrmSession, user: User, request: Request) -> str:
         until = quarantine.blocked_until(s, scope, subject)
         if until is not None:
             raise HTTPException(429, {
-                "melding": "For mange mislykkede soek. Proev igjen senere.",
+                "melding": "For mange mislykkede søk. Prøv igjen senere.",
                 "sperret_til": until.isoformat(),
             })
     return ip
@@ -125,7 +125,7 @@ def request_friend(body: RequestIn, user: User = Depends(current_user),
                 finnes.responded_at = utcnow()
                 s.commit()
                 return {"id": finnes.id, "status": finnes.status.value}
-            raise HTTPException(409, "Forespoersel er allerede sendt.")
+            raise HTTPException(409, "Forespørsel er allerede sendt.")
         # Avslaatt tidligere - la brukeren proeve paa nytt.
         finnes.requester_id, finnes.addressee_id = user.id, andre.id
         finnes.status = FriendshipStatus.pending
@@ -151,9 +151,9 @@ def respond_friend(body: RespondIn, user: User = Depends(current_user),
     # Bare mottakeren kan svare - og vi avslorer ikke at forespoerselen finnes
     # for andre enn de to involverte.
     if rad is None or rad.addressee_id != user.id:
-        raise HTTPException(404, "Fant ingen forespoersel.")
+        raise HTTPException(404, "Fant ingen forespørsel.")
     if rad.status != FriendshipStatus.pending:
-        raise HTTPException(409, "Forespoerselen er allerede besvart.")
+        raise HTTPException(409, "Forespørselen er allerede besvart.")
 
     rad.status = FriendshipStatus.accepted if body.accept else FriendshipStatus.declined
     rad.responded_at = utcnow()

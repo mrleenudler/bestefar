@@ -223,11 +223,19 @@ def test_trend_krever_nok_data(client):
         _serie(client, B, nr)
     _bli_venner(client)
 
-    # Under 10 serier gir ingen trend - to serier ville vaert stoey presentert
-    # som innsikt.
+    # Vinduet telles i SKUDD: hver serie her er to skudd, saa fem serier gir
+    # ti - ikke nok til aa fylle ett vindu paa tjue.
     assert client.get("/v1/friends", headers=AUTH).json()[0]["trend"] is None
 
+    # Tjue skudd fyller det NYESTE vinduet, men da er det ingenting aa
+    # sammenlikne med. Fortsatt None.
     for nr in range(6, 11):
+        _serie(client, B, nr)
+    assert client.get("/v1/friends", headers=AUTH).json()[0]["trend"] is None
+
+    # Foerti skudd fyller begge. Alle seriene er like, saa trenden er null -
+    # ikke «ingen data».
+    for nr in range(11, 21):
         _serie(client, B, nr)
     assert client.get("/v1/friends", headers=AUTH).json()[0]["trend"] == 0.0
 

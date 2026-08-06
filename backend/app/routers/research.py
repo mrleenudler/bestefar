@@ -88,7 +88,7 @@ def revoke_consent(consent_type: ResultType, user: User = Depends(current_user),
         ResearchConsent.pseudonym_id == pid,
         ResearchConsent.consent_type == consent_type))
     if c is None:
-        raise HTTPException(404, "Ingen samtykke aa trekke tilbake")
+        raise HTTPException(404, "Ingen samtykke å trekke tilbake")
     c.revoked_at = utcnow()
     s.commit()
     return {"consent_id": c.id, "status": "tilbaketrukket"}

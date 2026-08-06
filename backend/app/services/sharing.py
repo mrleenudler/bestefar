@@ -14,7 +14,11 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..models import NameStatus, Series, SharingPreference, TeamMember, User
 
-TREND_WINDOW = 5
+# Trendvinduet telles i SKUDD, ikke serier: en serie er 5-10 skudd, saa fem
+# serier kunne bety alt fra 25 til 50 skudd og gjorde tallet uleselig paa tvers
+# av brukere. Tjue skudd er stort nok til aa daempe stoey og lite nok til aa
+# vaere ferskt.
+TREND_SHOTS = 20
 NAVN_UNDER_VURDERING = "Ukjent skytter"
 
 
@@ -38,28 +42,53 @@ def _season_shots(s: OrmSession, user_id: str) -> int:
         .where(Series.user_id == user_id, Series.season_key == season)) or 0)
 
 
+def _vindu(rader: list, start: int) -> tuple[float, int, int]:
+    """
+    Samler hele serier fra og med `start` til vinduet har minst TREND_SHOTS
+    skudd. Returnerer (sum poeng, sum skudd, neste indeks).
+
+    Hele serier med vilje: en serie er én oekt under de samme forholdene, og
+    aa kutte den paa midten for aa treffe akkurat tjue skudd ville blandet to
+    oekter i samme tall.
+    """
+    poeng, skudd = 0.0, 0
+    i = start
+    while i < len(rader) and skudd < TREND_SHOTS:
+        poeng += rader[i][0]
+        skudd += rader[i][1]
+        i += 1
+    return poeng, skudd, i
+
+
 def _trend(s: OrmSession, user_id: str) -> float | None:
     """
-    Utvikling: snitt per skudd i de 5 siste seriene minus de 5 foregaaende.
-    Positivt tall = framgang.
+    Utvikling: snitt per skudd i de siste ~20 skuddene minus de ~20
+    foregaaende. Positivt tall = framgang.
 
-    FORELOEPIG DEFINISJON. Spec §3 sier bare «snitt/utvikling»; vindusstoerrelsen
-    er valgt fordi en serie er 5-10 skudd og 5 serier daekker en typisk oekt.
-    Returnerer None foer det finnes 10 serier - et «trendtall» fra to serier
-    ville vaert stoey presentert som innsikt.
+    Vinduet telles i SKUDD og ikke i serier - se TREND_SHOTS. Returnerer None
+    foer begge vinduene er fulle: et «trendtall» fra to serier ville vaert
+    stoey presentert som innsikt.
+
+    NB: dette er en TREND (en differanse, altsaa en retning), ikke et
+    loepende snitt. Skal klienten vise nivaaet over de siste tjue skuddene, er
+    det `avg_score` med et vindu - et annet felt og et annet delingsvalg.
     """
-    rows = list(s.execute(
+    rader = list(s.execute(
         select(Series.sum_decimal, Series.shot_count)
         .where(Series.user_id == user_id, Series.shot_count > 0)
-        .order_by(Series.ts.desc()).limit(TREND_WINDOW * 2)))
-    if len(rows) < TREND_WINDOW * 2:
+        # En serie har minst ett skudd, saa 2 x TREND_SHOTS serier daekker
+        # begge vinduene i verste fall. Uten grensen ville en bruker med tusen
+        # serier lastet alle sammen for aa regne ut ett tall.
+        .order_by(Series.ts.desc()).limit(TREND_SHOTS * 2)))
+
+    nye_poeng, nye_skudd, i = _vindu(rader, 0)
+    if nye_skudd < TREND_SHOTS:
+        return None
+    gamle_poeng, gamle_skudd, _ = _vindu(rader, i)
+    if gamle_skudd < TREND_SHOTS:
         return None
 
-    def snitt(chunk) -> float:
-        skudd = sum(r[1] for r in chunk)
-        return sum(r[0] for r in chunk) / skudd if skudd else 0.0
-
-    return round(snitt(rows[:TREND_WINDOW]) - snitt(rows[TREND_WINDOW:]), 2)
+    return round(nye_poeng / nye_skudd - gamle_poeng / gamle_skudd, 2)
 
 
 def _team_ids(s: OrmSession, user_id: str) -> list[str]:

@@ -266,3 +266,255 @@ og lag fortsatt utilgjengelige uansett hvor ferdig koden er på begge sider.
 **Åpent fra forrige runde, fortsatt ubesvart:** `bf_version()` i
 `bestefar_ffi.h`. Backend-instansen har svart ja og ført den i `backend_spec.md`
 §8; det er en ren kjerne-endring og krever ingenting av backenden.
+
+---
+---
+
+# Backend — fase 3, 7 og 8
+
+Skrevet av backend-instansen. Alle fasene i
+`Plan_for_backend_implementering.odt` er nå implementert og deployet til
+`https://bestefar-api.fly.dev`. Det som gjenstår er ikke kode.
+
+| Fase | Status |
+|---|---|
+| 3 — innlogging | Deployet. E-postkode virker ende-til-ende, verifisert mot produksjon. Google/Apple svarer 503 til klient-ID-ene er satt. |
+| 7 — forskning | Deployet, står av bak `RESEARCH_ENABLED=false`. |
+| 8 — push | Deployet. Sender ikke ut før `FCM_SERVICE_ACCOUNT_JSON` er satt. |
+
+`/health` viser hva som faktisk er koblet på:
+
+```json
+{"status":"ok","env":"prod","database":"ok","mailer":"resend","push":"log"}
+```
+
+## Fase 3 — innlogging (§1)
+
+Seks endepunkter: `POST /v1/auth/google`, `/apple`, `/email/start`,
+`/email/verify`, `/refresh`, `/logout`.
+
+```
+POST /v1/auth/email/start     {"email": "ola@example.com"}          -> 202
+POST /v1/auth/email/verify    {"email": "...", "code": "042731"}    -> 200
+```
+
+`/start` svarer **alltid** 202, også for en ukjent adresse — et svar som skilte
+mellom kjent og ukjent ville gjort endepunktet til et oppslagsverk over hvem som
+bruker appen. Koden er sekssifret og varer 15 minutter.
+
+**`code` må sendes som streng.** `{"code": 42731}` gir 422. Koden kan starte med
+null, og som JSON-tall forsvinner den.
+
+Kvoten er hevet til **10 koder per adresse per time**. Den teller forespørsler,
+ikke leveranser — en bruker som ber om ny kode fordi e-posten er treg, skal ikke
+bli utestengt. Vernet mot gjetting er de fem forsøkene per kode.
+
+Svaret fra `/verify` og `/refresh`:
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...", "refresh_token": "k3nR8...",
+  "token_type": "Bearer", "expires_in": 3600,
+  "user_id": "...", "public_id": "BF-AKDZ-5N8B",
+  "display_name": "Ola", "is_new": true
+}
+```
+
+`is_new` er `true` bare når kontoen opprettes — bruk den til å sende brukeren
+rett til profiloppsett.
+
+### To ting klienten MÅ håndtere
+
+**`/logout` gjør ikke access-tokenet ugyldig.** Verifisert mot produksjon: etter
+204 fra `/logout` svarer `GET /v1/profile` fortsatt 200 med det samme tokenet.
+Ikke en feil — tokenet er en statsløs JWT og kan ikke tilbakekalles, derfor er
+levetiden bare 60 minutter. **Klienten må selv slette begge tokenene**, og kalle
+`POST /v1/devices/unregister` samtidig. Ellers har en utlogget bruker full
+tilgang i opptil en time og fortsetter å få varsler.
+
+**Ikke kjør to `/refresh` parallelt.** Refresh-tokenet roteres ved hver bruk, og
+et allerede brukt token som dukker opp igjen tolkes som en lekkasje — da
+tilbakekalles *alle* brukerens økter. To samtidige kall logger altså ut
+brukeren. Serialiser fornyelsen bak én lås.
+
+### Google: klient-ID-en er web-klientens
+
+Verdt å lese to ganger — dette er en felle som gir «Ugyldig Google-token» på hvert
+eneste forsøk uten at noe ser galt ut.
+
+`GOOGLE_CLIENT_IDS` skal inneholde **web**-klient-ID-en, ikke Android-klientens.
+Android trenger sin egen klient i Google Cloud Console (for SHA-1-bindingen), men
+Credential Manager utsteder ID-tokens med **web-klienten som `aud`**.
+
+Det er den **samme verdien** som skal inn i `setServerClientId(...)` på
+klientsiden. Bruk den begge steder.
+
+### Tegnsett
+
+Innloggingskoden på e-post skrev «aa» i stedet for «å». Det var **korrektur, ikke
+system** — ASCII-translitterering er konvensjonen for kommentarer i denne
+kodebasen, og den lakk ut i brukerrettet tekst. Rettet, sammen med 29 andre
+strenger: feilmeldinger fra `/v1/auth`, `/v1/friends` og `/v1/teams`,
+moderasjonens begrunnelser, og alle varseltekstene i §11.
+
+Ser dere fortsatt «aa» eller «oe» i noe som vises brukeren: si fra, da er det en
+streng jeg har oversett.
+
+## Fase 7 — forskning (§7) og kontosletting (§9)
+
+```
+GET /v1/research/sharing
+PUT /v1/research/sharing   {"share_species": true, "position_granularity": "kommune", ...}
+```
+
+Filtreringen er **allowlist** — deny-by-default. Et felt som ikke står på lista
+lagres ikke, uansett hva klienten sender. Tre valg som styrer noe:
+
+- **Posisjonsgrovhet velger hvilke stedsfelt som lagres**, ikke hvor mye
+  koordinatene avrundes. Serveren har ingen kommunegrenser å slå opp i, og
+  «kommune» er et navn — ikke et antall desimaler. Klienten kjenner stedet og
+  sender navnet; serveren håndhever hva som blir liggende.
+- **Uten datosamtykke beholdes bare året.** `captured_at` er obligatorisk, så
+  alternativet var å avvise hele raden.
+- **Skadedata lagres aldri.** De har ingen bryter, og «private som standard» uten
+  en måte å slå dem på betyr aldri.
+
+Svaret fra `POST /v1/research/records` inneholder `stored_fields`. **Bruk den til
+å vise brukeren hva som faktisk ble delt.** Treningsdata filtreres ikke — §7 gir
+ingen felt-for-felt-valg for dem.
+
+`DELETE /v1/account` tømmer brukerskjemaet: serier, treff, backup, venner,
+lagmedlemskap, stemmer, enheter og innlogginger. **Brukerraden slettes ikke, den
+tømmes** — `public_id` må stå igjen så den ikke gjenbrukes av en ny konto, ellers
+ser en venn som har ID-en lagret plutselig en fremmed.
+
+Forskningsskjemaet røres ikke herfra. Radene er pseudonymiserte, og §7 forbyr
+koblingen tilbake. I stedet legges det inn en sletteanmodning på pseudonymet.
+Svaret sier `research_deletion_requested: true/false`.
+
+For klienten: etter et vellykket kall er alle tokens verdiløse (401 ved neste
+kall, også innenfor access-tokenets time). Nullstill lokal state uten å prøve
+`refresh`.
+
+## Fase 8 — push (§11)
+
+```
+PUT  /v1/devices              {"push_token": "...", "platform": "android",
+                               "app_version": "0.15", "model": "Pixel 8"}
+GET  /v1/devices              -> liste, UTEN push_token
+POST /v1/devices/unregister   {"push_token": "..."}  -> 204
+```
+
+`PUT` er idempotent — kall det ved **hver** oppstart og hver gang Firebase
+roterer tokenet. Dere trenger ikke holde rede på om tokenet er nytt.
+
+Logger en annen bruker inn på samme telefon, flyttes enheten automatisk til den
+nye kontoen — ellers ville varsler til forrige bruker havnet hos noen andre.
+
+Ved siden av `notification.title`/`body` følger en `data`-blokk:
+
+```json
+{"kind": "team_renamed", "team_id": "..."}
+```
+
+`kind` er den samme som i meldingskøen, så et trykk kan åpne riktig skjerm
+direkte. Alle verdier er **strenger** — FCM tillater ikke annet.
+
+**Push erstatter ikke meldingskøen.** Den viktigste setningen i avsnittet.
+`GET /v1/messages` er fortsatt garantien for at en melding når fram; push er bare
+det som når brukeren mens appen er lukket. Serveren dropper bevisst push når det
+tar for lang tid — FCM tar én mottaker per kall, så et lag på tjue medlemmer blir
+tjue HTTP-kall, og et tidsbudsjett avbryter resten. Det er ikke datatap.
+**Hent køen ved oppstart, akkurat som før.**
+
+## Nytt: kunngjøring av felt dyr (§3) — løser `kills[]`
+
+`kills[]` kunne ikke leveres som en liste: jaktloggen ligger i den
+klient-krypterte bloben, og å synke jaktposter som egne rader ville lagt hele
+loggen i klartekst på serveren — nettopp det §2 unngår.
+
+```
+POST /v1/hunts/announce   {"species": "et villsvin", "kommune": "Molde"}
+```
+
+Sender «Ola har felt et villsvin i Molde» som **push til vennene**, og så er den
+borte. Ingen kørad, ingenting i basen om hva som ble felt eller hvor — kun et
+tidsstempel som bremser gjentatte kunngjøringer med fem minutter.
+
+Et varsel som ikke når fram, er tapt. **Det er meningen:** en gladmelding i
+øyeblikket, ikke en logg.
+
+- Krever `share_kills` i delingsvalgene (bryteren fantes allerede) → ellers 403.
+- `kommune` er valgfri og gjelder **denne** meldingen — ikke profilens
+  `home_kommune`.
+- `species` går rett inn i teksten. **Vis teksten for brukeren før dere sender**,
+  så hen ser hva vennene får.
+- Svaret gir `devices_notified` — antall **enheter**, ikke venner. Ikke lov
+  brukeren mer enn det som skjedde.
+- Er visningsnavnet ikke godkjent av moderasjonen, står det «En venn».
+
+## `trend` er nå definert
+
+Snitt per skudd i de siste ~20 skuddene minus de ~20 foregående; `null` før begge
+vinduene er fulle.
+
+Endret fra forrige runde: vinduet telles i **skudd**, ikke serier. En serie er
+5–10 skudd, så fem serier kunne bety alt fra 25 til 50 og gjorde tallet uleselig
+på tvers av brukere. Hele serier samles til vinduet er fullt — å kutte en serie
+på midten ville blandet to økter i samme tall.
+
+**Dette er en retning, ikke et løpende snitt.** Skal dere vise nivået over de
+siste tjue skuddene, er det `avgScore` med et vindu — et annet felt og et annet
+delingsvalg. Si fra hvis det er det dere vil ha.
+
+## Rettet denne runden
+
+**Nye kontoer framsto som «Navn under vurdering» for alle andre.** Visningsnavnet
+som utledes av e-postadressen er allerede moderert, men `display_name_status` ble
+stående på standardverdien `pending`. `sharing.friend_view` viser bare navnet når
+statusen er `approved`, så hver nyopprettede konto var navnløs for venner og
+lagkamerater — permanent, siden `PUT /v1/profile` var det eneste stedet statusen
+noen gang ble satt. Funnet ved røyktest mot produksjon, ikke av testsuiten.
+
+Kontoer opprettet før rettelsen ligger fortsatt med `pending`; de retter seg selv
+når profilen lagres én gang.
+
+## Hva som venter på utvikler
+
+| Hva | Konsekvens til det er gjort |
+|---|---|
+| `FCM_SERVICE_ACCOUNT_JSON` | Push sendes ikke ut. Endepunktene virker. |
+| `GOOGLE_CLIENT_IDS` (web-klienten) | `/v1/auth/google` svarer 503 |
+| `APPLE_CLIENT_IDS` | `/v1/auth/apple` svarer 503. Krever Apple Developer + domene. |
+| Personvernerklæring + DPIA | `RESEARCH_ENABLED` må stå av |
+| Rutine for `research.deletion_requests` | Anmodninger hoper seg opp. `completed_at` kvitteres i. |
+
+Firebase-nøkkelen kan settes **enten** som rå JSON **eller** base64 — koden
+godtar begge. Base64 anbefales i PowerShell, siden nøkkelfilen er flerlinjes:
+
+```powershell
+$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("noekkel.json"))
+flyctl secrets set FCM_SERVICE_ACCOUNT_JSON=$b64 -a bestefar-api
+```
+
+**Avsenderadressen må i punycode.** `FEEDBACK_FROM` peker på
+`bestefar@jegeropplæring.no`. For e-post må domenet skrives
+`bestefar@xn--jegeropplring-cgb.no` — med «æ» direkte vil mange mottakerservere
+avvise meldingen. Sjekk også SPF, DKIM og DMARC hos Resend; det er den største
+enkeltfaktoren for om koden havner i søppelpost, langt viktigere enn utformingen
+av e-posten. (På spørsmålet om HTML-versjon: la være. Ren tekst uten lenker er
+bedre for leveringsevnen når innholdet er en sekssifret kode.)
+
+## Kjent teknisk gjeld
+
+- **Rate-limiteren for `/v1/feedback` ligger i minnet** per maskin. Med to
+  Fly-maskiner er den reelle grensen 10/time, ikke 5. Bør til basen slik
+  e-postkodene allerede er.
+- **`GET /v1/teams/near` sorterer i Python.** Trenger PostGIS eller en
+  geohash-kolonne når tabellen vokser.
+- **Push blir mange HTTP-kall for store lag.** Tidsbudsjettet gjør det trygt, men
+  blir lagene store må utsendingen til en jobbkø.
+- **Frister avgjøres lat**, første gang noen spør. Nå som push finnes, bør et
+  periodisk kall legges inn så varselet går ut på fristen og ikke ved neste besøk.
+
+165 tester grønne, mot både SQLite og Postgres i CI.

@@ -32,7 +32,7 @@ def _scores(raw: str) -> list:
     except json.JSONDecodeError as exc:
         raise HTTPException(422, f"Ugyldig JSON i poengfeltet: {exc}") from exc
     if not isinstance(parsed, list):
-        raise HTTPException(422, "Poengfeltet maa vaere en JSON-liste")
+        raise HTTPException(422, "Poengfeltet må være en JSON-liste")
     return parsed
 
 
