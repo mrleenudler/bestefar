@@ -5,6 +5,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services")
 }
 
 // Release-signering: noekler/passord lever i android/keystore.properties +
@@ -37,8 +38,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.17"
+        versionCode = 18
+        versionName = "0.18"
 
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
@@ -126,4 +127,8 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    // Push (v0.18, backend_spec §11). BoM-en holder Firebase-bibliotekene i
+    // takt; vi bruker KUN messaging - ingen analytics, ingen Crashlytics.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }

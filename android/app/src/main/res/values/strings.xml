@@ -633,4 +633,12 @@
     <string name="login_not_configured">Innlogging er ikke slått på på serveren ennå</string>
     <string name="login_offline">Ingen nettforbindelse</string>
     <string name="login_failed">Innloggingen feilet (%1$d)</string>
+
+    <!-- ===== Push-varsler (v0.18, backend_spec §11) ===== -->
+    <string name="push_channel_name">Venner og lag</string>
+    <string name="push_channel_desc">Når en venn feller et dyr, og beskjeder fra jaktlagene dine.</string>
+    <string name="push_ask_title">Vil du få varsler?</string>
+    <string name="push_ask_body">Vi varsler deg når en venn feller et dyr, og når det skjer noe i et lag du er med i — for eksempel at det skal velges ny leder.\n\nIngenting annet. Du kan skru dem av igjen når som helst.</string>
+    <string name="push_ask_yes">Ja, gjerne</string>
+    <string name="push_ask_no">Ikke nå</string>
 </resources>

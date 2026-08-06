@@ -4,7 +4,7 @@ To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
 (`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
 `BestefarCore.analyze()` i `CaptureActivity`.
 
-Diagrammene er avledet fra koden slik den står i v0.17, ikke fra spesifikasjonen.
+Diagrammene er avledet fra koden slik den står i v0.18, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
 
 ---
@@ -257,3 +257,26 @@ flowchart TD
   konto.
 - **Ingen data går tapt ved inn- eller utlogging.** Serier, jaktlogg og
   innstillinger er lokale og røres ikke av noen av delene.
+
+### Nytt i v0.18 — push
+
+```mermaid
+flowchart LR
+    APP["Appstart<br/>BestefarApp"] --> CH["Push.ensureChannel<br/>«Venner og lag»"]
+    CH --> REG{"Innlogget?"}
+    REG -->|"nei"| NOOP["ingenting —<br/>et varsel er alltid til noen"]
+    REG -->|"ja"| TOK["FirebaseMessaging.token"]
+    TOK --> PUT["PUT /v1/devices<br/>idempotent"]
+    LOGIN["Vellykket innlogging"] --> ASK["Forklaring → systemdialog<br/>POST_NOTIFICATIONS (API 33+)"]
+    ASK --> PUT
+    SRV["Backend: push.send"] --> FG{"App i forgrunnen?"}
+    FG -->|"ja"| SVC["PushService.onMessageReceived<br/>bygger varselet selv"]
+    FG -->|"nei"| SYS["Android tegner det<br/>default_notification_* i manifestet"]
+    SVC --> TAP["Trykk → forsiden"]
+    SYS --> TAP
+```
+
+- **Nei til varsler er et gyldig svar** — enheten registreres likevel, så
+  varsler som skrus på senere virker med én gang.
+- **Ingen ruting på varseltype ennå.** Alle varsler åpner forsiden; venne- og
+  lagsidene er fortsatt skjelett, og en dyplenke til en tom skjerm er verre.

@@ -15,15 +15,13 @@ Oppdater backend_spec.md ved behov.
 Les siste til_utvikler_v##.md for å se hva som ble gjort forrige runde.
 Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md.
 NB: den filen deles med UI-instansen. Legg til en backend-seksjon nederst,
-ikke overskriv. Det samme gjelder backend_spec.md - UI-instansen redigerer
-den samtidig, så gjør små, målrettede endringer.
+ikke overskriv.
 
 Fortsett å føre feil du gjør i CLAUDE_CONTEXT.TXT - ting som burde vært
 husket. Les CLAUDE_CONTEXT.TXT etter komprimering.
 
 Plan_for_backend_implementering.odt + backend_spec.md beskriver oppgaven.
 bestefar_UI_spec-v0-4.md har UI-informasjon ved behov.
-musingsUI.txt har frontend-kravene, dersom du trenger å se dem.
 
 =====================================================================
 KONTOER OG INFRASTRUKTUR
@@ -48,19 +46,23 @@ Firebase:  prosjekt opprettet, tjenestekonto-nøkkel klar.
 SECRETS SETTES AV UTVIKLER SELV med `flyctl secrets set ... -a bestefar-api`.
 Passord og tokens skal aldri inn i chat-loggen.
 
-Kjør ALDRI testsuiten mot produksjonsbasen: conftest gjør
-`alembic downgrade base`, som dropper alt.
-
 =====================================================================
 STATUS PER 2026-08-06
 =====================================================================
-Alle faser (0-8) i planen er implementert og deployet, pluss runde 9-11.
-182 tester grønne mot SQLite og Postgres.
+Alle faser (0-8) i planen er implementert og deployet, pluss runde 9-12.
+188 tester grønne mot SQLite og Postgres.
 
-Satt i produksjon:  DATABASE_URL, JWT_SECRET, RESEND_API_KEY, FEEDBACK_*
-Ikke satt ennå:     FCM_SERVICE_ACCOUNT_JSON, GOOGLE_CLIENT_IDS,
-                    APPLE_CLIENT_IDS, BACKUP_ESCROW_SECRET,
+Satt i produksjon:  DATABASE_URL, JWT_SECRET, RESEND_API_KEY, FEEDBACK_*,
+                    GOOGLE_CLIENT_IDS, BACKUP_ESCROW_SECRET
+Ikke satt ennå:     FCM_SERVICE_ACCOUNT_JSON, APPLE_CLIENT_IDS,
                     RESEARCH_ENABLED (skal stå av)
+
+/health rapporterer nå også "escrow": av | ok | N rader paa annen hemmelighet.
+
+=====================================================================
+Notater fra "utvikler"
+=====================================================================
+
 
 =====================================================================
 GJENSTÅENDE - KREVER UTVIKLER, IKKE KODE
@@ -80,25 +82,24 @@ GJENSTÅENDE - KREVER UTVIKLER, IKKE KODE
    domene, fordi Sign in with Apple på Android går via web-flyten. Services
    ID-en er verdien. Vurder å utsette - uten iOS-app er nytten liten.
 
-4. BACKUP_ESCROW_SECRET. Lang tilfeldig streng. Uten den svarer
-   /v1/backup/key-escrow 503, og «gjenopprett uten kode» er utilgjengelig.
-   ROTERES ALDRI uten en plan: alle deponerte nøkler blir uleselige, og
-   brukerne må falle tilbake på gjenopprettingskoden - som er nettopp den de
-   slo på valget for å slippe.
-
-5. FEEDBACK_FROM må bruke punycode: bestefar@xn--jegeropplring-cgb.no
+4. FEEDBACK_FROM må bruke punycode: bestefar@xn--jegeropplring-cgb.no
    Sjekk SPF, DKIM og DMARC hos Resend. Det er den største enkeltfaktoren
    for om innloggingskoden havner i søppelpost.
 
-6. Personvernerklæring + DPIA-vurdering før RESEARCH_ENABLED slås på.
+4b. BACKUP_ESCROW_SECRET er satt, men ble autogenerert uten at verdien ble
+   sett - det finnes ingen kopi noe sted. Lag en ny du FÅR SE, legg den i
+   passordhvelvet, og sett den. Gratis å bytte nå: ingen klient bruker
+   deponeringen ennå, og det ligger null rader i tabellen.
+   Utskiftning senere: sett BACKUP_ESCROW_SECRET_OLD = dagens, sett ny, følg
+   /health til "escrow" sier "ok", fjern _OLD. Radene krypteres om av seg selv
+   etter hvert som de leses.
 
-7. Rutine som faktisk tømmer research.deletion_requests. Uten den er
-   `research_deletion_requested: true` bare en anmodning i kø - radene i
-   research.records står urørt. Driftsansvar; completed_at er kolonnen det
-   kvitteres i. Bør være på plass FØR RESEARCH_ENABLED slås på, ellers lover
-   vi brukeren noe som ikke skjer.
+5. Personvernerklæring + DPIA-vurdering før RESEARCH_ENABLED slås på.
 
-8. Push mot ekte enhet kan bare verifiseres av klientutvikleren - det krever
+6. Rutine som faktisk tømmer research.deletion_requests. Driftsansvar;
+   completed_at er kolonnen det kvitteres i. Ingen jobbkjører finnes.
+
+7. Push mot ekte enhet kan bare verifiseres av klientutvikleren - det krever
    Firebase-SDK som produserer et gyldig token.
 
 =====================================================================
@@ -118,22 +119,19 @@ TEKNISK GJELD - VURDER I SENERE RUNDER
   finnes. Navn som passerer regelsettet godkjennes derfor direkte.
 - R2 er betalt for og ubrukt. Avklar om feilanalysebilder skal dit i stedet
   for basen.
-- §5-synken (per-post /v1/stats) er ikke bygget. To synkveier over samme data
-  bør ikke finnes før det er avgjort hvilken som eier sannheten. Kommer den,
-  må slettede jaktskudd sendes som GRAVSTEIN, ikke utelates.
 
 =====================================================================
 ÅPNE SPØRSMÅL TIL UTVIKLER
 =====================================================================
+- `trend` er nå definert som siste ~20 skudd minus de ~20 foregående. Det er
+  en RETNING, ikke et løpende snitt. Ville du heller hatt nivået over de
+  siste tjue skuddene? Da er det avgScore med et vindu - annet felt, annet
+  delingsvalg. Si fra, så legges det til.
 - Emnefeltet «Innloggingskode til Bestefar» og avsendernavnet er fortsatt
   plassholdere. Bestem endelig ordlyd.
-- Kunngjøring av felt dyr: teksten er «{navn} har felt {art} i {kommune}.»
-  Godkjenn eller endre.
-- Trendgrafen: forslaget er rullende 20-skudds snitt plottet på datoen til
-  siste skudd i vinduet - ingen spesialregel for dager med mange skudd, ingen
-  framskriving av siste økt. Si fra hvis du heller vil ha dagspunkter.
-- Skal en venn kunne se trendGRAFEN, ikke bare trendRETNINGEN? Det er i så
-  fall et nytt delingsvalg og et nytt endepunkt.
+- Kunngjøring av felt dyr (POST /v1/hunts/announce) er bygget etter ditt
+  forslag. Teksten er «{navn} har felt {art} i {kommune}.» - godkjenn eller
+  endre ordlyden.
 
 =====================================================================
 AVKLART - IKKE TA OPP IGJEN
@@ -147,21 +145,18 @@ AVKLART - IKKE TA OPP IGJEN
   bloben. DELETE /v1/backup fjerner bloben, ikke deponeringen.
 - Skadedata for forskning har fått egen bryter (share_injury_data), av som
   standard, skilt fra art/sted/skuddsituasjon.
-- «Send ny kode» har 60 s sperrefrist PÅ SERVEREN, og klienten får
+- «Send ny kode» har 60 s sperrefrist PÅ SERVEREN; klienten får
   resend_after_seconds i svaret fra /v1/auth/email/start.
 - `trend` i venneprofilen er en RETNING (siste 20 skudd minus de 20
-  foregående), ikke et nivå. Grafen er frontendens jobb over lokale data.
-- Slettede jaktskudd trenger ikke noe backend-flagg i dag: jaktskudd finnes
-  ikke som rader på serveren, bare inne i den klient-krypterte bloben.
+  foregående), ikke et nivå. Trendgrafen er frontendens jobb over lokale data.
+- Slettede jaktskudd trenger ikke backend-flagg i dag: de finnes ikke som
+  rader på serveren, bare inne i den klient-krypterte bloben.
 - «aa» i e-posten var korrektur, ikke system. ASCII-translitterering er
-  konvensjonen for KOMMENTARER og LOGG i kodebasen; alt brukeren ser skal ha
-  æøå. Rettet i 29 strenger.
+  konvensjonen for KOMMENTARER i kodebasen; den lakk ut i brukertekst.
+  Rettet i 29 strenger. Ny regel: kommentarer og logg er ASCII, alt
+  brukeren ser skal ha æøå.
 - E-postkodekvoten er hevet fra 5 til 10 per adresse per time.
 - core_version er appens versionName, fordi CV-kjernen ikke eksponerer noen
   versjon over FFI.
-- /logout kan ikke ugyldiggjøre access-tokenet (statsløs JWT, 60 min).
-  Klienten må selv slette begge tokenene og kalle POST /v1/devices/unregister.
-- To parallelle /refresh logger brukeren ut: refresh-tokenet roteres, og et
-  gjenbrukt token tolkes som lekkasje. Klienten må serialisere bak én lås.
 
 TODO: Vurderes implementert senere: SMS-støtte med Twilio.

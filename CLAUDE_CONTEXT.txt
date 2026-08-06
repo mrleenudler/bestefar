@@ -983,3 +983,58 @@ BACKEND-RUNDE 12 (utskiftbar escrow-hemmelighet)
     ekte kopi der med eldre client_ts, ville jeg overskrevet den - 409-vernet
     beskytter bare mot ELDRE innsendinger. SJEKK ALLTID hva som ligger der foer
     du skriver til en produksjonskonto.
+
+KJERNE-RUNDE (2026-08-06) - bf_version() (musingsUI.txt, aapent siden v0.14):
+  - core/include/bestefar/version.h: ny fil, BESTEFAR_CORE_VERSION "1.0.0".
+    Egen kjerneversjon, BEVISST uavhengig av appens versionName - bump kun naar
+    en endring i core/ paavirker analyse eller auto-capture.
+  - bestefar_ffi.h: bf_version() -> const char* (statisk streng, ikke free()).
+    Implementert i ffi.cpp.
+  - JNI/Kotlin: jni_bridge.cpp faar nativeVersion() (jstring), BestefarCore.kt
+    eksponerer `val version` (lazy). Sync.kt sender BestefarCore.version som
+    core_version i stedet for BuildConfig.VERSION_NAME (den gamle stedfortrederen).
+  - backend_spec.md paragraf 8 oppdatert til Loest. Ingen backend-endring
+    trengtes - core_version-kolonnen tar imot hva som helst fra foer.
+  - VERIFISERT: core\build rebygget, verify_cset_cpp.py 10/10 PASS (analysen
+    uberoert). Gradle assembleRelease: CMake-steget (jni_bridge.cpp inkl.
+    nativeVersion) bygget FEILFRITT, men hele modulen feiler foerst i
+    compileReleaseKotlin - IKKE paa grunn av denne endringen, se under.
+  - IKKE FULLFOERT DENNE RUNDEN: appen kan ikke bygges akkurat naa. Push.kt
+    (usporet/untracked) + PushService.kt + referanser i BestefarApp.kt og
+    LoggInnActivity.kt utgjoer en paabegynt FCM-funksjon fra en ANNEN samtidig
+    instans (jf. UI-RUNDE 11-notatet om samtidig kjoering) - den mangler
+    push_channel_name/push_channel_desc i strings.xml. Roert IKKE for aa unngaa
+    aa kollidere med det arbeidet; forsoekte isolert bygg (flyttet Push.kt ut
+    midlertidig) men flere filer refererer Push-objektet, saa satte den
+    tilbake uendret. FOELGELIG: versionCode/versionName IKKE bumpet og INGEN
+    ny dist\-APK denne runden - det ville vaert en paastaatt fungerende app
+    uten et faktisk gjennomfoert bygg. Neste instans som fullfoerer
+    push-varsling boer bygge+bumpe for BEGGE rundene samlet.
+
+PUSH I KLIENTEN (v0.18):
+  - Plugin com.google.gms.google-services 4.4.2 (rot: apply false, app: apply)
+    + firebase-bom 33.7.0 + firebase-messaging. Pluginen FEILER byggingen hvis
+    app/google-services.json mangler - med vilje.
+  - ASYMMETRIEN SOM ER LETT AA BOMME PAA: backenden sender en
+    notification-blokk, og da tegner ANDROID varselet naar appen er i
+    BAKGRUNNEN. onMessageReceived kjoeres KUN i forgrunnen. To steder maa
+    stemme samtidig: manifestets default_notification_icon/color/channel_id
+    (bakgrunn) OG koden i tjenesten (forgrunn). Glemmer du det andre,
+    forsvinner varsler som kommer mens appen er aapen, sporloest.
+  - Kanalen MAA opprettes ved appstart (BestefarApp), ikke ved foerste varsel:
+    i bakgrunnstilfellet har appen ikke kjoert kode, og et varsel uten kjent
+    kanal havner i «Diverse» som brukeren ikke kan skru av alene.
+  - Varselikoner tegnes som SILHUETT (alt ikke-gjennomsiktig blir hvitt).
+    Fargerike ikoner blir en hvit klump. Bruk ren form.
+  - POST_NOTIFICATIONS (API 33+) spoerres ETTER innlogging, ikke ved appstart:
+    et systemvindu uten kontekst faar «nei», og Android viser dialogen bare et
+    par ganger. Registrer enheten UANSETT svar - skrur brukeren paa varsler
+    senere i systeminnstillingene, skal adressen allerede vaere der.
+  - FELLE (AGP 9 lint): lintVitalAnalyzeRelease KRASJET paa PushService.kt med
+    «Unexpected failure during lint analysis ... this is a bug in lint» /
+    resolveSyntheticJavaPropertyAccessorCall. Utloeser: Java-getteren lest som
+    Kotlin-egenskap (msg.notification) i en lokal variabel. Koden kompilerer
+    fint; det er analysen som ryker. FIKS: kall getterne eksplisitt
+    (msg.getNotification()) med @Suppress("UsePropertyAccessSyntax"). IKKE
+    skru av lintVital - da skjules alle framtidige EKTE funn for aa komme
+    rundt én verktoeybug.

@@ -9,6 +9,10 @@
     <!-- Stedslogging av jaktskudd, valgfri og kun lokal lagring (spec §4) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Varsler fra venner og lag (backend_spec §11). Fra Android 13 er dette
+         en KJOERETIDS-tillatelse; vi ber om den etter innlogging, ikke ved
+         appstart - uten konto finnes det ingen varsler aa gi. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
     <application
@@ -57,6 +61,23 @@
                   android:screenOrientation="portrait" />
         <!-- KalkulatorActivity fjernet i runde 4 (optikk-funksjonalitet
              kommentert ut for aa forenkle) -->
+        <!-- Push-mottak (backend_spec §11). Naar appen ligger i BAKGRUNNEN
+             tegner Android selv varselet ut fra notification-blokka og
+             meta-dataene under; tjenesten kalles kun i forgrunnen. -->
+        <service android:name=".PushService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon"
+                   android:resource="@drawable/ic_notification" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color"
+                   android:resource="@color/notification_accent" />
+        <!-- MAA peke paa en kanal appen faktisk oppretter (Push.ensureChannel),
+             ellers havner bakgrunnsvarsler i «Diverse». -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
+                   android:value="bestefar_varsler" />
+
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="ocr" />

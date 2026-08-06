@@ -334,13 +334,13 @@ Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
   stabilitet, og dedup av treff som ligger nærmere enn X ringavstander i `hits`/`overlap`.
 - **OCR i kjernen:** UI-et bruker foreløpig ML Kit on-device. Vurder om skjerm-OCR bør
   flyttes til kjernen for konsistens og for å utnytte skjermens kjente layout.
-- **`bf_version()` i `bestefar_ffi.h`:** klienten sender i dag appens `versionName`
-  som `core_version` i §6-donasjonene. Det er en dårlig stedfortreder — UI-runder
-  bumper versjonen uten at kjernen er rørt, så det ser ut som kjernen endret seg
-  når den ikke gjorde det. Donasjonenes formål er å kalibrere kjernen, og en måling
-  uten å vite hvilken kjerne som produserte den kan ikke brukes til det. Kolonnen
-  `core_version` finnes allerede og tar imot hva som helst; dette er en ren
-  kjerne-endring.
+- ~~**`bf_version()` i `bestefar_ffi.h`**~~ — **Løst.** `bf_version()` returnerer
+  nå en semver-streng fra `core/include/bestefar/version.h`
+  (`BESTEFAR_CORE_VERSION`, bevisst UAVHENGIG av appens `versionName` — bump den
+  når en endring i `core/` påvirker analyse eller auto-capture). `Sync.kt`
+  sender `BestefarCore.version` (JNI: `nativeVersion()`) som `core_version` i
+  stedet for `BuildConfig.VERSION_NAME`. Ingen backend-endring nødvendig,
+  kolonnen tok som ventet imot den uendret.
 
 ## 9. Sikkerhet / personvern
 - All PII kryptert i ro og i transitt. Forsknings-ID ikke reversibelt koblet til konto.
@@ -584,3 +584,34 @@ implementert i v0.16; dette står her så begge sider vet at kontrakten holdes.
   §3. `Store.pushToken` finnes og brukes av utloggingen; den står bare tom.
 - **Apple er ikke bygget** i klienten (utviklerkonto på is). Endepunktet er
   klart og røres ikke.
+
+## 16. Klientens push-mottak (Android, v0.18)
+§11-kjeden er hel. Det som betyr noe for backend-siden:
+
+- **`PUT /v1/devices` kalles nå** — ved hver appstart, og rett etter innlogging.
+  Idempotensen er tatt på ordet: klienten har ingen «allerede registrert»-flagg,
+  fordi et slikt flagg kan bli feil uten at noen merker det. Kroppen er
+  `{push_token, platform:"android", app_version, model}`.
+- **Registrering krever konto.** Uten innlogging hentes FCM-tokenet ikke engang.
+  Et varsel er alltid til noen, og uten bruker har vi ingen å knytte adressen
+  til.
+- **`onNewToken` melder fra ved rotasjon.** Firebase bytter token ved
+  reinstallasjon, gjenoppretting og tømt app-data. Uten dette ville
+  devices-raden pekt på en adresse som ikke finnes, og de døde tokenene deres
+  ville bare blitt ryddet bort ved neste utsending.
+- **`notification`-blokka i `push.py` har en konsekvens klienten må leve med:**
+  Android tegner varselet selv når appen er i bakgrunnen, og
+  `onMessageReceived` kalles kun i forgrunnen. Begge stiene er implementert.
+  Om dere noen gang bytter til en ren `data`-melding, får klienten *alle*
+  varsler gjennom tjenesten — det vil virke, men det er en endring dere bør si
+  fra om, siden utseendet da styres av kode i stedet for av manifestet.
+- **`data`-feltene brukes ikke til ruting ennå.** `kind` og `team_id` kommer
+  fram og ignoreres; alle varsler åpner forsiden. Behold dem — de trengs den
+  dagen venne- og lagsidene har innhold.
+- **Gjenstår hos eier:** `FCM_SERVICE_ACCOUNT_JSON` og `FCM_PROJECT_ID` som
+  Fly-secrets. Uten dem sender backenden ingenting, og klienten kan ikke skille
+  det fra «ingen venner hadde varsler på».
+- **Meldingskøen (`/v1/messages`) leses fortsatt ikke av klienten.** Køen er
+  garantien for §11-varsler, pushen er bare rask levering — så lenge klienten
+  ikke henter køen, er et varsel som gikk tapt (telefon av) tapt for brukeren.
+  Det er neste steg på klientsiden.

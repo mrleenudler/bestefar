@@ -14,6 +14,12 @@ class BestefarApp : Application() {
         // skjer på en bakgrunnstråd og kan feile stille — appen er offline-
         // først, så et mislykket forsøk er normaltilstanden, ikke en feil.
         Sync.flush(this)
+        // Push (backend_spec §11). Kanalen må finnes før det første varselet,
+        // også når det er systemet som tegner det i bakgrunnen. Registreringen
+        // er en no-op uten konto, og PUT /v1/devices er idempotent — derfor er
+        // «hver oppstart» riktig sted, ikke et engangsflagg som kan bli feil.
+        Push.ensureChannel(this)
+        Push.register(this)
         // Svarte systemlinjer i BÅDE lys og mørk visning (musingsUI runde 12).
         // Registrert her framfor i hver aktivitet: det er tolv aktiviteter, og
         // en ny som glemmer kallet ville fått uleselige systemikoner i lys

@@ -261,10 +261,48 @@ class LoggInnActivity : AppCompatActivity() {
                 Ui.toast(this, getString(R.string.login_welcome,
                     store.accountName.ifEmpty { getString(R.string.login_unnamed) }))
                 rebuild()
+                // Nå — og først nå — finnes det varsler å be om tillatelse
+                // til. Å spørre ved appstart ville vært et systemvindu uten
+                // kontekst, og et «nei» der er nesten umulig å komme tilbake
+                // fra: Android viser dialogen bare et par ganger.
+                askNotificationsThenRegister()
             }
             // Avbrutt av brukeren: ingen melding. De vet hva de gjorde.
             is Login.Result.Avbrutt -> Unit
             is Login.Result.Feil -> Ui.toast(this, r.melding)
         }
+    }
+
+    // ---------- Varsler (backend_spec §11) ----------
+
+    private val askNotifications = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+        // Uansett svar: meld inn enheten. Sier brukeren nei, får de ingen
+        // varsler nå — men skrur de dem på i systeminnstillingene senere,
+        // skal adressen allerede være registrert.
+        Push.register(this)
+    }
+
+    /**
+     * Fra Android 13 er varsler en kjøretidstillatelse. Vi forklarer FØR
+     * systemdialogen hva varslene faktisk er: gladmeldinger fra venner og
+     * beskjeder fra lagene. Et systemvindu uten kontekst får «nei», og det
+     * «nei-et» er nesten permanent.
+     */
+    private fun askNotificationsThenRegister() {
+        if (android.os.Build.VERSION.SDK_INT < 33) { Push.register(this); return }
+        val gitt = androidx.core.content.ContextCompat.checkSelfPermission(this,
+            android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (gitt) { Push.register(this); return }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.push_ask_title)
+            .setMessage(R.string.push_ask_body)
+            .setPositiveButton(R.string.push_ask_yes) { _, _ ->
+                askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            .setNegativeButton(R.string.push_ask_no) { _, _ -> Push.register(this) }
+            .show()
     }
 }

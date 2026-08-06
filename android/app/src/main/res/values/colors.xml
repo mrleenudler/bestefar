@@ -21,4 +21,8 @@
     <color name="brand_surface_variant_dark">#3A322C</color>
     <color name="brand_on_surface_dark">#ECE0D6</color>
     <color name="brand_on_surface_variant_dark">#D3C3B6</color>
+
+    <!-- Aksentfargen Android bruker bak varselikonet (v0.18). Samme brune som
+         resten av appen, saa et varsel ser ut som det kommer herfra. -->
+    <color name="notification_accent">#8D6E63</color>
 </resources>

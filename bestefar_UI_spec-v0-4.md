@@ -531,3 +531,26 @@ uten nett — offline-først er ikke svekket, bare supplert.
 - Sekssifret kode, ingen passord. «Send ny kode» teller ned fra verdien
   serveren oppga (`resend_after_seconds`) — nedtellingen er bekvemmelighet,
   serverens 429 er det som håndhever fristen.
+
+## 23. Endringslogg v0.18 (push-varsler)
+
+### Varsler
+- **Appen mottar nå push.** Kjeden var brutt i midten: backenden kunne sende,
+  klienten kunne be om å sende, men enheten ble aldri meldt inn. `Push.register`
+  kalles ved hver oppstart (idempotent `PUT /v1/devices`) og gjør ingenting uten
+  konto — et varsel er alltid til noen.
+- **Varselkanalen «Venner og lag»** opprettes ved appstart, så brukeren kan
+  styre den fra systeminnstillingene. Uten den havner bakgrunnsvarsler i
+  «Diverse», som ikke kan skrus av alene.
+- **Tillatelsen spørres etter innlogging**, ikke ved appstart, og med en
+  forklaring før systemdialogen: hva varslene er (venn feller dyr, beskjed fra
+  lag), at det ikke er noe annet, og at de kan skrus av. Et systemvindu uten
+  kontekst får «nei», og på Android 13+ er det «nei-et» nesten permanent.
+- **Nei er et gyldig svar.** Enheten registreres uansett, slik at varsler som
+  skrus på senere i systeminnstillingene virker med én gang.
+- **Trykk på varselet åpner forsiden.** Ingen ruting på varseltype ennå — en
+  dyplenke til en tom skjerm er verre enn en til forsiden, og venne-/lagsidene
+  er fortsatt skjelett.
+- **Varselikonet** er en skive med to ringer og blink. Android tegner
+  varselikoner som silhuett, så form er det eneste som overlever; aksentfargen
+  er appens brune.

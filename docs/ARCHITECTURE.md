@@ -184,6 +184,15 @@ normaltilstanden, ikke en feil.
   `BuildConfig.GOOGLE_WEB_CLIENT_ID` leses ved bygg ut av
   `google-services.json` (`client_type: 3`) — to kopier av samme ID kommer i
   utakt, og symptomet er et gyldig token backenden avviser.
+- `Push.kt` / `PushService.kt` (v0.18) — FCM. `register()` kalles ved hver
+  oppstart (idempotent `PUT /v1/devices`) og er en no-op uten konto.
+  **Merk asymmetrien:** backenden sender en `notification`-blokk, så Android
+  tegner varselet selv når appen er i bakgrunnen — `onMessageReceived` kjøres
+  kun i forgrunnen. Bakgrunnstilfellet styres derfor av
+  `default_notification_*`-meta-data i manifestet, forgrunnstilfellet av kode.
+  Begge må stemme, ellers forsvinner enten halvparten av varslene eller
+  utseendet deres. Kanalen opprettes i `BestefarApp` fordi den må finnes før
+  det første varselet, også når appen ikke har kjørt kode.
 
 **Soft-delete** (v0.15): `SeriesRecord.deletedAt` / `HuntRecord.deletedAt`.
 Sletting setter tidsstempel i stedet for å fjerne raden — uten gravsteinen har
