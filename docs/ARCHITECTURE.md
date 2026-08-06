@@ -175,6 +175,15 @@ normaltilstanden, ikke en feil.
   serveren (`/v1/backup/key-escrow`, av som standard). Koden er nødutgangen.
 - `Lock.kt` — `BiometricPrompt` foran jaktloggen, av som standard, fem minutters
   frist. En dør, ikke kryptering; loggen ligger like lesbar på disk.
+- `Login.kt` (v0.17) — veien *inn* i en økt. **Credential Manager**
+  (`GetSignInWithGoogleOption`), ikke den utfasede `GoogleSignInClient`. Den
+  eksplisitte knappeflyten er valgt framfor den filtrerte bunnarken, fordi
+  bunnarken feiler for en bruker som aldri har logget inn før — nettopp den
+  brukeren en «logg inn»-knapp finnes for. Callback-API-et brukes så
+  innloggingen ikke drar inn coroutines i en kodebase uten dem.
+  `BuildConfig.GOOGLE_WEB_CLIENT_ID` leses ved bygg ut av
+  `google-services.json` (`client_type: 3`) — to kopier av samme ID kommer i
+  utakt, og symptomet er et gyldig token backenden avviser.
 
 **Soft-delete** (v0.15): `SeriesRecord.deletedAt` / `HuntRecord.deletedAt`.
 Sletting setter tidsstempel i stedet for å fjerne raden — uten gravsteinen har

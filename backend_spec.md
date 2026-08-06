@@ -531,3 +531,27 @@ implementert i v0.16; dette står her så begge sider vet at kontrakten holdes.
 - **Utlogging sletter ikke lokale data.** Verken serier, jaktlogg eller
   gjenopprettingskode. En app som mister loggen når man logger ut, er en app
   ingen tør logge ut av.
+
+## 15. Klientens innlogging (Android, v0.17)
+§1-flyten finnes nå i appen. Det som betyr noe for backend-siden:
+
+- **Credential Manager**, ikke den utfasede Google Sign-In-SDK-en. Klienten
+  bruker `GetSignInWithGoogleOption` — den eksplisitte knappeflyten — fordi den
+  filtrerte bunnarken feiler for en bruker som aldri har logget inn før.
+- **`aud` blir WEB-klient-ID-en** (`client_type: 3` i `google-services.json`),
+  ikke Android-klient-ID-en. Det er den som må stå i `GOOGLE_CLIENT_IDS`:
+  `977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com`.
+  Til den står der, svarer `/v1/auth/google` 503, og klienten viser
+  «Innlogging er ikke slått på på serveren ennå» — ikke en feilmelding brukeren
+  kan gjøre noe med, men en ærlig en.
+- **Klienten hardkoder ikke sperrefristen.** `resend_after_seconds` fra
+  202-svaret på `/email/start` styrer nedtellingen på «Send ny kode». Endres
+  `EMAIL_CODE_RESEND_COOLDOWN_SECONDS`, følger klienten etter uten ny bygging.
+  429 er fortsatt det som håndhever fristen; nedtellingen er kosmetikk.
+- **Auth-kallene går med `authRetry = false`**, så et 401 fra `/v1/auth/*`
+  aldri utløser en fornyelse i ring.
+- **`PUT /v1/devices` kalles ikke ennå** — FCM er ikke koblet inn i klienten.
+  Konsekvensen er at ingen push når fram, heller ikke felling-kunngjøringen fra
+  §3. `Store.pushToken` finnes og brukes av utloggingen; den står bare tom.
+- **Apple er ikke bygget** i klienten (utviklerkonto på is). Endepunktet er
+  klart og røres ikke.

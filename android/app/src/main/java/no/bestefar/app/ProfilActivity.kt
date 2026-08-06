@@ -166,6 +166,25 @@ class ProfilActivity : AppCompatActivity() {
         })
         content.addView(goalRow)
 
+        // Konto (backend_spec §1, v0.17). Knappen viser tilstanden i selve
+        // teksten — «Logg inn» kontra «Konto: <navn>» — så brukeren slipper å
+        // åpne siden for å finne ut om de er innlogget.
+        content.addView(Ui.section(this, getString(R.string.login_section)))
+        content.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = if (Auth.isLoggedIn(this@ProfilActivity))
+                getString(R.string.login_account_is,
+                    store.accountName.ifEmpty { getString(R.string.login_unnamed) })
+            else getString(R.string.login_title)
+            layoutParams = Ui.matchWrap(4, this@ProfilActivity)
+            setOnClickListener {
+                startActivity(Intent(this@ProfilActivity, LoggInnActivity::class.java))
+            }
+        })
+        content.addView(Ui.hint(this, getString(
+            if (Auth.isLoggedIn(this)) R.string.login_hint_in
+            else R.string.login_hint_out)))
+
         // Avanserte innstillinger som egen knapp -> undermeny. Equalizer-ikonet
         // (musingsUI runde 12) følger enhver henvisning til siden, så brukeren
         // lærer symbolet og finner tilbake.

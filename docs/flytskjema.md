@@ -4,7 +4,7 @@ To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
 (`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
 `BestefarCore.analyze()` i `CaptureActivity`.
 
-Diagrammene er avledet fra koden slik den står i v0.16, ikke fra spesifikasjonen.
+Diagrammene er avledet fra koden slik den står i v0.17, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
 
 ---
@@ -185,6 +185,12 @@ flowchart TD
         MENY --> M5["Send melding"]
         MENY --> M6["Veiledning"]
         M1 --> M1a["Mine lag"]
+        M1 --> LOG{"Konto"}
+        LOG -->|"utlogget"| LOGA["Fortsett med Google<br/>Credential Manager · SIWG"]
+        LOG -->|"utlogget"| LOGB["Kode på e-post<br/>/email/start → /email/verify"]
+        LOG -->|"innlogget"| LOGC["Navn · Bruker-ID · Logg ut"]
+        LOGA --> LOGT["POST /v1/auth/google<br/>→ egne tokens i Secrets"]
+        LOGB --> LOGT
         M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
         M1b --> M1c["Sikkerhetskopi<br/>Sikkerhetskopier nå · Gjenopprett ·<br/>Vis gjenopprettingskode (nødutgang)"]
         M1b --> M1d["🔑 Gjenopprett uten kode (av)<br/>🔒 Krev opplåsing for jaktloggen (av)"]
@@ -242,3 +248,12 @@ flowchart TD
 - **Utlogging** (`Auth.logout`) er tre steg i fast rekkefølge: avregistrer
   enheten for push → tilbakekall refresh-tokenet → slett begge tokenene lokalt.
   Siste steg skjer uansett, også offline.
+
+### Nytt i v0.17
+
+- **Innlogging finnes.** Min profil → Konto → `LoggInnActivity`. Google via
+  Credential Manager, eller sekssifret kode på e-post. Appen ber aldri om
+  innlogging uoppfordret, og skjermen sier eksplisitt at alt annet virker uten
+  konto.
+- **Ingen data går tapt ved inn- eller utlogging.** Serier, jaktlogg og
+  innstillinger er lokale og røres ikke av noen av delene.

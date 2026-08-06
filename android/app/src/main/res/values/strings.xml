@@ -139,7 +139,7 @@
     <string name="profile_delete">Slett alle data</string>
     <string name="profile_delete_confirm">Sletter alle lokale data (serier, jaktlogg, profil). Kan ikke angres. Fortsette?</string>
     <string name="profile_backup_status">Android Auto Backup: aktiv (app-innstilling)</string>
-    <string name="profile_login">Innlogging for backup (Google/Apple/e-post) kommer i neste iterasjon.</string>
+<!-- profile_login fjernet i v0.17: innloggingen finnes nå, se login_* under. -->
     <string name="skytterlag_hint">Skytterlag</string>
     <string name="jaktlag_hint">Jaktlag (flere skilles med komma)</string>
     <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: samme grense brukes i kompetanseoversikten og kapabilitetskartet, så de aldri motsier hverandre.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
@@ -591,4 +591,46 @@
     <string name="trend_axis_x">Dato · siste to jaktår</string>
     <string name="trend_now">Du ligger nå på %1$s poeng per skudd (snitt av de siste 20).</string>
     <string name="trend_partial">Du ligger nå på %1$s poeng per skudd — foreløpig, basert på %2$d skudd.</string>
+
+    <!-- ===== Innlogging (v0.17, backend_spec §1) ===== -->
+    <string name="login_section">Konto</string>
+    <string name="login_title">Logg inn</string>
+    <string name="login_account_is">Konto: %1$s</string>
+    <string name="login_unnamed">Uten navn</string>
+    <string name="login_hint_out">Du trenger ikke konto for å bruke appen. Den gir deg sikkerhetskopi til server, venner og lag.</string>
+    <string name="login_hint_in">Sikkerhetskopi, venner og lag er tilgjengelig.</string>
+    <string name="login_intro">Med konto kan du ta sikkerhetskopi av serier og jaktlogg, legge til venner og være med i lag.</string>
+    <string name="login_optional">Alt annet — scan, innsikt, serier og jaktlogg — virker akkurat som før uten konto. Du kan logge inn når som helst, og ingenting du allerede har lagret går tapt.</string>
+    <string name="login_google">Fortsett med Google</string>
+    <string name="login_email">Bruk kode på e-post</string>
+    <string name="login_apple_later">Apple-innlogging kommer når utviklerkontoen er på plass.</string>
+    <string name="login_working">Vent litt …</string>
+    <string name="login_welcome">Logget inn som %1$s</string>
+    <string name="login_signed_in_as">Innlogget som %1$s</string>
+    <string name="login_public_id">Bruker-ID: %1$s</string>
+    <string name="login_what_you_get">Vennene dine finner deg med denne ID-en. Sikkerhetskopi settes opp under Avanserte innstillinger.</string>
+    <string name="login_logout">Logg ut</string>
+    <string name="login_logout_confirm">Serier, jaktlogg og innstillinger blir liggende på telefonen. Du logger bare ut av kontoen.</string>
+    <string name="login_logged_out">Logget ut</string>
+    <string name="login_email_body">Vi sender en sekssifret kode. Ingen passord å huske.</string>
+    <string name="login_email_hint">E-postadresse</string>
+    <string name="login_email_send">Send kode</string>
+    <string name="login_email_invalid">Skriv en gyldig e-postadresse</string>
+    <string name="login_email_too_soon">Vent litt før du ber om en ny kode</string>
+    <string name="login_code_title">Skriv inn koden</string>
+    <string name="login_code_body">Vi har sendt en kode til %1$s. Den varer i noen minutter.</string>
+    <string name="login_code_hint">000000</string>
+    <string name="login_code_verify">Logg inn</string>
+    <string name="login_code_resend">Send ny kode</string>
+    <string name="login_code_resend_in">Send ny kode (%1$d s)</string>
+    <string name="login_code_resent">Ny kode sendt</string>
+    <string name="login_bad_code">Feil eller utløpt kode</string>
+    <string name="login_no_account">Fant ingen Google-konto på telefonen. Legg til en i Innstillinger, eller bruk kode på e-post.</string>
+    <string name="login_no_token">Google ga ingen innlogging tilbake. Prøv igjen.</string>
+    <string name="login_google_failed">Google-innloggingen gikk ikke gjennom</string>
+    <string name="login_google_missing">Google-innlogging er ikke satt opp i denne byggingen</string>
+    <string name="login_rejected">Serveren godtok ikke innloggingen</string>
+    <string name="login_not_configured">Innlogging er ikke slått på på serveren ennå</string>
+    <string name="login_offline">Ingen nettforbindelse</string>
+    <string name="login_failed">Innloggingen feilet (%1$d)</string>
 </resources>

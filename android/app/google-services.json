@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "977694072067",
+    "project_id": "bestefar",
+    "storage_bucket": "bestefar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977694072067:android:2d9b601dbda87a950ddd36",
+        "android_client_info": {
+          "package_name": "no.bestefar.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "977694072067-6u2uip9pajlkggv3ihofgpotgi97642r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "no.bestefar.app",
+            "certificate_hash": "35f0daaaab101e5663dad44cfda9b194b87b7257"
+          }
+        },
+        {
+          "client_id": "977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMxbll9Cqbku7yNEtUBdu75mSfkQCILvE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

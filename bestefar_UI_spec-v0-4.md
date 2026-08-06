@@ -507,3 +507,27 @@ uten nett — offline-først er ikke svekket, bare supplert.
   refresh-tokenet og sletter begge tokenene lokalt — også offline. Fornyelse er
   serialisert bak én lås; to parallelle ville logget brukeren ut overalt.
 - **Utlogging sletter aldri lokale data.**
+
+## 22. Endringslogg v0.17 (innlogging)
+
+### Konto
+- **Min profil har fått en «Konto»-seksjon.** Knappen viser tilstanden i selve
+  teksten: «Logg inn» når man ikke er innlogget, «Konto: <navn>» når man er det.
+- **Ny skjerm `LoggInnActivity`** med to tilstander og ingen mellomting.
+  Utlogget: hva kontoen gir (sikkerhetskopi, venner, lag) + «Fortsett med
+  Google» + «Bruk kode på e-post». Innlogget: navn, bruker-ID (den vennene
+  søker opp) og «Logg ut».
+- **Appen ber aldri om innlogging uoppfordret.** Skjermen sier eksplisitt at
+  scan, innsikt, serier og jaktlogg virker som før uten konto, og at ingenting
+  allerede lagret går tapt ved innlogging.
+- **Utlogging bekreftes uten advarselsikon.** Ingenting går tapt, og teksten
+  sier det — det er nettopp det brukeren lurer på i det øyeblikket.
+- **Google-knappen skjules** når appen er bygget uten web-klient-ID, framfor å
+  vise en knapp som ikke kan virke. E-postveien står igjen.
+- **Apple** vises som en setning, ikke en knapp: innloggingen kommer når
+  utviklerkontoen finnes.
+
+### E-postkode
+- Sekssifret kode, ingen passord. «Send ny kode» teller ned fra verdien
+  serveren oppga (`resend_after_seconds`) — nedtellingen er bekvemmelighet,
+  serverens 429 er det som håndhever fristen.

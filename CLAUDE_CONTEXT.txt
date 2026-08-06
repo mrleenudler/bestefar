@@ -930,3 +930,30 @@ UI-RUNDE 13 (v0.16) LAERDOMMER:
     backend-runde 10, men i motsatt retning - den gjelder BEGGE veier:
     til_utvikler_v0NN.md og backend_spec.md DELES. Sjekk om fila finnes
     (ls / git ls-files) og APPEND en egen seksjon; bruk aldri Write paa dem.
+
+INNLOGGING I KLIENTEN (v0.17):
+  - Credential Manager, IKKE GoogleSignInClient (utfaset). Deps:
+    androidx.credentials + credentials-play-services-auth + googleid.
+  - TO VARIANTER, og valget betyr noe: GetGoogleIdOption (bunnark) FEILER med
+    NoCredentialException for en bruker som aldri har logget inn i appen.
+    GetSignInWithGoogleOption (knappeflyten) virker for foerstegangsbrukeren -
+    som er nettopp den en «logg inn»-knapp finnes for. Bruk SIWG.
+  - getCredentialAsync (callback) framfor den suspenderende varianten: appen
+    har ingen coroutine-avhengighet, og skal ikke faa én for dette.
+  - WEB-KLIENT-ID (client_type 3 i google-services.json) er det som skal inn i
+    setServerClientId OG i backendens GOOGLE_CLIENT_IDS. Android-klient-ID-en
+    (client_type 1) brukes ALDRI her. Forveksling gir et gyldig token som
+    backenden avviser med 401 og en feilmelding som ikke sier hvorfor.
+    build.gradle.kts leser ID-en ut av google-services.json med regex, saa den
+    ikke kan komme i utakt med en kopi i gradle.properties.
+  - SIGNATUREN KONTROLLERES. google-services.json har certificate_hash =
+    release-keystorens SHA-1 (35f0da...b7257, bekreftet mot APK-en med
+    apksigner). DEBUG-bygget har en ANNEN SHA-1
+    (9D:D6:79:BA:...:78:2B) og maa registreres som egen Android-OAuth-klient,
+    ellers feiler Google-innlogging kun i debug.
+  - apksigner (ikke keytool) leser v2/v3-signerte APK-er: keytool sier «Not a
+    signed jar file». apksigner.bat ligger i
+    %LOCALAPPDATA%\Android\Sdk\build-tools\<ver>\ og krever JAVA_HOME satt.
+  - Sperrefristen for «send ny kode» leses fra 202-svaret
+    (resend_after_seconds), ikke hardkodes. Nedtellingen er bekvemmelighet;
+    serverens 429 haandhever.

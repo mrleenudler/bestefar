@@ -15,6 +15,20 @@ val keystoreProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// Google-innlogging (backend_spec §1). Web-klient-ID-en (client_type 3) er den
+// `aud` backenden verifiserer mot, og den ligger allerede i
+// google-services.json - vi leser den derfra i stedet for aa duplisere den inn
+// i en gradle.properties som saa kan komme i utakt.
+// Android-klienten (client_type 1) brukes IKKE her; Credential Manager vil ha
+// SERVER-klient-ID-en. Mangler fila, blir verdien tom og appen skjuler
+// Google-knappen framfor aa krasje.
+val googleWebClientId: String = run {
+    val f = file("google-services.json")
+    if (!f.exists()) "" else Regex(
+        """"client_id"\s*:\s*"([^"]+)"\s*,\s*"client_type"\s*:\s*3""")
+        .find(f.readText())?.groupValues?.get(1) ?: ""
+}
+
 android {
     namespace = "no.bestefar.app"
     compileSdk = 36   // CameraX 1.5.x krever compileSdk >= 35
@@ -23,8 +37,10 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.16"
+        versionCode = 17
+        versionName = "0.17"
+
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         externalNativeBuild {
             cmake {
@@ -104,4 +120,10 @@ dependencies {
     // Block Store: noekkelen til sikkerhetskopien overlever telefonbytte uten
     // at brukeren maa taste en kode (musingsUI runde 13).
     implementation("com.google.android.gms:play-services-auth-blockstore:16.4.0")
+    // Innlogging (v0.17): Credential Manager er Googles gjeldende API. Den
+    // gamle Google Sign-In-SDK-en (play-services-auth GoogleSignInClient) er
+    // utfaset og skal ikke brukes i nye integrasjoner.
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }
