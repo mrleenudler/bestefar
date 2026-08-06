@@ -19,7 +19,6 @@ NOEKKELFORVALTNINGEN ER TREDELT (§2/§13):
 Krever innlogging, som kommer i fase 3; se deps.current_user.
 """
 import base64
-import binascii
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -166,8 +165,9 @@ class EscrowIn(BaseModel):
 
 def _raa(body: EscrowIn, maks: int) -> bytes:
     try:
+        # binascii.Error arver fra ValueError, saa den ene grenen dekker begge.
         raa = base64.b64decode(body.key_material, validate=True)
-    except (ValueError, binascii.Error) as exc:
+    except ValueError as exc:
         raise HTTPException(422, "key_material må være base64.") from exc
     if not raa:
         raise HTTPException(422, "key_material er tomt.")
