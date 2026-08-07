@@ -172,11 +172,9 @@ Detaljer som har betydning for klienten:
 
 **Klientsiden (v0.16, musingsUI runde 13)** er bygget mot nettopp denne
 kontrakten — se §13 og §15. De to sidene landet uavhengig på samme tredeling og
-samme krav om at UI-teksten skal si rett ut hva deponering betyr. Konkret fra
-klienten: `key_material` er gjenopprettingskoden som ASCII, base64-kodet;
-bryteren «Gjenopprett uten kode» er av som standard og går tilbake til av hvis
-`PUT` ikke svarer 2xx, og **503 vises som «ikke slått på på serveren»**, ikke
-som en feil brukeren har gjort.
+samme krav om at UI-teksten skal si rett ut hva deponering betyr. Hva klienten
+konkret legger i `key_material`, og hvordan den håndterer 503, eies av
+`android/KONTRAKT.md` §4.
 
 ## 3. Venner (front-end finnes i `VennerActivity`)
 - **Modell:** `Friend { id, displayName, teamIds[], phone?, homeKommune?,
@@ -399,6 +397,14 @@ Designsvar på eierens spørsmål om venne-ID og søk:
 
 ## 0.1 Infrastruktur (tillegg til §0)
 Konkretisering av vertsvalg og driftsoppsett for backend-MVP:
+- **Rammeverk:** FastAPI + SQLAlchemy 2.0 (`DeclarativeBase`, `Mapped`) +
+  håndskrevne Alembic-migrasjoner. Routerne i `app/routers/` speiler
+  paragrafene her; de tre ansvarene fra kjerne-spec §5 (`/v1/stats`,
+  `/v1/failed-analyses`, `/v1/research`) har hver sin lagring, og
+  forskningsdataene ligger i et eget Postgres-skjema (§7).
+  *Flyttet hit 2026-08-07 fra `docs/ARCHITECTURE.md`, som beskrev backenden som
+  «FastAPI + SQLite … tre routere». SQLite er testdialekten, ikke
+  produksjonsdialekten, og routerne er nå fjorten.*
 - **Vert:** Fly.io, region Amsterdam (EU) — lav driftsbyrde, gratis-tier dekker
   lav trafikk i tidlig fase. Alternativ: Google Cloud Run (scale-to-zero, betal
   kun for faktisk bruk) hvis trafikkmønsteret er svært sporadisk.
@@ -475,27 +481,17 @@ Klientsiden av kontrakten. Bygget mot fase 1-endepunktene og verifisert mot
   `BuildConfig.API_BASE_URL` (release: `https://bestefar-api.fly.dev`, debug:
   `http://10.0.2.2:8000`), overstyrbar i felt via DevTools → «API-adresse».
   Klartekst-HTTP er tillatt **kun** i debug (`src/debug/AndroidManifest.xml`).
-- **Feilklassifisering:** `retryable` = `code == 0` (nådde aldri fram), 408,
-  429, ≥ 500. Alt annet (400/413/422) er permanent — køen kaster elementet i
-  stedet for å prøve i evig tid. Serveren bør derfor svare 4xx på data den
-  aldri vil kunne ta imot, og 5xx/429 på alt som kan gå bra senere.
+- **Feilklassifisering:** eies av `android/KONTRAKT.md` §1 — klienten håndhever
+  regelen, så teksten bor der. Konsekvensen for serveren, kort: svar 4xx på data
+  du aldri vil kunne ta imot, og 5xx/429 på alt som kan gå bra senere. Et
+  midlertidig problem besvart med 400 gir stilltiende datatap hos brukeren.
 - **`Sync.kt`** — filbasert kø i `filesDir/dev_uploads`, ett par
   `{seriesId}_{tag}.jpg` + `.json` per innsending. Tømmes ved appstart og på
   «Send nå» i Avanserte innstillinger. Ikke WorkManager: sending mens appen er
   lukket er ikke et krav ennå.
-- **Sidecar-format v2** (feltnavnene mappes 1:1 til multipart-feltene):
-  ```json
-  {"v":2,"series_id":"<uuid>","tag":"ocr_match|ocr_mismatch|rejected",
-   "status_code":0,"confidence":0.83,"core_version":"0.14",
-   "detected":[10.4,9.8],"ocr":[10.4,9.9]}
-  ```
-  `detected` er alltid poengene **CV-kjernen** ga, også når OCR har overskrevet
-  visningen — ellers ville en `ocr_match`-donasjon ikke si noe om hva kjernen så.
-- **`confidence = -1.0`** betyr *ukjent*: sendes for kø-filer skrevet før v0.14
-  (format v1 hadde bare `detected` + `tag`). Behandle som «ikke målt», ikke som
-  lav konfidens.
-- **`core_version`** er foreløpig appens `versionName`. CV-kjernen eksponerer
-  ingen egen versjon over FFI ennå; når den gjør det, skal den brukes her.
+- **Sidecar-format v2**, `tag`-enumet, `confidence = -1.0` og `core_version`:
+  eies av `android/KONTRAKT.md` §2. Feltnavnene mappes 1:1 til
+  multipart-feltene i `POST /v1/failed-analyses`.
 - **Kun wifi** (`Store.uploadWifiOnly`, default på): køen er fullskala-JPEG-er.
   «Send nå» overstyrer valget, men ikke «er vi på nett i det hele tatt».
 - **`/v1/feedback`** er koblet inn i «Melding til utvikler». Feiler kallet
@@ -511,26 +507,13 @@ Tillegg til §2. Serveren skal ikke kunne lese noe av dette — det står her ba
 så backend-siden vet hva de ugjennomsiktige bytene er. Det ene unntaket er
 frivillig nøkkeldeponering (§2.1), som brukeren må slå på selv.
 
-- **Blob-format** (`Backup.kt`):
-  `"BFBK" | 1 B versjon | 16 B salt | 12 B IV | AES-256-GCM (tag 128 bit)`.
-  Klartekst er JSON: `{v, app, ts, prefs, series[], hunts[]}` — `series`/`hunts`
-  er **rå**, altså inkludert soft-slettede poster.
-- **Nøkkel:** PBKDF2-HMAC-SHA256, 210 000 runder, over en generert
-  gjenopprettingskode på 20 tegn (Crockford-base32 minus I/L/O/U ⇒ 100 bit).
-  Ikke et brukervalgt passord: angriperen har hele bloben og kan gjette offline,
-  så ingen server kan bremse ham. Konsekvensen står i UI-et — mister brukeren
-  koden, er kopien tapt, og **serveren kan ikke hjelpe**.
-  *Presisert i runde 13:* det gjelder fortsatt så lenge nøkkelen er brukerens.
-  Den ene ærlige måten å hjelpe på er at brukeren uttrykkelig gir oss nøkkelen —
-  se §2.1. Ikke bygg noen annen vei inn; en «gjenopprett kopien min» uten det
-  samtykket finnes det ingen implementasjon av som er sann.
-- **Klienten bruker `client_ts`** = tidspunktet snapshotet ble laget, og setter
-  `?force=true` kun når brukeren har svart ja på «overskriv den nyere kopien».
-  409 vises som en egen dialog, ikke som en feil.
-- **Soft-delete er innført klientside:** `SeriesRecord.deletedAt` /
-  `HuntRecord.deletedAt` (0 = lever). Gravsteinene ligger i bloben, så
-  last-write-wins per post-ID kan faktisk håndheves ved gjenoppretting. Når
-  §5-synken kommer, må slettede poster sendes som gravstein — ikke utelates.
+- **Blob-format, nøkkelavledning, `client_ts`/`?force=true` og soft-delete:**
+  eies av `android/KONTRAKT.md` §3 og §5. Det korte for backend-siden: bytene er
+  ugjennomsiktige, ingenting av innholdet kan valideres server-side, og
+  **serveren kan ikke hjelpe** en bruker som har mistet gjenopprettingskoden.
+  Den ene ærlige veien inn er at brukeren uttrykkelig gir oss nøkkelen — se
+  §2.1. Ikke bygg noen annen; en «gjenopprett kopien min» uten det samtykket
+  finnes det ingen implementasjon av som er sann.
 - **Serie-synk-køen er bevisst IKKE bygget ennå.** To parallelle synkveier over
   samme data (blob + per-post `/v1/stats`) bør ikke finnes før det er avgjort
   hvilken som eier sannheten. Forslag: bloben eier «alt mitt», `/v1/stats` eier

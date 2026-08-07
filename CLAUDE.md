@@ -16,7 +16,8 @@ Bestefar/
 ├── core/                    KJERNE  C++17 CV-kjerne (OpenCV), ren C-FFI
 │   ├── include/bestefar/    KJERNE  offentlige headere + AutoCaptureParams
 │   ├── src/                 KJERNE  porterte moduler (screen, rings, hits, …)
-│   └── cli/                 KJERNE  desktop-CLI for verifisering mot C-settet
+│   ├── cli/                 KJERNE  desktop-CLI for verifisering mot C-settet
+│   └── ARCHITECTURE.md      KJERNE  beslutningslogg: port, CV-kontrakt, FFI
 ├── ios/                     KJERNE  Swift-skjelett mot samme C-header (stub)
 ├── *.py  (rot)              KJERNE  Python-referansen — fasit for porten
 ├── Testsett/, hits_truth.txt KJERNE oracle-data (10/10 PASS er kravet)
@@ -28,11 +29,13 @@ Bestefar/
 │   └── fly.toml, Dockerfile BACKEND drift mot Fly.io
 │
 ├── android/                 UI      Kotlin-app, CameraX, JNI-bro
-│   └── app/src/main/cpp/    UI*     jni_bridge.cpp — se merknad under
+│   ├── app/src/main/cpp/    UI*     jni_bridge.cpp — se merknad under
+│   ├── ARCHITECTURE.md      UI      beslutningslogg: nettverk, økt, nøkler
+│   └── KONTRAKT.md          UI      wire-kontrakten mot backend (se §4)
 ├── UI/                      UI      ikoner, silhuetter, SVG-kilder
 ├── dist/                    UI      APK-er som sendes ut (versjonsbump ved ny)
 │
-├── docs/                    DELT    ARCHITECTURE.md, flytskjema.md
+├── docs/                    DELT    kart over dokumentene + bygg/CI, flytskjema
 ├── *_spec.md                DELT    de tre spesifikasjonene (se §4)
 ├── til_utvikler_v##.md      DELT    tilbakemelding per runde (se §4)
 ├── musings*.txt             EIER    skrives av utvikler — ikke skriv til dem
@@ -134,6 +137,20 @@ det er UI-språk og ikke dokumentasjon.
 | `AAPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. **Navnet er med `AA`, ikke `Å`** — PowerShell 5.1 mangler æøå når filnavn sendes videre til `git.exe`, så `git mv`/`git commit <sti>` feiler på den. Ikke «rett» det tilbake. |
 | `musings.txt`, `musingsUI.txt`, `musings_backend.txt` | **Eierens filer. Ikke skriv til dem.** Svar hører hjemme i `til_utvikler_v##.md`. |
 | `.github/workflows/ci.yml` | Én jobb per område (`core`, `android`, `backend`). Rør kun din egen jobb. |
+| `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor, + bygg/CI som gjelder alle tre. Beslutningsloggene ligger hos områdene (`core/ARCHITECTURE.md`, `android/ARCHITECTURE.md`) — det opprettes ingen tredje. |
+
+### Én tekst, ett sted
+
+Fakta som gjelder to områder skrives **ett** sted, og det andre stedet peker dit.
+En regel som står to steder blir før eller siden to ulike regler.
+
+| Tema | Eier |
+|---|---|
+| Wire-kontrakten klient↔server: `retryable`, sidecar v2 + `tag`-enumet, blob-formatet, `key_material`, gravsteiner | `android/KONTRAKT.md` |
+| Endepunkter, tokens, kvoter, lagring | `backend_spec.md` |
+| CV-kontrakten: `BfResult`, statuskoder, `BF_MAX_HITS`, pikselformater | `core/ARCHITECTURE.md` |
+| Katalogkart og eierskap | denne fila |
+| Skjermflyt og CV-flyt (mermaid) | `docs/flytskjema.md` |
 
 ---
 
