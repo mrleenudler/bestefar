@@ -1049,3 +1049,25 @@ PUSH I KLIENTEN (v0.18):
     EKSPLISITTE STIER paa selve commit-kommandoen - da tas kun de filene med,
     uansett hva som ligger i indeksen. Tidsvinduet mellom add og commit er
     hele problemet.
+
+SAMHANDLINGSSYSTEM MELLOM INSTANSENE (2026-08-07):
+  - TO NYE ROTFILER, les dem foer du roerer noe: CLAUDE.md (katalogkart,
+    eierskap per omraade, regelen om at ingen instans redigerer et annet
+    omraades kode - meld GitHub-issue med label kjerne/backend/ui i stedet,
+    PowerShell-syntaks, ISO-datoer) og AAPNE_PUNKTER.md - filnavnet er
+    «ÅPNE_PUNKTER.md» med Å - som samler alt som ikke kan besluttes i kode
+    (TODO(eier), ukalibrerte verdier, aapne spec-punkter) med punkt-ID og
+    kildereferanse. Referer punkt-ID (f.eks. AAP-B2) i issues og i
+    til_utvikler_v##.md.
+  - Labelene kjerne/backend/ui finnes naa i mrleenudler/bestefar.
+  - MIDLERTIDIG - SLETT DENNE OPPFOERINGEN NAAR DEN IKKE LENGER STEMMER:
+    `gh` var ikke installert og ble lagt inn med winget midt i oekta
+    (GitHub.cli 2.97.0). PATH leses naar skallet STARTER, saa gh er ikke
+    paa PATH i en sesjon som allerede kjoerte da den ble installert - bruk
+    full sti: & "C:\Program Files\GitHub CLI\gh.exe". Nye terminaler faar
+    den paa PATH, og da er dette punktet stoey. Sjekk med `where.exe gh`;
+    svarer den med en sti, STRYK punktet.
+    Dette gjelder generelt for denne fila: en oppfoering som beskriver en
+    midlertidig tilstand, slettes av den instansen som oppdager at den ikke
+    lenger er noedvendig. Fila skal vaere feil vi kan gjoere igjen, ikke et
+    arkiv over feil vi en gang gjorde.
