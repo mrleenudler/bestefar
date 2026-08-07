@@ -37,7 +37,7 @@ Bestefar/
 ├── til_utvikler_v##.md      DELT    tilbakemelding per runde (se §4)
 ├── musings*.txt             EIER    skrives av utvikler — ikke skriv til dem
 ├── CLAUDE_CONTEXT.txt       DELT    feillogg på tvers av instanser
-├── ÅPNE_PUNKTER.md          DELT    alt som ikke kan besluttes av en instans
+├── AAPNE_PUNKTER.md         DELT    alt som ikke kan besluttes av en instans
 └── .github/workflows/       DELT    én CI-jobb per område (se §4)
 ```
 
@@ -131,7 +131,7 @@ det er UI-språk og ikke dokumentasjon.
 | `bestefar_UI_spec-v0-4.md` | UI eier. |
 | `til_utvikler_v##.md` | **Delt per runde.** Legg til en seksjon nederst med områdenavn i overskriften. Overskriv aldri. Én fil per runde, høyeste nummer er gjeldende. |
 | `CLAUDE_CONTEXT.txt` | Alle skriver. Før inn feil du gjorde som burde vært husket. Les den etter komprimering. |
-| `ÅPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. |
+| `AAPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. **Navnet er med `AA`, ikke `Å`** — PowerShell 5.1 mangler æøå når filnavn sendes videre til `git.exe`, så `git mv`/`git commit <sti>` feiler på den. Ikke «rett» det tilbake. |
 | `musings.txt`, `musingsUI.txt`, `musings_backend.txt` | **Eierens filer. Ikke skriv til dem.** Svar hører hjemme i `til_utvikler_v##.md`. |
 | `.github/workflows/ci.yml` | Én jobb per område (`core`, `android`, `backend`). Rør kun din egen jobb. |
 

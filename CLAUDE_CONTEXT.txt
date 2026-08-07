@@ -1054,11 +1054,16 @@ SAMHANDLINGSSYSTEM MELLOM INSTANSENE (2026-08-07):
   - TO NYE ROTFILER, les dem foer du roerer noe: CLAUDE.md (katalogkart,
     eierskap per omraade, regelen om at ingen instans redigerer et annet
     omraades kode - meld GitHub-issue med label kjerne/backend/ui i stedet,
-    PowerShell-syntaks, ISO-datoer) og AAPNE_PUNKTER.md - filnavnet er
-    «ÅPNE_PUNKTER.md» med Å - som samler alt som ikke kan besluttes i kode
-    (TODO(eier), ukalibrerte verdier, aapne spec-punkter) med punkt-ID og
-    kildereferanse. Referer punkt-ID (f.eks. AAP-B2) i issues og i
-    til_utvikler_v##.md.
+    PowerShell-syntaks, ISO-datoer) og AAPNE_PUNKTER.md, som samler alt som
+    ikke kan besluttes i kode (TODO(eier), ukalibrerte verdier, aapne
+    spec-punkter) med punkt-ID og kildereferanse. Referer punkt-ID (f.eks.
+    AAP-B2) i issues og i til_utvikler_v##.md.
+  - FILNAVN SKAL VAERE ASCII. AAPNE_PUNKTER.md het foerst ÅPNE_PUNKTER.md, og
+    PowerShell 5.1 mangler aeoeaa naar filnavn sendes videre til git.exe:
+    `git mv` svarte «fatal: bad source» paa den. Maatte gaa veien om
+    Rename-Item + `git add -A`, eller om pathspec-globben '*PNE_PUNKTER.md'.
+    Doep aldri en ny fil med aeoeaa i navnet - innholdet skal ha norske tegn,
+    filnavnet skal ikke.
   - Labelene kjerne/backend/ui finnes naa i mrleenudler/bestefar.
   - MIDLERTIDIG - SLETT DENNE OPPFOERINGEN NAAR DEN IKKE LENGER STEMMER:
     `gh` var ikke installert og ble lagt inn med winget midt i oekta
