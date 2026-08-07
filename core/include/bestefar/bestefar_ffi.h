@@ -61,12 +61,18 @@ typedef struct BfResult {
  * Returnerer resultatets statuskode. */
 int32_t bf_analyze(const BfImage* image, int64_t timestamp_ms, BfResult* out);
 
+/* Kjernens egen versjon (semver-streng), UAVHENGIG av appens versionName —
+ * se version.h. Statisk streng eid av kjernen; IKKE free() den. Formaalet er
+ * aa vite hvilken kjerne som produserte en §6-donasjon (backend_spec.md §8),
+ * ikke aa speile app-utgivelser. */
+const char* bf_version(void);
+
 /* ---- Auto-capture (kravspec §4) ------------------------------------- */
 /* To adskilte kriterier: stabilitet og bildekvalitet. ALLE terskler er
  * UKALIBRERTE startverdier og skal kalibreres mot faktisk maskinvare. */
 
 typedef struct BfAutoCaptureParams {
-    int32_t stability_frames;        /* default 24 (~0.8 s holdevindu) */
+    int32_t stability_frames;        /* default 6 (~0.2 s holdevindu, capture-first v0.12) */
     double  stability_max_move_frac; /* default 0.01 (av diagonal) */
     double  min_sharpness;           /* default 40.0 (Laplacian-varians) */
     double  max_clip_lo_frac;        /* default 0.30 */

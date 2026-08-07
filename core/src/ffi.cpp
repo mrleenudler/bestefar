@@ -3,9 +3,14 @@
 
 #include "bestefar/analyze.h"
 #include "bestefar/bestefar_ffi.h"
+#include "bestefar/version.h"
 
 namespace bestefar {
 cv::Mat bf_image_to_bgr(const BfImage* img);   // autocapture.cpp
+}
+
+extern "C" const char* bf_version(void) {
+    return BESTEFAR_CORE_VERSION;
 }
 
 extern "C" int32_t bf_analyze(const BfImage* image, int64_t timestamp_ms, BfResult* out) {
