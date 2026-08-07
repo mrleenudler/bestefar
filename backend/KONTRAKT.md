@@ -61,6 +61,18 @@ Felter: `status`, `env`, `database`, `mailer`, `push`, `escrow`.
 - **`/v1/auth/logout` er idempotent** — ukjent eller allerede tilbakekalt token
   gir også 204.
 
+**401 er normal trafikk herfra, ikke et angrepsmønster.** Klienten fornyer
+**reaktivt**: den holder ikke øye med `expires_in`, men lar tokenet gå ut, får
+et 401, fornyer og prøver forespørselen om igjen nøyaktig én gang
+(`android/KONTRAKT.md` §6). Med 60 minutters levetid betyr det at hver aktive
+enhet produserer minst ett 401 i timen, jevnt fordelt over døgnet.
+
+Konsekvensen er en regel, ikke bare en observasjon: **bygg aldri
+misbruksdeteksjon eller rate-limiting på antall 401.** Den ville slått ut på de
+mest aktive brukerne først. Skal noe telles for å finne misbruk, tell
+mislykkede *innlogginger* (`/v1/auth/email/verify`, `/google`, `/apple`) — de
+har ingen legitim grunn til å gjenta seg.
+
 **Tokenparet** som returneres av `/google`, `/apple`, `/email/verify` og
 `/refresh`: `{access_token, refresh_token, token_type: "Bearer", expires_in,
 user_id, public_id, display_name}`. Innloggingene legger dessuten på `is_new`.
@@ -169,8 +181,15 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
 - **Alle `data`-verdier sendes som strenger**, og `None` fjernes. FCM avviser
   tall og `null`.
 - **Døde tokens slettes** (`UNREGISTERED`, `INVALID_ARGUMENT`, `NOT_FOUND`).
-- **`PUSH_BUDGET_SECONDS` (6 s) avbryter resten av en utsending.** Det er ikke
-  datatap: meldingskøen bærer meldingen.
+- **`PUSH_BUDGET_SECONDS` (6 s) avbryter resten av en utsending.** Sjekken skjer
+  **før hvert kall**, aldri under, og timeouten per kall er 5 s — så budsjettet
+  tåler nøyaktig ett tregt kall. Målt med ti mottakere: 5 s per kall ⇒ **2
+  forsøkt, 8 aldri forsøkt, 10 s veggtid**; 0,2 s per kall ⇒ alle ti på 2 s.
+  Øvre veggtid er `budsjett + timeout` = 11 s, ikke 6. Se issue #3.
+
+  **Avbruddet er datatap så lenge klienten ikke henter meldingskøen** — se §9.
+  Formuleringen «køen bærer meldingen» gjelder først når `/v1/messages` faktisk
+  leses.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push": "log"`. Verdien godtas både som rå JSON og base64.
 
@@ -247,6 +266,17 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
 
 Ærlighet om hva kontrakten *ikke* holder:
 
+- **Meldingskøen er ikke en garanti i dag.** `/v1/messages` finnes og fylles ved
+  hvert §11-varsel, men **klienten henter den ikke ennå**. Push er derfor eneste
+  leveringsvei, og hele designet i B-18 — «push er best effort fordi køen bærer
+  meldingen» — hviler på et premiss som ikke er innfridd. Et varsel som ikke når
+  fram (telefon av, budsjettet brukt opp, FCM nede) er tapt for brukeren, ikke
+  utsatt. UI-instansen bygger hentingen.
+
+  **Ikke bygg noe nytt på kø-garantien før den er reell.** Alt som i dag ville
+  vært «trygt fordi køen fanger det opp», er det ikke.
+- **Push-budsjettet tåler ett tregt kall**, og begrenser ikke svartiden det
+  finnes for å begrense. Målte tall i §4. Issue #3.
 - **`/v1/feedback`-kvoten er per maskin.** `ratelimit.py` teller i minnet, og
   Fly kjører to maskiner, så den reelle grensen er 10/time, ikke 5. ÅP-B9.
 - **`GET /v1/teams/near` sorterer i Python.** Holder på dagens datamengde. ÅP-B6.

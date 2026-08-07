@@ -305,7 +305,16 @@ umulig å bytte lagnavn.
 **Samme resonnement gjelder `PUSH_BUDGET_SECONDS`:** når budsjettet er brukt
 opp, droppes resten av mottakerne. Det er ikke datatap — køen er garantien.
 
-*Kilde: `services/push.py`, modul-docstring og `send`.*
+**Premisset holder ikke i dag (notert 2026-08-07).** Klienten henter ikke
+`/v1/messages`, så push er eneste leveringsvei. Så lenge det er tilfellet, *er*
+et avbrutt budsjett datatap for de mottakerne som aldri ble forsøkt — ikke en
+utsettelse. Beslutningen er ikke omgjort, og bør ikke omgjøres: den er riktig
+den dagen køen leses. Men den kan ikke brukes som begrunnelse for at avbrudd er
+ufarlig i mellomtiden, og målingene i issue #3 viser at avbruddet inntreffer
+etter to trege mottakere uansett lagstørrelse.
+
+*Kilde: `services/push.py`, modul-docstring og `send`; `backend/KONTRAKT.md`
+§4 og §9.*
 
 ## B-19 Ikke `google-auth` for FCM
 
@@ -540,7 +549,7 @@ fra dokumentasjonen, og de bør ikke endres på gjetning heller.
 | `EMAIL_CODE_TTL_MINUTES = 15`, `EMAIL_CODE_MAX_ATTEMPTS = 5` | `config.py` | Kommentaren begrunner *sekssifret kode* ut fra at den er kortlivet og har få forsøk — men ikke de to tallene selv. |
 | `FEEDBACK_RATE_PER_HOUR = 5` per IP | `config.py` | Begrunnelse ikke dokumentert. Merk at den reelle grensen er 10 med to maskiner (ÅP-B9). |
 | `MAX_UPLOAD_BYTES = 8 MB` | `config.py` | Formålet er dokumentert («så databasen ikke fylles opp»), tallet ikke. |
-| `PUSH_TIMEOUT_SECONDS = 5`, `PUSH_BUDGET_SECONDS = 6` | `config.py` | *Hvorfor* det finnes et budsjett er godt begrunnet. Tallene er det ikke — og budsjettet er bare ett sekund lengre enn ett enkelt kalls timeout. |
+| `PUSH_TIMEOUT_SECONDS = 5`, `PUSH_BUDGET_SECONDS = 6` | `config.py` | *Hvorfor* det finnes et budsjett er godt begrunnet. Tallene er det ikke. **Målt 2026-08-07:** budsjettet tåler nøyaktig ett tregt kall, og veggtiden kan bli 11 s fordi sjekken bare skjer mellom kall. Issue #3. |
 | Synkron utsending av push, inne i forespørselen | `services/push.py` | At det er et valg framgår av `PUSH_BUDGET_SECONDS`, men begrunnelsen for å ikke bruke en bakgrunnstråd står ikke i koden eller speccen. |
 | Pseudonymet avkortes til 160 bit | `services/pseudonym.py` | «160 bit er rikelig» er en påstand, ikke en begrunnelse for avkortingen framfor full digest. |
 | `app_store_url` peker på Play-siden | `config.py` | Markert som midlertidig («iOS er ikke publisert ennå»), men ingen beslutning om hva den skal peke på i mellomtiden for faktiske iOS-brukere. |
