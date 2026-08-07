@@ -16,6 +16,9 @@ Sist gjennomgått: **2026-08-07**.
 til nye punkter når du oppdager dem. Stryk aldri et punkt uten at eier faktisk
 har avklart det — flytt det da til «Avklart» nederst med dato.
 
+**ID-ene:** `K` kjerne, `B` backend, `U` klient, `E` krever eier, `D` delt
+(treffer alle tre og passer derfor ikke i eierskapsmodellen).
+
 Kilder: `bestefar_CV-kjerne_spec.md` (kjerne-spec), `backend_spec.md`,
 `bestefar_UI_spec-v0-4.md` (UI-spec).
 
@@ -262,6 +265,37 @@ lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 ## E. Uavklart teknisk retning
 
 Ikke gjeld — beslutninger som mangler.
+
+### ÅP-D1 — CI-actionene kjører på avviklet Node · label `kjerne` + `backend` + `ui`
+> «Node.js 20 is deprecated. The following actions target Node.js 20 but are
+> being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5.»
+> — annotasjon på begge workflowene, kjøring 2026-08-07
+
+`D` = delt. Punktet treffer alle tre områdene, fordi `ci.yml` har én jobb per
+område og alle bruker de samme actionene.
+
+Berørt i dag:
+
+| Action | Hvor |
+|---|---|
+| `actions/checkout@v4` | `ci.yml` (alle tre jobber), `deploy-backend.yml` (begge jobber) |
+| `actions/setup-python@v5` | `ci.yml` backend-jobben, `deploy-backend.yml` test-jobben |
+| `actions/setup-java@v4` | `ci.yml` android-jobben (som uansett står med `if: false`, ÅP-U12) |
+
+GitHub tvinger dem over på Node 24 nå og varsler. Det er ikke en feil i dag,
+men varselet blir en feil på et tidspunkt vi ikke styrer — og da stopper både
+CI og **deployen til produksjon** samtidig, siden begge workflowene bruker de
+samme actionene.
+
+Åpent: hvem som bumper, og om det gjøres samlet. `ci.yml` er delt
+(rot-`CLAUDE.md` §4: rør kun din egen jobb), så en samlet bump er den ene
+endringen som ikke passer inn i eierskapsmodellen. Enten gjør én instans det
+for alle tre etter avtale, eller så deles det opp per jobb.
+
+**Beslektet, oppdaget samtidig:** `deploy-backend.yml` bruker
+`superfly/flyctl-actions/setup-flyctl@master` — en flyttbar gren, ikke en
+tagget versjon. Den kan endre seg under føttene på en deploy uten at noe i
+repoet er endret. Om den skal pinnes, er ikke besluttet.
 
 ### ÅP-B5 — Cloudflare R2 er betalt for og ubrukt · label `backend`
 Speccen sier bilder skal ligge i objektlagring, aldri i databasen
