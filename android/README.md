@@ -28,11 +28,19 @@ UI-lag (alt i `app/src/main/java/no/bestefar/app/`, programmatiske views):
 - `Stats.kt` — P(dødelig), frekvensspråk, maks hold, klikk-forslag.
   MERK: `RING_STEP_CM` og dødelig-sone-radiene er PLASSHOLDERE (spec §10.1)
 - `MainActivity` — skall/faner; `OktFragment` — hjem/øktflate
-- `InnsiktFragment` — kompetanseoversikt + kapabilitetskart
-- `JaktFragment` / `HuntLogActivity` — jaktmodus + hurtiglogg (3 steg)
+- `InnsiktFragment` — kompetanseoversikt + kapabilitetskart + trendgraf
+- `JaktActivity` / `HuntLogActivity` — jaktmodus + hurtiglogg (3 steg)
 - `ResultActivity` / `SummaryActivity` — resultatkort + øktoppsummering
 - `ProfilActivity` — skytterprofil, våpenkartotek, samtykker, sletting
-- `OnboardingActivity` — tre skjermbilder ved første start
+- `Api.kt` / `Sync.kt` / `Backup.kt` — nettverk, donasjonskø, kryptert kopi
+- `Auth.kt` / `Secrets.kt` / `Login.kt` / `LoggInnActivity` — økt og innlogging
+- `Push.kt` / `PushService.kt` — FCM; `Lock.kt` — opplåsing foran jaktloggen
+
+Første start viser et tutorial-overlegg (`Store.tutorialSeen`), ikke egne
+intro-skjermer — de ble fjernet i en tidligere runde.
+
+Arbeidsinstruksen for dette området står i `android/CLAUDE.md`; kontrakten mot
+backend i `android/KONTRAKT.md`; begrunnelsene i `android/ARCHITECTURE.md`.
 
 ## Kalibrering av auto-capture
 

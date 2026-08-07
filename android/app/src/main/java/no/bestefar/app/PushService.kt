@@ -36,7 +36,7 @@ class PushService : FirebaseMessagingService() {
         // NB: getterne kalles eksplisitt. Lint (AGP 9) krasjer i sin egen
         // UAST-oppslagskode paa `msg.notification` skrevet som egenskap —
         // «Unexpected failure during lint analysis ... this is a bug in lint».
-        // Koden kompilerer fint; det er analysen som faller. Se CLAUDE_CONTEXT.
+        // Koden kompilerer fint; det er analysen som faller. Rot-CLAUDE.md 7.5.
         @Suppress("UsePropertyAccessSyntax")
         val n = msg.getNotification()
         @Suppress("UsePropertyAccessSyntax")

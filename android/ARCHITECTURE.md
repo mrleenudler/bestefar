@@ -17,7 +17,9 @@ normaltilstanden, ikke en feil.
 - `Api.kt` — `HttpURLConnection`, ingen nytt bibliotek. Én enkelt-tråds kø, så
   opplastinger går i rekkefølge og ikke parallelt mot en gratis-tier.
   Basis-URL fra `BuildConfig.API_BASE_URL`, overstyrbar i DevTools.
-  `Authorization: Bearer` settes fra `Store.authToken` når den er satt.
+  `Authorization: Bearer` settes fra `Auth.accessToken(ctx)` når den er satt
+  (fram til v0.16 fra `Store.authToken`, som nå bare finnes som
+  `legacyAuthToken` for engangsmigreringen).
   **Feilklassifiseringen (`retryable`) eies av `KONTRAKT.md` §1** — den er en
   avtale med serveren, ikke en intern detalj.
 - `Sync.kt` — filbasert kø i `filesDir/dev_uploads` mot `/v1/failed-analyses`.

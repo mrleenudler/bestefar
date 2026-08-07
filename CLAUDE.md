@@ -167,7 +167,8 @@ Denne fila er den ene alle leser. Resten må du gå til selv:
 |---|---|
 | `core/ARCHITECTURE.md` | Kjernens beslutningslogg: modultabell, numerikk-avvik, CV-kontrakt, MPI-beslutningen, auto-capture, FFI, verifisering |
 | `android/ARCHITECTURE.md` | Klientens beslutningslogg: nettverkslag, Keystore/økt, nøkkellagene, soft-delete, broen til kjernen |
-| `android/KONTRAKT.md` | Det andre kan stole på: `retryable`, sidecar v2 + `tag`-enumet, blobens ytre format, gravsteiner |
+| `android/CLAUDE.md` | Klientens arbeidsinstruks: bygg og signering, invarianter, hva de andre eier |
+| `android/KONTRAKT.md` | Det andre kan stole på: `retryable`, sidecar v2 + `tag`-enumet, blobens ytre format, gravsteiner, øktgarantiene — og §9, det kontrakten ikke holder |
 | `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor + bygg/CI for alle tre |
 | `docs/flytskjema.md` | Mermaid: CV-flyten (auto-capture, analyse, statuskoder) og skjermflyten |
 | `AAPNE_PUNKTER.md` | Alt som ikke kan besluttes i kode — `TODO(eier)`, ukalibrerte verdier, åpne spec-punkter, med punkt-ID |
@@ -356,4 +357,7 @@ theme-attr-oppløsning først. En KDoc som inneholder `/*` (f.eks. en sti med
 `/v1/auth/*` i backticks) åpner en nestet kommentar og gjør resten av fila til
 kommentar — feilmeldingen peker aldri på årsaken. `targetSdk` 36 gjør
 `statusBarColor` til en no-op; appen tegner systemlinjene selv.
-`androidx.security:security-crypto` er avviklet — Keystore direkte.
+`androidx.security:security-crypto` er avviklet — Keystore direkte. AGP 9s lint
+kan krasje i sin egen UAST-kode («this is a bug in lint») på en Java-getter lest
+som Kotlin-egenskap i en lokal variabel — kall getteren eksplisitt i stedet for å
+skru av `lintVital`, som ville skjult alle framtidige ekte funn.
