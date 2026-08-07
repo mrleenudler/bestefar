@@ -64,7 +64,7 @@ def _ny_bruker(s: OrmSession, epost: str | None) -> User:
     s.add(user)
     # MAA skylles foer radene som peker paa den: det finnes ingen
     # relationship() mellom User og SharingPreference, saa SQLAlchemy har
-    # ingen rekkefoelge aa sortere etter. Se CLAUDE_CONTEXT.txt.
+    # ingen rekkefoelge aa sortere etter. Se CLAUDE.md paragraf 7.5.
     s.flush()
     s.add(SharingPreference(user_id=user.id))
     return user

@@ -39,7 +39,6 @@ Bestefar/
 ├── *_spec.md                DELT    de tre spesifikasjonene (se §4)
 ├── til_utvikler_v##.md      DELT    tilbakemelding per runde (se §4)
 ├── musings*.txt             EIER    skrives av utvikler — ikke skriv til dem
-├── CLAUDE_CONTEXT.txt       DELT    feillogg på tvers av instanser
 ├── AAPNE_PUNKTER.md         DELT    alt som ikke kan besluttes av en instans
 └── .github/workflows/       DELT    én CI-jobb per område (se §4)
 ```
@@ -107,7 +106,7 @@ if (Test-Path .env) { Remove-Item .env }
 
 `2026-08-07`. Ikke `7. august 2026`, ikke `07.08.2026`, ikke `8/7/26`.
 
-Gjelder overalt: spec-filer, `til_utvikler_v##.md`, `CLAUDE_CONTEXT.txt`,
+Gjelder overalt: spec-filer, `til_utvikler_v##.md`, arkitekturdokumentene,
 commit-meldinger, kodekommentarer, issue-tekster.
 
 Unntaket er **tekst brukeren ser i appen** — der gjelder norsk datoformat, fordi
@@ -133,7 +132,6 @@ det er UI-språk og ikke dokumentasjon.
 | `backend_spec.md` | Backend eier §0–§11; UI eier §12–§16 (klientsiden). Rediger kun din del, og les regionen på nytt rett før du skriver — den andre instansen kan ha endret filen. |
 | `bestefar_UI_spec-v0-4.md` | UI eier. |
 | `til_utvikler_v##.md` | **Delt per runde.** Legg til en seksjon nederst med områdenavn i overskriften. Overskriv aldri. Én fil per runde, høyeste nummer er gjeldende. |
-| `CLAUDE_CONTEXT.txt` | Alle skriver. Før inn feil du gjorde som burde vært husket. Les den etter komprimering. |
 | `AAPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. **Navnet er med `AA`, ikke `Å`** — PowerShell 5.1 mangler æøå når filnavn sendes videre til `git.exe`, så `git mv`/`git commit <sti>` feiler på den. Ikke «rett» det tilbake. |
 | `musings.txt`, `musingsUI.txt`, `musings_backend.txt` | **Eierens filer. Ikke skriv til dem.** Svar hører hjemme i `til_utvikler_v##.md`. |
 | `.github/workflows/ci.yml` | Én jobb per område (`core`, `android`, `backend`). Rør kun din egen jobb. |
@@ -150,22 +148,65 @@ En regel som står to steder blir før eller siden to ulike regler.
 | Endepunkter, tokens, kvoter, lagring | `backend_spec.md` |
 | CV-kontrakten: `BfResult`, statuskoder, `BF_MAX_HITS`, pikselformater | `core/ARCHITECTURE.md` |
 | Katalogkart og eierskap | denne fila |
+| Feller og lærdommer | denne fila, §7 |
 | Skjermflyt og CV-flyt (mermaid) | `docs/flytskjema.md` |
+
+**Kjent dublett, under opprydding:** `backend_spec.md` §14–§16 (økthåndtering,
+innlogging, push-mottak) gjentar `android/ARCHITECTURE.md` nesten setning for
+setning. `android/ARCHITECTURE.md` er eieren. Backend-instansen har opprydding
+av §14–§16 som oppgave; ikke rør dem i mellomtiden, og ikke oppdater begge sider
+hvis noe endrer seg — endre hos eieren og la dubletten være.
+
+### Filene du skal kjenne ved navn
+
+Denne fila er den ene alle leser. Resten må du gå til selv:
+
+| Fil | Hva den er |
+|---|---|
+| `core/ARCHITECTURE.md` | Kjernens beslutningslogg: modultabell, numerikk-avvik, CV-kontrakt, MPI-beslutningen, auto-capture, FFI, verifisering |
+| `android/ARCHITECTURE.md` | Klientens beslutningslogg: nettverkslag, Keystore/økt, nøkkellagene, soft-delete, broen til kjernen |
+| `android/KONTRAKT.md` | Det andre kan stole på: `retryable`, sidecar v2 + `tag`-enumet, blobens ytre format, gravsteiner |
+| `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor + bygg/CI for alle tre |
+| `docs/flytskjema.md` | Mermaid: CV-flyten (auto-capture, analyse, statuskoder) og skjermflyten |
+| `AAPNE_PUNKTER.md` | Alt som ikke kan besluttes i kode — `TODO(eier)`, ukalibrerte verdier, åpne spec-punkter, med punkt-ID |
+| `backend_spec.md` | Endepunktene, tokens, kvoter, lagring, personvern |
+| `bestefar_CV-kjerne_spec.md` | Kravspec for kjernen |
+| `bestefar_UI_spec-v0-4.md` | UI/UX-spec + endringslogg per runde |
 
 ---
 
 ## 5. Miljø
 
 ```powershell
-# Python finnes ikke på PATH. Backend-venv:
-C:\Users\mrlee\Desktop\Bestefar\backend\.venv\Scripts\python.exe
+# CV-pipelinen (cv2, scipy):
+.venv\Scripts\python.exe
+
+# Backenden (fastapi, sqlalchemy, psycopg) — EGEN venv, ikke bland dem:
+backend\.venv\Scripts\python.exe
 
 # Gradle trenger Android Studios JBR:
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# gh er installert, men ikke på PATH i skall som startet før installasjonen:
+& "C:\Program Files\GitHub CLI\gh.exe"      # sjekk med `where.exe gh`
 ```
 
-I Bash-verktøyet må stier som sendes til `python.exe` skrives `C:/Users/...` —
-den er en Windows-binær og forstår ikke `/c/Users/...`.
+- **`python`, `py` og `python3` finnes ikke.** De peker på Microsoft
+  Store-stubben («Python was not found») eller på en tolk uten `cv2`/`scipy`.
+  **Denne fella kostet en hel sesjon.** Symptomet er lumsk: du «kjører» et
+  script, melder at fila er oppdatert, men ingenting ble skrevet — brukeren ser
+  den gamle fila. **Sjekk alltid at scriptet faktisk skrev forventet utdata før
+  du melder OK.**
+- Det finnes en tredje venv, `.Bestefar\`, som mangler `scipy`. Ikke bruk den.
+- I Bash-verktøyet må stier som sendes til `python.exe` skrives `C:/Users/...` —
+  den er en Windows-binær og forstår ikke `/c/Users/...`.
+- Konsollen er cp1252. Unngå ikke-ASCII (λ, δ) i `print`.
+- Doble anførselstegn *inne i* argumenter til native exe brekker
+  argument-parsingen i PowerShell 5.1. Bruk `-F melding.txt` framfor
+  `git commit -m "…"`.
+- **Filnavn skal være ASCII.** PowerShell 5.1 mangler æøå når filnavn sendes
+  videre til `git.exe` — `git mv` svarer «fatal: bad source». Innholdet skal ha
+  norske tegn; filnavnet skal ikke.
 
 **Hemmeligheter settes av utvikler selv**, med
 `flyctl secrets set NAVN=verdi -a bestefar-api`. Passord, tokens og nøkler skal
@@ -192,3 +233,122 @@ cd android; .\gradlew assembleDebug
 ```
 
 Rapporter utfallet slik det faktisk ble. Feiler noe, si det med utdraget.
+
+---
+
+## 7. Feller og lærdommer
+
+Destillert fra `CLAUDE_CONTEXT.txt`, som ble slettet 2026-08-07 — den var en
+dokumentasjonskanal ingen instans leste automatisk. Hele den gamle fila med alle
+rundenotatene ligger i git-historikken (`git show <commit>^:CLAUDE_CONTEXT.txt`).
+Det som sto der om *hvorfor koden ser ut som den gjør*, er flyttet til
+beslutningsloggene; det som står her, er feil vi kan gjøre om igjen.
+
+**Fører du opp noe nytt:** skriv det som en regel, ikke som en hendelse. Og
+slett punktet når det ikke lenger kan skje.
+
+### 7.1 Når tre instanser deler én arbeidskopi
+
+- **Git-indeksen er felles.** `git add` + `git commit` i to steg har allerede
+  ført til at en hel runde havnet i en annen instans' commit — pushet, og da
+  kan den ikke skrives om. Bruk `git commit <sti> … -F melding.txt` med
+  **eksplisitte stier på selve commit-kommandoen**. Tidsvinduet mellom `add` og
+  `commit` er hele problemet.
+- **Delte filer redigeres samtidig.** Edit-verktøyet melder «modified since
+  read». Ta det varselet alvorlig: gjør små, målrettede endringer og les
+  regionen på nytt rett før du skriver noe som avhenger av konteksten rundt.
+- **Bruk aldri Write på en delt fil.** En full overskriving av
+  `til_utvikler_v0NN.md` slettet en annen instans' seksjon som måtte skrives på
+  nytt. Sjekk om fila finnes (`git ls-files`) og legg til nederst.
+- **Les speccen på nytt før du skriver kode mot et endepunkt du selv har
+  «foreslått».** Det kan allerede være bygget, med en annen rute enn din.
+- **Ikke kjør `flyctl` fra to instanser samtidig.** `~/.fly/config.yml` ble
+  skrevet full av NUL-bytes og måtte gjenopprettes med `flyctl auth login`.
+- **Eierens filer endrer seg underveis.** Får du `FileNotFoundError` på en fil
+  du nettopp listet: list på nytt.
+
+### 7.2 Ting som ødelegger ekte data
+
+- **Kjør aldri testsuiten mot produksjonsdatabasen.** `conftest` gjør
+  `alembic downgrade base`, som dropper alle tabeller.
+- **Sjekk hva som ligger der før du skriver til en produksjonskonto.** En
+  testblob ble lagt i utviklerens egen backup uten at `GET /v1/backup/meta` var
+  sjekket først. 409-vernet stopper bare *eldre* innsendinger.
+- **Rydd aldri i samme kjøring som produserer data du kan trenge igjen.** Et
+  `rm` på slutten av scriptet som skrev og leste filene kjørte selv om lesingen
+  feilet — og engangskoden var brukt opp.
+- **Hemmeligheter settes av utvikler selv**, med
+  `flyctl secrets set NAVN=verdi -a bestefar-api`. Passord, tokens og nøkler skal
+  aldri inn i chat-loggen. Trenger du en secret satt, be om det — ikke generer
+  den og ikke skriv den ut.
+
+### 7.3 Designregler som er kjøpt dyrt
+
+- **Lager du et enkeltpunkt, bygg utskiftningsveien i samme runde.**
+  `BACKUP_ESCROW_SECRET` var uerstattelig, og advarselen var en kommentar som sa
+  «roteres ALDRI uten en plan». En advarsel i en kommentar er ikke et tiltak.
+- **En feil som først oppdages når en bruker rammes, er en designfeil.** En
+  feilsatt escrow-hemmelighet ville vist seg første gang noen prøvde å
+  gjenopprette kopien sin. Derfor nøkkel-ID på raden og status i `/health`.
+- **«Privat som standard» uten en bryter er «aldri».** Skadedata var
+  implementert som «ingen bryter, aldri lagret», og det gjorde den mest
+  verdifulle delen av forskningsmaterialet umulig å samle inn. Standardverdien
+  `False` oppfyller kravet; umulighet er noe annet.
+- **Slå aldri sammen delingsvalg med ulik sosial kostnad.** «Jeg skjøt stående
+  på 85 meter» og «dyret ble skadeskutt og aldri funnet» er ikke samme
+  opplysning å dele om seg selv.
+- **En sletting skal ikke i stillhet skru av en innstilling**, og veien *ut* av
+  et personvernvalg skal aldri kunne feile på en driftsinnstilling.
+- **Endres speccen, skriv hvorfor — ikke stryk det gamle.** §13 forbød et
+  «gjenopprett kopien min»-endepunkt; deponering ble likevel bygget. Forbudet
+  gjaldt å hjelpe *uten* nøkkelen, så setningen fikk stå og endringen ble
+  forklart. En spec der gamle forbud bare forsvinner, kan ingen stole på.
+- **Funksjonalitet som skal pauses: bruk ett navngitt flagg** som alle
+  inngangene sjekker (`Dialogs.RESEARCH_ENABLED`, `RESEARCH_ENABLED`). Ikke
+  slett kode.
+- **Når en teller eller knapp gjelder backend, sjekk at det finnes en sender.**
+  Tre plassholdere i UI-et løy i månedsvis: en kø ingen tømte, en teller som bare
+  kunne vokse, og en knapp som viste kvittering uten å sende.
+
+### 7.4 Arbeidsmåte
+
+- **Sjekk API-et i modulen før du kaller det**, også i moduler du har lest før.
+  `database.session()` finnes ikke; `db.py` har `db()` som FastAPI-avhengighet.
+- **Sjekk ruten i routeren før du skriver testen.** Fire tester feilet på 405
+  fordi `PATCH` ble gjettet der ruten er `PUT`.
+- **Ikke les en datert layout-tabell som fasit.** `docs/ARCHITECTURE.md`
+  (2026-07-05) beskrev en beslutningslogg som aldri har eksistert, utelot fire
+  kataloger, og kalte backenden «FastAPI + SQLite … tre routere» da den var
+  Postgres med fjorten. Verifiser mot `git ls-files`.
+- **Når brukeren sier «X ble ikke implementert» men koden finnes:** sjekk om de
+  testet en eldre APK, eller om feltet bare vises betinget.
+- **Når du innfører en tidsgrense, sjekk hvem som allerede kaller endepunktet i
+  løkke.** Sperrefristen på «send ny kode» brøt ni innloggingstester.
+- **Les grensen fra `settings()` i tester.** En test som hardkodet kvoten 5
+  feilet da kvoten ble hevet til 10 — på kvoten, ikke på oppførselen.
+
+### 7.5 Områdespesifikke feller
+
+Detaljene bor i beslutningsloggene; dette er stikkordene som er verdt å huske
+på tvers.
+
+**Kjerne** — Python-referansen er fasit, og de to bevisste avvikene (alle
+kantpunkter i stedet for subsampling; rekalibrerte NCC-terskler) er begrunnet i
+`core/ARCHITECTURE.md`. Feilsøkingsmetoden som virker: dump C++-cropen, kjør
+Python-stadiene på den, binærsøk i stadiekjeden.
+
+**Backend** — legger du til en forelder og et barn i samme flush *uten* en
+`relationship()` mellom dem, må du `flush()` imellom; SQLite sier ingenting
+(`PRAGMA foreign_keys` er av som standard) og feilen dukker først opp i CI mot
+Postgres. Lager du en engine i en test eller i `env.py`, må du `dispose()` den.
+Autogenerate kan ikke brukes: mot SQLite rapporterer den hele
+`research`-skjemaet som slettet. Naiv vs. aware datetime er løst med
+`UtcDateTime` i `models/base.py` — ikke oppgi `mapped_column(DateTime, …)`.
+
+**Klient** — `Ui.themeColor` må slå opp ColorStateList-attributter (særlig
+`android:textColorPrimary`); er noe tintet med tekstfargen «usynlig», mistenk
+theme-attr-oppløsning først. En KDoc som inneholder `/*` (f.eks. en sti med
+`/v1/auth/*` i backticks) åpner en nestet kommentar og gjør resten av fila til
+kommentar — feilmeldingen peker aldri på årsaken. `targetSdk` 36 gjør
+`statusBarColor` til en no-op; appen tegner systemlinjene selv.
+`androidx.security:security-crypto` er avviklet — Keystore direkte.

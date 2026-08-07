@@ -284,6 +284,22 @@ oppsettet skal avvikles.
 Gjelder lederavstemning og inaktiv-leder-utfordring, begge med 7-dagers frist.
 Åpent: hva som skal kalle det — Fly cron, ekstern pinger, eller noe annet.
 
+### ÅP-U12 — Klienten bygges ikke av noen automatikk · label `ui`
+> «Deaktivert til OpenCV-Android-SDK-nedlasting er kablet inn i workflowen.»
+> — `.github/workflows/ci.yml`, `android`-jobben, `if: false`
+
+Jobben står i CI-oppsettet med navn og steg, men kjører aldri. Det er en
+byggegaranti som **ser ut til å finnes uten å gjøre det** — verre enn ingen
+jobb, fordi en grønn CI-kjøring leses som at klienten kompilerer. Et brudd i
+Kotlin-koden fanges i dag bare av at noen kjører `gradlew assembleDebug` lokalt.
+
+Åpent: om SDK-nedlastingen skal kables inn (steget finnes allerede i
+workflowen, deaktivert sammen med resten), om jobben skal bruke en
+forhåndsbygget container med OpenCV, eller om den skal fjernes så oppsettet
+slutter å love noe det ikke holder. Alle tre er farbare; valget er ikke tatt.
+
+Se `docs/ARCHITECTURE.md`, «Bygg/CI».
+
 ### ÅP-B8 — Manuell moderasjonskø for visningsnavn mangler flate · label `backend`
 > «Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
 > regelsettet **godkjennes derfor direkte**.»

@@ -4,6 +4,11 @@
 teksten. `backend_spec.md` og `android/ARCHITECTURE.md` skal **peke hit**, ikke
 gjenta — en regel som står tre steder, blir før eller siden tre ulike regler.
 
+**Hva som hører hjemme her:** det andre kan stole på. Ytre formater, statuskoder,
+hva som må sendes. **Ikke** hvorfor klienten valgte som den gjorde — det er
+beslutninger, og de bor i `android/ARCHITECTURE.md`. Serveren lagrer bytes den
+ikke kan lese, og bryr seg ikke om hvordan nøkkelen ble til.
+
 Opprettet 2026-08-07 som del av dokumentsplitten (se `docs/ARCHITECTURE.md`).
 Teksten er flyttet ordrett fra `backend_spec.md` §12/§13 og det gamle
 `docs/ARCHITECTURE.md`.
@@ -44,24 +49,18 @@ Feltnavnene mappes 1:1 til multipart-feltene i `POST /v1/failed-analyses`.
 
 ## 3. Sikkerhetskopiens blob — bytene serveren ikke kan lese
 
-Serveren lagrer denne bloben ugjennomsiktig. Formatet står her bare så
-backend-siden vet hva bytene *er*; ingenting av det kan valideres server-side.
-
-**Blob-format** (`Backup.kt`):
+**Ytre format** (`Backup.kt`):
 `"BFBK" | 1 B versjon | 16 B salt | 12 B IV | AES-256-GCM (tag 128 bit)`.
-Klartekst er JSON: `{v, app, ts, prefs, series[], hunts[]}` — `series`/`hunts`
-er **rå**, altså inkludert soft-slettede poster.
 
-**Nøkkel:** PBKDF2-HMAC-SHA256, 210 000 runder, over en generert
-gjenopprettingskode på 20 tegn (Crockford-base32 minus I/L/O/U ⇒ 100 bit).
-Ikke et brukervalgt passord: angriperen har hele bloben og kan gjette offline,
-så ingen server kan bremse ham. Konsekvensen står i UI-et — mister brukeren
-koden, er kopien tapt, og **serveren kan ikke hjelpe**.
+Alt etter de fire magiske bytene og versjonsbyten er ugjennomsiktig. Ingenting av
+innholdet kan valideres server-side. Hvordan nøkkelen utledes, er en
+klientbeslutning som ikke angår serveren — `android/ARCHITECTURE.md`.
 
-Det gjelder fortsatt så lenge nøkkelen er brukerens. Den ene ærlige måten å
-hjelpe på er at brukeren uttrykkelig gir oss nøkkelen — se `backend_spec.md`
-§2.1. Ikke bygg noen annen vei inn; en «gjenopprett kopien min» uten det
-samtykket finnes det ingen implementasjon av som er sann.
+**Det ene serveren må vite om nøkkelen:** den er brukerens, og **serveren kan
+ikke hjelpe** en bruker som har mistet den. Den ene ærlige måten å hjelpe på er
+at brukeren uttrykkelig gir oss nøkkelen — se `backend_spec.md` §2.1. Ikke bygg
+noen annen vei inn; en «gjenopprett kopien min» uten det samtykket finnes det
+ingen implementasjon av som er sann.
 
 **Opplasting:** klienten bruker `client_ts` = tidspunktet snapshotet ble laget,
 og setter `?force=true` kun når brukeren har svart ja på «overskriv den nyere
@@ -72,19 +71,24 @@ kopien». 409 vises som en egen dialog, ikke som en feil.
 ## 4. Nøkkeldeponering — hva `key_material` inneholder
 
 `key_material` er base64 av ugjennomsiktige byte (≤ 512 byte). Serveren bryr seg
-ikke om det er en nøkkel eller en gjenopprettingskode.
+ikke om det er en nøkkel eller en gjenopprettingskode, og skal ikke tolke dem.
 
-Konkret fra klienten: det er **gjenopprettingskoden som ASCII, base64-kodet**.
-Bryteren «Gjenopprett uten kode» er av som standard og går tilbake til av hvis
-`PUT` ikke svarer 2xx, og **503 vises som «ikke slått på på serveren»**, ikke
-som en feil brukeren har gjort.
+**503 betyr «ikke slått på på serveren»**, og vises som det — ikke som en feil
+brukeren har gjort. Bryteren går tilbake til av hvis `PUT` ikke svarer 2xx.
 
-## 5. Soft-delete — gravsteiner går over ledningen
+## 5. Gravsteiner sendes, de utelates ikke
 
-`SeriesRecord.deletedAt` / `HuntRecord.deletedAt` (0 = lever). Gravsteinene
-ligger i bloben, så last-write-wins per post-ID kan faktisk håndheves ved
-gjenoppretting. **Når §5-synken kommer, må slettede poster sendes som gravstein
-— ikke utelates.**
+En slettet serie eller jaktpost forsvinner ikke fra det som går over ledningen —
+den sendes som gravstein. Uten den finnes ingen forskjell på «har aldri
+eksistert» og «brukeren slettet den», og last-write-wins per post-ID kan ikke
+håndheves ved gjenoppretting.
+
+I bloben ligger `series`/`hunts` derfor **rå**, altså inkludert de slettede.
+**Når §5-synken kommer, gjelder det samme der: slettede poster sendes som
+gravstein, ikke utelates.**
+
+Hvordan gravsteinene er representert internt, og hvordan visningskoden skjermes
+fra dem, står i `android/ARCHITECTURE.md`.
 
 ---
 
@@ -93,6 +97,6 @@ gjenoppretting. **Når §5-synken kommer, må slettede poster sendes som gravste
 | Tema | Eier |
 |---|---|
 | Endepunktene selv, tokens, kvoter | `backend_spec.md` |
-| Klientens interne arkitektur | `android/ARCHITECTURE.md` |
+| Klientens interne arkitektur og begrunnelser | `android/ARCHITECTURE.md` |
 | CV-kontrakten (`BfResult`, statuskoder) | `core/ARCHITECTURE.md` |
 | Skjermflyt | `docs/flytskjema.md` |
