@@ -126,8 +126,14 @@ Konkret feltinnhold i forskningsdatasettet er fortsatt IKKE avklart — se
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m alembic upgrade head
-.\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "hva du endret"
+.\.venv\Scripts\python.exe -m alembic revision -m "hva du endret"    # tom, fylles ut for haand
 ```
+
+**Migrasjonene skrives for haand.** `--autogenerate` er ikke brukbart mot
+SQLite: `schema_translate_map` gjoer `research`-skjemaet usynlig for
+refleksjon, saa Alembic foreslaar aa slette hele skjemaet. Vil du ha et utkast,
+kjoer autogenerate mot en Postgres-base (`TEST_DATABASE_URL`) og les resultatet
+som et utkast, ikke som en migrasjon.
 
 I produksjon kjoerer `alembic upgrade head` som `release_command` i `fly.toml`,
 altsaa FOER den nye versjonen slippes til. Feiler migrasjonen, stanses

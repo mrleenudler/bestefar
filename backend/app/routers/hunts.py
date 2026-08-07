@@ -60,7 +60,11 @@ def _venner(s: OrmSession, user_id: str) -> list[str]:
 def announce_kill(body: AnnounceIn, user: User = Depends(current_user),
                   s: OrmSession = Depends(db)) -> dict:
     """
-    Sender «{navn} har felt et {art} i {kommune}» til vennene som push.
+    Sender «{navn} har felt {art} i {kommune}» til vennene som push.
+
+    Artikkelen ligger i `species`-strengen klienten sender («et villsvin»), ikke
+    her - boeyningen er klientens (Announce.speciesPhrase). Serveren limer bare
+    sammen, saa forhaandsvisningen brukeren saa er ordrett den vennene faar.
 
     Krever `share_kills` (§3). Bryteren fantes allerede i delingsvalgene, og
     det er den samme brukeren sa ja til - vi lager ingen ny.
@@ -99,6 +103,6 @@ def announce_kill(body: AnnounceIn, user: User = Depends(current_user),
 
     user.hunt_announced_at = naa
     s.commit()
-    # `friends_notified` er antall ENHETER som fikk varselet, ikke antall
+    # `devices_notified` er antall ENHETER som fikk varselet, ikke antall
     # venner. Klienten skal ikke love brukeren mer enn det som faktisk skjedde.
     return {"status": "sendt", "message": tekst, "devices_notified": sendt}

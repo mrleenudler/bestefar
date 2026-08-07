@@ -519,82 +519,80 @@ frivillig nøkkeldeponering (§2.1), som brukeren må slå på selv.
   hvilken som eier sannheten. Forslag: bloben eier «alt mitt», `/v1/stats` eier
   det som skal kunne deles/aggregeres.
 
-## 14. Klientens økthåndtering (Android, v0.16)
-Svar på de to punktene backend meldte som «må håndteres av klienten». Begge er
-implementert i v0.16; dette står her så begge sider vet at kontrakten holdes.
+## 14–16. Klientsiden av §1 og §11
 
-- **`/logout` gjør ikke access-tokenet ugyldig, og klienten later ikke som.**
-  `Auth.logout()` kaller `POST /v1/devices/unregister` *først* (mens tokenet
-  fortsatt virker), så `POST /v1/auth/logout`, og sletter deretter **begge**
-  tokenene lokalt — også når nettet er nede. Rekkefølgen er poenget: en
-  utlogging som avbrytes av dårlig dekning skal ikke etterlate et gyldig
-  access-token og en telefon som fortsetter å få varsler.
-- **Aldri to `/refresh` parallelt.** `Auth.refresh()` er `@Synchronized` og er
-  eneste vei inn. En tråd som ventet på låsen sjekker om tokenet allerede er
-  fornyet og gjør da ingenting. `Api` prøver en forespørsel på nytt etter 401
-  **nøyaktig én gang**; auth-kallene selv går med `authRetry = false`, ellers
-  hadde et 401 fra `/refresh` utløst en ny fornyelse i ring.
-- **Tokenene ligger ikke i klartekst.** `Secrets.kt` krypterer dem med en
-  AES-256-GCM-nøkkel i Android Keystore, i en **egen** prefs-fil. Grunnen er
-  konkret: `Store.exportPrefs()` er generisk over hele `bestefar_ui`, så et
-  token lagret der ville havnet inne i sikkerhetskopien. `authToken`,
-  `authExpiresAt` og `pushToken` er dessuten eksplisitt utelatt fra kopien —
-  de hører til telefonen, ikke til dataene.
-- **Utlogging sletter ikke lokale data.** Verken serier, jaktlogg eller
-  gjenopprettingskode. En app som mister loggen når man logger ut, er en app
-  ingen tør logge ut av.
+*Redusert til pekere 2026-08-07.* Disse tre paragrafene gjentok
+`android/ARCHITECTURE.md` nesten setning for setning. **En invariant eies av den
+som håndhever den**, og alt som sto her, håndheves i klienten. Under står bare
+det serveren selv håndhever.
 
-## 15. Klientens innlogging (Android, v0.17)
-§1-flyten finnes nå i appen. Det som betyr noe for backend-siden:
+### 14. Klientens økthåndtering (Android, v0.16)
 
-- **Credential Manager**, ikke den utfasede Google Sign-In-SDK-en. Klienten
-  bruker `GetSignInWithGoogleOption` — den eksplisitte knappeflyten — fordi den
-  filtrerte bunnarken feiler for en bruker som aldri har logget inn før.
-- **`aud` blir WEB-klient-ID-en** (`client_type: 3` i `google-services.json`),
-  ikke Android-klient-ID-en. Det er den som må stå i `GOOGLE_CLIENT_IDS`:
+Hva klienten garanterer: `android/KONTRAKT.md` §6. Hvorfor den er bygget slik:
+`android/ARCHITECTURE.md`, «Økt og hemmeligheter».
+
+Det serveren håndhever står i §1, og gjentas ikke her. Verifisert mot
+`services/tokens.py` og `routers/auth.py` 2026-08-07:
+
+- `POST /v1/auth/logout` setter `revoked_at` på **refresh-tokenets rad, og bare
+  den**. Access-tokenet er et statsløst JWT som lever ut sine 60 minutter
+  uansett — det finnes ingen sperreliste. Endepunktet er idempotent: ukjent
+  eller allerede tilbakekalt token gir også 204, fordi en utlogging som feiler
+  etterlater klienten i tro om at den fortsatt er innlogget.
+- `POST /v1/auth/refresh` roterer: den gamle raden merkes `revoked_at` og en ny
+  utstedes. Dukker et **allerede tilbakekalt** token opp, tilbakekalles *alle*
+  brukerens økter (`auth.py`, `forny`). Serveren kan ikke skille en kopi på
+  avveie fra et dobbeltkjørt kall, så den velger det trygge.
+
+  **Dette gir serveren en avhengighet til klienten** som er verdt å si høyt: to
+  parallelle `/refresh` med samme token ser ut som et tyveri og logger brukeren
+  ut overalt. Klienten garanterer serialisering — `android/KONTRAKT.md` §6.
+
+### 15. Klientens innlogging (Android, v0.17)
+
+Klientflyten (Credential Manager, knappeflyt framfor bunnark, ingen hardkodet
+sperrefrist): `android/ARCHITECTURE.md`, `Login.kt`.
+
+Det serveren håndhever:
+
+- **`aud` sjekkes mot `GOOGLE_CLIENT_IDS`.** Verdien skal være **WEB**-klient-ID-en
+  (`client_type: 3` i `google-services.json`), ikke Android-klient-ID-en:
   `977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com`.
-  Til den står der, svarer `/v1/auth/google` 503, og klienten viser
-  «Innlogging er ikke slått på på serveren ennå» — ikke en feilmelding brukeren
-  kan gjøre noe med, men en ærlig en.
-- **Klienten hardkoder ikke sperrefristen.** `resend_after_seconds` fra
-  202-svaret på `/email/start` styrer nedtellingen på «Send ny kode». Endres
-  `EMAIL_CODE_RESEND_COOLDOWN_SECONDS`, følger klienten etter uten ny bygging.
-  429 er fortsatt det som håndhever fristen; nedtellingen er kosmetikk.
-- **Auth-kallene går med `authRetry = false`**, så et 401 fra `/v1/auth/*`
-  aldri utløser en fornyelse i ring.
-- **`PUT /v1/devices` kalles ikke ennå** — FCM er ikke koblet inn i klienten.
-  Konsekvensen er at ingen push når fram, heller ikke felling-kunngjøringen fra
-  §3. `Store.pushToken` finnes og brukes av utloggingen; den står bare tom.
-- **Apple er ikke bygget** i klienten (utviklerkonto på is). Endepunktet er
-  klart og røres ikke.
+  Tom liste ⇒ `/v1/auth/google` svarer 503 (`services/oidc.py`). Ikke satt ennå
+  — `AAPNE_PUNKTER.md` ÅP-E4.
+- **Sperrefristen på «send ny kode» håndheves med 429 + `Retry-After`**, og
+  verdiene ligger i 202-svaret. Detaljene i §1.
+- **Apple:** `/v1/auth/apple` finnes og er uendret. `APPLE_CLIENT_IDS` er ikke
+  satt, så den svarer 503 — ÅP-E5.
 
-## 16. Klientens push-mottak (Android, v0.18)
-§11-kjeden er hel. Det som betyr noe for backend-siden:
+### 16. Klientens push-mottak (Android, v0.18)
 
-- **`PUT /v1/devices` kalles nå** — ved hver appstart, og rett etter innlogging.
-  Idempotensen er tatt på ordet: klienten har ingen «allerede registrert»-flagg,
-  fordi et slikt flagg kan bli feil uten at noen merker det. Kroppen er
-  `{push_token, platform:"android", app_version, model}`.
-- **Registrering krever konto.** Uten innlogging hentes FCM-tokenet ikke engang.
-  Et varsel er alltid til noen, og uten bruker har vi ingen å knytte adressen
-  til.
-- **`onNewToken` melder fra ved rotasjon.** Firebase bytter token ved
-  reinstallasjon, gjenoppretting og tømt app-data. Uten dette ville
-  devices-raden pekt på en adresse som ikke finnes, og de døde tokenene deres
-  ville bare blitt ryddet bort ved neste utsending.
-- **`notification`-blokka i `push.py` har en konsekvens klienten må leve med:**
-  Android tegner varselet selv når appen er i bakgrunnen, og
-  `onMessageReceived` kalles kun i forgrunnen. Begge stiene er implementert.
-  Om dere noen gang bytter til en ren `data`-melding, får klienten *alle*
-  varsler gjennom tjenesten — det vil virke, men det er en endring dere bør si
-  fra om, siden utseendet da styres av kode i stedet for av manifestet.
-- **`data`-feltene brukes ikke til ruting ennå.** `kind` og `team_id` kommer
-  fram og ignoreres; alle varsler åpner forsiden. Behold dem — de trengs den
-  dagen venne- og lagsidene har innhold.
-- **Gjenstår hos eier:** `FCM_SERVICE_ACCOUNT_JSON` og `FCM_PROJECT_ID` som
-  Fly-secrets. Uten dem sender backenden ingenting, og klienten kan ikke skille
-  det fra «ingen venner hadde varsler på».
-- **Meldingskøen (`/v1/messages`) leses fortsatt ikke av klienten.** Køen er
-  garantien for §11-varsler, pushen er bare rask levering — så lenge klienten
-  ikke henter køen, er et varsel som gikk tapt (telefon av) tapt for brukeren.
-  Det er neste steg på klientsiden.
+Klientsiden (kanal, tillatelse, forgrunn/bakgrunn): `android/ARCHITECTURE.md`,
+`Push.kt`/`PushService.kt`.
+
+Det serveren håndhever og sender. Verifisert mot `routers/devices.py` og
+`services/push.py` 2026-08-07:
+
+- **`PUT /v1/devices` er idempotent på `push_token`**, ikke på bruker: finnes
+  tokenet allerede under en annen konto, **flytter raden seg** til den som nå
+  registrerer. Ellers ville varsler til forrige bruker havnet på en telefon som
+  nå er logget inn som noen andre.
+- **`GET /v1/devices` returnerer aldri `push_token`.** Det gir ingen nytte i
+  klienten, og et svar er et sted det kan lekke.
+- **`POST /v1/devices/unregister` rører bare egne enheter.** Uten det filteret
+  kunne hvem som helst skrudd av varslene til en annen ved å gjette et token.
+  Ukjent token gir også 204.
+- **Vi sender en `notification`-blokk** (`push.py`, `_melding`), pluss
+  `data` og `android.priority: "high"`. Konsekvensen — at Android tegner
+  varselet selv i bakgrunnen — er klientens å leve med, og et bytte til ren
+  `data`-melding er en endring vi må varsle om, ikke gjøre stille.
+- **Alle `data`-verdier sendes som strenger.** FCM avviser tall og `null`, og
+  `None`-verdier fjernes helt.
+- **Døde tokens slettes** ved `UNREGISTERED`, `INVALID_ARGUMENT` eller
+  `NOT_FOUND`. Uten det vokser `devices` med adresser vi aldri når, og hver av
+  dem koster et kall av budsjettet ved neste varsel.
+- **`PUSH_BUDGET_SECONDS` avbryter resten av runden.** Det er ikke datatap:
+  meldingskøen (§11) er garantien, push er rask levering.
+- **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
+  `"push":"log"`. `FCM_PROJECT_ID` leses fra JSON-en om den står tom. Ingen av
+  dem er satt — ÅP-E3.

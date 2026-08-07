@@ -269,6 +269,22 @@ Speccen sier bilder skal ligge i objektlagring, aldri i databasen
 men backenden bruker det ikke. Åpent: om feilanalysebildene skal dit nå eller om
 oppsettet skal avvikles.
 
+### ÅP-B9 — Feedback-kvoten teller i minnet, per maskin · label `backend`
+> «Holder for MVP med én maskin. Ved flere Fly-maskiner er telleren per maskin —
+> den reelle grensen blir da N x limit.»
+> — `backend/app/ratelimit.py`, modul-docstring
+
+`FEEDBACK_RATE_PER_HOUR` er 5, men Fly kjører to maskiner, så den faktiske
+grensen er 10 per IP per time. E-postkodene ble flyttet til basen av nettopp
+denne grunnen; `/v1/feedback` ble stående igjen.
+
+Åpent: om grensen skal flyttes til basen slik `services/quarantine.py` og
+e-postkodene allerede er, eller om 10/time er en akseptabel grense — i så fall
+bør tallet i konfigurasjonen si det, ikke halvparten av det.
+
+Merk at selve verdien 5 heller ikke har noen dokumentert begrunnelse
+(`backend/BESLUTNINGER.md`, «uten dokumentert begrunnelse»).
+
 ### ÅP-B6 — `GET /v1/teams/near` sorterer i Python · label `backend`
 > «Det holder lenge, men må byttes til PostGIS eller en geohash-kolonne når
 > tabellen vokser.»

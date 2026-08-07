@@ -90,6 +90,24 @@ gravstein, ikke utelates.**
 Hvordan gravsteinene er representert internt, og hvordan visningskoden skjermes
 fra dem, står i `android/ARCHITECTURE.md`.
 
+## 6. Øktoppførsel serveren kan regne med
+
+Serverens tyverideteksjon (`backend_spec.md` §1, §14) hviler på disse tre. Uten
+dem ser normal bruk ut som et tokentyveri, og brukeren logges ut overalt.
+
+- **Aldri to `/v1/auth/refresh` parallelt med samme token.** Fornyelse er
+  serialisert bak én lås, og en tråd som ventet sjekker om tokenet allerede er
+  fornyet før den prøver selv.
+- **Én omprøving etter 401, ikke flere.** Kall mot `/v1/auth/*` prøves aldri om
+  igjen, så et 401 fra `/refresh` ikke utløser fornyelse i ring.
+- **Utlogging skjer i fast rekkefølge:** `POST /v1/devices/unregister` først —
+  mens access-tokenet fortsatt virker — så `POST /v1/auth/logout`, og deretter
+  slettes begge tokenene lokalt uansett utfall, også offline. En utlogging som
+  avbrytes av dårlig dekning skal ikke etterlate en telefon som fortsetter å få
+  varsler.
+
+Hvorfor det er løst slik, og hvor tokenene ligger: `android/ARCHITECTURE.md`.
+
 ---
 
 ## Hvor resten står

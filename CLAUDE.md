@@ -151,11 +151,13 @@ En regel som står to steder blir før eller siden to ulike regler.
 | Feller og lærdommer | denne fila, §7 |
 | Skjermflyt og CV-flyt (mermaid) | `docs/flytskjema.md` |
 
-**Kjent dublett, under opprydding:** `backend_spec.md` §14–§16 (økthåndtering,
-innlogging, push-mottak) gjentar `android/ARCHITECTURE.md` nesten setning for
-setning. `android/ARCHITECTURE.md` er eieren. Backend-instansen har opprydding
-av §14–§16 som oppgave; ikke rør dem i mellomtiden, og ikke oppdater begge sider
-hvis noe endrer seg — endre hos eieren og la dubletten være.
+**Prinsippet som avgjør hvem som eier hva:** en invariant eies av den som
+**håndhever** den, ikke den som må adlyde. `retryable` eies av klienten selv om
+backend må rette seg etter den; tyverideteksjonen ved refresh eies av serveren
+selv om klienten må unngå å utløse den.
+
+*`backend_spec.md` §14–§16 ble redusert til pekere 2026-08-07 og er ikke lenger
+en dublett.*
 
 ### Filene du skal kjenne ved navn
 
@@ -169,6 +171,9 @@ Denne fila er den ene alle leser. Resten må du gå til selv:
 | `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor + bygg/CI for alle tre |
 | `docs/flytskjema.md` | Mermaid: CV-flyten (auto-capture, analyse, statuskoder) og skjermflyten |
 | `AAPNE_PUNKTER.md` | Alt som ikke kan besluttes i kode — `TODO(eier)`, ukalibrerte verdier, åpne spec-punkter, med punkt-ID |
+| `backend/CLAUDE.md` | Backendens arbeidsinstruks: bygg, invarianter, hva de andre eier |
+| `backend/KONTRAKT.md` | Det backend garanterer utad: statuskoder, idempotens, grenser, hva vi ikke lagrer |
+| `backend/BESLUTNINGER.md` | Backendens beslutningslogg, med en egen liste over valg som mangler dokumentert begrunnelse |
 | `backend_spec.md` | Endepunktene, tokens, kvoter, lagring, personvern |
 | `bestefar_CV-kjerne_spec.md` | Kravspec for kjernen |
 | `bestefar_UI_spec-v0-4.md` | UI/UX-spec + endringslogg per runde |

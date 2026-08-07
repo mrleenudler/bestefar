@@ -84,9 +84,10 @@ class Settings(BaseSettings):
         return [s.strip() for s in self.apple_client_ids.split(",") if s.strip()]
 
     # --- Push (§11, fase 8) ---
-    # Tjenestekontoen fra Firebase, som RÅ JSON i én miljoevariabel. Tom =>
-    # push logges bare, og meldingskoeen alene baerer varselet. Prosjekt-ID-en
-    # leses fra JSON-en om den ikke settes eksplisitt.
+    # Tjenestekontoen fra Firebase, enten som raa JSON eller base64-kodet -
+    # push.py godtar begge (noekkelfilen er flerlinjes, og sitering av den raa
+    # er en felle i PowerShell). Tom => push logges bare, og meldingskoeen alene
+    # baerer varselet. Prosjekt-ID-en leses fra JSON-en om den ikke settes.
     fcm_service_account_json: str = ""
     fcm_project_id: str = ""
     # Per HTTP-kall mot FCM. Kort med vilje: kallet skjer inne i
