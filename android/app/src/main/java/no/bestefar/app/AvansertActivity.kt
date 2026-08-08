@@ -383,9 +383,34 @@ class AvansertActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Spør serveren FØRST om det finnes noe å gjenopprette (`GET
+     * /v1/backup/meta`). Uten det steget ville en bruker uten kopi blitt bedt om
+     * gjenopprettingskoden sin, tastet den, og først da fått «ingen
+     * sikkerhetskopi funnet» — svaret på et spørsmål de ikke stilte.
+     *
+     * Bare 404 og 401 stopper flyten; det er de to definitive svarene. Er
+     * serveren utilgjengelig, går vi videre til den gamle veien i stedet for å
+     * la et oppslag blokkere en gjenoppretting som ellers kunne gått bra.
+     */
     private fun confirmRestore() {
+        Api.io {
+            val meta = Backup.meta(this)
+            Api.ui {
+                if (isFinishing) return@ui
+                when (meta.code) {
+                    404 -> Ui.toast(this, R.string.backup_none)
+                    401 -> Ui.toast(this, R.string.backup_need_login)
+                    else -> showRestoreConfirm(Backup.metaNaar(meta))
+                }
+            }
+        }
+    }
+
+    private fun showRestoreConfirm(naar: String) {
         Ui.warningDialog(this)
-            .setMessage(R.string.backup_restore_confirm)
+            .setMessage(if (naar.isEmpty()) getString(R.string.backup_restore_confirm)
+                        else getString(R.string.backup_restore_confirm_dated, naar))
             .setPositiveButton(R.string.backup_restore) { _, _ -> doRestore() }
             .setNegativeButton(R.string.cancel, null)
             .show()

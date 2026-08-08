@@ -4,12 +4,6 @@ import android.content.Context
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Meldingskoeen (backend_spec §11).
@@ -42,9 +36,6 @@ object Messages {
 
     private const val TAG = "BestefarMsg"
     private const val PATH = "/v1/messages"
-
-    private val fmt = DateTimeFormatter.ofPattern("d. MMMM yyyy 'kl.' HH:mm",
-        Locale.forLanguageTag("no"))
 
     /**
      * En ventende melding. [created_at] beholdes som den ferdig formaterte
@@ -95,31 +86,11 @@ object Messages {
                 // gjelder et lag.
                 teamId = if (o.isNull("team_id")) null
                          else o.optString("team_id", "").takeIf { it.isNotEmpty() },
-                naar = formatNaar(o.optString("created_at", "")))
+                naar = Ui.norskTid(o.optString("created_at", "")))
         }
     } catch (e: Exception) {
         Log.w(TAG, "Ubrukelig svar fra $PATH", e)
         emptyList()
-    }
-
-    /**
-     * Serveren sender ISO-8601. Den kan komme med offset (`+00:00`), med `Z`,
-     * eller naken - derfor tre forsoek foer vi gir opp. Feiler alle, vises
-     * ingen dato; en raa ISO-streng i et varselvindu er stoey, ikke informasjon.
-     */
-    private fun formatNaar(iso: String): String {
-        if (iso.isBlank()) return ""
-        val zone = ZoneId.systemDefault()
-        val tid = try {
-            OffsetDateTime.parse(iso).atZoneSameInstant(zone).toLocalDateTime()
-        } catch (_: Exception) {
-            try {
-                Instant.parse(iso).atZone(zone).toLocalDateTime()
-            } catch (_: Exception) {
-                try { LocalDateTime.parse(iso) } catch (_: Exception) { null }
-            }
-        }
-        return tid?.format(fmt) ?: ""
     }
 
     // ---------- Kvittering ----------

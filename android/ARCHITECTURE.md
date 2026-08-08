@@ -1,6 +1,6 @@
 # Arkitektur — Android-klienten (`android/`)
 
-**Underlag:** `bestefar_UI_spec-v0-4.md` (UI/UX) og `backend_spec.md` (kontrakt).
+**Underlag:** `bestefar_UI_spec.md` (UI/UX) og `backend_spec.md` (kontrakt).
 Skjermflyten står i `docs/flytskjema.md`; kontrakten mot serveren i
 `android/KONTRAKT.md`; CV-kjernen i `core/ARCHITECTURE.md`.
 
@@ -90,12 +90,22 @@ normaltilstanden, ikke en feil.
 - **`Api.send` med `GET` var i praksis `POST` til og med v0.18.** `request()`
   åpnet alltid utstrømmen, og `HttpURLConnection` gjør en GET om til POST i det
   øyeblikket den åpnes — arvet JDK-oppførsel, ikke en Android-detalj. `GET
-  /v1/backup/meta` og `GET /v1/backup/key-escrow` fikk derfor 405, og
-  405-grenen i `AvansertActivity.confirmEscrow` behandlet symptomet som «ikke
-  konfigurert». Fikset ved å bare åpne utstrømmen når det finnes en kropp å
-  skrive. **Lærdommen er den generelle:** en HTTP-metode som settes ett sted og
-  overstyres et annet, feiler stille — og en feilkode som blir «håndtert» før
-  den er forstått, sementerer feilen.
+  /v1/backup/meta` og `GET /v1/backup/key-escrow` fikk derfor 405. Fikset ved å
+  bare åpne utstrømmen når det finnes en kropp å skrive; `Api.download` var
+  alltid riktig.
+
+  **Det interessante er hvorfor det overlevde tre versjoner.** Ingen av de to
+  kallene kunne rope: `Backup.meta()` hadde **ingen kaller i det hele tatt**, og
+  `BackupKeys.escrowGet()` ble svelget av `resolve()`, som returnerer tom streng
+  både når deponeringen er tom og når kallet ikke nådde fram. Utad så det ut som
+  «ingen nøkkel deponert», og brukeren ble bedt om gjenopprettingskoden — det
+  funksjonen fantes for å slippe. Begge er rettet i v0.19: `meta()` gater
+  gjenopprettingen, og `resolve()` logger alt som ikke er 404.
+
+  `escrowPut` og `escrowDelete` var **ikke** rammet; PUT og DELETE coerces ikke.
+  405-grenen i `AvansertActivity.confirmEscrow` gjelder `escrowPut` og har aldri
+  vært utløst av dette — den er defensiv gjetning uten kjent opphav, som er en
+  beslektet, men annen svakhet.
 - `Push.kt` / `PushService.kt` (v0.18) — FCM. `register()` kalles ved hver
   oppstart (idempotent `PUT /v1/devices`) og er en no-op uten konto.
   **Merk asymmetrien:** backenden sender en `notification`-blokk, så Android

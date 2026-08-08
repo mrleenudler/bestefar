@@ -57,12 +57,13 @@ kompilerer; det gjør bare `gradlew assembleDebug` lokalt.
 
 | Fil | Hva |
 |---|---|
-| `../bestefar_UI_spec-v0-4.md` | UI/UX-kravene + endringslogg per runde. Du eier hele den. |
+| `../bestefar_UI_spec.md` | Kravene, slik de ble skrevet som v0.4. **Ikke omskrevet siden** — les den som hva appen skulle bli. Du eier hele den. |
+| `android/CHANGELOG.md` | Hva hver runde faktisk endret, v0.6→. Nye runder føres inn HER. |
 | `android/ARCHITECTURE.md` | Beslutningsloggen: nettverkslag, Keystore/økt, de tre nøkkellagene, soft-delete, broen til kjernen |
 | `android/KONTRAKT.md` | Det du garanterer utad — `retryable`, sidecar-formatet, blobens ytre format, gravsteiner, øktgarantiene |
 | `android/README.md` | Oppsett for en ny maskin + hvilke filer som gjør hva |
-| `../docs/flytskjema.md` §2 | Skjermflyten som mermaid |
-| `../backend_spec.md` §12–§16 | Klientsiden av kontrakten. Backend eier §0–§11; **rediger kun §12–§16**, og les regionen på nytt rett før du skriver. |
+| `../docs/flytskjema.md` §2–§3 | Skjermflyten og varselflyten som mermaid, avledet fra kode |
+| `../backend_spec.md` §12–§17 | Klientsiden av kontrakten. Backend eier §0–§11; **rediger kun §12–§17**, og les regionen på nytt rett før du skriver. |
 | `../AAPNE_PUNKTER.md` | Det som ikke kan besluttes i kode. UI-punktene er ÅP-U* |
 | `../til_utvikler_v##.md` | Tilbakemelding per runde. **Delt fil** — legg til nederst, aldri `Write` |
 
@@ -136,3 +137,8 @@ Du leser gjerne koden deres. Du redigerer den ikke — issue med label
 - **Ny bryter i Avanserte innstillinger: skriv defaultverdien i KDoc-en**, og
   velg den bevisst. Personvernbrytere er av som standard — men «privat som
   standard» uten en bryter er «aldri», og det er en annen feil.
+- **Ingen «Nytt i v0.NN»-seksjoner i spec eller flytskjema.** Det mønsteret gikk
+  fire stadier og gjorde begge filene uleselige forfra; de ble ryddet
+  2026-08-08. Runden føres i `android/CHANGELOG.md`, og
+  `docs/flytskjema.md` **endres** til å vise den nye nåtilstanden. Et dokument
+  som beskriver appen, og et som forteller hva som skjedde — aldri i samme fil.

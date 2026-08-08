@@ -218,8 +218,28 @@ object Backup {
         return Api.send(ctx, "PUT", "/v1/backup$q", "application/octet-stream", blob)
     }
 
-    /** `GET /v1/backup/meta` — «har jeg noe å gjenopprette?» uten å laste ned alt. */
+    /**
+     * `GET /v1/backup/meta` — «har jeg noe å gjenopprette?» uten å laste ned alt.
+     *
+     * **Dette kallet hadde ingen kaller før v0.19, og virket ikke.** `Api.send`
+     * med `GET` traff serveren som `POST` og fikk 405, og siden ingen kalte det,
+     * merket ingen det. Nå gater den gjenopprettingen: 404 herfra betyr at det
+     * ikke finnes noe å hente, og da skal vi hverken be om en kode eller laste
+     * ned 16 MB for å komme fram til det samme svaret.
+     */
     fun meta(ctx: Context): Api.Resp = Api.send(ctx, "GET", "/v1/backup/meta")
+
+    /**
+     * Tidspunktet kopien ble laget, som norsk tekst — eller tom streng hvis
+     * svaret ikke har et brukbart `client_ts`. Vises i bekreftelsen før en
+     * gjenoppretting: «erstatter alt» er en helt annen beslutning når man vet
+     * om kopien er fra i går eller fra i fjor.
+     */
+    fun metaNaar(resp: Api.Resp): String = try {
+        Ui.norskTid(JSONObject(resp.body).optString("client_ts", ""))
+    } catch (_: Exception) {
+        ""
+    }
 
     /**
      * `GET /v1/backup` + dekryptering + gjenoppretting. Alt lokalt innhold

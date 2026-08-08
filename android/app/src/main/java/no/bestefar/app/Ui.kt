@@ -57,6 +57,31 @@ object Ui {
         layoutParams = LinearLayout.LayoutParams(1, dp(c, h))
     }
 
+    private val tidFmt = java.time.format.DateTimeFormatter.ofPattern(
+        "d. MMMM yyyy 'kl.' HH:mm", java.util.Locale.forLanguageTag("no"))
+
+    /**
+     * ISO-8601 fra serveren -> norsk dato og klokkeslett i telefonens sone.
+     *
+     * Serveren sender med offset, med `Z`, eller nakent, derfor tre forsoek.
+     * Feiler alle, gir vi TOM STRENG - en raa ISO-streng i et vindu er stoey,
+     * ikke informasjon, og kallstedene skal kunne utelate linja helt.
+     */
+    fun norskTid(iso: String): String {
+        if (iso.isBlank()) return ""
+        val sone = java.time.ZoneId.systemDefault()
+        val tid = try {
+            java.time.OffsetDateTime.parse(iso).atZoneSameInstant(sone).toLocalDateTime()
+        } catch (_: Exception) {
+            try {
+                java.time.Instant.parse(iso).atZone(sone).toLocalDateTime()
+            } catch (_: Exception) {
+                try { java.time.LocalDateTime.parse(iso) } catch (_: Exception) { null }
+            }
+        }
+        return tid?.format(tidFmt) ?: ""
+    }
+
     /**
      * Løs opp en tema-attributt til en farge. VIKTIG (musingsUI runde 8):
      * enkelte attributter — særlig android.R.attr.textColorPrimary — peker til en

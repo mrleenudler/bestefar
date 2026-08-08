@@ -284,6 +284,12 @@ klient-krypterte bloben og skal fortsette å gjøre det.
   /v1/backup/meta` og `GET /v1/backup/key-escrow` traff derfor serveren som POST
   og fikk 405. Rettet i v0.19, men **APK-er i felt gjør det fortsatt**, så 405 på
   de to rutene er en gammel klient, ikke et angrep eller en rutefeil.
+  `PUT`/`DELETE` var ikke rammet — bare `GET`.
+- **`GET /v1/backup/meta` ble tatt i bruk først i v0.19.** Kallet har eksistert
+  siden v0.15 uten en eneste kaller, og var ødelagt hele tiden av punktet over.
+  Fra v0.19 gater det gjenopprettingen: 404 stopper flyten før brukeren blir
+  bedt om en kode, og `client_ts` vises i bekreftelsen. Serveren kan altså
+  regne med at ruten treffes fra v0.19 og framover, og knapt nok før det.
 - **Ingen push er verifisert mottatt.** Hele kjeden i §7 er bygget og bygger
   grønt, men den er ikke kjørt ende-til-ende på en enhet — `FCM_SERVICE_ACCOUNT_JSON`
   står ikke som Fly-secret ennå. Formen på meldingen er lest ut av

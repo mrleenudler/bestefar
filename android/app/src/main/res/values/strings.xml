@@ -532,10 +532,11 @@
     <string name="backup_now">Lag sikkerhetskopi nå</string>
     <string name="backup_restore">Gjenopprett fra sikkerhetskopi</string>
     <string name="backup_restore_confirm">Gjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i sikkerhetskopien. Det som ligger her nå, blir borte.</string>
+    <string name="backup_restore_confirm_dated">Sikkerhetskopien ble laget %1$s.\n\nGjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i kopien. Det som ligger her nå, blir borte.</string>
     <string name="backup_working">Jobber …</string>
     <string name="backup_done">Sikkerhetskopi lagret (%1$d KB)</string>
     <string name="backup_restored">Sikkerhetskopi gjenopprettet</string>
-    <string name="backup_need_login">Du må være innlogget for å bruke sikkerhetskopi. Innlogging kommer i neste versjon.</string>
+    <string name="backup_need_login">Du må være innlogget for å bruke sikkerhetskopi. Logg inn under Min profil.</string>
     <string name="backup_none">Ingen sikkerhetskopi funnet</string>
     <string name="backup_conflict">Sikkerhetskopien på serveren er nyere enn dataene her. Vil du overskrive den likevel?</string>
     <string name="backup_bad_code">Feil gjenopprettingskode, eller skadet kopi.</string>

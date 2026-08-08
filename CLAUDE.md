@@ -129,8 +129,9 @@ det er UI-språk og ikke dokumentasjon.
 | Fil | Regel |
 |---|---|
 | `bestefar_CV-kjerne_spec.md` | Kjernen eier. Andre melder issue. |
-| `backend_spec.md` | Backend eier §0–§11; UI eier §12–§16 (klientsiden). Rediger kun din del, og les regionen på nytt rett før du skriver — den andre instansen kan ha endret filen. |
-| `bestefar_UI_spec-v0-4.md` | UI eier. |
+| `backend_spec.md` | Backend eier §0–§11; UI eier §12–§17 (klientsiden). Rediger kun din del, og les regionen på nytt rett før du skriver — den andre instansen kan ha endret filen. |
+| `bestefar_UI_spec.md` | UI eier. **Kravene slik de ble skrevet som v0.4, ikke omskrevet siden** — endringene bor i `android/CHANGELOG.md`. Het `bestefar_UI_spec-v0-4.md` til 2026-08-08. |
+| `docs/flytskjema.md` | Beskriver appen slik den **er nå**, avledet fra kode. Endres appen, endres diagrammet — ingen «Nytt i v0.NN»-seksjoner. |
 | `til_utvikler_v##.md` | **Delt per runde.** Legg til en seksjon nederst med områdenavn i overskriften. Overskriv aldri. Én fil per runde, høyeste nummer er gjeldende. |
 | `AAPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. **Navnet er med `AA`, ikke `Å`** — PowerShell 5.1 mangler æøå når filnavn sendes videre til `git.exe`, så `git mv`/`git commit <sti>` feiler på den. Ikke «rett» det tilbake. |
 | `musings.txt`, `musingsUI.txt`, `musings_backend.txt` | **Eierens filer. Ikke skriv til dem.** Svar hører hjemme i `til_utvikler_v##.md`. |
@@ -168,6 +169,7 @@ Denne fila er den ene alle leser. Resten må du gå til selv:
 | `core/ARCHITECTURE.md` | Kjernens beslutningslogg: modultabell, numerikk-avvik, CV-kontrakt, MPI-beslutningen, auto-capture, FFI, verifisering |
 | `android/ARCHITECTURE.md` | Klientens beslutningslogg: nettverkslag, Keystore/økt, nøkkellagene, soft-delete, broen til kjernen |
 | `android/CLAUDE.md` | Klientens arbeidsinstruks: bygg og signering, invarianter, hva de andre eier |
+| `android/CHANGELOG.md` | Hva hver klientrunde faktisk endret, v0.6→. Nye runder føres inn her, ikke i spec eller flytskjema. |
 | `android/KONTRAKT.md` | Det andre kan stole på: `retryable`, sidecar v2 + `tag`-enumet, blobens ytre format, gravsteiner, øktgarantiene — og §9, det kontrakten ikke holder |
 | `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor + bygg/CI for alle tre |
 | `docs/flytskjema.md` | Mermaid: CV-flyten (auto-capture, analyse, statuskoder) og skjermflyten |
@@ -177,7 +179,7 @@ Denne fila er den ene alle leser. Resten må du gå til selv:
 | `backend/BESLUTNINGER.md` | Backendens beslutningslogg, med en egen liste over valg som mangler dokumentert begrunnelse |
 | `backend_spec.md` | Endepunktene, tokens, kvoter, lagring, personvern |
 | `bestefar_CV-kjerne_spec.md` | Kravspec for kjernen |
-| `bestefar_UI_spec-v0-4.md` | UI/UX-spec + endringslogg per runde |
+| `bestefar_UI_spec.md` | UI/UX-spec + endringslogg per runde |
 
 ---
 
@@ -305,6 +307,13 @@ slett punktet når det ikke lenger kan skje.
   opplysning å dele om seg selv.
 - **En sletting skal ikke i stillhet skru av en innstilling**, og veien *ut* av
   et personvernvalg skal aldri kunne feile på en driftsinnstilling.
+- **Et dokument beskriver enten nåtilstanden eller historien, aldri begge.**
+  «Nytt i v0.NN» på slutten av en fil er billig å skrive og gjør fila uleselig
+  forfra: `bestefar_UI_spec.md` fikk tretten slike lag og `docs/flytskjema.md`
+  fem, og for å vite hva som gjaldt måtte du lese alt og holde styr på hvilket
+  tillegg som overstyrte hvilket. Ryddet 2026-08-08 til `android/CHANGELOG.md` og
+  `backend/CHANGELOG.md`. Endrer du oppførselen, **endre beskrivelsen** — og før
+  runden i endringsloggen.
 - **Endres speccen, skriv hvorfor — ikke stryk det gamle.** §13 forbød et
   «gjenopprett kopien min»-endepunkt; deponering ble likevel bygget. Forbudet
   gjaldt å hjelpe *uten* nøkkelen, så setningen fikk stå og endringen ble
@@ -315,6 +324,30 @@ slett punktet når det ikke lenger kan skje.
 - **Når en teller eller knapp gjelder backend, sjekk at det finnes en sender.**
   Tre plassholdere i UI-et løy i månedsvis: en kø ingen tømte, en teller som bare
   kunne vokse, og en knapp som viste kvittering uten å sende.
+- **En feilkode som får en forklaring før den får en årsak, blir stående.**
+  `AvansertActivity` behandler `503 || 404 || 405` som «deponering er av på
+  serveren». 503 er dokumentert; 404 og 405 er gjetninger uten kjent
+  opphav — og en gren som allerede *har* en forklaring, er et sted en ekte
+  årsak kan gjemme seg uten å bli lett etter. Grener du på en statuskode du ikke
+  har fremkalt med vilje, skriv ned hvordan den oppstår. Kan du ikke det, er den
+  ikke håndtert; den er skjult.
+- **En fallback-kjede som behandler en feil som et fravær, skjuler feilen.**
+  `BackupKeys.resolve` prøver lokalt → Block Store → deponering, og returnerte
+  tom streng både når deponeringen var tom og når kallet aldri nådde fram. Da
+  `Api.send` gjorde GET om til POST og deponeringen svarte 405 hver gang, så det
+  ut som «ingen nøkkel deponert» i tre versjoner — brukeren ble bedt om
+  gjenopprettingskoden, altså nøyaktig det funksjonen fantes for å slippe. Skill
+  «fant ingenting» fra «fikk ikke svar», i det minste i loggen.
+- **Kode uten kaller blir aldri verifisert.** `Backup.meta()` var skrevet,
+  dokumentert og ødelagt fra dag én. Ingen oppdaget det, fordi ingen kalte den.
+  Bygger du et endepunkt du «skal bruke senere», er det ikke bygget.
+- **Mistenk stille suksess like mye som synlig feil.** Tre feil i dette repoet
+  hører til samme klasse — noe galt som ser vellykket ut for begge parter:
+  feil feltnavn i multipart ga **201 med tomme poenglister**; en `data`-only
+  push blir **aldri tegnet** når appen er i bakgrunnen; en GET som ble POST fikk
+  et 405 ingen så. Ingen av dem hadde en feilmelding å lete etter. Når du kobler
+  til noe nytt, verifiser at den *riktige* veien virker — fravær av feil er ikke
+  bevis.
 
 ### 7.4 Arbeidsmåte
 

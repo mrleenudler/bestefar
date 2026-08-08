@@ -1,11 +1,16 @@
 # Flytskjema
 
-To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
-(`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
-`BestefarCore.analyze()` i `CaptureActivity`.
+Tre flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI), **UI-et**
+(`android/`, Kotlin med programmatiske views), og **varselveien** mot backend.
+De to første møtes ett sted — JNI-kallet `BestefarCore.analyze()` i
+`CaptureActivity`.
 
 Diagrammene er avledet fra koden slik den står i v0.19, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
+
+**Dette dokumentet beskriver appen slik den er nå.** Hva som ble bygget når,
+står i `android/CHANGELOG.md` — ikke skriv «Nytt i v0.NN»-seksjoner inn her
+igjen.
 
 ---
 
@@ -122,6 +127,7 @@ flowchart TD
     subgraph OPPSTART ["Oppstart · MainActivity"]
         direction TB
         START(["App-start"]) --> W1{"Introvindu sett?<br/>eller dev-flagg?"}
+        START -.->|"parallelt, med konto"| MSG["Messages.fetch<br/>GET /v1/messages"]
         W1 -->|"vis"| I1["Oppstartsvindu"]
         W1 -->|"hopp over"| W2
         I1 --> W2{"Spør om bildedeling?<br/>første gang · ny sesong · dev-flagg"}
@@ -129,8 +135,13 @@ flowchart TD
         W2 -->|"nei"| TUT
         I2 --> TUT{"Veiledning sett?"}
         TUT -->|"nei"| I3["Veiledning · 4 steg"]
-        TUT -->|"ja"| HOME
-        I3 --> HOME
+        TUT -->|"ja"| DONE
+        I3 --> DONE["onStartupOverlaysDone"]
+        MSG -.-> DONE
+        DONE --> MQ{"Ventende beskjeder?"}
+        MQ -->|"ja"| MQ1["Én om gangen · eldste først<br/>tittel · tekst · tidspunkt<br/>→ ack ETTER visning"]
+        MQ -->|"nei"| HOME
+        MQ1 --> HOME
     end
 
     HOME["Hovedskjerm<br/>Avstand · Innsikt · Meny + Scan"]
@@ -193,6 +204,13 @@ flowchart TD
         LOGB --> LOGT
         M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
         M1b --> M1c["Sikkerhetskopi<br/>Sikkerhetskopier nå · Gjenopprett ·<br/>Vis gjenopprettingskode (nødutgang)"]
+        M1c --> RST["Gjenopprett:<br/>GET /v1/backup/meta først"]
+        RST -->|"404"| RST0["«Ingen sikkerhetskopi funnet»<br/>stopper her, spør ikke om kode"]
+        RST -->|"200"| RST1["«Kopien ble laget 7. august kl. 09:14.<br/>Dette ERSTATTER alt lokalt.»"]
+        RST1 --> RST2["BackupKeys.resolve<br/>lokalt → Block Store → deponering"]
+        RST2 -->|"fant nøkkel"| RST3["GET /v1/backup → dekrypter → replaceAll"]
+        RST2 -->|"ingen kilde"| RST4["Tast gjenopprettingskoden"]
+        RST4 --> RST3
         M1b --> M1d["🔑 Gjenopprett uten kode (av)<br/>🔒 Krev opplåsing for jaktloggen (av)"]
         M2 --> LOCK{"🔒 Krev opplåsing?<br/>av som standard"}
         LOCK -->|"på"| BIO["BiometricPrompt<br/>biometri ELLER skjermlås<br/>5 min frist · avvist = bli stående"]
@@ -220,99 +238,82 @@ flowchart TD
   *lyktes* men leste feil — typisk opp-ned-bildene.
 - **Alt er offline.** `Store` skriver `series.json` / `hunts.json` i appens egen
   filkatalog. Appen virker uten konto; venner/lag er front-end-skjelett (se
-  `backend_spec.md`). Nett brukes kun til feilanalyse-køen og sikkerhetskopien.
+  `backend_spec.md`). Nettet brukes til feilanalyse-køen, sikkerhetskopien,
+  innloggingen og beskjedene — aldri til noe brukeren trenger for å skyte en
+  serie.
+- **Sletting er soft-delete.** `deletedAt` settes, raden blir stående.
+  Visningskoden ser ingen forskjell (`allSeries()`/`allHunts()` filtrerer), men
+  `…Raw()` beholder gravsteinen så en gjenoppretting ikke legger inn igjen det
+  brukeren har slettet.
+- **Beskjedene kommer sist i oppstarten, ikke oppå den.** Hentingen starter
+  parallelt med oppstartsvinduene, men resultatet holdes til
+  `onStartupOverlaysDone`. Hver utgang av oppstartskjeden må kalle den — en gren
+  som glemmer det, gir en bruker som aldri ser beskjedene sine.
 
-### Nytt i v0.15
+---
 
-- **Sletting er soft-delete.** `deleteSeries`/`deleteHunts` setter `deletedAt`
-  i stedet for å fjerne raden. Visningskoden ser ingen forskjell
-  (`allSeries()`/`allHunts()` filtrerer), men `…Raw()` beholder gravsteinen så
-  en gjenoppretting ikke legger inn igjen det brukeren har slettet.
-- **Sikkerhetskopien er klient-kryptert.** `Backup.build()` → AES-256-GCM med
-  nøkkel utledet fra en generert gjenopprettingskode; serveren lagrer bytes den
-  ikke kan lese. Mister brukeren koden, er kopien tapt — og det står i dialogen.
-- **🎛-ikonet.** Overalt der «Avanserte innstillinger» nevnes ligger det et
-  equalizer-ikon som åpner siden direkte (`Ui.advancedIcon`).
+## 3. Varsler og beskjeder — to veier, én garanti
 
-### Nytt i v0.16
-
-- **Nøkkelen til kopien søkes opp i tre lag** (`BackupKeys.resolve`): lokalt →
-  Block Store → deponering hos serveren. Brukeren blir bedt om
-  gjenopprettingskoden *bare* når ingen av dem har noe. Derfor spør
-  «Sikkerhetskopier nå» ikke lenger om noe i det hele tatt.
-- **Jaktloggen kan låses**, resten av appen aldri. Låsen ligger foran begge
-  inngangene i Jakt-menyen, med fem minutters frist. Avvist opplåsing lukker
-  ingenting — brukeren blir stående.
-- **Felling-varselet forhåndsvises.** Setningen vennene får bygges i klienten
-  (`Announce.speciesPhrase` eier bøyningen) og vises ordrett før den sendes.
-- **Utlogging** (`Auth.logout`) er tre steg i fast rekkefølge: avregistrer
-  enheten for push → tilbakekall refresh-tokenet → slett begge tokenene lokalt.
-  Siste steg skjer uansett, også offline.
-
-### Nytt i v0.17
-
-- **Innlogging finnes.** Min profil → Konto → `LoggInnActivity`. Google via
-  Credential Manager, eller sekssifret kode på e-post. Appen ber aldri om
-  innlogging uoppfordret, og skjermen sier eksplisitt at alt annet virker uten
-  konto.
-- **Ingen data går tapt ved inn- eller utlogging.** Serier, jaktlogg og
-  innstillinger er lokale og røres ikke av noen av delene.
-
-### Nytt i v0.18 — push
-
-```mermaid
-flowchart LR
-    APP["Appstart<br/>BestefarApp"] --> CH["Push.ensureChannel<br/>«Venner og lag»"]
-    CH --> REG{"Innlogget?"}
-    REG -->|"nei"| NOOP["ingenting —<br/>et varsel er alltid til noen"]
-    REG -->|"ja"| TOK["FirebaseMessaging.token"]
-    TOK --> PUT["PUT /v1/devices<br/>idempotent"]
-    LOGIN["Vellykket innlogging"] --> ASK["Forklaring → systemdialog<br/>POST_NOTIFICATIONS (API 33+)"]
-    ASK --> PUT
-    SRV["Backend: push.send"] --> FG{"App i forgrunnen?"}
-    FG -->|"ja"| SVC["PushService.onMessageReceived<br/>bygger varselet selv"]
-    FG -->|"nei"| SYS["Android tegner det<br/>default_notification_* i manifestet"]
-    SVC --> TAP["Trykk → forsiden"]
-    SYS --> TAP
-```
-
-- **Nei til varsler er et gyldig svar** — enheten registreres likevel, så
-  varsler som skrus på senere virker med én gang.
-- **Ingen ruting på varseltype ennå.** Alle varsler åpner forsiden; venne- og
-  lagsidene er fortsatt skjelett, og en dyplenke til en tom skjerm er verre.
-
-### Nytt i v0.19 — meldingskøen
-
-Pushen over er *rask levering*. Diagrammet under er *garantien*: den veien som
-også virker når pushen ikke kom fram.
+Backenden legger §11-varsler i en kø **før** den sender push. Køen er
+garantien; pushen er rask levering. Klienten leser begge.
 
 ```mermaid
 flowchart TD
-    START["MainActivity.onCreate"] --> PAR{{"to ting i parallell"}}
-    PAR --> CHAIN["Oppstartsvinduer:<br/>intro → bildedeling → tutorial"]
-    PAR --> GET["Messages.fetch<br/>GET /v1/messages"]
+    subgraph ADR ["Adressen · Push.kt"]
+        direction TB
+        APP["Appstart<br/>BestefarApp"] --> CH["Push.ensureChannel<br/>«Venner og lag»"]
+        CH --> REG{"Innlogget?"}
+        REG -->|"nei"| NOOP["ingenting —<br/>et varsel er alltid til noen"]
+        REG -->|"ja"| TOK["FirebaseMessaging.token"]
+        TOK --> PUT["PUT /v1/devices<br/>idempotent · hver oppstart"]
+        LOGIN["Vellykket innlogging"] --> ASK["Forklaring → systemdialog<br/>POST_NOTIFICATIONS (API 33+)"]
+        ASK --> PUT
+    end
 
-    GET --> KONTO{"Innlogget?"}
-    KONTO -->|"nei"| TOM["tom liste —<br/>kallet sendes ikke"]
-    KONTO -->|"ja"| SVAR{"Svar?"}
-    SVAR -->|"offline / 401 / ubrukelig"| BEHOLD["tom liste;<br/>køen står igjen på serveren"]
-    SVAR -->|"200"| HOLD["Meldingene holdes"]
+    SRV["Backend: varselet oppstår"] --> KOE["Rad i pending_messages<br/>lagres FØRST"]
+    SRV --> SND["push.send til kjente enheter"]
 
-    CHAIN --> DONE["onStartupOverlaysDone"]
-    HOLD --> DONE
-    DONE --> VIS["Vis én melding<br/>tittel · tekst · tidspunkt"]
-    VIS --> OK["Brukeren trykker OK"]
-    OK --> ACK["POST /v1/messages/ack<br/>ETTER visning"]
-    ACK --> NESTE{"Flere i køen?"}
-    NESTE -->|"ja"| VIS
-    NESTE -->|"nei"| SLUTT["Forsiden"]
+    subgraph RASK ["Rask levering · PushService.kt"]
+        direction TB
+        SND --> FG{"App i forgrunnen?"}
+        FG -->|"ja"| SVC["onMessageReceived<br/>bygger varselet selv"]
+        FG -->|"nei"| SYS["Android tegner det<br/>default_notification_* i manifestet"]
+        SVC --> TAP["Trykk → forsiden"]
+        SYS --> TAP
+    end
+
+    subgraph GARANTI ["Garantien · Messages.kt"]
+        direction TB
+        KOE --> GET["Neste appstart:<br/>GET /v1/messages"]
+        GET --> VIS["Vis én om gangen<br/>etter oppstartsvinduene"]
+        VIS --> ACK["POST /v1/messages/ack<br/>ETTER visning"]
+        ACK --> MARK["Serveren setter delivered_at<br/>— sletter ikke raden"]
+    end
 ```
 
-- **Kvitteringen kommer etter visningen, ikke etter hentingen.** Serveren
-  markerer raden i stedet for å slette den, nettopp for å tåle en klient som
-  forsvinner imellom. Prisen er at en melding kan vises to ganger — den billige
-  feilen av de to.
-- **Meldingene holdes til oppstartsvinduene er ferdige.** Et nettverkssvar som
-  lander midt i tutorialen skal ikke legge seg oppå den.
-- **Hentes bare ved appstart.** En melding som kommer mens appen ligger åpen,
-  vises først ved neste oppstart — med mindre pushen når fram.
+- **Pushen kan mislykkes uten at beskjeden går tapt.** Avslått varseltillatelse,
+  rotert FCM-token, telefonen av, oppbrukt push-budsjett — beskjeden ligger
+  fortsatt i køen og vises ved neste appstart.
+- **Meldingen må ha en `notification`-blokk.** Ligger appen i bakgrunnen, er det
+  Android selv som tegner varselet ut fra den; `onMessageReceived` kjøres bare i
+  forgrunnen. En ren `data`-melding ville vært usynlig i det vanligste
+  tilfellet, uten at noen part ser en feil.
+- **Kvitteringen kommer etter visningen.** Serveren markerer i stedet for å
+  slette, nettopp for å tåle en klient som forsvinner imellom. Prisen er at en
+  beskjed kan vises to ganger — den billige feilen av de to.
+- **Nei til varsler er et gyldig svar.** Enheten registreres likevel, så varsler
+  som skrus på senere virker med én gang — og køen virker uansett.
+- **Ingen ruting på `kind`.** Alle varsler og beskjeder ender på forsiden.
+  Venne- og lagsidene er lokale skjeletter uten server-kobling, så en dyplenke
+  ville landet på en skjerm som ikke kjenner `team_id`. Følgen er at beskjeder
+  som ber om et svar («Bekreft i appen») **når fram, men ikke kan besvares**.
+
+---
+
+## Historikken
+
+Hva hver runde endret, står i `android/CHANGELOG.md`. Denne fila beskriver
+appen slik den er **nå** — seksjonene «Nytt i v0.15» til «Nytt i v0.19» ble
+flyttet ordrett dit 2026-08-08, fordi diagrammene hadde blitt stående på v0.14
+med fem lag lapper under. Endrer du appen, endrer du diagrammet.
+

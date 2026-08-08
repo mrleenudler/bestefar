@@ -20,7 +20,7 @@ har avklart det — flytt det da til «Avklart» nederst med dato.
 (treffer alle tre og passer derfor ikke i eierskapsmodellen).
 
 Kilder: `bestefar_CV-kjerne_spec.md` (kjerne-spec), `backend_spec.md`,
-`bestefar_UI_spec-v0-4.md` (UI-spec).
+`bestefar_UI_spec.md` (UI-spec).
 
 ---
 

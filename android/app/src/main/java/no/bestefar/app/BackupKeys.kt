@@ -150,6 +150,12 @@ object BackupKeys {
                 store(ctx, code)          // og legg den i Block Store med det samme
                 return code
             }
+            // MERK: her forsvinner forskjellen paa «deponeringen er tom» (404)
+            // og «vi naadde ikke fram» (0, 405, 5xx). Begge ender med at
+            // brukeren blir bedt om koden, som er trygt, men som saa ut som en
+            // manglende deponering da GET i praksis var POST og alltid ga 405.
+            // Derfor logges alt som ikke er 404 - det er den eneste sporen.
+            if (resp.code != 404) Log.w(TAG, "Deponeringen svarte ${resp.code}")
         }
         return ""
     }
