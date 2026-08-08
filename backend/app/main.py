@@ -30,7 +30,14 @@ logging.basicConfig(level=cfg.log_level.upper(),
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Bestefar backend", version="0.2",
-              # Ingen offentlig API-dokumentasjon i produksjon.
+              # Ingen Swagger-flate i produksjon. MERK at dette IKKE skjuler
+              # API-et: `openapi_url` staar aapen, saa /openapi.json svarer 200
+              # i prod ogsaa. Det er bevisst - skjemaet er sjekket inn i
+              # contracts/openapi.json uansett, saa aa stenge endepunktet ville
+              # skjult ingenting og bare gjort det vanskeligere aa sammenligne
+              # en kjoerende instans mot den innsjekkede kontrakten.
+              # Kommentaren sto tidligere som «ingen offentlig
+              # API-dokumentasjon», som var feil: skjemaet ER dokumentasjonen.
               docs_url=None if cfg.is_prod else "/docs",
               redoc_url=None)
 

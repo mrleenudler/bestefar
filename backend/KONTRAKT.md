@@ -359,6 +359,14 @@ idempotens, om hva som er trygt å prøve på nytt, eller om hvorfor en 409 komm
    Den er fortsatt død i produksjon; den skal bare ikke annonseres i en delt
    kontrakt.
 
+**Skjemaet er åpent i produksjon.** `GET /openapi.json` svarer 200, også med
+`ENV=prod`; det er bare Swagger-flaten på `/docs` som er slått av (404).
+Verifisert 2026-08-08. Det er tilsiktet — skjemaet ligger innsjekket i
+`contracts/openapi.json` uansett, så å stenge endepunktet ville skjult ingenting
+og gjort det vanskeligere å sammenligne en kjørende instans mot kontrakten.
+Kommentaren i `main.py` sa tidligere «ingen offentlig API-dokumentasjon i
+produksjon», som var feil: skjemaet *er* dokumentasjonen.
+
 **Rettet samtidig:** `kind` i meldingskøen står nå i skjemaet som
 `type: string, maxLength: 32` med en beskrivelse som sier at det *ikke* er et
 enum. Uten det ville en kodegenerator som senere fikk en enum-liste servert,
