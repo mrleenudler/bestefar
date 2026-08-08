@@ -20,6 +20,21 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-08
+
+**§11 — kø-garantien ble reell.** Klientens v0.19 henter `/v1/messages` ved
+appstart og kvitterer etter visning (issue #4). Ingen backend-endring; det er
+motparten som kom på plass.
+
+**§3, §4, §1 — fem brukertekster fikk norske tegn.** `leader_demoted`,
+moderasjonsadvarselen i profilen, 503-teksten for kort `JWT_SECRET`,
+mottakerfeilen i lag-invitasjon og begge `EscrowUnreadable`-meldingene sto med
+ASCII-translitterering (issue #6). Konvensjonen gjelder kommentarer og logg, ikke
+tekst brukeren ser.
+
+**`backend/KONTRAKT.md` §4.1 — meldingskøens skjema dokumentert** med typene
+eksplisitt, etter at klienten måtte lese dem ut av koden (issue #5).
+
 ## 2026-08-07
 
 **§0.1 — rammeverket beskrevet riktig.** Flyttet fra `docs/ARCHITECTURE.md`, som
@@ -80,8 +95,10 @@ uendret.
 > ikke datatap — køen bærer meldingen. Døde tokens (`UNREGISTERED`) slettes.
 > Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare, og køen står alene.
 
-*Merk 2026-08-07: «det er ikke datatap — køen bærer meldingen» forutsetter at
-klienten henter køen, og det gjør den ikke ennå. Se `KONTRAKT.md` §9 og issue #4.*
+*Merk: «det er ikke datatap — køen bærer meldingen» forutsetter at klienten
+henter køen. Det gjorde ingen før klientens v0.19 (2026-08-08, issue #4), så
+påstanden var udekket i tre døgn. Se `KONTRAKT.md` §9 for hva garantien dekker
+nå — oppstart til oppstart, ikke sanntid.*
 
 **§3 — `kills[]` avklart, løst som flyktig kunngjøring.** Feltet kunne ikke
 leveres som en liste; `POST /v1/hunts/announce` erstatter det.

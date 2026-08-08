@@ -305,16 +305,19 @@ umulig å bytte lagnavn.
 **Samme resonnement gjelder `PUSH_BUDGET_SECONDS`:** når budsjettet er brukt
 opp, droppes resten av mottakerne. Det er ikke datatap — køen er garantien.
 
-**Premisset holder ikke i dag (notert 2026-08-07).** Klienten henter ikke
-`/v1/messages`, så push er eneste leveringsvei. Så lenge det er tilfellet, *er*
-et avbrutt budsjett datatap for de mottakerne som aldri ble forsøkt — ikke en
-utsettelse. Beslutningen er ikke omgjort, og bør ikke omgjøres: den er riktig
-den dagen køen leses. Men den kan ikke brukes som begrunnelse for at avbrudd er
-ufarlig i mellomtiden, og målingene i issue #3 viser at avbruddet inntreffer
-etter to trege mottakere uansett lagstørrelse.
+**Premisset var ikke innfridd før 2026-08-08.** Klienten hentet ikke
+`/v1/messages`, så push var i praksis eneste leveringsvei, og et avbrutt
+budsjett *var* tap for de mottakerne som aldri ble forsøkt. Fra v0.19 leses køen
+ved appstart (`android/KONTRAKT.md`, issue #4), og begrunnelsen holder igjen.
+
+**Med den presiseringen den alltid burde hatt:** køen hentes ved *oppstart*,
+ikke løpende. For en melding som oppstår mens appen står åpen, er push den
+eneste raske veien, og §11-meldingene med 7-dagers frist tåler ikke ubegrenset
+utsettelse. «Køen bærer meldingen» er sant, men den bærer den til neste
+appstart — ikke til nå.
 
 *Kilde: `services/push.py`, modul-docstring og `send`; `backend/KONTRAKT.md`
-§4 og §9.*
+§4 og §9; `android/app/src/main/java/no/bestefar/app/Messages.kt`.*
 
 ## B-19 Ikke `google-auth` for FCM
 

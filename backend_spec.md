@@ -465,11 +465,12 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   meldingen når fram til slutt. Skjemaet med eksplisitte typer står i
   `backend/KONTRAKT.md` §4.1.
 
-  **Garantien er ikke innfridd i dag: klienten henter ikke køen.** Push er
-  derfor eneste leveringsvei, og et varsel som ikke når fram er tapt, ikke
-  utsatt. Det er ikke en klientdetalj — det er forutsetningen hele denne
-  paragrafen hviler på, og den avgjør om «push er best effort» er en trygg
-  påstand eller ikke. Se `backend/KONTRAKT.md` §9 og issue #4.
+  **Garantien avhenger av at noen henter køen**, og det gjør klienten fra og med
+  v0.19 — ved appstart, ikke løpende. Det er ikke en klientdetalj: det er
+  forutsetningen hele denne paragrafen hviler på, og den avgjør om «push er best
+  effort» er en trygg påstand. Konsekvensen er at push fortsatt er eneste raske
+  vei for en melding som oppstår mens appen står åpen. Se
+  `backend/KONTRAKT.md` §9.
 - **Frister avgjøres lat, ikke av en bakgrunnsjobb:** både avstemningen og
   inaktiv-leder-utfordringen har 7-dagers frist, men appen har ingen jobbkjører.
   De avgjøres første gang noen spør etter dem. Utfallet blir det samme — en

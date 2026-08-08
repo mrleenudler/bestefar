@@ -192,9 +192,8 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   forsøkt, 8 aldri forsøkt, 10 s veggtid**; 0,2 s per kall ⇒ alle ti på 2 s.
   Øvre veggtid er `budsjett + timeout` = 11 s, ikke 6. Se issue #3.
 
-  **Avbruddet er datatap så lenge klienten ikke henter meldingskøen** — se §9.
-  Formuleringen «køen bærer meldingen» gjelder først når `/v1/messages` faktisk
-  leses.
+  **Avbruddet er en utsettelse, ikke tap** — klienten henter køen ved appstart
+  fra og med v0.19. Se §9 for hva den garantien faktisk dekker.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push": "log"`. Verdien godtas både som rå JSON og base64.
 
@@ -329,17 +328,24 @@ endres den for alle klienter samtidig — det er tilsiktet.
 
 Ærlighet om hva kontrakten *ikke* holder:
 
-- **Meldingskøen er ikke en garanti i dag.** `/v1/messages` finnes og fylles ved
-  hvert §11-varsel, men **klienten henter den ikke ennå**. Push er derfor eneste
-  leveringsvei, og hele designet i B-18 — «push er best effort fordi køen bærer
-  meldingen» — hviler på et premiss som ikke er innfridd. Et varsel som ikke når
-  fram (telefon av, budsjettet brukt opp, FCM nede) er tapt for brukeren, ikke
-  utsatt. UI-instansen bygger hentingen.
+- **Kø-garantien gjelder fra oppstart til oppstart, ikke i sanntid.**
+  *Rettet 2026-08-08:* klienten henter køen fra og med v0.19 (`Messages.kt`,
+  issue #4 lukket) — påstanden om at den ikke gjorde det, sto her i ett døgn
+  etter at den sluttet å være sann.
 
-  **Ikke bygg noe nytt på kø-garantien før den er reell.** Alt som i dag ville
-  vært «trygt fordi køen fanger det opp», er det ikke.
+  Det som fortsatt er verdt å vite: hentingen skjer **ved appstart**, ikke
+  løpende. En melding som oppstår mens appen står åpen, vises først ved neste
+  oppstart om ikke pushen når fram. Push dekker altså det vinduet, og er ikke
+  bare «rask levering» der.
+
+  Klienten kvitterer **etter visning**, én melding om gangen, og gjør ingenting
+  hvis kvitteringen feiler — meldingen kommer igjen. Vår `delivered_at`-modell
+  (markér, ikke slett) er det som gjør den toleransen mulig.
 - **Push-budsjettet tåler ett tregt kall**, og begrenser ikke svartiden det
-  finnes for å begrense. Målte tall i §4. Issue #3.
+  finnes for å begrense. Målte tall i §4. Issue #3. Nå som køen leses, er et
+  avbrutt budsjett en **utsettelse** til neste appstart, ikke tap — men for de
+  §11-meldingene som har en 7-dagers frist, er en utsettelse på ubestemt tid
+  fortsatt ikke gratis.
 - **`/v1/feedback`-kvoten er per maskin.** `ratelimit.py` teller i minnet, og
   Fly kjører to maskiner, så den reelle grensen er 10/time, ikke 5. ÅP-B9.
 - **`GET /v1/teams/near` sorterer i Python.** Holder på dagens datamengde. ÅP-B6.
