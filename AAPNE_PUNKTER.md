@@ -303,6 +303,28 @@ Speccen sier bilder skal ligge i objektlagring, aldri i databasen
 men backenden bruker det ikke. Åpent: om feilanalysebildene skal dit nå eller om
 oppsettet skal avvikles.
 
+### ÅP-B10 — Ingen av svarene er typet, så kontrakten beskriver dem ikke · label `backend`
+Målt 2026-08-08 ved generering av `contracts/openapi.json`: **48 av 48
+operasjoner med svarkropp har ingen beskrivelse av kroppen.** Håndtererne er
+annotert `-> dict` eller `-> list[dict]`, og FastAPI kan bare utlede
+`{"type": "object", "additionalProperties": true}`.
+
+Konsekvensen er at den innsjekkede kontrakten forteller hvilke ruter som finnes
+og hva de tar imot, men ikke hva de svarer med — akkurat den halvdelen en klient
+trenger for å parse. `backend/KONTRAKT.md` beskriver svarene i prosa; ingenting
+holder de to i takt.
+
+`GET /v1/messages` fikk `response_model=list[MessageOut]` 2026-08-08 som den
+første, fordi klienten hadde måttet lese skjemaet ut av kildekoden (issue #5).
+
+Åpent: om resten skal få `response_model`-er, og i så fall i hvilken rekkefølge.
+Det er ikke gratis — en `response_model` filtrerer og validerer svaret, så et
+felt som i dag sniker seg med, forsvinner. Det er som regel ønsket, men det er
+en atferdsendring per endepunkt og bør ikke gjøres i én runde uten testdekning
+på hver enkelt. Alternativet — å la det være og holde `KONTRAKT.md` som eneste
+kilde for svar — er også farbart, men da bør `contracts/README.md` si det enda
+tydeligere enn den gjør nå.
+
 ### ÅP-B9 — Feedback-kvoten teller i minnet, per maskin · label `backend`
 > «Holder for MVP med én maskin. Ved flere Fly-maskiner er telleren per maskin —
 > den reelle grensen blir da N x limit.»

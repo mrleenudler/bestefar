@@ -22,9 +22,16 @@ from .models import SharingPreference, User, utcnow
 from .services import ids, tokens
 
 
-def current_user(authorization: str | None = Header(default=None),
-                 x_debug_user_id: str | None = Header(default=None),
-                 s: OrmSession = Depends(db)) -> User:
+def current_user(
+        authorization: str | None = Header(
+            default=None, description="«Bearer <access-token>» (§1)."),
+        # Utelatt fra OpenAPI med vilje: contracts/openapi.json er en DELT
+        # kontraktflate, og en testsnarvei som er doed i produksjon hoerer ikke
+        # hjemme der. Den sto tidligere som en dokumentert header paa hvert
+        # eneste endepunkt - noe som saa ut som en stoettet innloggingsmaate.
+        x_debug_user_id: str | None = Header(default=None,
+                                             include_in_schema=False),
+        s: OrmSession = Depends(db)) -> User:
     cfg = settings()
 
     if authorization:

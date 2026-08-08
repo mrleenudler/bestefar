@@ -37,6 +37,7 @@ derfor hele suiten to ganger — SQLite og Postgres.
 | `backend/BESLUTNINGER.md` | Hvorfor det ble slik, og hva som ble forkastet |
 | `backend/CHANGELOG.md` | Når det ble bygget. **Datostemplede notater hører hit, ikke inn i spec-paragrafene** — der gjorde de det umulig å lese en paragraf som en beskrivelse av nåtilstanden. |
 | `backend/README.md` | Oppsett, drift, datamodell, migrasjoner |
+| `../contracts/openapi.json` | Generert fra appen. **Regenerer og sjekk inn i samme commit** når du endrer en rute, en Pydantic-modell eller en parameter — CI feiler ellers. `tools/gen_openapi.py`. |
 | `../AAPNE_PUNKTER.md` | Det som ikke kan besluttes i kode. Backend-punktene er ÅP-B*, driftspunktene ÅP-E* |
 | `../docs/ARCHITECTURE.md` | Bygg/CI for alle tre områder |
 
@@ -75,7 +76,12 @@ det stå i `BESLUTNINGER.md` hvorfor, og den gamle begrunnelsen skal bli ståend
     maskiner; en teller i minnet dobler grensen i praksis. `ratelimit.py` er
     fortsatt i minnet og er derfor kjent unøyaktig — se ÅP-B9.
 11. **`X-Debug-User-Id` er død i produksjon.** Sjekken står først, og det finnes
-    ingen konfigurasjon som slår den på.
+    ingen konfigurasjon som slår den på. Den er også utelatt fra
+    `contracts/openapi.json` — en testsnarvei skal ikke stå i en delt kontrakt
+    og se ut som en støttet innloggingsmåte.
+12. **`contracts/openapi.json` regenereres i samme commit som endringen.** En
+    innsjekket kontrakt som stille kommer i utakt med koden er verre enn ingen
+    kontrakt: da bygger UI mot noe som ser autoritativt ut uten å være det.
 
 ## Hva de andre eier
 

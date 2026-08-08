@@ -35,6 +35,7 @@ Bestefar/
 ├── UI/                      UI      ikoner, silhuetter, SVG-kilder
 ├── dist/                    UI      APK-er som sendes ut (versjonsbump ved ny)
 │
+├── contracts/               DELT    openapi.json — GENERERT, ikke rediger (se §4)
 ├── docs/                    DELT    kart over dokumentene + bygg/CI, flytskjema
 ├── *_spec.md                DELT    de tre spesifikasjonene (se §4)
 ├── til_utvikler_v##.md      DELT    tilbakemelding per runde (se §4)
@@ -135,6 +136,7 @@ det er UI-språk og ikke dokumentasjon.
 | `til_utvikler_v##.md` | **Delt per runde.** Legg til en seksjon nederst med områdenavn i overskriften. Overskriv aldri. Én fil per runde, høyeste nummer er gjeldende. |
 | `AAPNE_PUNKTER.md` | Alle skriver. Legg til når du oppdager noe som ikke kan besluttes i kode; stryk aldri et punkt uten at det faktisk er avklart av eier. **Navnet er med `AA`, ikke `Å`** — PowerShell 5.1 mangler æøå når filnavn sendes videre til `git.exe`, så `git mv`/`git commit <sti>` feiler på den. Ikke «rett» det tilbake. |
 | `musings.txt`, `musingsUI.txt`, `musings_backend.txt` | **Eierens filer. Ikke skriv til dem.** Svar hører hjemme i `til_utvikler_v##.md`. |
+| `contracts/openapi.json` | **Generert fra backend-koden, aldri redigert for hånd.** Backend eier generatoren (`backend/tools/gen_openapi.py`); alle leser fila. CI feiler hvis den er utdatert. Den er **ikke uttømmende** — les `contracts/README.md` før du bygger mot den. |
 | `.github/workflows/ci.yml` | Én jobb per område (`core`, `android`, `backend`). Rør kun din egen jobb. |
 | `docs/ARCHITECTURE.md` | Kart over hvor arkitekturteksten bor, + bygg/CI som gjelder alle tre. Beslutningsloggene ligger hos områdene (`core/ARCHITECTURE.md`, `android/ARCHITECTURE.md`) — det opprettes ingen tredje. |
 

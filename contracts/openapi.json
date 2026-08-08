@@ -1,0 +1,4196 @@
+{
+  "components": {
+    "schemas": {
+      "AckIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "title": "AckIn",
+        "type": "object"
+      },
+      "AnnounceIn": {
+        "properties": {
+          "kommune": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kommune"
+          },
+          "species": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Species",
+            "type": "string"
+          }
+        },
+        "required": [
+          "species"
+        ],
+        "title": "AnnounceIn",
+        "type": "object"
+      },
+      "Body_submit_failed_v1_failed_analyses_post": {
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "core_version": {
+            "title": "Core Version",
+            "type": "string"
+          },
+          "detected_scores": {
+            "default": "",
+            "title": "Detected Scores",
+            "type": "string"
+          },
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "ocr_scores": {
+            "default": "",
+            "title": "Ocr Scores",
+            "type": "string"
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Id"
+          },
+          "status_code": {
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "tag": {
+            "$ref": "#/components/schemas/FailedTag",
+            "default": "rejected"
+          }
+        },
+        "required": [
+          "status_code",
+          "confidence",
+          "core_version",
+          "image"
+        ],
+        "title": "Body_submit_failed_v1_failed_analyses_post",
+        "type": "object"
+      },
+      "ConsentIn": {
+        "properties": {
+          "consent_type": {
+            "$ref": "#/components/schemas/ResultType"
+          }
+        },
+        "required": [
+          "consent_type"
+        ],
+        "title": "ConsentIn",
+        "type": "object"
+      },
+      "DeviceIn": {
+        "properties": {
+          "app_version": {
+            "default": "",
+            "maxLength": 32,
+            "title": "App Version",
+            "type": "string"
+          },
+          "model": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Model",
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform",
+            "default": "android"
+          },
+          "push_token": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Push Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "push_token"
+        ],
+        "title": "DeviceIn",
+        "type": "object"
+      },
+      "EpostIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "EpostIn",
+        "type": "object"
+      },
+      "EscrowIn": {
+        "properties": {
+          "key_material": {
+            "maxLength": 1024,
+            "minLength": 4,
+            "title": "Key Material",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_material"
+        ],
+        "title": "EscrowIn",
+        "type": "object"
+      },
+      "FailedTag": {
+        "description": "`tag` i backend_spec §6.",
+        "enum": [
+          "ocr_match",
+          "ocr_mismatch",
+          "rejected"
+        ],
+        "title": "FailedTag",
+        "type": "string"
+      },
+      "FeedbackIn": {
+        "properties": {
+          "app_version": {
+            "default": "",
+            "maxLength": 32,
+            "title": "App Version",
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "device_model": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Device Model",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IdTokenIn": {
+        "properties": {
+          "id_token": {
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Id Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_token"
+        ],
+        "title": "IdTokenIn",
+        "type": "object"
+      },
+      "InviteIn": {
+        "properties": {
+          "email_or_phone": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Email Or Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email_or_phone"
+        ],
+        "title": "InviteIn",
+        "type": "object"
+      },
+      "JoinIn": {
+        "properties": {
+          "token": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "JoinIn",
+        "type": "object"
+      },
+      "KodeIn": {
+        "properties": {
+          "code": {
+            "maxLength": 10,
+            "minLength": 4,
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "KodeIn",
+        "type": "object"
+      },
+      "MessageOut": {
+        "description": "Én ventende melding.\n\nDenne modellen finnes for at contracts/openapi.json skal beskrive SVARET og\nikke bare forespoerselen. Resten av API-et returnerer `dict` og har derfor\ningen svarskjema i det hele tatt - se AAPNE_PUNKTER ÅP-B10. Koeen er tatt\nfoerst fordi klienten maatte lese skjemaet ut av kildekoden vaar (issue #5).",
+        "properties": {
+          "body": {
+            "description": "Ferdig formulert norsk brukertekst, ikke en noekkel klienten skal oversette.",
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Heltall, ikke UUID. Autoinkrement, og bare meningsfull innenfor denne installasjonen.",
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "description": "FRI STRENG, ikke et enum. Nye meldingstyper skal kunne legges til uten en ny klientutgivelse, saa en klient MAA behandle en ukjent verdi som gyldig og falle tilbake paa title + body. Verdiene i bruk i dag er listet i backend/KONTRAKT.md §4.1.",
+            "maxLength": 32,
+            "title": "Kind",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UUID som streng naar meldingen gjelder et lag, ellers null.",
+            "title": "Team Id"
+          },
+          "title": {
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "body",
+          "created_at"
+        ],
+        "title": "MessageOut",
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "android",
+          "ios"
+        ],
+        "title": "Platform",
+        "type": "string"
+      },
+      "PosModifier": {
+        "enum": [
+          "UTEN",
+          "ANLEGG",
+          "REIM"
+        ],
+        "title": "PosModifier",
+        "type": "string"
+      },
+      "Position": {
+        "description": "Speiler Position i android/.../Model.kt (BENK er fjernet).",
+        "enum": [
+          "LIGGENDE",
+          "SITTENDE",
+          "KNESTAENDE",
+          "STAAENDE"
+        ],
+        "title": "Position",
+        "type": "string"
+      },
+      "PositionGranularity": {
+        "description": "Grovhet paa delt jaktposisjon (§7). Skadedata deles aldri som standard.",
+        "enum": [
+          "none",
+          "kommune",
+          "fylke",
+          "exact"
+        ],
+        "title": "PositionGranularity",
+        "type": "string"
+      },
+      "ProfileIn": {
+        "properties": {
+          "birth_year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1900.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "findable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Findable"
+          },
+          "home_kommune": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Kommune"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "title": "ProfileIn",
+        "type": "object"
+      },
+      "RefreshIn": {
+        "properties": {
+          "refresh_token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshIn",
+        "type": "object"
+      },
+      "RenameIn": {
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RenameIn",
+        "type": "object"
+      },
+      "RequestIn": {
+        "properties": {
+          "public_id": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "RequestIn",
+        "type": "object"
+      },
+      "ResearchIn": {
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "result_type": {
+            "$ref": "#/components/schemas/ResultType"
+          },
+          "session_ref": {
+            "maxLength": 64,
+            "title": "Session Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_ref",
+          "captured_at",
+          "result_type"
+        ],
+        "title": "ResearchIn",
+        "type": "object"
+      },
+      "ResearchSharingIn": {
+        "properties": {
+          "position_granularity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionGranularity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "share_date": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Date"
+          },
+          "share_injury_data": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Injury Data"
+          },
+          "share_shot_situation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Shot Situation"
+          },
+          "share_species": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Species"
+          }
+        },
+        "title": "ResearchSharingIn",
+        "type": "object"
+      },
+      "RespondIn": {
+        "properties": {
+          "accept": {
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "accept"
+        ],
+        "title": "RespondIn",
+        "type": "object"
+      },
+      "ResultType": {
+        "enum": [
+          "training",
+          "hunt"
+        ],
+        "title": "ResultType",
+        "type": "string"
+      },
+      "SeriesIn": {
+        "properties": {
+          "ammo_name": {
+            "default": "",
+            "title": "Ammo Name",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "corrected": {
+            "default": false,
+            "title": "Corrected",
+            "type": "boolean"
+          },
+          "distance_m": {
+            "title": "Distance M",
+            "type": "integer"
+          },
+          "id": {
+            "maxLength": 36,
+            "title": "Id",
+            "type": "string"
+          },
+          "modifier": {
+            "$ref": "#/components/schemas/PosModifier",
+            "default": "UTEN"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "season_key": {
+            "default": "",
+            "title": "Season Key",
+            "type": "string"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/ShotIn"
+            },
+            "title": "Shots",
+            "type": "array"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "weapon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Id"
+          }
+        },
+        "required": [
+          "id",
+          "ts",
+          "distance_m",
+          "position"
+        ],
+        "title": "SeriesIn",
+        "type": "object"
+      },
+      "SharingIn": {
+        "properties": {
+          "share_avg_score": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Avg Score"
+          },
+          "share_home_kommune": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Home Kommune"
+          },
+          "share_kills": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Kills"
+          },
+          "share_phone": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Phone"
+          },
+          "share_shots_season": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Shots Season"
+          },
+          "share_shots_total": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Shots Total"
+          },
+          "share_trend": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Trend"
+          }
+        },
+        "title": "SharingIn",
+        "type": "object"
+      },
+      "ShotIn": {
+        "properties": {
+          "decimal": {
+            "title": "Decimal",
+            "type": "number"
+          },
+          "integer": {
+            "title": "Integer",
+            "type": "integer"
+          },
+          "r_rel": {
+            "title": "R Rel",
+            "type": "number"
+          },
+          "theta": {
+            "title": "Theta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "r_rel",
+          "theta",
+          "decimal",
+          "integer"
+        ],
+        "title": "ShotIn",
+        "type": "object"
+      },
+      "TeamIn": {
+        "properties": {
+          "i_am_leader": {
+            "default": true,
+            "title": "I Am Leader",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TeamKind"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "TeamIn",
+        "type": "object"
+      },
+      "TeamKind": {
+        "enum": [
+          "jakt",
+          "skytter"
+        ],
+        "title": "TeamKind",
+        "type": "string"
+      },
+      "UnregisterIn": {
+        "properties": {
+          "push_token": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Push Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "push_token"
+        ],
+        "title": "UnregisterIn",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VoteIn": {
+        "properties": {
+          "candidate_id": {
+            "maxLength": 36,
+            "title": "Candidate Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_id"
+        ],
+        "title": "VoteIn",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Bestefar backend",
+    "version": "0.2"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "drift"
+        ]
+      }
+    },
+    "/v1/account": {
+      "delete": {
+        "operationId": "slett_konto_v1_account_delete",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Slett Konto V1 Account Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Slett Konto",
+        "tags": [
+          "konto"
+        ]
+      }
+    },
+    "/v1/auth/apple": {
+      "post": {
+        "operationId": "logg_inn_apple_v1_auth_apple_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "User-Agent",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Logg Inn Apple V1 Auth Apple Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logg Inn Apple",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/auth/email/start": {
+      "post": {
+        "description": "Svarer ALLTID 202, uansett om adressen finnes fra foer. Et svar som skilte\nmellom «kjent» og «ukjent» ville gjort endepunktet til et oppslagsverk\nover hvem som bruker appen.",
+        "operationId": "send_kode_v1_auth_email_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpostIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Send Kode V1 Auth Email Start Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Kode",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/auth/email/verify": {
+      "post": {
+        "operationId": "verifiser_kode_v1_auth_email_verify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "User-Agent",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Verifiser Kode V1 Auth Email Verify Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verifiser Kode",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/auth/google": {
+      "post": {
+        "operationId": "logg_inn_google_v1_auth_google_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "User-Agent",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Logg Inn Google V1 Auth Google Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logg Inn Google",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "description": "Idempotent: et ukjent eller allerede utlogget token gir ogsaa 204.\nUtlogging skal aldri feile - da sitter klienten igjen med et token den\ntror er gyldig.",
+        "operationId": "logg_ut_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logg Ut",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "forny_v1_auth_refresh_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "User-Agent",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Forny V1 Auth Refresh Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forny",
+        "tags": [
+          "innlogging"
+        ]
+      }
+    },
+    "/v1/backup": {
+      "delete": {
+        "description": "Sletter BLOBEN. En eventuell deponert noekkel blir staaende - den aapner\ningenting naar bloben er borte, og valget «gjenopprett uten kode» er en\ninnstilling brukeren har slaatt paa, ikke en foelge av at det finnes en\nkopi akkurat naa. Ville vi slettet noekkelen her, ville neste opplasting\nstilltiende vaert udeponert selv om bryteren stod paa.\nKontosletting (§9) fjerner begge deler.",
+        "operationId": "delete_backup_v1_backup_delete",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Backup",
+        "tags": [
+          "backup"
+        ]
+      },
+      "get": {
+        "operationId": "download_backup_v1_backup_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Backup",
+        "tags": [
+          "backup"
+        ]
+      },
+      "put": {
+        "description": "Lagrer bloben. `client_ts` er klientens tidsstempel for oeyeblikksbildet.\n\nVERN MOT UTDATERT ENHET: er `client_ts` eldre enn den lagrede, svarer vi 409\ni stedet for aa overskrive. Spec §2 sier last-write-wins per post-ID, men\nden regelen kan bare haandheves KLIENT-side - serveren ser ikke inn i den\nkrypterte bloben. Uten dette vernet ville en gammel telefon som synker for\nfoerste gang paa maaneder kunne viske ut alt som er logget siden.\nKlienten kan overstyre med `force=true` naar brukeren har tatt et\nbevisst valg (f.eks. «gjenopprett fra denne enheten»).",
+        "operationId": "upload_backup_v1_backup_put",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "client_ts",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Client Ts",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "schema_version",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Schema Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "device_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 64,
+              "title": "Device Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Upload Backup V1 Backup Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Backup",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/v1/backup/key-escrow": {
+      "delete": {
+        "description": "Idempotent, og krever IKKE at hemmeligheten er konfigurert: aa slutte aa\ndeponere noekkelen skal alltid gaa gjennom. Den motsatte veien (503) ville\nlaast brukeren inne i et valg hen vil ut av.",
+        "operationId": "slett_noekkel_v1_backup_key_escrow_delete",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Slett Noekkel",
+        "tags": [
+          "backup"
+        ]
+      },
+      "get": {
+        "operationId": "hent_noekkel_v1_backup_key_escrow_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Hent Noekkel V1 Backup Key Escrow Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hent Noekkel",
+        "tags": [
+          "backup"
+        ]
+      },
+      "put": {
+        "description": "Lagrer noekkelmaterialet til backup-bloben, kryptert i ro.\n\nMERK HVA DETTE BETYR: serveren har da baade bloben og noekkelen, og kan\nlese jaktloggen. Det er en bevisst avveining brukeren gjoer mot risikoen\nfor aa miste alt sammen med telefonen, og UI-teksten skal si det rett ut.\nIdempotent - en ny PUT erstatter materialet.",
+        "operationId": "deponer_noekkel_v1_backup_key_escrow_put",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscrowIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Deponer Noekkel V1 Backup Key Escrow Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deponer Noekkel",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/v1/backup/meta": {
+      "get": {
+        "description": "Metadata uten selve bloben - slik at «har jeg en backup aa gjenopprette?»\npaa en ny telefon ikke krever nedlasting av hele nyttelasten.",
+        "operationId": "backup_meta_v1_backup_meta_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Backup Meta V1 Backup Meta Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Backup Meta",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/v1/devices": {
+      "get": {
+        "description": "Til «innlogget paa disse enhetene» i UI-et. Selve push-tokenet returneres\nIKKE - det gir ingen nytte i klienten, og et svar er et sted det kan lekke.",
+        "operationId": "list_devices_v1_devices_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Devices V1 Devices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Devices",
+        "tags": [
+          "enheter"
+        ]
+      },
+      "put": {
+        "description": "Idempotent med vilje - derfor PUT og ikke POST. Klienten kaller dette ved\nhver oppstart, og skal ikke trenge aa vite om tokenet er nytt.\n\n`push_token` er unik paa tvers av brukere. Byttes telefonen mellom to\nkontoer, skal raden FOELGE tokenet: ellers ville varsler til den forrige\nbrukeren havnet paa en telefon som naa er logget inn som noen andre.",
+        "operationId": "register_device_v1_devices_put",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Register Device V1 Devices Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Device",
+        "tags": [
+          "enheter"
+        ]
+      }
+    },
+    "/v1/devices/unregister": {
+      "post": {
+        "description": "Kalles ved utlogging. Idempotent: et ukjent token gir ogsaa 204, av samme\ngrunn som /v1/auth/logout - avregistrering skal aldri feile og etterlate\nklienten i tro om at den fortsatt faar varsler.\n\nBare egne enheter kan avregistreres. Uten det filteret kunne hvem som helst\nskrudd av varslene til en annen ved aa gjette et token.",
+        "operationId": "unregister_device_v1_devices_unregister_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnregisterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unregister Device",
+        "tags": [
+          "enheter"
+        ]
+      }
+    },
+    "/v1/failed-analyses": {
+      "post": {
+        "operationId": "submit_failed_v1_failed_analyses_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_submit_failed_v1_failed_analyses_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Failed V1 Failed Analyses Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Failed",
+        "tags": [
+          "feilanalyse"
+        ]
+      }
+    },
+    "/v1/feedback": {
+      "post": {
+        "operationId": "submit_feedback_v1_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Feedback V1 Feedback Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Feedback",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/v1/friends": {
+      "get": {
+        "operationId": "list_friends_v1_friends_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Friends V1 Friends Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Friends",
+        "tags": [
+          "venner"
+        ]
+      }
+    },
+    "/v1/friends/request": {
+      "post": {
+        "operationId": "request_friend_v1_friends_request_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Request Friend V1 Friends Request Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Friend",
+        "tags": [
+          "venner"
+        ]
+      }
+    },
+    "/v1/friends/requests": {
+      "get": {
+        "description": "Innkommende, ubesvarte forespoersler.",
+        "operationId": "list_requests_v1_friends_requests_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Requests V1 Friends Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Requests",
+        "tags": [
+          "venner"
+        ]
+      }
+    },
+    "/v1/friends/respond": {
+      "post": {
+        "operationId": "respond_friend_v1_friends_respond_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Respond Friend V1 Friends Respond Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Respond Friend",
+        "tags": [
+          "venner"
+        ]
+      }
+    },
+    "/v1/friends/{user_id}": {
+      "delete": {
+        "operationId": "remove_friend_v1_friends__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Friend",
+        "tags": [
+          "venner"
+        ]
+      }
+    },
+    "/v1/hunts/announce": {
+      "post": {
+        "description": "Sender «{navn} har felt {art} i {kommune}» til vennene som push.\n\nArtikkelen ligger i `species`-strengen klienten sender («et villsvin»), ikke\nher - boeyningen er klientens (Announce.speciesPhrase). Serveren limer bare\nsammen, saa forhaandsvisningen brukeren saa er ordrett den vennene faar.\n\nKrever `share_kills` (§3). Bryteren fantes allerede i delingsvalgene, og\ndet er den samme brukeren sa ja til - vi lager ingen ny.",
+        "operationId": "announce_kill_v1_hunts_announce_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnounceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Announce Kill V1 Hunts Announce Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Announce Kill",
+        "tags": [
+          "jakt"
+        ]
+      }
+    },
+    "/v1/messages": {
+      "get": {
+        "operationId": "list_messages_v1_messages_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MessageOut"
+                  },
+                  "title": "Response List Messages V1 Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Messages",
+        "tags": [
+          "meldinger"
+        ]
+      }
+    },
+    "/v1/messages/ack": {
+      "post": {
+        "description": "Klienten kvitterer naar meldingen er VIST. Serveren sletter ikke raden -\nden markeres som levert, saa en klient som krasjer mellom henting og\nvisning ikke mister meldingen for godt.",
+        "operationId": "ack_messages_v1_messages_ack_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ack Messages",
+        "tags": [
+          "meldinger"
+        ]
+      }
+    },
+    "/v1/profile": {
+      "get": {
+        "operationId": "get_profile_v1_profile_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Profile V1 Profile Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Profile",
+        "tags": [
+          "profil"
+        ]
+      },
+      "put": {
+        "operationId": "update_profile_v1_profile_put",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Profile V1 Profile Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Profile",
+        "tags": [
+          "profil"
+        ]
+      }
+    },
+    "/v1/profile/sharing": {
+      "get": {
+        "operationId": "get_sharing_v1_profile_sharing_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Sharing V1 Profile Sharing Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sharing",
+        "tags": [
+          "profil"
+        ]
+      },
+      "put": {
+        "description": "Deaktivering nuller delte felt (§3): siden serveren filtrerer utgaaende\ndata paa disse valgene, slutter feltet aa foelge med i samme oeyeblikk -\ndet ligger ingen kopi hos vennen som maa ryddes.",
+        "operationId": "update_sharing_v1_profile_sharing_put",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Sharing V1 Profile Sharing Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Sharing",
+        "tags": [
+          "profil"
+        ]
+      }
+    },
+    "/v1/research/consent": {
+      "post": {
+        "operationId": "grant_consent_v1_research_consent_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Grant Consent V1 Research Consent Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant Consent",
+        "tags": [
+          "forskning"
+        ]
+      }
+    },
+    "/v1/research/consent/{consent_type}": {
+      "delete": {
+        "description": "Samtykke skal alltid kunne trekkes tilbake (§0 «samtykke styrer alt»).",
+        "operationId": "revoke_consent_v1_research_consent__consent_type__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "consent_type",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ResultType"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Revoke Consent V1 Research Consent  Consent Type  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Consent",
+        "tags": [
+          "forskning"
+        ]
+      }
+    },
+    "/v1/research/records": {
+      "post": {
+        "operationId": "submit_research_v1_research_records_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Research V1 Research Records Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Research",
+        "tags": [
+          "forskning"
+        ]
+      }
+    },
+    "/v1/research/sharing": {
+      "get": {
+        "operationId": "get_research_sharing_v1_research_sharing_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Research Sharing V1 Research Sharing Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Research Sharing",
+        "tags": [
+          "forskning"
+        ]
+      },
+      "put": {
+        "description": "Endringen gjelder framover. Den rydder IKKE i allerede innsendte rader:\nde er pseudonymiserte og kan ikke knyttes til kontoen herfra - det er hele\npoenget med §7. Vil brukeren ha dem bort, er veien `DELETE /v1/account`,\nsom legger inn en sletteanmodning paa pseudonymet.",
+        "operationId": "update_research_sharing_v1_research_sharing_put",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchSharingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Research Sharing V1 Research Sharing Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Research Sharing",
+        "tags": [
+          "forskning"
+        ]
+      }
+    },
+    "/v1/stats/series": {
+      "get": {
+        "operationId": "list_series_v1_stats_series_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "season_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Season Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Series V1 Stats Series Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Series",
+        "tags": [
+          "statistikk"
+        ]
+      }
+    },
+    "/v1/stats/series/{series_id}": {
+      "put": {
+        "operationId": "upsert_series_v1_stats_series__series_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "series_id",
+            "required": true,
+            "schema": {
+              "title": "Series Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeriesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Upsert Series V1 Stats Series  Series Id  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Series",
+        "tags": [
+          "statistikk"
+        ]
+      }
+    },
+    "/v1/teams": {
+      "get": {
+        "operationId": "my_teams_v1_teams_get",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response My Teams V1 Teams Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Teams",
+        "tags": [
+          "lag"
+        ]
+      },
+      "post": {
+        "operationId": "create_team_v1_teams_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Team V1 Teams Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Team",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/join": {
+      "post": {
+        "operationId": "join_team_v1_teams_join_post",
+        "parameters": [
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Join Team V1 Teams Join Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Team",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/near": {
+      "get": {
+        "description": "§4: inntil 20 lag innenfor radiusen, sortert etter avstand - og de 3\nnaermeste er ALLTID med, uansett hvor langt unna de er. Ellers ville en\nbruker i et tynt befolket omraade faatt en tom liste.\n\nAlle lag med koordinater leses inn og sorteres i Python. Det holder i\nlang tid (vi snakker hundrevis av lag), men maa byttes til en\ngeo-indeks - PostGIS eller geohash-kolonne - naar tabellen vokser.",
+        "operationId": "teams_near_v1_teams_near_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Lat",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lon",
+            "required": true,
+            "schema": {
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Lon",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "r",
+            "required": false,
+            "schema": {
+              "default": 50000,
+              "exclusiveMinimum": 0,
+              "title": "R",
+              "type": "number"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Teams Near V1 Teams Near Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Teams Near",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}": {
+      "get": {
+        "operationId": "team_details_v1_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Team Details V1 Teams  Team Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Details",
+        "tags": [
+          "lag"
+        ]
+      },
+      "put": {
+        "operationId": "rename_team_v1_teams__team_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rename Team V1 Teams  Team Id  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Team",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/election": {
+      "post": {
+        "operationId": "start_election_v1_teams__team_id__election_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Start Election V1 Teams  Team Id  Election Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Election",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/invite": {
+      "post": {
+        "operationId": "invite_v1_teams__team_id__invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite V1 Teams  Team Id  Invite Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/leader-challenge": {
+      "get": {
+        "operationId": "challenge_status_v1_teams__team_id__leader_challenge_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Challenge Status V1 Teams  Team Id  Leader Challenge Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Challenge Status",
+        "tags": [
+          "lag"
+        ]
+      },
+      "post": {
+        "operationId": "challenge_leader_v1_teams__team_id__leader_challenge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Challenge Leader V1 Teams  Team Id  Leader Challenge Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Challenge Leader",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/leaders/confirm": {
+      "post": {
+        "operationId": "confirm_leadership_v1_teams__team_id__leaders_confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Confirm Leadership V1 Teams  Team Id  Leaders Confirm Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Leadership",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/leaders/{member_id}": {
+      "post": {
+        "description": "§11 «Overfoer lederskap»: velg et eksisterende medlem - men rollen settes\nfoerst naar den valgte BEKREFTER. Ingen skal vaakne opp som lagleder uten\naa ha sagt ja.",
+        "operationId": "offer_leadership_v1_teams__team_id__leaders__member_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Offer Leadership V1 Teams  Team Id  Leaders  Member Id  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Offer Leadership",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/members/{member_id}": {
+      "delete": {
+        "operationId": "remove_member_v1_teams__team_id__members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/vote": {
+      "post": {
+        "operationId": "cast_vote_v1_teams__team_id__vote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cast Vote V1 Teams  Team Id  Vote Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cast Vote",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}/vote-status": {
+      "get": {
+        "operationId": "vote_status_v1_teams__team_id__vote_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vote Status V1 Teams  Team Id  Vote Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vote Status",
+        "tags": [
+          "lag"
+        ]
+      }
+    },
+    "/v1/users/search": {
+      "get": {
+        "description": "`q` er enten en bruker-ID (`BF-7Q4K-9F2M`) eller et telefonnummer.\nIngen fritekstsoek paa navn: det ville gjort hele brukerbasen listbar.",
+        "operationId": "search_users_v1_users_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "«Bearer <access-token>» (§1).",
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "«Bearer <access-token>» (§1).",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search Users V1 Users Search Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Users",
+        "tags": [
+          "venner"
+        ]
+      }
+    }
+  }
+}

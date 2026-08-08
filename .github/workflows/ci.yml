@@ -65,6 +65,16 @@ jobs:
       - name: Roekt-test import
         working-directory: backend
         run: python -c "from app.main import app; print(len(app.routes), 'ruter')"
+
+      # contracts/openapi.json er en DELT kontraktflate UI-instansen leser uten
+      # aa kjoere backenden. En innsjekket kontrakt som stille kommer i utakt
+      # med koden er verre enn ingen kontrakt - da bygges det mot noe som ser
+      # autoritativt ut uten aa vaere det. Derfor regenereres den her og
+      # sammenlignes; avviket sendes som ::error-annotasjon (jobbloggen svarer
+      # 403 uten token).
+      - name: Kontrakten er i takt med koden
+        working-directory: backend
+        run: python tools/gen_openapi.py --check
       - name: pytest (SQLite)
         working-directory: backend
         run: python -m pytest tests -q

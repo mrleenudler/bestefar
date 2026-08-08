@@ -110,6 +110,12 @@ aldri til en eksisterende konto.
   `{melding, lagret_client_ts, innsendt_client_ts}`. **Likt** `client_ts`
   godtas — en omprøving etter et avbrutt kall skal ikke feile.
   `?force=true` overstyrer.
+- **`client_ts` godtas både som epoke-millisekunder (heltall) og som ISO-8601.**
+  Klienten sender heltall (`android/KONTRAKT.md` §3); Pydantic tolker
+  størrelsesorden riktig, verifisert 2026-08-08: `1786183200000` og
+  `1786183200` gir samme tidspunkt. Naive ISO-verdier uten offset tolkes som
+  UTC. **Merk at `contracts/openapi.json` bare oppgir `string`/`date-time`** —
+  skjemaet er her smalere enn implementasjonen.
 - **Grensen er 16 MB** (`MAX_BACKUP_BYTES`). Sjekkes både på `Content-Length` og
   på faktisk lest kropp ⇒ 413. Tom kropp ⇒ 422.
 - **`GET /v1/backup`** returnerer `application/octet-stream` med metadata i
@@ -323,6 +329,41 @@ endres den for alle klienter samtidig — det er tilsiktet.
 - **Forskningsskjemaet røres ikke.** Det legges inn en sletteanmodning på
   pseudonymet, og alle samtykker trekkes tilbake med én gang.
   **Anmodningen tømmes ikke av noen jobb** — ÅP-E2.
+
+## 8.1 Det maskinlesbare skjemaet
+
+`contracts/openapi.json` genereres fra FastAPI-appen og sjekkes inn. CI feiler
+hvis den er utdatert (`ci.yml`, «Kontrakten er i takt med koden»). Full
+beskrivelse i `contracts/README.md`.
+
+**Den er ikke uttømmende, og dette dokumentet er fasit der de spriker på
+semantikk.** Skjemaet er generert fra typene i koden; det vet ingenting om
+idempotens, om hva som er trygt å prøve på nytt, eller om hvorfor en 409 kommer.
+
+**Fire avvik funnet ved generering 2026-08-08:**
+
+1. **Svarkroppene er ikke beskrevet — for 47 av 48 operasjoner.** Håndtererne er
+   annotert `-> dict`, så OpenAPI får bare `{"type": "object",
+   "additionalProperties": true}`. Alt som står om svar i dette dokumentet,
+   finnes ikke i skjemaet. `GET /v1/messages` er unntaket, med
+   `response_model=list[MessageOut]`. Se ÅP-B10.
+2. **`client_ts` oppgis som `string`/`date-time`**, men implementasjonen godtar
+   også epoke-millisekunder som heltall — som er det klienten faktisk sender.
+   Skjemaet er smalere enn virkeligheten. Se §2.
+3. **Ingen `securitySchemes`.** `Authorization` står som en *valgfri*
+   header-parameter, fordi den leses med `Header(default=None)` og ikke gjennom
+   FastAPIs sikkerhetsavhengigheter. Et generert klientbibliotek vil tro at den
+   kan utelates. Den kan den ikke — se §1.
+4. **`X-Debug-User-Id` sto i skjemaet** på hvert beskyttet endepunkt og så ut
+   som en støttet innloggingsmåte. Nå utelatt med `include_in_schema=False`.
+   Den er fortsatt død i produksjon; den skal bare ikke annonseres i en delt
+   kontrakt.
+
+**Rettet samtidig:** `kind` i meldingskøen står nå i skjemaet som
+`type: string, maxLength: 32` med en beskrivelse som sier at det *ikke* er et
+enum. Uten det ville en kodegenerator som senere fikk en enum-liste servert,
+krasjet på verdi nummer åtte — og med `-> dict` ville den ikke fått noe i det
+hele tatt.
 
 ## 9. Kjente unøyaktigheter
 

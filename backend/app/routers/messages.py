@@ -9,6 +9,8 @@ naar brukeren mens appen er lukket, mens koen er GARANTIEN for at meldingen
 naar fram til slutt - ogsaa naar push feiler, tokenet er utloept eller
 brukeren har skrudd av varsler.
 """
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -21,7 +23,34 @@ from ..models import PendingMessage, User, utcnow
 router = APIRouter(prefix="/v1/messages", tags=["meldinger"])
 
 
-@router.get("")
+class MessageOut(BaseModel):
+    """
+    Én ventende melding.
+
+    Denne modellen finnes for at contracts/openapi.json skal beskrive SVARET og
+    ikke bare forespoerselen. Resten av API-et returnerer `dict` og har derfor
+    ingen svarskjema i det hele tatt - se AAPNE_PUNKTER ÅP-B10. Koeen er tatt
+    foerst fordi klienten maatte lese skjemaet ut av kildekoden vaar (issue #5).
+    """
+    id: int = Field(description="Heltall, ikke UUID. Autoinkrement, og bare "
+                                "meningsfull innenfor denne installasjonen.")
+    kind: str = Field(max_length=32,
+                      description="FRI STRENG, ikke et enum. Nye "
+                                  "meldingstyper skal kunne legges til uten en "
+                                  "ny klientutgivelse, saa en klient MAA "
+                                  "behandle en ukjent verdi som gyldig og falle "
+                                  "tilbake paa title + body. Verdiene i bruk i "
+                                  "dag er listet i backend/KONTRAKT.md §4.1.")
+    title: str = Field(max_length=120)
+    body: str = Field(description="Ferdig formulert norsk brukertekst, ikke en "
+                                  "noekkel klienten skal oversette.")
+    team_id: str | None = Field(default=None,
+                                description="UUID som streng naar meldingen "
+                                            "gjelder et lag, ellers null.")
+    created_at: datetime
+
+
+@router.get("", response_model=list[MessageOut])
 def list_messages(user: User = Depends(current_user),
                   s: OrmSession = Depends(db)) -> list[dict]:
     rader = s.scalars(select(PendingMessage).where(
