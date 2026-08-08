@@ -528,6 +528,16 @@
     <string name="backup_code_title">Gjenopprettingskoden din</string>
     <string name="backup_code_body">Skriv ned denne koden og ta vare på den et annet sted enn på telefonen.\n\nSikkerhetskopien er kryptert på telefonen din før den sendes. Verken vi eller noen andre kan lese den uten koden — og mister du koden, er kopien tapt.</string>
     <string name="backup_code_saved">Jeg har skrevet den ned</string>
+    <string name="backup_code_first_body">Skriv ned denne koden og ta vare på den et annet sted enn på telefonen.\n\nSikkerhetskopien krypteres på telefonen din før den sendes. Verken vi eller noen andre kan lese den uten koden.\n\nDu trenger den sannsynligvis aldri: får du ny telefon på vanlig måte, følger nøkkelen med automatisk. Men er telefonen borte, ødelagt eller nullstilt, er denne koden den eneste veien tilbake til serier og jaktlogg. Uten den er kopien tapt — også for oss.\n\nDu finner koden igjen under Avanserte innstillinger → Sikkerhetskopi, så lenge du har denne telefonen.</string>
+    <string name="backup_code_ack">Jeg har skrevet ned koden et annet sted enn på telefonen</string>
+
+    <!-- Tilbud om første sikkerhetskopi, etter at kontoen er opprettet (v0.21) -->
+    <string name="backup_offer_title">Ta vare på loggen din?</string>
+    <string name="backup_offer_body">Serier og jaktlogg ligger i dag bare på denne telefonen. Nå som du har konto, kan appen ta en kryptert sikkerhetskopi, så du får dem tilbake om telefonen blir borte.\n\nDu får se en gjenopprettingskode først. Den må du ta vare på.</string>
+    <string name="backup_offer_yes">Ja, ta en kopi</string>
+    <string name="backup_offer_no">Ikke nå</string>
+    <string name="backup_offer_later">Du finner den igjen under Avanserte innstillinger → Sikkerhetskopi</string>
+    <string name="backup_offer_done">Sikkerhetskopien er lagret</string>
     <string name="backup_show_code">Vis gjenopprettingskoden</string>
     <string name="backup_now">Lag sikkerhetskopi nå</string>
     <string name="backup_restore">Gjenopprett fra sikkerhetskopi</string>

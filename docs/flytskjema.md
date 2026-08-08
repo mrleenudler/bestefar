@@ -202,6 +202,11 @@ flowchart TD
         LOG -->|"innlogget"| LOGC["Navn · Bruker-ID · Logg ut"]
         LOGA --> LOGT["POST /v1/auth/google<br/>→ egne tokens i Secrets"]
         LOGB --> LOGT
+        LOGT --> LOGN{"is_new fra serveren?"}
+        LOGN -->|"nei"| LOGD["ferdig"]
+        LOGN -->|"ja"| LOGB1["«Ta vare på loggen din?»<br/>etter varseldialogen"]
+        LOGB1 -->|"Ja"| LOGB2["Vis gjenopprettingskoden<br/>avkryssing kreves · kan ikke avbrytes"]
+        LOGB2 --> LOGB3["PUT /v1/backup"]
         M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
         M1b --> M1c["Sikkerhetskopi<br/>Sikkerhetskopier nå · Gjenopprett ·<br/>Vis gjenopprettingskode (nødutgang)"]
         M1c --> RST["Gjenopprett:<br/>GET /v1/backup/meta først"]

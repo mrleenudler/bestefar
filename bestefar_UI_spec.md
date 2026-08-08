@@ -286,6 +286,12 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
   e-post. Innlogget vises navn, bruker-ID og «Logg ut». Apple-innlogging er ikke
   bygget. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
   eksplisitt at alt annet virker uten konto.
+
+  **Er kontoen nyopprettet**, tilbys en sikkerhetskopi med det samme — etter
+  varseldialogen, aldri samtidig med den. Det er det ene øyeblikket appen vet
+  at brukeren har data lokalt og ingen kopi noe sted. En eksisterende konto får
+  ikke tilbudet; der er det riktige spørsmålet «vil du gjenopprette?», og den
+  flyten er ikke bygget.
 - **Visningsprofil:** lys / mørk / system, øverst til høyre. Default lys.
 - **Avanserte innstillinger** (egen skjerm, 🎛-ikon fører dit fra alle steder
   som nevner den).
@@ -328,10 +334,20 @@ søkes opp i tre lag, i denne rekkefølgen:
    standard. **Dette er det eneste tilfellet der vi kan lese kopien din**, og
    hjelpeteksten sier det rett ut.
 
-Den 20-tegns **gjenopprettingskoden er nødutgangen**, ikke hovedveien. Den ligger
-under Sikkerhetskopi og vises ikke lenger som en dialog man må forholde seg til
-ved første kopi. Brukeren blir bedt om å taste den *bare* når ingen av de tre
-lagene har noe.
+Den 20-tegns **gjenopprettingskoden er nødutgangen**, ikke hovedveien. Brukeren
+blir bedt om å *taste* den bare når ingen av de tre lagene har noe.
+
+**Koden vises én gang med krav om bekreftelse — første gang.** Da kan dialogen
+ikke avbrytes, og knappen er deaktivert til brukeren har krysset av for at koden
+er skrevet ned et annet sted enn på telefonen. Teksten sier hva som går tapt:
+kopien er tapt også for oss, uten koden. Etterpå — når brukeren selv ber om å se
+koden fra Avanserte innstillinger — er avkryssingen borte; da er den ren
+friksjon.
+
+**Koden kan hentes fram igjen** under Avanserte innstillinger → Sikkerhetskopi →
+«Vis gjenopprettingskoden», så lenge brukeren har telefonen. Det som ikke kan
+hentes igjen, er koden til en telefon som er borte — og det er hele grunnen til
+at den skal skrives ned et annet sted.
 
 «Gjenopprett» spør serveren først om det finnes noe å hente, og viser **når
 kopien ble laget** før den erstatter alt lokalt.

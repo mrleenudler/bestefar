@@ -34,6 +34,30 @@ nåtilstanden.
 
 ---
 
+## v0.21 — første sikkerhetskopi tilbys etter at kontoen er opprettet
+
+- **`is_new` leses.** Feltet har ligget i innloggingssvaret siden v0.17 uten at
+  noen brukte det. Det er det ene signalet som skiller «kontoen ble opprettet
+  nå» fra «brukeren logget inn igjen», og dermed det ene øyeblikket appen vet at
+  det finnes lokale data og ingen kopi noe sted. En bruker som logget inn og
+  mistet telefonen dagen etter, hadde konto uten kopi — nøyaktig det kontoen
+  finnes for å hindre.
+- **Tilbudet kommer etter varseldialogen**, ikke samtidig. To vinduer som kappes
+  om skjermen gir et «nei» til begge.
+- **Gjenopprettingskoden vises før opplastingen**, ikke etter. En kopi på
+  serveren som brukeren ikke har nøkkelen til, er det eneste utfallet som er
+  verre enn ingen kopi.
+- **Første visning krever avkryssing.** Dialogen kan ikke avbrytes, og knappen
+  er deaktivert til brukeren har bekreftet at koden er skrevet ned et annet sted
+  enn på telefonen. Ber brukeren *selv* om å se koden senere, er avkryssingen
+  borte — da er den ren friksjon. `Store.backupCodeShown` var til nå et flagg
+  som ble skrevet og aldri lest; nå styrer det dette.
+- **Teksten sier hva som går tapt**, og at koden kan hentes fram igjen så lenge
+  telefonen finnes. Det som ikke kan hentes igjen er koden til en telefon som er
+  borte.
+- Kodedialogen er flyttet fra `AvansertActivity` til `Dialogs`, siden to skjermer
+  nå viser den.
+
 ## v0.20 — klienten rettet mot `contracts/openapi.json`
 
 Første runde der klienten er gått gjennom mot den maskinlesbare kontrakten i

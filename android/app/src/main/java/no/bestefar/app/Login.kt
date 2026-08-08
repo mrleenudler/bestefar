@@ -48,7 +48,13 @@ object Login {
      * feilmelding om noe de gjorde med vilje.
      */
     sealed class Result {
-        object Ok : Result()
+        /**
+         * [nyKonto] er serverens `is_new`: kontoen ble opprettet av nettopp
+         * dette kallet. Det er det eneste oeyeblikket vi med sikkerhet vet at
+         * brukeren ikke har en sikkerhetskopi noe sted, og derfor det ene
+         * riktige tidspunktet aa tilby en.
+         */
+        class Ok(val nyKonto: Boolean) : Result()
         object Avbrutt : Result()
         class Feil(val melding: String) : Result()
     }
@@ -148,7 +154,9 @@ object Login {
             } catch (_: Exception) { 60 }
             Api.ui {
                 when {
-                    resp.ok -> onDone(Result.Ok, cooldown)
+                    // Ok(false): aa be om en kode oppretter ingen konto. Om det
+                    // blir en ny konto avgjoeres foerst i /email/verify.
+                    resp.ok -> onDone(Result.Ok(nyKonto = false), cooldown)
                     // 429 er sperrefristen på serveren, ikke en feil brukeren
                     // har gjort. Fristen står i svaret.
                     resp.code == 429 -> onDone(
@@ -184,9 +192,16 @@ object Login {
 
     private fun finish(ctx: Context, resp: Api.Resp, onDone: (Result) -> Unit) {
         val ok = resp.ok && Auth.saveSession(ctx, resp.body)
+        // `is_new` staar i svaret fra alle tre innloggingsveiene
+        // (TokenParNyBruker i contracts/openapi.json). Mangler feltet, antar vi
+        // eksisterende konto: aa tilby en foerstegangs-sikkerhetskopi til noen
+        // som allerede har en, er verre enn aa la vaere.
+        val ny = ok && try {
+            JSONObject(resp.body).optBoolean("is_new", false)
+        } catch (_: Exception) { false }
         Api.ui {
             onDone(when {
-                ok -> Result.Ok
+                ok -> Result.Ok(ny)
                 // 401 fra oss betyr at leverandørens token ble avvist — nesten
                 // alltid feil `aud`, altså at Android-klient-ID-en er brukt der
                 // web-klient-ID-en skulle stått, eller at backenden mangler

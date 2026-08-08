@@ -265,7 +265,10 @@ class LoggInnActivity : AppCompatActivity() {
                 // til. Å spørre ved appstart ville vært et systemvindu uten
                 // kontekst, og et «nei» der er nesten umulig å komme tilbake
                 // fra: Android viser dialogen bare et par ganger.
-                askNotificationsThenRegister()
+                //
+                // Sikkerhetskopien tilbys ETTER varseldialogen, ikke samtidig:
+                // to vinduer som kappes om skjermen gir et «nei» til begge.
+                askNotificationsThenRegister(after = { maybeOfferBackup(r.nyKonto) })
             }
             // Avbrutt av brukeren: ingen melding. De vet hva de gjorde.
             is Login.Result.Avbrutt -> Unit
@@ -275,12 +278,17 @@ class LoggInnActivity : AppCompatActivity() {
 
     // ---------- Varsler (backend_spec §11) ----------
 
+    /** Settes rett før systemdialogen, kjøres når den er besvart. */
+    private var afterNotifications: (() -> Unit)? = null
+
     private val askNotifications = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
         // Uansett svar: meld inn enheten. Sier brukeren nei, får de ingen
         // varsler nå — men skrur de dem på i systeminnstillingene senere,
         // skal adressen allerede være registrert.
         Push.register(this)
+        afterNotifications?.invoke()
+        afterNotifications = null
     }
 
     /**
@@ -289,20 +297,43 @@ class LoggInnActivity : AppCompatActivity() {
      * beskjeder fra lagene. Et systemvindu uten kontekst får «nei», og det
      * «nei-et» er nesten permanent.
      */
-    private fun askNotificationsThenRegister() {
-        if (android.os.Build.VERSION.SDK_INT < 33) { Push.register(this); return }
+    private fun askNotificationsThenRegister(after: () -> Unit = {}) {
+        if (android.os.Build.VERSION.SDK_INT < 33) { Push.register(this); after(); return }
         val gitt = androidx.core.content.ContextCompat.checkSelfPermission(this,
             android.Manifest.permission.POST_NOTIFICATIONS) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (gitt) { Push.register(this); return }
+        if (gitt) { Push.register(this); after(); return }
 
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.push_ask_title)
             .setMessage(R.string.push_ask_body)
             .setPositiveButton(R.string.push_ask_yes) { _, _ ->
+                afterNotifications = after
                 askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
-            .setNegativeButton(R.string.push_ask_no) { _, _ -> Push.register(this) }
+            .setNegativeButton(R.string.push_ask_no) { _, _ -> Push.register(this); after() }
+            .setOnCancelListener { Push.register(this); after() }
             .show()
+    }
+
+    // ---------- Første sikkerhetskopi (backend_spec §2) ----------
+
+    /**
+     * Serveren sier `is_new` når kontoen ble opprettet av innloggingen. Det er
+     * det ene øyeblikket vi vet at brukeren har data lokalt og ingen kopi noe
+     * sted — og derfor det ene tidspunktet et tilbud om sikkerhetskopi ikke er
+     * mas.
+     *
+     * Punktet har stått åpent siden v0.17: feltet lå i svaret, og ingen leste
+     * det. En bruker som logget inn og mistet telefonen dagen etter, hadde en
+     * konto uten kopi — altså nøyaktig det kontoen finnes for å hindre.
+     *
+     * En eksisterende konto får ikke tilbudet. Da er det riktige spørsmålet
+     * «vil du gjenopprette?», ikke «vil du kopiere?», og det er en annen flyt
+     * som ikke er bygget ennå.
+     */
+    private fun maybeOfferBackup(nyKonto: Boolean) {
+        if (!nyKonto || isFinishing) return
+        Dialogs.tilbyFoersteSikkerhetskopi(this, store)
     }
 }

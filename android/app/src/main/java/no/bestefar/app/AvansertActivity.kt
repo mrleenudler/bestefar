@@ -282,32 +282,13 @@ class AvansertActivity : AppCompatActivity() {
      * forbi ved første kopi. Den vises når brukeren spør etter den, og teksten
      * sier hvorfor den finnes: Block Store dekker det vanlige tilfellet, koden
      * dekker det som gjenstår.
+     *
+     * Selve dialogen bor i [Dialogs] fordi den også brukes fra
+     * `LoggInnActivity` ved første sikkerhetskopi (v0.21). Én tekst, ett sted —
+     * det er den ene skjermen i appen der ordlyden faktisk avgjør om brukeren
+     * mister dataene sine.
      */
-    private fun showRecoveryCode(after: (() -> Unit)? = null) {
-        if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
-        val col = Ui.col(this, 24)
-        col.addView(android.widget.TextView(this).apply {
-            text = getString(R.string.backup_code_body)
-            textSize = 15f
-        })
-        col.addView(android.widget.TextView(this).apply {
-            text = Backup.formatCode(store.backupCode)
-            textSize = 22f
-            typeface = android.graphics.Typeface.MONOSPACE
-            gravity = android.view.Gravity.CENTER
-            setTextIsSelectable(true)          // så koden kan kopieres ut
-            setPadding(0, Ui.dp(this@AvansertActivity, 20), 0, 0)
-        })
-        AlertDialog.Builder(this)
-            .setTitle(R.string.backup_code_title)
-            .setView(androidx.core.widget.NestedScrollView(this).apply { addView(col) })
-            .setPositiveButton(R.string.backup_code_saved) { _, _ ->
-                store.backupCodeShown = true
-                after?.invoke()
-            }
-            .setCancelable(false)
-            .show()
-    }
+    private fun showRecoveryCode() = Dialogs.visGjenopprettingskode(this, store)
 
     /**
      * Slår på deponering. Teksten er den ærlige versjonen: bloben er fortsatt

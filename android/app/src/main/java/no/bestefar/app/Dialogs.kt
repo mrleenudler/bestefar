@@ -26,6 +26,120 @@ object Dialogs {
 
     private fun dp(a: Activity, v: Int) = (v * a.resources.displayMetrics.density).toInt()
 
+    // ---------- Sikkerhetskopi: koden og foerste kopi ----------
+
+    /**
+     * Viser gjenopprettingskoden.
+     *
+     * **Foerste gang kreves en avkryssing** foer knappen kan trykkes. Ikke for
+     * aa vaere vanskelig: dette er det ene skjermbildet i appen der aa klikke
+     * videre uten aa lese har en konsekvens brukeren ikke kan angre paa egen
+     * haand. Etterpaa - naar brukeren selv ber om aa se koden fra Avanserte
+     * innstillinger - er avkryssingen ren friksjon, og da er den borte.
+     *
+     * Dialogen kan ikke avbrytes med tilbakeknappen eller ved aa trykke
+     * utenfor. Den ene veien ut er knappen.
+     *
+     * MERK at koden IKKE er borte etter dette. Den ligger i [Secrets] og kan
+     * hentes fram igjen naar som helst under Avanserte innstillinger ->
+     * Sikkerhetskopi -> «Vis gjenopprettingskoden». Det som ikke kan hentes
+     * igjen, er koden til en telefon som er borte - og det er hele grunnen til
+     * at den skal skrives ned et annet sted enn paa telefonen.
+     */
+    fun visGjenopprettingskode(a: Activity, store: Store, after: (() -> Unit)? = null) {
+        if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
+        val foersteGang = !store.backupCodeShown
+
+        val col = Ui.col(a, 24)
+        col.addView(TextView(a).apply {
+            setText(if (foersteGang) R.string.backup_code_first_body
+                    else R.string.backup_code_body)
+            textSize = 15f
+        })
+        col.addView(TextView(a).apply {
+            text = Backup.formatCode(store.backupCode)
+            textSize = 22f
+            typeface = android.graphics.Typeface.MONOSPACE
+            gravity = Gravity.CENTER
+            setTextIsSelectable(true)          // saa koden kan kopieres ut
+            setPadding(0, dp(a, 20), 0, dp(a, 8))
+        })
+
+        val kvittering = if (!foersteGang) null else
+            androidx.appcompat.widget.AppCompatCheckBox(a).apply {
+                setText(R.string.backup_code_ack)
+                setPadding(dp(a, 8), dp(a, 12), 0, 0)
+            }
+        kvittering?.let { col.addView(it) }
+
+        val dialog = AlertDialog.Builder(a)
+            .setTitle(R.string.backup_code_title)
+            .setView(androidx.core.widget.NestedScrollView(a).apply { addView(col) })
+            .setPositiveButton(R.string.backup_code_saved) { _, _ ->
+                store.backupCodeShown = true
+                after?.invoke()
+            }
+            .setCancelable(false)
+            .create()
+
+        dialog.show()
+        kvittering?.let { boks ->
+            val knapp = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            knapp.isEnabled = false
+            boks.setOnCheckedChangeListener { _, av -> knapp.isEnabled = av }
+        }
+    }
+
+    /**
+     * Tilbys ETTER foerste innlogging, og bare naar serveren sa `is_new`
+     * (backend_spec §1). Det er det ene oeyeblikket vi vet at brukeren har data
+     * lokalt og ingen kopi noe sted.
+     *
+     * Rekkefoelgen er valgt: noekkelen skaffes og VISES foer bloben lastes opp.
+     * En kopi paa serveren som brukeren ikke har noekkelen til, er det eneste
+     * utfallet som er verre enn ingen kopi.
+     *
+     * 409-tilfellet haandteres ikke her, med vilje: en helt fersk konto har
+     * ingen lagret kopi aa vaere eldre enn. Den fulle flyten med
+     * overskrivingsdialog ligger i Avanserte innstillinger.
+     */
+    fun tilbyFoersteSikkerhetskopi(a: Activity, store: Store, onDone: () -> Unit = {}) {
+        if (!Auth.isLoggedIn(a)) { onDone(); return }
+        AlertDialog.Builder(a)
+            .setTitle(R.string.backup_offer_title)
+            .setMessage(R.string.backup_offer_body)
+            .setPositiveButton(R.string.backup_offer_yes) { _, _ ->
+                Ui.toast(a, R.string.backup_working)
+                Api.io {
+                    val code = BackupKeys.ensure(a)
+                    Api.ui {
+                        if (a.isFinishing) return@ui
+                        visGjenopprettingskode(a, store) { lastOpp(a, code, onDone) }
+                    }
+                }
+            }
+            .setNegativeButton(R.string.backup_offer_no) { _, _ ->
+                Ui.toast(a, R.string.backup_offer_later)
+                onDone()
+            }
+            .setOnCancelListener { onDone() }
+            .show()
+    }
+
+    private fun lastOpp(a: Activity, code: String, onDone: () -> Unit) {
+        Api.io {
+            val resp = Backup.upload(a, code)
+            Api.ui {
+                if (!a.isFinishing) Ui.toast(a, when {
+                    resp.ok -> a.getString(R.string.backup_offer_done)
+                    resp.code == 0 -> a.getString(R.string.backup_offline)
+                    else -> a.getString(R.string.backup_failed, resp.code)
+                })
+                onDone()
+            }
+        }
+    }
+
     /** «Mitt jaktmål»-rater (musingsUI runde 4). 1 av 13 = nasjonalt snitt. */
     val JAKTMAAL_RATES = listOf(
         0.143 to "1 av 7",
