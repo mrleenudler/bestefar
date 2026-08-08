@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.security.SecureRandom
+import java.time.Instant
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -209,11 +210,35 @@ object Backup {
      * finnes fordi serveren ikke kan se inn i bloben og derfor ikke kan
      * håndheve last-write-wins per post — uten det kunne en telefon som synker
      * for første gang på måneder viske ut alt som er logget siden.
+     *
+     * Parameterne er de fire `contracts/openapi.json` deklarerer, og bare de:
+     *
+     *  - **`client_ts` sendes som ISO-8601 med `Z`**, ikke som epoke-ms.
+     *    Serveren tar imot begge (`BackupMeta.client_ts`), men skjemaet
+     *    deklarerer `date-time`, og ms-varianten hviler paa at parseren tolker
+     *    store heltall som millisekunder og ikke som sekunder. Blir den
+     *    tolkningen noen gang strengere, leses tallet som sekunder, tidspunktet
+     *    havner titusener av aar fram i tid, og 409-vernet snur — det ville
+     *    sluppet gjennom nettopp den utdaterte enheten det finnes for aa stoppe.
+     *    **`Z`, aldri `+00:00`:** et `+` i en query-streng leses som mellomrom.
+     *  - **`schema_version`** er formatversjonen paa innholdet, altsaa den
+     *    serveren gir tilbake i `/meta` slik at en ny telefon kan se om den kan
+     *    lese kopien foer den laster ned 16 MB.
+     *  - **`app_version` sendes IKKE lenger.** Serveren tar ikke imot en slik
+     *    parameter, og ukjente query-parametere forsvinner stille — verdien har
+     *    aldri naadd fram. Appversjonen ligger dessuten i bloben (`app`), der
+     *    den er til nytte for den som kan dekryptere den.
+     *  - **`device_id` sendes fortsatt ikke** — vi har ingen stabil
+     *    installasjons-ID aa sette der. AAPNE_PUNKTER ÅP-U13.
      */
     fun upload(ctx: Context, code: String, force: Boolean = false): Api.Resp {
+        // Tidsstempelet tas FOER bloben bygges: feltet heter «klientens
+        // tidsstempel for oeyeblikksbildet», og noekkelutledningen tar et kvart
+        // sekund. Da skal ikke tallet vaere fra etter at bildet ble tatt.
+        val naa = Instant.now().toString()
         val blob = build(ctx, code)
-        val q = "?client_ts=${System.currentTimeMillis()}" +
-            "&app_version=${BuildConfig.VERSION_NAME}" +
+        val q = "?client_ts=$naa" +
+            "&schema_version=$SNAPSHOT_VERSION" +
             (if (force) "&force=true" else "")
         return Api.send(ctx, "PUT", "/v1/backup$q", "application/octet-stream", blob)
     }
@@ -236,7 +261,11 @@ object Backup {
      * om kopien er fra i går eller fra i fjor.
      */
     fun metaNaar(resp: Api.Resp): String = try {
-        Ui.norskTid(JSONObject(resp.body).optString("client_ts", ""))
+        val o = JSONObject(resp.body)
+        // `client_ts` er nullable i skjemaet, og org.json gir strengen "null"
+        // for en JSON-null via optString. Uten isNull-sjekken ville vi sendt
+        // "null" videre til parseren og vaert prisgitt at den feiler «riktig».
+        if (o.isNull("client_ts")) "" else Ui.norskTid(o.optString("client_ts", ""))
     } catch (_: Exception) {
         ""
     }

@@ -63,6 +63,7 @@ kompilerer; det gjør bare `gradlew assembleDebug` lokalt.
 | `android/KONTRAKT.md` | Det du garanterer utad — `retryable`, sidecar-formatet, blobens ytre format, gravsteiner, øktgarantiene |
 | `android/README.md` | Oppsett for en ny maskin + hvilke filer som gjør hva |
 | `../docs/flytskjema.md` §2–§3 | Skjermflyten og varselflyten som mermaid, avledet fra kode |
+| `../contracts/openapi.json` | **Maskinlesbar kontrakt for FORESPØRSLER**, generert fra backend-koden med CI-sjekk mot drift. Bygg mot den, ikke mot speccen. Les `contracts/README.md` først — den lister fem ting fila ikke dekker. |
 | `../backend_spec.md` §12–§17 | Klientsiden av kontrakten. Backend eier §0–§11; **rediger kun §12–§17**, og les regionen på nytt rett før du skriver. |
 | `../AAPNE_PUNKTER.md` | Det som ikke kan besluttes i kode. UI-punktene er ÅP-U* |
 | `../til_utvikler_v##.md` | Tilbakemelding per runde. **Delt fil** — legg til nederst, aldri `Write` |
@@ -137,6 +138,13 @@ Du leser gjerne koden deres. Du redigerer den ikke — issue med label
 - **Ny bryter i Avanserte innstillinger: skriv defaultverdien i KDoc-en**, og
   velg den bevisst. Personvernbrytere er av som standard — men «privat som
   standard» uten en bryter er «aldri», og det er en annen feil.
+- **Skal du kalle et endepunkt: slå det opp i `contracts/openapi.json`.**
+  Rutenavn, verb, feltnavn, typer, hva som er valgfritt og hvilke lengdegrenser
+  som gjelder står der, generert fra koden. **Grensene skal håndheves i
+  klienten** — et felt som er for langt gir 422, og 422 er ikke `retryable`, så
+  det ser ut som en helt annen feil enn den er. Spriker skjemaet og klienten,
+  er det en feil: rett klienten, eller meld issue med label `backend`. Ikke
+  tilpass deg stille.
 - **Ingen «Nytt i v0.NN»-seksjoner i spec eller flytskjema.** Det mønsteret gikk
   fire stadier og gjorde begge filene uleselige forfra; de ble ryddet
   2026-08-08. Runden føres i `android/CHANGELOG.md`, og

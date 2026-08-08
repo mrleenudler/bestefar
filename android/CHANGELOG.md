@@ -34,6 +34,37 @@ nåtilstanden.
 
 ---
 
+## v0.20 — klienten rettet mot `contracts/openapi.json`
+
+Første runde der klienten er gått gjennom mot den maskinlesbare kontrakten i
+stedet for mot `backend_spec.md`. Alle ruter og verb stemte; fem avvik lå i
+felter, parametere og grenser, og **alle fem var klientens feil**.
+
+- **`client_ts` på `PUT /v1/backup` sendes som ISO-8601 med `Z`**, ikke lenger
+  som epoke-millisekunder. Serveren tok imot begge, men ms-varianten hvilte på
+  at parseren tolker store heltall som millisekunder og ikke som sekunder. Ble
+  den tolkningen strengere, ville tidspunktet havnet titusener av år fram i tid
+  og 409-vernet snudd — det ville sluppet gjennom nettopp den utdaterte enheten
+  det finnes for å stoppe.
+- **`app_version` sendes ikke lenger** på samme kall. Serveren tar ikke imot en
+  slik parameter, og ukjente query-parametere forsvinner stille.
+- **`schema_version` sendes nå**, fra `Backup.SNAPSHOT_VERSION`. Den er
+  formatversjonen på innholdet, og serveren gir den tilbake i `/meta` så en ny
+  telefon kan se om den kan lese kopien før den laster ned 16 MB.
+- **Tilbakemeldingsskjemaet håndhever serverens lengdegrenser**: emne 200 tegn,
+  melding 10 000, i selve feltet. `device_model` avkortes til 64. Uten det ga en
+  telefon med langt fabrikant- og modellnavn 422 på hele tilbakemeldingen — og
+  siden 422 ikke er 429, falt koden ut i mailto-grenen og åpnet e-postappen uten
+  at noen skjønte hvorfor.
+- **`client_ts` fra `/meta` leses med `isNull` først.** org.json gir strengen
+  `"null"` for en JSON-null via `optString`, og feltet er nullable i skjemaet.
+  Det virket, men bare fordi datoparseren feilet på riktig måte.
+
+`device_id` sendes fortsatt ikke — hva ID-en skal være er et personvernvalg
+like mye som et teknisk et. ÅP-U13.
+
+---
+
 # Del 1 — flyttet fra `docs/flytskjema.md`
 
 ### Nytt i v0.15

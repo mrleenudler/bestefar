@@ -108,15 +108,24 @@ ingen implementasjon av som er sann.
 og metadataene i query-strengen — ikke base64 i JSON, som ville lagt ~33 % på den
 største nyttelasten appen har.
 
-- **`client_ts` er epoke-millisekunder som heltall**, ikke ISO-tid. Det er
-  klientens veggklokke i det øyeblikket opplastingen starter — altså etter at
-  bloben er bygget, som tar et kvart sekund eller to i nøkkelutledningen.
+- **`client_ts` er ISO-8601 med `Z`** fra og med v0.20 — `2026-08-08T09:14:22.317Z`.
+  Til og med v0.19 var det epoke-millisekunder som heltall; serveren tar imot
+  begge, men skjemaet deklarerer `date-time`, og ms-varianten hvilte på at
+  parseren tolker store heltall som millisekunder framfor sekunder. Verdien er
+  tidspunktet **snapshotet ble tatt**, ikke da opplastingen var ferdig.
   Serveren sammenligner den bare mot sin egen lagrede verdi, aldri mot sin egen
   klokke, så klokkeskjev mellom telefoner er den eneste kilden til feil her.
+- **`schema_version`** er `Backup.SNAPSHOT_VERSION`, altså formatversjonen på
+  *innholdet* i bloben. Sendes fra og med v0.20; eldre klienter sendte den ikke,
+  så alt som ligger lagret fra før har serverens default `1` — som tilfeldigvis
+  er riktig, siden formatet ikke har endret seg.
 - **`?force=true` settes kun når brukeren har svart ja** på «overskriv den nyere
   kopien». 409 vises som en egen dialog, ikke som en feil.
-- **`app_version`** sendes med, men **ingen leser den** — serveren tar ikke imot
-  en slik parameter. Se §7.
+- **`app_version` sendes ikke.** Til og med v0.19 gjorde klienten det, men
+  serveren tar ikke imot en slik parameter og ukjente query-parametere
+  forsvinner stille. Appversjonen ligger i bloben (`app`), der den kan leses av
+  den som har nøkkelen.
+- **`device_id` sendes ikke**, så `/meta` svarer alltid `device_id: ""`. Se §9.
 
 **Grense:** 16 MiB (`max_backup_bytes`). Serveren sjekker `Content-Length`
 *før* den leser kroppen, så et for stort opplastingsforsøk avvises uten at
@@ -259,13 +268,13 @@ klient-krypterte bloben og skal fortsette å gjøre det.
   server-kobling, så en dyplenke ville landet på en skjerm som ikke kjenner
   `team_id`. Det er en bevisst utsettelse, ikke en glipp — men **§11-flytene som
   krever et svar fra brukeren, er ikke fullførbare i klienten ennå.**
-- **`app_version` på `PUT /v1/backup` treffer ingenting.** Serveren tar imot
-  `client_ts`, `schema_version`, `device_id` og `force`; klienten sender
-  `client_ts`, `app_version` og `force`. Ukjente query-parametere ignoreres
-  stille, så verdien forsvinner. Motsatt vei: `schema_version` og `device_id`
-  sendes aldri, så `GET /v1/backup/meta` svarer alltid `device_id: ""` og
-  `schema_version: 1`, uansett hvilken telefon som lastet opp. Feltene finnes,
-  men de er tomme løfter. ÅP-U13.
+- **`device_id` på backupen er alltid tom.** Serveren tar imot parameteren og
+  eksponerer den i `/meta` og i `X-Backup-Device-Id`, men klienten har ingen
+  stabil installasjons-ID å sette der og sender den ikke. «Hvilken telefon
+  lastet opp dette?» er derfor ubesvart — og det er nøyaktig spørsmålet man
+  stiller den dagen to enheter har overskrevet hverandre. ÅP-U13.
+  (`app_version` og `schema_version` var samme klasse feil og er rettet i
+  v0.20.)
 - **Deponeringen kan bli stående etter at brukeren skrudde den av.** `DELETE`
   sendes uten at svaret leses (§4), så en avslåing gjort offline etterlater
   nøkkelmaterialet på serveren mens klienten viser bryteren som av. Klienten

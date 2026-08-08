@@ -121,10 +121,20 @@ object Panels {
      */
     private fun sendMessageDialog(a: MainActivity) {
         val root = Ui.col(a, 16)
-        val title = EditText(a).apply { hint = a.getString(R.string.message_title_hint) }
+        // Grensene er serverens (contracts/openapi.json, FeedbackIn: subject
+        // 200, body 10000). Haandhevet i FELTET, ikke ved avkorting foer
+        // sending: en bruker som skriver mer enn det skal merke det mens de
+        // skriver, ikke miste slutten uten beskjed. Uten grensen svarer
+        // serveren 422, og 422 er ikke 429 - da falt vi ut i mailto-grenen og
+        // «send melding» aapnet e-postappen uten at noen skjoente hvorfor.
+        val title = EditText(a).apply {
+            hint = a.getString(R.string.message_title_hint)
+            filters = arrayOf(android.text.InputFilter.LengthFilter(200))
+        }
         Ui.capitalize(title)
         val body = EditText(a).apply {
             hint = a.getString(R.string.message_body_hint); minLines = 4; gravity = Gravity.TOP
+            filters = arrayOf(android.text.InputFilter.LengthFilter(10_000))
         }
         Ui.capitalize(body)
         root.addView(title); root.addView(body)
@@ -150,7 +160,12 @@ object Panels {
                 put("subject", subject)
                 put("body", body)
                 put("app_version", BuildConfig.VERSION_NAME)
-                put("device_model", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                // take(64): skjemaets grense. Uten den ville en telefon med et
+                // langt fabrikant- og modellnavn faatt 422 paa HELE
+                // tilbakemeldingen, av en grunn som ikke har noe med meldingen
+                // aa gjoere. Push.kt avkorter allerede likt.
+                put("device_model",
+                    "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".take(64))
             })
             Api.ui {
                 when {

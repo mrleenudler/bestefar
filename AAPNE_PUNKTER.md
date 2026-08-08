@@ -371,27 +371,25 @@ slutter å love noe det ikke holder. Alle tre er farbare; valget er ikke tatt.
 
 Se `docs/ARCHITECTURE.md`, «Bygg/CI».
 
-### ÅP-U13 — Backup-metadataene går forbi hverandre · label `ui`
-Klienten sender `client_ts`, `app_version` og `force` på `PUT /v1/backup`.
-Serveren tar imot `client_ts`, `schema_version`, `device_id` og `force`
-(`backend/app/routers/backup.py:51–57`, `Backup.kt:215–218`).
+### ÅP-U13 — `device_id` på backupen er alltid tom · label `ui`
+Serveren tar imot `device_id` på `PUT /v1/backup` og eksponerer den både i
+`GET /v1/backup/meta` og i `X-Backup-Device-Id`. Klienten sender den ikke, så
+feltet er alltid `""` (`contracts/openapi.json`, `Backup.kt`).
 
-To ting følger av det. `app_version` ignoreres stille, som ukjente
-query-parametere gjør — verdien har aldri nådd fram. Og `device_id` sendes
-aldri, så `GET /v1/backup/meta` og `X-Backup-Device-Id` svarer alltid tomt,
-enda begge finnes nettopp for at en ny telefon skal kunne se hvilken enhet som
-lastet opp sist. Det samme gjelder `schema_version`, som alltid står som 1.
+Ingenting er ødelagt — 409-vernet hviler bare på `client_ts`. Men feltet later
+som om det bærer informasjon, og «hvilken telefon lastet opp dette?» er
+nøyaktig spørsmålet man stiller den dagen to enheter har overskrevet hverandre.
 
-Ingenting er ødelagt i dag — 409-vernet hviler bare på `client_ts`, og den
-sendes riktig. Men tre felter later som om de bærer informasjon, og «hvilken
-telefon lastet opp dette?» er nøyaktig spørsmålet man stiller den dagen to
-enheter har overskrevet hverandre.
+Åpent: **hva ID-en skal være.** En installasjons-UUID identifiserer
+installasjonen og overlever ikke reinstall — som kanskje er riktig, siden det
+er nettopp den nye installasjonen som skal gjenkjennes som «en annen enhet». Et
+modellnavn er ikke unikt. En Android-ID er enhetsbundet og mer personidentifi-
+serende enn resten av det vi sender. Valget er ikke tatt, og det er et
+personvernvalg like mye som et teknisk et.
 
-Åpent: om klienten skal begynne å sende `device_id` (og hva ID-en skal være —
-en installasjons-UUID er ikke det samme som en telefonmodell), om
-`schema_version` skal følge `SNAPSHOT_VERSION` i `Backup.kt`, og om
-`app_version` skal droppes fra query-strengen eller tas inn på serversiden.
-Valget er ikke tatt. Se `android/KONTRAKT.md` §3 og §9.
+*Delvis avklart 2026-08-08 (v0.20):* `app_version` ble droppet — serveren tar
+ikke imot den — og `schema_version` sendes nå fra `Backup.SNAPSHOT_VERSION`.
+Se `android/KONTRAKT.md` §3 og §9.
 
 ### ÅP-B8 — Manuell moderasjonskø for visningsnavn mangler flate · label `backend`
 > «Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
