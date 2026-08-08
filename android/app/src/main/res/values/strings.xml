@@ -142,7 +142,7 @@
 <!-- profile_login fjernet i v0.17: innloggingen finnes nå, se login_* under. -->
     <string name="skytterlag_hint">Skytterlag</string>
     <string name="jaktlag_hint">Jaktlag (flere skilles med komma)</string>
-    <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: samme grense brukes i kompetanseoversikten og kapabilitetskartet, så de aldri motsier hverandre.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
+    <string name="help_body">Ikoner: alle ikoner har tekstalternativ, og (i) åpner forklaring.\n\nSkadeskytingsrate: andelen skudd du aksepterer at ikke feller rent. Appen sier aldri «trygt» — den viser hvor grensen din går.\n\nForsvarlighetskriteriet: den samme grensen brukes overalt i appen, så to skjermer aldri kan si deg noe ulikt om det samme skuddet.\n\nDødelig sone-radier: provisoriske verdier; kildebelagt tabell kommer (spec §10).</string>
 
     <!-- Tutorial (velkomst + skip, musingsUI-runde 2) -->
     <string name="tutorial_next">Neste</string>

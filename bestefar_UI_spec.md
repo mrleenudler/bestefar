@@ -1,16 +1,17 @@
 # Bestefar — UI/UX-spesifikasjon
 
-> **Dette er kravdokumentet slik det ble skrevet som v0.4, og det er ikke
-> omskrevet siden.** Appen er i dag v0.19. Hva som er bygget runde for runde,
-> står i `android/CHANGELOG.md`; hvordan appen faktisk oppfører seg, i
-> `docs/flytskjema.md`. **Ved konflikt gjelder koden** — se §12 for hele
-> rangordningen.
+> **§1–§11 beskriver appen slik den er i dag (v0.20).** De ble skrevet om fra
+> v0.4-teksten 2026-08-08; fram til da beskrev de en app som ikke fantes.
+> Kildene var koden, `docs/flytskjema.md` og `android/KONTRAKT.md`, i den
+> rekkefølgen.
 >
-> Fila het `bestefar_UI_spec-v0-4.md` fram til 2026-08-08. Versjonsnummeret ble
-> tatt ut av filnavnet fordi det pekte på v0.4 mens innholdet var vokst til
-> v0.19, og et filnavn som lyver, leses av alle som åpner katalogen.
+> **§8 og §10 er ikke omskrevet, og skal ikke være det.** De er modellnotater og
+> åpne punkter — resonnement og ubesvarte spørsmål, ikke beskrivelser av en
+> flate. De gjelder uendret.
+>
+> Hva som ble bygget runde for runde, står i `android/CHANGELOG.md`.
+> Fila het `bestefar_UI_spec-v0-4.md` fram til 2026-08-08.
 
-Åpne punkter i seksjon 10.
 Bruk placeholdere for grafikk som ikke er triviell å implementere.
 Instruksjonen kan være uklar. Bruk egen dømmekraft, eller spør om veiledning.
 
@@ -20,104 +21,380 @@ Appen har to formål som i praksis er allierte: den skal gi jegeren et presist b
 
 **Bruksmodell (styrende):** Appen brukes ved øvelsesskyting — ved planlegging før jakt og ved tilbakeblikk etterpå. Den er aldri fremme i skuddøyeblikket. Verdien ligger i at jegeren gjennom trening etablerer en internalisert grense for akseptable skuddsituasjoner, og tar *regelen* med seg i felt. Dette er for-tanke satt i system.
 
-Prinsipper:
-- **Kontekstarv i tre nivåer.** Våpen (+ eventuell ammunisjon) bekreftes én gang per dag. Dersom bare ett våpen er registrert, skal det være default og ikke promptes. Avstand er default 100m, men kan enkelt endres. Skytestilling settes per serie som et prompt etter skivescan. 
-- **Verdi før forpliktelse.** Full funksjonalitet uten konto og uten samtykker. Forskningssamtykke og tilbud om online konto tilbys etter fem skutte serier. Valgene er Ja, Ikke nå, Aldri. Dersom Ikke nå velges, tilbys valget på nytt hver tiende serie. Valgene kan alltid endres i settings. Forskningssamtykke kan trekkes tilbake. 
-- **Jegerens språk, ikke statistikerens.** Frekvens («9 av 10»), ikke desimaltall eller tekniske mål, i alle beslutnings- og kompetanseflater. Usikkerhet kan vises som spenn der den er stor. Tekniske mål (σ, R95, MOA) finnes kun som "mer statistikk" i settings, og i forskningseksport.
-- **Ett forsvarlighetsbegrep.** Brukeren velger akseptabel skadeskytingsrate; appen bruker samme kriterium overalt og sier aldri «trygt».
-- **Ikonspråk.** Mest mulig ikoner (stillinger, arter, vinkling, utfall, vær), alltid med i-tegn som åpner forklaring, og tekstalternativer (WCAG). Funksjonalitet for tekst på alle tilgjengelige språk med tilfredsstillende dekning for fagterminologien.
-- **Offline-først.** Alt fungerer uten dekning; opplastinger køes.
+Prinsippene under er de opprinnelige. **De har styrt hver eneste runde og gjelder
+uendret** — det var teksten rundt dem som var utdatert, ikke de.
+
+- **Kontekstarv i tre nivåer.** Våpen bekreftes én gang per dag, og bare når
+  brukeren har registrert mer enn ett — med ett våpen velges det uten prompt.
+  Avstand er default 100 m og kan endres i nedtrekket. Skytestilling settes per
+  serie, som et prompt etter skivescan.
+- **Verdi før forpliktelse.** Full funksjonalitet uten konto og uten samtykker.
+  Appen ber aldri om innlogging uoppfordret. Samtykker kan alltid endres og
+  trekkes tilbake. *Forskningssamtykket er for tiden pauset — se §7.*
+- **Jegerens språk, ikke statistikerens.** Frekvens («9 av 10»), ikke desimaltall
+  eller tekniske mål, i alle beslutnings- og kompetanseflater. Usikkerhet kan
+  vises som spenn der den er stor. Tekniske mål (σ, R95, MOA) finnes kun bak
+  «Mer statistikk», og i forskningseksport.
+- **Ett forsvarlighetsbegrep.** Brukeren velger akseptabel skadeskytingsrate
+  (default 1 av 20); appen bruker samme kriterium overalt og sier aldri «trygt».
+- **Ikonspråk.** Mest mulig ikoner (stillinger, arter, vinkling, utfall), alltid
+  med i-tegn som åpner forklaring, og tekstalternativer (WCAG). Flerspråklighet
+  er ikke bygget — bokmål i v1, se §10.3.
+- **Offline-først.** Alt fungerer uten dekning; opplastinger køes. Nettet brukes
+  til feilanalysekøen, sikkerhetskopien, innloggingen og beskjedkøen — aldri til
+  noe brukeren trenger for å skyte en serie.
 
 ## 2. Navigasjon
 
-Seks faner: **Våpen**, **Avstand**, **Stilling**, **Innsikt**, **jakt**, **Meny**. Samtykke- og datastyring under Profil i Meny.
+**Tre faner** i en linje øverst: **Avstand**, **Innsikt**, **Meny**. Hvitt motiv
+på sort med grå ramme; valgt fane er markert. Liggende orientering gir baren
+60 % bredde, stående 80 %.
 
-Stor sentrert knapp: "scan serie"
+- **Avstand** og **Meny** åpner som nedtrekkspaneler — trykk på fanen igjen
+  lukker. Klikk utenfor lukker avstandspanelet.
+- **Innsikt** er fullskjerm.
 
+Under baren ligger hovedflaten med **antall øvelsesskudd denne sesongen** øverst
+og den store, sentrerte **«Scan serie»**-knappen i nedre halvdel.
+
+Våpen, Stilling og Jakt er **ikke** faner. Våpen bekreftes i dagsprompten,
+stilling velges etter hver scan, og Jakt ligger i menyen. Grunnen er at ingen av
+dem er et sted man navigerer til — de er ledd i en flyt.
+
+**Menyen**, i rekkefølge: Profil · Jakt · Venner · Serier · Melding til utvikler ·
+Hvordan bruke appen · Søk. Søket er et fritekstfelt over de samme skjermene, med
+nøkkelord per oppføring.
+
+Samtykke- og datastyring ligger under Profil → Avanserte innstillinger.
+
+## 3. Flate: Økt
 
 ### Dags- og øktoppsett
-- **Våpen** promptes én gang per dag, etter første serie, deretter forhåndsvalgt og synlig som valg. Med bare ett registrert våpen velges det automatisk uten prompt. Ved ammunisjonssplitt (seksjon 6) bekreftes ammunisjon i samme dagsprompt.
-- **Avstand** 100m som standard. 
-- **Skive:** Kongsberg digital skive, fast skala. Ingen skivevalg i v1.
+- **Våpen** bekreftes én gang per dag, og **bare når mer enn ett våpen er
+  registrert**. Med ett våpen velges det automatisk, uten prompt.
+- **Avstand** 100 m som standard, endres i nedtrekket. Egendefinert avstand kan
+  settes på en av knappene.
+- **Skive:** Kongsberg elektronisk skive, fast skala. Ingen skivevalg i v1.
+- **Ammunisjon spørres ikke om.** Feltene finnes i datamodellen, men det er
+  ingen flate for dem — se §6.
 
 ### Capture-løkke
-Per serie: Scan knapp → auto-capture → stillingsprompt → analyse → resultatkort → ok/avslutt. Stillingsprompten viser fire hovedstillinger (liggende, sittende, knestående, stående) med modifikator-chips (uten / anlegg / reim); siste modifikator huskes per hovedstilling. **Benk** er egen inngang ved innskyting. Innstilling «ikke spør — manuell stilling» erstatter prompten med synlig chip. I øvelsesmodus er stillingen forhåndsvalgt.
+Per serie: **Scan serie → auto-capture → analyse på enheten → resultatkort →
+stillingsvelger → innskytingssjekk → OCR-kontroll → lagre**.
+
+Merk rekkefølgen: **stillingen velges etter at resultatet er vist**, ikke før.
+Skuddene er alt skutt når appen kommer fram, så det er ingenting å spare på å
+spørre først — og et resultatkort på skjermen er en bedre påminnelse om hvilken
+stilling serien faktisk ble skutt fra enn et tomt spørsmål.
+
+`CaptureActivity` er appens eneste **liggende** skjerm. Auto-capture tar bildet i
+det øyeblikket kriteriene er oppfylt, og spiller av bekreftelsen (grønn ramme,
+«Klar!», hvit blits) *etterpå*, mens analysen allerede kjører. Tersklene er
+ukalibrerte startverdier — se `core/ARCHITECTURE.md`.
+
+Stillingsprompten viser fire stillinger — **liggende, sittende, knestående,
+stående** — med hjelpemidlene **anlegg** og **reim** som radio-toggler. «Uten» er
+ikke et eget valg, men den tilstanden der ingen av de to er valgt; trykk på en
+aktiv knapp slår den av igjen. Siste hjelpemiddel huskes per stilling. Velgeren
+viser antall skudd per stilling denne sesongen.
+
+**Det finnes ingen benk-inngang.** Stillingsenumet har fire verdier, og benk er
+ikke en av dem. §8 beskriver hvilken rolle benk *ville* hatt i modellen; den
+rollen er ikke bygget.
+
+Innstillingen «ikke spør — manuell stilling» erstatter prompten med et synlig
+valg.
 
 ### Resultatkort
-- Skuddene plottet på skivegjengivelse, med **korrigering av skuddmerker** (blyant-ikon for å justere poeng og desimaler med popup som på en timer innstilling). Korrigerte analyser tilbys sendt til feilanalysekanalen (mikrosamtykke per innsending).
-- Poengsum.
-- Langsiktig gjennomsnitt og spredning 
-- **Klikk-forslag** kun når offsetet er skjelnbart fra støy (per akse > ~2σ̂/√n); ellers «innenfor støy — ikke juster». Krever klikkverdi på optikken. Anvendte justeringer logges som hendelser på oppsettet.
-- Status: teller / teller ikke i evidensgrunnlaget (benk teller ikke i kompetanse).
+- Skuddene plottet på en skivegjengivelse, med poengsum og desimaler.
+- **OCR-kontroll**, etter stillingsvalget. `OcrVerifier` (ML Kit, on-device)
+  leser apparatets egen poengliste og sammenligner med kjernens treff:
+  - **Match** (avvik ≤ 0,2): OCR-poengene vises, i *skjermrekkefølge* — usortert.
+  - **Uavklart:** kjernens poeng vises, stigende.
+  - **Uenighet** (> 0,2): OCR øverst, «Identifiserte treff» nederst, og valget
+    Forkast / Lagre leste poeng.
+  **OCR har presedens når den finnes**, og totalen regnes av det som vises, så
+  liste og sum aldri spriker.
+- **To uavhengige kvalitetsporter:** kjernens statuskode fanger «jeg fikk ikke
+  kalibrert skiva» og utløser re-scan-dialogen; OCR-uenighet fanger den
+  vanskeligere klassen der analysen *lyktes* men leste feil.
+- **Innskytingssjekk:** ser sesongens eller dagens første serier skjevt innskutt
+  ut, spør appen «Er dette innskyting?», og serien kan forkastes.
+- **Duplikatvarsel** ved lagring når serien er praktisk talt lik den forrige.
+- **Klikk-forslag** kun når offsetet er skjelnbart fra støy (per akse
+  > ~2σ̂/√n); ellers «innenfor støy — ikke juster». Krever at klikkverdien på
+  optikken er fylt ut.
+
+Ved avvist analyse: «Bildet ble ikke korrekt analysert. Scan bildet på ny.» med
+Avbryt / Scan på ny, og tilbud om å sende bildet til feilanalyse.
 
 ### Øktoppsummering
-Serier med stilling-ikon, poeng og frekvensbudskap; endringer i kompetanse; usendte opplastinger i kø.
+Serier med stillingsikon, poeng og frekvensbudskap; usendte opplastinger i kø.
 
 ## 4. Flate: Jakt
 
+Nås fra Meny → Jakt, med to innganger: **Registrer jaktskudd** og **Se
+registrerte skudd**.
+
+### Valgfri lås foran loggen
+Innstillingen «Krev opplåsing for jaktloggen» (av som standard) legger
+`BiometricPrompt` foran begge inngangene — biometri eller skjermlås, med fem
+minutters frist etter vellykket opplåsing. Avvist opplåsing lukker ingenting;
+brukeren blir stående på forrige skjerm.
+
+**Dette er en dør foran skjermen, ikke kryptering.** Jaktloggen ligger like
+lesbar på disk. Bryteren skjules helt på enheter uten biometri eller skjermlås —
+en bryter som ikke kan virke, skal ikke stå der og se ut som en mulighet.
+
 ### Jaktmodus
-Valgfritt dagsoppsett: art(er), våpen, stedslogging av/på (huskes). Aktiv jaktmodus gir ett-trykks, forhåndsutfylt hurtiglogg.
+Valgfritt dagsoppsett: art(er), våpen, stedslogging av/på (huskes). Aktiv
+jaktmodus gir en forhåndsutfylt hurtiglogg.
 
 ### Hurtiglogg — tre steg, hanskevennlig
-1. **Art** (ikoner: elg, hjort, villrein, rådyr, villsvin; «annet» finnes, holdes utenfor analyser).
-2. **Hold**, deretter **vinkling** presentert som dyr i sirkel (BH-undersøkelsens format), med valgfri chip **«i bevegelse»**.
-3. **Utfall** — tre kategorier: **dødelig** (operasjonalisert som «dyret løp kortere enn x meter», x artsavhengig), **skade**, **bom**.
+1. **Art** (ikoner: elg, hjort, villrein, rådyr, villsvin; «annet» finnes og
+   holdes utenfor analyser).
+2. **Hold**, deretter **vinkling** som dyr i sirkel (BH-undersøkelsens format) —
+   bredside, skrå 30°, skrå 60°, forfra, bakfra. Valgfri chip **«i bevegelse»**.
+3. **Utfall** — tre kategorier: **dødelig** (operasjonalisert som «dyret løp
+   kortere enn x meter»), **skade**, **bom**.
 
-Systemhentede metadata (dato, tid, posisjon når aktiv) legges på automatisk. Øvrige BH-parametere legges til senere.
+Innstillingen «Detaljert visning» styrer om loggingen skjer på én enkel side
+eller to. Systemhentede metadata (dato, tid, posisjon når stedslogging er på)
+legges på automatisk.
 
 Mål: under et halvt minutt, helt uten dekning.
 
+### Kunngjøring av felling
+Etter en vellykket felling tilbyr appen å varsle vennene. **Setningen vises
+ordrett før den sendes** — «Ola har felt et villsvin i Molde.» — og stedet er et
+felt brukeren kan rette eller tømme. Et delingsvalg der man må gjette hva som
+deles, er ikke et valg.
+
+Bøyningen bygges i klienten, ikke på serveren: norsk artikkelvalg («en elg», «et
+rådyr») kan ikke avledes av en enum. Serveren lagrer ingenting om hva som ble
+felt eller hvor. Krever konto; uten innlogging tilbys det ikke.
+
 ### Totrinns utfall og ettersøk
-Umiddelbart utfall kan oppdateres etter ettersøk (felt/avlivet, funnet død, friskmeldt, ikke gjenfunnet). Appen følger opp med ett stille spørsmål ved neste åpning eller dagen etter — nøytralt, aldri gjentatt purring. Skadedata er private som standard, aldri i delt kontekst.
+Umiddelbart utfall kan oppdateres etter ettersøk (felt/avlivet, funnet død,
+friskmeldt, ikke gjenfunnet). Appen følger opp med **ett stille spørsmål** — kun
+for skadeskudd, tidligst to timer etter registreringen, og **aldri mer enn én
+gang per post**. Nøytralt, uten purring. Skadedata er private som standard,
+aldri i delt kontekst.
 
 ### Stedsdata
-Presis posisjon lagres **lokalt** når påslått (kartvisning over egne jaktskudd). Deling til forskning i grovere oppløsning valgt i samtykket. Vær hentes automatisk (MET) når posisjon finnes — også ved økter.
+Presis posisjon lagres **lokalt** når stedslogging er på, og vises som
+stedsnavn på posten. Deling til forskning i grovere oppløsning velges i
+samtykket. **Kartvisning over egne jaktskudd er ikke bygget**, og heller ikke
+værhenting (MET) — begge står på veikartet, §10.4.
 
 ## 5. Flate: Innsikt
 
-Åpner kompetanseoversikten; kapabilitetskart bak segmentkontroll. Begge skjult til første økt — for nye brukere og ved hver sesongstart.
+Én fullskjermsvisning: **kompetanseoversikten**, som en matrise over fem
+viltarter. Ingen segmentkontroll, og **intet kapabilitetskart** — se under.
 
-### Kompetanseoversikt (primærvisning)
-Sidevendt dyrefigur for utvalg av arter(norsk storvilt). Rotasjonspiler på hver side veksler vinkling; holdvelger til høyre. Figuren skalerer *subtilt* med hold — utelukkende som ekstra visuelt signal om at holdet er endret; **farge** (andel dødelige treff på lang sikt. skala fra rødt til grønt, der brukerens valgte skadeskytingsrate er gult) bærer hovedbudskapet, ikke størrelse.
+### Kompetanseoversikt
+Én rad per art (elg, hjort, villrein, rådyr, villsvin). Radene rammes inn av
+jegersilhuetten for den valgte stillingen, og vinklingen velges per art med
+skråstilte dyrefigurer. Holdvelgeren ligger til høyre. Figuren skalerer *subtilt*
+med hold — utelukkende som ekstra visuelt signal om at holdet er endret; **farge**
+(andel dødelige treff på lang sikt, rødt til grønt, der brukerens valgte
+skadeskytingsrate er gult) bærer hovedbudskapet, ikke størrelse.
 
-Modellen: gitt homogen spredning fra siktepunktet (målt på papir) og radien på dødelig sone ved valgt art × vinkling, beregnes andelen skudd som havner innenfor. Vinkling virker ved å krympe den projiserte dødelige sonen; **minste halvakse** er den bindende radien (ikke gjennomsnitt — den korte veien ut av sonen avgjør).
+Er en stilling utestet, står det «øv på stillingen» i stedet for et tall.
+
+Modellen: gitt homogen spredning fra siktepunktet (målt på papir) og radien på
+dødelig sone ved valgt art × vinkling, beregnes andelen skudd som havner
+innenfor. Vinkling virker ved å krympe den projiserte dødelige sonen; **minste
+halvakse** er den bindende radien (ikke gjennomsnitt — den korte veien ut av
+sonen avgjør). *Sonefaktorene per vinkel er plassholdere — §10.1 og §10.2.*
 
 To utfall vises:
 - **Dødelig treff** — innenfor radien.
 - **Skade** — alt annet. (Rene bom eksisterer i virkeligheten, men er på papir umulig å skille fra skade og slås derfor sammen; jf. seksjon 8.)
 
-Presentasjon i frekvens og **ren gevinstramme**: «Feller rent ~9 av 10.» Tapssetningen er bevisst utelatt — appen er aldri med i skuddøyeblikket, så ingen impulskontroll tapes, og dobbel formulering blir clutter som senker bruksterskelen. Brukerens valgte skadeskytingsrate brukes som grense, og **maks forsvarlig hold** leses av per stilling. Utestet stilling: «ikke testet». Bevegelige mål utenfor modellen (veikart); «i bevegelse»-skudd vises separat.
+Presentasjon i frekvens og **ren gevinstramme**: «Feller rent ~9 av 10.»
+Tapssetningen er bevisst utelatt — appen er aldri med i skuddøyeblikket, så ingen
+impulskontroll tapes, og dobbel formulering blir clutter som senker
+bruksterskelen. Brukerens valgte skadeskytingsrate brukes som grense, og **maks
+forsvarlig hold** leses av per stilling.
 
-### Kapabilitetskart (sekundærvisning) [Usikker på denne - gir den mening?]
-Matrise avstand × stilling med artsvelger. Celletall i frekvens (andel dødelige treff) med spenn ved lite data. Farge fra det felles forsvarlighetskriteriet (rate + minstekrav til P(dødelig)), så kart og kompetanseoversikt aldri motsier hverandre. Ekstrapolerte celler: tilde-prefiks + stiplet ramme. Utestede: «ikke testet» som inngang til øvelsesmotoren. Celledetalj: spenn, antall skudd, dato for siste måling, underliggende serier.
+Nederst ligger **«Mer statistikk»**: de tekniske målene (σ) for sesongen, eller
+«Ingen data denne sesongen». Det er det eneste stedet i appen tekniske mål vises.
+
+### Kapabilitetskartet er ikke bygget
+Matrisen avstand × stilling med artsvelger, ekstrapolerte celler og celledetalj
+finnes ikke. Spørsmålet fra v0.4-teksten — *gir den mening ved siden av
+kompetanseoversikten?* — er fortsatt ubesvart og ligger som **ÅP-U6** i
+`AAPNE_PUNKTER.md`. Det er ikke utsatt av tidsnød, men fordi to visninger av
+samme tall må kunne begrunnes hver for seg.
 
 ### Sesong og historikk
-Statistikk nullstilles per sesong = jaktåret 1. april–31. mars. Kompetanse og kart regnes på inneværende jaktår. Historikk i Meny viser tidligere sesonger som frosne kart, pluss utviklingskurver over sesonger og egne jaktutfall. **Presentasjon av langsiktig tilstand:** vis gjeldende langsiktig gjennomsnitt, og la nye serier falle inn i det bildet — ingen «du ligger over/under»-dom per serie (én serie er for støyende til å dømmes; vis tilstand og usikkerhet, ikke avvik-fra-forventning). 
+Statistikk nullstilles per sesong = **jaktåret 1. april–31. mars**. Kompetansen
+regnes på inneværende jaktår.
 
-**«År uten skadeskudd»** [Denne hører kanskje til kompetansekortet?] (når jaktskuddvolum finnes): et gripbart, personlig tidsmål. To designgrep gjør det ærlig uten matematisk clutter:
+Historikken bor i **Serier** (Meny → Serier), ikke i en egen historikkflate.
+Øverst der ligger **trendgrafen**: x-aksen er dato over inntil to jaktår — når
+det tredje begynner, faller det eldste ut — og y-aksen er et rullende snitt over
+de siste 20 skuddene. Er det skutt mer enn 20 skudd på én dag, brukes dagens eget
+snitt for det punktet. Y-aksen skaleres slik at avstanden fra laveste datapunkt
+til bunnen aldri blir mindre enn 25 % av aksehøyden; en flat kurve skal se flat
+ut, ikke dramatisk.
+
+**Den siste økten framskrives ikke.** Er det rullende vinduet ennå ikke fullt,
+tegnes siste punkt hult i stedet for å gjettes ferdig. Et beregnet punkt er ikke
+til å skille fra et målt, og det er nettopp der brukeren ser hardest.
+
+**Presentasjon av langsiktig tilstand:** vis gjeldende langsiktig gjennomsnitt,
+og la nye serier falle inn i det bildet — ingen «du ligger over/under»-dom per
+serie (én serie er for støyende til å dømmes; vis tilstand og usikkerhet, ikke
+avvik-fra-forventning).
+
+Frosne kart per tidligere sesong finnes ikke — de forutsetter kapabilitetskartet.
+
+### «År uten skadeskudd» — ikke bygget
+
+Hvor det hører hjemme er fortsatt ubesvart (**ÅP-U7**). Designet under står fordi
+det er gjennomtenkt, ikke fordi det finnes:
+
+Et gripbart, personlig tidsmål (når jaktskuddvolum finnes). To designgrep gjør det ærlig uten matematisk clutter:
 - *Vis raten i tidsformat, ikke inversen.* Regn ikke 1/p (som eksploderer og hopper ved lave rater), men vis den stabilt estimerte raten skalert med brukerens skuddvolum: «omtrent hvert X-te jaktår for deg». Samme underliggende p, langt roligere tall.
 - *Skrittvis presisjon i stedet for terskel.* Ingen ventetid på tom skjerm: tidlig vises en grov kategori («sjelden» / «av og til» / «ofte»), som smalner til et tallanslag etter hvert som skuddene samler seg. De grove kategoriene tåler mye estimeringsusikkerhet og er derfor ærlige fra dag én.
 - En **(i)** forklarer bevegelsen på jegerspråk — «anslaget bygger på hvor mange skudd du har logget; jo flere, jo sikrere» — uten konfidensintervall. Plasseres i refleksjon/historikk, aldri som et grønt lys i planleggingen.
 
-### Øvelsesmotoren 
--> Denne bør fungere som et popup-forslag, men bare dersom det er behov for spesifikk øving, og med fornuftige mellomrom, slik at den ikke blir masete. Den kan for eksempel trigges etter en serie der brukeren har valgt en vanlig øvelse fremfor en nyttig øvelse. "OK" setter innstillingene for brukeren.
+### Øvelsesmotoren — ikke bygget
+
+`Store.practicePosition` finnes som felt, men ingenting skriver til det, og
+ingen dialog foreslår en øvelse. Designet under er uendret og fortsatt gyldig
+som mål:
+
+Den bør fungere som et popup-forslag, men bare dersom det er behov for spesifikk øving, og med fornuftige mellomrom, slik at den ikke blir masete. Den kan for eksempel trigges etter en serie der brukeren har valgt en vanlig øvelse fremfor en nyttig øvelse. "OK" setter innstillingene for brukeren.
 En øvelse = stilling + avstand(norm 100m). **Kjerneprinsipp — lukk trening/felt-gapet:** motoren sammenligner brukerens *treningsfordeling* av stillinger mot hans *jakt-/jaktformfordeling*, og prioriterer stillingen med størst underdekning. Speiler brukerens egen inkonsistens tilbake («skutt 40 % av jaktskuddene sittende, trent 5 %») heller enn å foreskrive normativt. Inntil brukerens egne data er robuste, brukes generell jaktstatistikk som forhåndsinformasjon for hva som er relevante stillinger og hold.
 
 Prompt-logikk: (1) relevant + null data → «bør etableres»; (2) relevant + tynt/eldet → «bør bekreftes»; (3) irrelevant → nevnes ikke uoppfordret. Relevans fra jaktform/jaktlogg, tynnhet fra skuddantall. Aldri prompt på fravær alene. Forslag vises som kort på Økt-flaten og som «test denne» fra celler/stillinger.
 
 ## 6. Flate: Profil
 
-- **Skytterprofil:** fødselsår (kun for 18-årsgrense på forskningssamtykke), skytterlag, jaktlag (mulighet for å være med i flere lag) valgt **skadeskytingsrate-grense** med forklaring; endring virker umiddelbart og logges.
-- **Våpenkartotek:** våpen, optikk med klikkverdi (cm/klikk@100 m).(i) forklarer at appen kan gi klikkforslag når den er utfylt, **ammunisjonssplitt av/på per våpen** (av som standard). På: hvert våpen+optikk+ammo-oppsett får egen MTP-historikk, men med opsjon for å slå dem sammenfor statistikk pr våpen, klikklogg og evidensgrunnlag; ammo bekreftes i dagsprompt. Av: ammo som valgfri metadata (forskningskovariat). Bryteren virker fremover.
-- **Data og samtykke:** to separate samtykker (trening/jakt), stedsgranularitet for deling, «flytt til ny telefon» (kryptert eksportfil med historikk + pseudonym-ID), Android Auto Backup-status, sletting (lokalt + sletteanmodning via pseudonym-ID).
-- **Hjelp:** ikonforklaring, forklaring av skadeskytingsrate/forsvarlighetskriterium, om forskningsprosjektet, kilder for dødelig-sone-radier.
-- Mulighet for innlogging via Google/Apple/Email/telefonnummer for backup av profil
+Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
+
+- **Skytterprofil:** visningsnavn, fødselsår (kun for 18-årsgrensen på
+  forskningssamtykke), lag (skytterlag/jaktlag, flere mulig), «La venner finne
+  meg» (**av** som standard).
+- **Mitt jaktmål:** den valgte **skadeskytingsrate-grensen**, som en setning i
+  jegerspråk («1 av 20») med (i)-forklaring. Endring virker umiddelbart.
+  Tilbys automatisk etter tredje serie.
+- **Konto:** innlogging med Google (Credential Manager) eller sekssifret kode på
+  e-post. Innlogget vises navn, bruker-ID og «Logg ut». Apple-innlogging er ikke
+  bygget. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
+  eksplisitt at alt annet virker uten konto.
+- **Visningsprofil:** lys / mørk / system, øverst til høyre. Default lys.
+- **Avanserte innstillinger** (egen skjerm, 🎛-ikon fører dit fra alle steder
+  som nevner den).
+
+### Avanserte innstillinger
+
+- **Mine våpen** — våpen og optikk med klikkverdi (cm/klikk@100 m). (i)
+  forklarer at appen kan gi klikkforslag når den er utfylt.
+  **Ammunisjonssplitt er ikke bygget:** feltene finnes i datamodellen, men det
+  er ingen flate for dem, og dagsprompten spør ikke om ammunisjon.
+- **Flytt til ny telefon** — ikke bygget; knappen sier fra om det.
+- **Slett alle data** — lokal sletting, bak en bekreftelse med STOP-ikon.
+- **Sikkerhetskopi** — «Sikkerhetskopier nå», «Gjenopprett», «Vis
+  gjenopprettingskode». Se under.
+- **Del med forskning** — bryter, **pauset**, se §7.
+- **Del bilder der appen gjør en dårlig jobb** — feilanalysekøen, med teller og
+  «Send nå».
+- **Kun wifi for opplasting** — **på** som standard: køen består av
+  fullskala-JPEG-er, og en jeger på skytebanen skal ikke bruke opp mobildata
+  uten å ha bedt om det.
+- **Lagre skannede skjermbilder i bildearkivet** — tre valg, ikke av/på:
+  *Aldri*, *Alle*, *De beste*. «De beste» = blant de 25 % beste i samme
+  stilling, eller beste serie noensinne.
+- **Gjenopprett uten kode** — **av** som standard. Se under.
+- **Krev opplåsing for jaktloggen** — **av** som standard, §4.
+- **Venstrehåndsmodus.**
+- **Utviklermeny** (kun i debug-bygg).
+
+### Sikkerhetskopi og nøkkelforvaltning
+
+Kopien er **klient-kryptert**: serveren lagrer bytes den ikke kan lese. Nøkkelen
+søkes opp i tre lag, i denne rekkefølgen:
+
+1. **Lokalt** på telefonen.
+2. **Google Play Block Store** — følger med til den nye telefonen ved
+   gjenoppretting. Brukes bare når innholdet er ende-til-ende-kryptert; er det
+   ikke det, lagres ingenting der. En nøkkel som ligger lesbar hos en tredjepart
+   er dårligere enn ingen nøkkel der.
+3. **Frivillig deponering hos oss** — bryteren «Gjenopprett uten kode», av som
+   standard. **Dette er det eneste tilfellet der vi kan lese kopien din**, og
+   hjelpeteksten sier det rett ut.
+
+Den 20-tegns **gjenopprettingskoden er nødutgangen**, ikke hovedveien. Den ligger
+under Sikkerhetskopi og vises ikke lenger som en dialog man må forholde seg til
+ved første kopi. Brukeren blir bedt om å taste den *bare* når ingen av de tre
+lagene har noe.
+
+«Gjenopprett» spør serveren først om det finnes noe å hente, og viser **når
+kopien ble laget** før den erstatter alt lokalt.
+
+### Data og samtykke
+
+To separate samtykker (trening/jakt) og stedsgranularitet for deling ligger i
+samtykkedialogene, §7. Sletting er lokal wipe; sletteanmodning via pseudonym-ID
+sendes av backenden ved kontosletting.
+
+### Hjelp
+
+Ikonforklaring, forklaring av skadeskytingsrate og forsvarlighetskriteriet, og
+merknad om at dødelig-sone-radiene er provisoriske (§10.1).
 
 Én skytter per installasjon antas.
 
 ## 7. Onboarding og samtykkeflyt
 
-Tre korte skjermbilder (hva appen gjør, ikonspråket, «alt lagres lokalt(hvis ikke konto/backup ønskes)») → rett i første økt. Etter tredje fullførte økt: forskningssamtykke, med konkret visning av hva som ville blitt delt. Jaktsamtykke tilsvarende ved første bruk av jaktloggen. Avslag endrer ingen funksjonalitet; samtykke kan gis/trekkes når som helst. Forskningssamtykke krever 18 år.
+### Oppstart
+
+Ingen egne intro-skjermer. Ved appstart, i rekkefølge:
+
+1. **Oppstartsvinduet** — hva appen gjør. Vises første gang, og på nytt hvis
+   teksten endres (versjonsnummer på meldingen).
+2. **«Vil du dele bilder der appen gjør en dårlig jobb?»** — første gang, og
+   deretter én gang per sesong så lenge deling ikke er valgt.
+3. **Veiledningen** — fire steg som overlegg, hvis den ikke er sett. Kan også
+   åpnes når som helst fra Meny → «Hvordan bruke appen».
+4. **Ventende beskjeder** fra serveren, hvis brukeren har konto, én om gangen.
+
+Rekkefølgen er ikke tilfeldig: beskjedene hentes *parallelt* med de tre første,
+men holdes til de er unnagjort. Et nettverkssvar skal ikke legge seg oppå
+veiledningen.
+
+### Samtykker
+
+- **Jaktmålet** (skadeskytingsraten) tilbys etter tredje serie.
+- **Forskningssamtykket** tilbys etter fem serier, og deretter hver tiende ved
+  «Ikke nå». Valgene er Ja / Ikke nå / Aldri. Ved ny sesong spørres det på nytt,
+  også av dem som allerede deler. Aldri i samme økt som jaktmålet, og tidligst
+  to serier etter.
+- **Jaktsamtykket** tilbys ved første bruk av jaktloggen, med delingsvalg for
+  hva som deles.
+- **Forskningssamtykke krever 18 år**, og fødselsåret spørres om der og da hvis
+  det mangler.
+
+Avslag endrer ingen funksjonalitet. Samtykke kan gis og trekkes når som helst.
+
+**Skadedata deles bak sin egen bryter**, atskilt fra resten. «Jeg skjøt stående
+på 85 meter» og «dyret ble skadeskutt og aldri funnet» er ikke samme opplysning
+å dele om seg selv, og de skal derfor ikke ha samme bryter.
+
+### Forskningsdelingen er pauset
+
+Hele forskningsflyten — begge samtykkedialogene og delingsbryteren — er slått av
+med ett navngitt flagg (`Dialogs.RESEARCH_ENABLED = false`). Ingen dialoger
+vises, bryteren er deaktivert med en forklaring, og ingenting sendes.
+
+Grunnen er ikke teknisk: den skal ikke aktiveres mot ekte brukere før
+personvernerklæringen finnes og DPIA-spørsmålet er avklart. Koden er ikke
+slettet, og alle inngangene sjekker det samme flagget — funksjonalitet som skal
+pauses, pauses ett sted.
 
 ## 8. Statistikk- og modellnotater (UX-relevante)
 
@@ -132,7 +409,20 @@ Tre korte skjermbilder (hva appen gjør, ikonspråket, «alt lagres lokalt(hvis 
 
 ## 9. Ikoner og tilgjengelighet
 
-Ikonsett for stillinger (silhuetter med modifikatormerker), arter, vinkling (vinklede dyr), utfall. Tekstalternativ per ikon; i-tegn på alle ikonskjermer.  Utendørsbruk: høy kontrast, mørk modus (kan det sensorstyres? Bør i tilfelle også være valg).
+Ikonsett for stillinger (silhuetter, skalert per stilling så de får lik visuell
+tyngde), arter (side, front og skrå per art), utfall og faner. Tekstalternativ
+per ikon; i-tegn på ikonskjermene.
+
+Utendørsbruk: høy kontrast, og lys/mørk/system som eget valg med **lys som
+standard**. Sensorstyrt mørk modus er ikke bygget — **ÅP-U8**.
+
+**Venstrehåndsmodus** speiler grensesnittet horisontalt.
+
+Advarsler bruker et varselikon; **irreversible handlinger bruker STOP-ikonet**,
+ikke det samme trekantikonet som en advarsel man kan angre.
+
+Appen tegner systemlinjene selv, i både lys og mørk visning — `targetSdk` 36
+gjør `statusBarColor` til en no-op.
 
 ## 10. Åpne punkter
 
@@ -143,33 +433,70 @@ Ikonsett for stillinger (silhuetter med modifikatormerker), arter, vinkling (vin
 
 ## 11. Avhengighet til CV-kjernen (teknisk)
 
-UI-prosjektet skal **ikke forke** OpenCV/C++-kjernen. Konsumer den som **pinnet avhengighet** — eget repo, tagget versjon, hentet via submodule eller pakket artefakt — så UI bygger mot en kjent kjerne-commit uten en divergerende kopi å vedlikeholde. Må kjernen endres for UI-ens skyld, gjøres det som en versjonert endring i kjerne-repoet med bump av pinnen — bevisst og sporbart, ikke drift i en fork. Instruks til Claude Code: legg kjernen inn som pinnet submodule/artefakt på gitt tag, bygg UI mot det. Kobling til kjernen gjøres via hovedskjermens "Scan" knapp.
+UI-prosjektet **forker ikke** OpenCV/C++-kjernen — men den konsumeres heller
+ikke som pinnet avhengighet, slik denne paragrafen krevde i v0.4.
+
+**Slik er det i dag:** kjernen ligger i samme repo, under `core/`, og
+`android/app/src/main/cpp/CMakeLists.txt` gjør `add_subdirectory` rett inn i
+`core/CMakeLists.txt`. Samme kildetre, ingen forhåndsbygget binær og ingen
+versjonspinne mellom områdene. Kjernen bygges dermed to ganger: én gang på
+desktop for verifisering mot C-settet, og én gang av NDK-en som del av
+`assembleDebug`.
+
+Kravet om pinnet submodule er **ikke oppfylt, og det er ikke besluttet om det
+skal være det** — se `AAPNE_PUNKTER.md` **ÅP-U11**. Monorepoet gir at et brudd i
+`core/src` stopper klientbygget med det samme, som er en fordel; prisen er at
+det ikke finnes noen versjon å peke på når noe går galt i felt.
+
+**Grensen mot kjernen:** `jni_bridge.cpp` ligger fysisk i UI-området, men er
+*forbruker* av `core/include/bestefar/bestefar_ffi.h`. Endres headeren, eier
+kjernen endringen og klienten følger etter. Selve CV-kontrakten — statuskoder,
+`BfResult`, `BF_MAX_HITS`, pikselformater — står i `core/KONTRAKT.md` og gjentas
+ikke her.
+
+Koblingen til kjernen skjer via hovedskjermens **«Scan serie»**-knapp, gjennom
+`BestefarCore.analyze()` i `CaptureActivity`.
+
+Kjernen har sin egen versjon (`bf_version()`), uavhengig av appens
+`versionName`. Den følger med i feilanalyse-donasjonene, så det er mulig å se
+hvilken kjerne som produserte et resultat.
 
 
-## 12. Hvor endringsloggene ble av
+## 12. Om dette dokumentet
 
-Seksjonene §12–§24 var tretten endringslogger fra v0.6 til v0.19, lagt til én
-per runde. De er **flyttet ordrett** til `android/CHANGELOG.md` 2026-08-08.
+Seksjonene §12–§24 var tretten endringslogger fra v0.6 til v0.19, lagt til én per
+runde. De er **flyttet ordrett** til `android/CHANGELOG.md` 2026-08-08.
 
-Grunnen er at fila ikke lenger kunne leses forfra. §1–§11 beskriver v0.4;
-tretten tillegg overstyrte den i tur og orden, og for å vite hva som faktisk
-gjaldt måtte du lese alle sammen og holde styr på hvilke som overstyrte
-hverandre. En spec du må lese bakfra for å forstå framfra, er ikke en spec.
+**§1–§11 ble skrevet om til nåtid samme dag.** Fram til da beskrev de v0.4 — seks
+faner der det er tre, «Benk» som egen inngang, optikk-kalkulator i menyen — og
+den som leste forfra møtte en app som ikke fantes. Rangordningen som sto her,
+med §1–§11 nederst, var en innrømmelse av det: seksjonene var sist i køen og lå
+likevel først i fila.
 
-**Rangordningen ved konflikt, fra sterkest:**
+**Nå beskriver §1–§11 appen slik den er.** Rangordningen er derfor tatt ut.
+Dokumentene sier ulike ting fordi de har ulike jobber, ikke fordi ett av dem er
+utdatert:
 
-1. **Koden** — `android/app/src/main/java/no/bestefar/app/`
-2. **`docs/flytskjema.md`** — diagrammer avledet fra koden, holdt à jour
-3. **`android/KONTRAKT.md`** — det andre kan stole på over ledningen
-4. **`android/CHANGELOG.md`** — hva hver runde faktisk endret
-5. **§1–§11 under** — de opprinnelige kravene
+| Spørsmål | Fil |
+|---|---|
+| Hva appen gjør og hvorfor den er slik | **denne fila**, §1–§11 |
+| Hva som skjer når, steg for steg | `docs/flytskjema.md` |
+| Hva andre kan stole på over ledningen | `android/KONTRAKT.md` |
+| Hvorfor lagene ser ut som de gjør, hva som ble vraket | `android/ARCHITECTURE.md` |
+| Hva hver runde endret | `android/CHANGELOG.md` |
 
-**§1–§11 er ikke omskrevet.** De står som de sto i v0.4 og beskriver flere ting
-som ikke lenger stemmer — seks faner der det er tre, «Benk» som egen inngang,
-optikk-kalkulator i menyen. Det er bevisst: å skrive dem om til nåtid er en
-egen jobb, og et halvveis omskrevet kravdokument er verre enn et ærlig datert
-ett. Les dem som **hva appen skulle bli**, ikke som hva den er.
+**Koden er fortsatt fasit** — ikke fordi denne fila er mistenkt, men fordi den er
+skrevet av mennesker og koden er det som kjører. Finner du et sprik, er det en
+feil som skal rettes her, ikke noteres.
 
-Det som fortsatt gjelder uendret fra §1–§11 er *prinsippene* — kontekstarv,
-verdi før forpliktelse, jegerens språk, ett forsvarlighetsbegrep, offline-først.
-De har styrt hver eneste runde siden.
+**Det som ikke er bygget, står som ikke bygget.** Kapabilitetskartet,
+øvelsesmotoren, «år uten skadeskudd», ammunisjonssplitt, kartvisning, værdata og
+den pinnede kjerne-avhengigheten er alle nevnt der de hører hjemme, med et
+åpent-punkt-nummer der det finnes ett. En spec som tier om det ubygde, leses som
+om alt er bygget.
+
+**§8 og §10 er ikke omskrevet.** §8 er modellnotater — resonnement om statistikk
+og framing — og §10 er eierens åpne punkter. Ingen av dem beskriver en flate, og
+begge gjelder uendret. Merk at §8 omtaler benkens rolle i modellen; benk er
+**ikke** en stilling i appen (§3), og bulletpunktet beskriver hva den ville vært
+brukt til dersom den kom.
