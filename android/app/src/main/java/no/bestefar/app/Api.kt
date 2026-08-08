@@ -119,7 +119,14 @@ object Api {
      */
     fun send(ctx: Context, method: String, path: String, contentType: String? = null,
              body: ByteArray? = null): Resp =
-        request(ctx, path, contentType, method) { out -> body?.let { out.write(it) } }
+        // hasBody = body != null er IKKE en optimalisering. HttpURLConnection
+        // gjoer en GET om til POST i det den aapner utstroemmen (dokumentert,
+        // arvet oppfoersel), saa `send(ctx, "GET", ...)` traff serveren som en
+        // POST og fikk 405. Aapne aldri utstroemmen naar det ikke er noe aa
+        // skrive.
+        request(ctx, path, contentType, method, hasBody = body != null) { out ->
+            body?.let { out.write(it) }
+        }
 
     /** Som [send], men svaret leses som bytes (nedlasting av kopien). */
     fun download(ctx: Context, path: String, attempt: Int = 0): Pair<Resp, ByteArray?> {
@@ -177,12 +184,12 @@ object Api {
 
     private fun request(ctx: Context, path: String, contentType: String?,
                         method: String = "POST", authRetry: Boolean = true,
-                        attempt: Int = 0,
+                        attempt: Int = 0, hasBody: Boolean = true,
                         writeBody: (OutputStream) -> Unit): Resp {
         var conn: HttpURLConnection? = null
         return try {
-            conn = open(ctx, path, method, contentType, output = true)
-            conn.outputStream.use(writeBody)
+            conn = open(ctx, path, method, contentType, output = hasBody)
+            if (hasBody) conn.outputStream.use(writeBody)
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
@@ -192,7 +199,8 @@ object Api {
             // brent refresh-tokener.
             if (attempt == 0 && shouldRetryAuth(ctx, code, authRetry)) {
                 conn.disconnect(); conn = null
-                return request(ctx, path, contentType, method, authRetry, 1, writeBody)
+                return request(ctx, path, contentType, method, authRetry, 1,
+                    hasBody, writeBody)
             }
             Resp(code, text)
         } catch (e: Exception) {

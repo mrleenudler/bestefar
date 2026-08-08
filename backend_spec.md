@@ -519,7 +519,7 @@ frivillig nøkkeldeponering (§2.1), som brukeren må slå på selv.
   hvilken som eier sannheten. Forslag: bloben eier «alt mitt», `/v1/stats` eier
   det som skal kunne deles/aggregeres.
 
-## 14–16. Klientsiden av §1 og §11
+## 14–17. Klientsiden av §1 og §11
 
 *Redusert til pekere 2026-08-07.* Disse tre paragrafene gjentok
 `android/ARCHITECTURE.md` nesten setning for setning. **En invariant eies av den
@@ -596,3 +596,31 @@ Det serveren håndhever og sender. Verifisert mot `routers/devices.py` og
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push":"log"`. `FCM_PROJECT_ID` leses fra JSON-en om den står tom. Ingen av
   dem er satt — ÅP-E3.
+
+### 17. Klientens lesing av meldingskøen (Android, v0.19)
+
+Setningen over — «meldingskøen er garantien, push er rask levering» — sto i
+§11 fra fase 8, men **klienten leste ikke køen før v0.19**. Garantien var
+ensidig: serveren la meldingen i køen, og ingen hentet den. Nå er begge halvdeler
+på plass.
+
+Klientsiden (når det hentes, når det vises, når det kvitteres):
+`android/KONTRAKT.md` §7.1 og `android/ARCHITECTURE.md`, `Messages.kt`.
+
+Det serveren håndhever. Verifisert mot `routers/messages.py` og
+`models/social.py` 2026-08-08:
+
+- **`GET /v1/messages` gir bare uleverte meldinger**, eldste først
+  (`delivered_at IS NULL`, sortert på `created_at`).
+- **`POST /v1/messages/ack` sletter ikke raden**, den setter `delivered_at`.
+  Det er valget som gjør at klienten trygt kan kvittere *etter* visning i stedet
+  for ved henting — en klient som forsvinner imellom, mister ingenting.
+  Konsekvensen serveren må godta er at den samme meldingen kan hentes to ganger.
+- **Ukjente ID-er i `ids` ignoreres stille**, og tom liste er en no-op. Begge
+  gir 204.
+- **`kind` er `String(32)`, ikke et enum.** Det er en frihet serveren har og
+  klienten respekterer: en åttende meldingstype krever ingen klientutgivelse.
+  Til gjengjeld kan klienten ikke rute på den, og gjør det heller ikke.
+- **`id` er `int`, `team_id` er en streng-UUID eller `null`.** Avviket fra
+  resten av API-et, der ID-er er strenger, er verdt å kjenne til.
+- Køen er **ikke** dokumentert i `backend/KONTRAKT.md` — issue #5.

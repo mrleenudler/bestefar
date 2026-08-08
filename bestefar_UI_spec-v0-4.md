@@ -554,3 +554,31 @@ uten nett — offline-først er ikke svekket, bare supplert.
 - **Varselikonet** er en skive med to ringer og blink. Android tegner
   varselikoner som silhuett, så form er det eneste som overlever; aksentfargen
   er appens brune.
+
+## 24. Endringslogg v0.19 (meldingskøen)
+
+### Beskjeder ved oppstart
+- **Ventende beskjeder vises nå ved appstart.** Push er rask levering, men den
+  når ikke fram til en bruker som har avslått varsler, en telefon som var av,
+  eller et rotert FCM-token. Beskjedene ligger i en kø hos serveren, og fram til
+  nå hentet ingen den — så en beskjed som ikke kom som push, kom aldri.
+- **Én beskjed om gangen**, i samme fullskjermsform som oppstartsmeldingen:
+  overskrift, tekst, og tidspunktet som en dempet linje under. Tidspunktet står
+  for seg selv fordi det ikke er en del av beskjeden — det er når den kom.
+- **Beskjedene kommer etter oppstartsvinduene**, ikke oppå dem. Et nettverkssvar
+  som lander midt i tutorialen skal ikke overta skjermen.
+- **Teksten vises ordrett slik serveren sendte den.** Klienten omskriver ikke,
+  forkorter ikke og reparerer ikke. Beskjedene er ting som «Lagleder har fjernet
+  deg fra Storlia» og «Ola vil gjøre deg til lagleder — bekreft i appen».
+- **En beskjed kan i sjeldne tilfeller vises to ganger.** Kvitteringen sendes
+  først etter at beskjeden er vist, ikke når den hentes, slik at en app som
+  lukkes underveis ikke mister den. Å se den samme beskjeden om igjen er en
+  billigere feil enn å aldri se den.
+- **Ingenting vises uten konto**, og et mislykket kall er stille: appen starter
+  som før, og køen hentes ved neste oppstart.
+
+### Kjent begrensning
+- **Beskjeder som ber om en handling kan ennå ikke besvares i appen.** «Bekreft
+  i appen» og «Avstemningen er åpen i 7 dager» vises som tekst; det finnes ingen
+  knapp som fører til laget, fordi lagsidene fortsatt er lokale skjeletter uten
+  server-kobling. Beskjeden når fram — svaret kan ikke gis ennå.

@@ -76,6 +76,26 @@ normaltilstanden, ikke en feil.
   `BuildConfig.GOOGLE_WEB_CLIENT_ID` leses ved bygg ut av
   `google-services.json` (`client_type: 3`) — to kopier av samme ID kommer i
   utakt, og symptomet er et gyldig token backenden avviser.
+- `Messages.kt` (v0.19) — meldingskøen, den *andre* halvdelen av §11.
+  Arbeidsdelingen er backendens: køen er garantien, pushen er rask levering. Til
+  v0.18 leste klienten bare pushen, så garantien fantes ikke — en bruker uten
+  varseltillatelse fikk ingenting. Køen hentes ved appstart og vises **etter**
+  oppstartsvinduene, ikke oppå dem; derfor `onStartupOverlaysDone` i
+  `MainActivity`, som hver utgang av oppstartskjeden må kalle.
+  **Kvitteringen sendes etter visning**, ikke ved henting — serveren markerer i
+  stedet for å slette for å tåle en klient som krasjer imellom, og kvitterer vi
+  for tidlig, kaster vi bort nettopp den toleransen. Prisen er at en melding kan
+  vises to ganger. `kind` lagres som `String`, ikke som enum: backenden skal
+  kunne legge til en meldingstype uten en klientutgivelse.
+- **`Api.send` med `GET` var i praksis `POST` til og med v0.18.** `request()`
+  åpnet alltid utstrømmen, og `HttpURLConnection` gjør en GET om til POST i det
+  øyeblikket den åpnes — arvet JDK-oppførsel, ikke en Android-detalj. `GET
+  /v1/backup/meta` og `GET /v1/backup/key-escrow` fikk derfor 405, og
+  405-grenen i `AvansertActivity.confirmEscrow` behandlet symptomet som «ikke
+  konfigurert». Fikset ved å bare åpne utstrømmen når det finnes en kropp å
+  skrive. **Lærdommen er den generelle:** en HTTP-metode som settes ett sted og
+  overstyres et annet, feiler stille — og en feilkode som blir «håndtert» før
+  den er forstått, sementerer feilen.
 - `Push.kt` / `PushService.kt` (v0.18) — FCM. `register()` kalles ved hver
   oppstart (idempotent `PUT /v1/devices`) og er en no-op uten konto.
   **Merk asymmetrien:** backenden sender en `notification`-blokk, så Android

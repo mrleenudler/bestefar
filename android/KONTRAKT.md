@@ -175,7 +175,41 @@ ser normal bruk ut som et tokentyveri, og brukeren logges ut overalt.
 
 Hvorfor det er løst slik, og hvor tokenene ligger: `android/ARCHITECTURE.md`.
 
-## 7. Enheten, og hva en push må inneholde for å bli sett
+## 7. Levering av §11-varsler: køen og pushen
+
+Backenden legger varselet i køen **før** pushen sendes, og køen er garantien —
+pushen er bare rask levering. Fra og med v0.19 leser klienten begge, så den
+arbeidsdelingen holder i praksis og ikke bare i teksten.
+
+### 7.1 Meldingskøen — det som faktisk garanterer levering
+
+**`GET /v1/messages` hentes ved hver appstart**, i `MainActivity.onCreate`,
+parallelt med oppstartsvinduene. Uten konto sendes kallet ikke i det hele tatt.
+Et mislykket kall — offline, 401, ubrukelig svar — behandles som «ingen
+meldinger»: køen blir stående på serveren og hentes ved neste oppstart. En
+oppstartsjobb i en offline-først app skal aldri vise en feil og aldri hindre at
+appen starter.
+
+**`POST /v1/messages/ack` sendes når meldingen er VIST**, aldri ved henting.
+Serveren markerer raden med `delivered_at` i stedet for å slette den nettopp for
+å tåle en klient som forsvinner imellom, og den toleransen er verdiløs hvis
+klienten kvitterer for tidlig. Klienten kvitterer per melding, etter hvert som
+brukeren klikker seg gjennom dem. Feiler kvitteringen, gjøres ingenting: **en
+melding kan altså vises to ganger**, og det er den billige feilen i dette valget.
+
+Skjemaet er lest ut av `backend/app/routers/messages.py:24–54` og
+`backend/app/models/social.py:146–163` — `backend/KONTRAKT.md` har ingen seksjon
+for køen (issue #5). To ting bryter med mønsteret ellers og er verdt å gjenta:
+**`id` er et heltall, mens `team_id` er en streng-UUID eller `null`**, og
+**`kind` er en fri streng på 32 tegn, ikke et enum**. Klienten lagrer `kind` som
+streng nettopp fordi backenden skal kunne legge til en åttende meldingstype uten
+en klientutgivelse.
+
+Meldingene vises som fullskjermsvinduer, én om gangen, i serverens rekkefølge
+(eldste først), etter at oppstartsvinduene er unnagjort. Tittel og brødtekst
+vises **ordrett slik serveren sendte dem** — klienten reparerer dem ikke.
+
+### 7.2 Enheten, og hva en push må inneholde for å bli sett
 
 **Registrering skjer ved hver oppstart**, ikke én gang. `PUT /v1/devices` kalles
 fra `BestefarApp.onCreate` hver gang appen starter med en konto innlogget, og på
@@ -214,11 +248,17 @@ klient-krypterte bloben og skal fortsette å gjøre det.
 
 Ærlighet om hva kontrakten *ikke* holder:
 
-- **Meldingskøen leses ikke.** `backend/KONTRAKT.md` og backendens invariant om
-  at «køen er garantien, push er bekvemmeligheten» stemmer på serversiden, men
-  klienten henter aldri `/v1/messages`. I dag er push derfor den **eneste**
-  leveringsveien: et varsel som gikk tapt fordi telefonen var av, er tapt for
-  brukeren også. Backend kan altså ikke regne med at et køet varsel når fram.
+- **Køen hentes bare ved appstart, ikke ved `onResume`.** En melding som kommer
+  mens appen ligger åpen i bakgrunnen, vises først neste gang appen startes helt
+  — med mindre pushen når fram. Backend kan regne med at meldingen leveres, men
+  ikke med hvor raskt.
+- **Ingen ruting på `kind`.** Både `data["kind"]` i pushen og `kind` i køen leses
+  og lagres, men alle meldinger ender på forsiden, og en melding som ber om en
+  handling («Bekreft i appen», «Avstemningen er åpen i 7 dager») viser bare
+  teksten. Lag- og vennesidene er fortsatt lokale skjeletter uten
+  server-kobling, så en dyplenke ville landet på en skjerm som ikke kjenner
+  `team_id`. Det er en bevisst utsettelse, ikke en glipp — men **§11-flytene som
+  krever et svar fra brukeren, er ikke fullførbare i klienten ennå.**
 - **`app_version` på `PUT /v1/backup` treffer ingenting.** Serveren tar imot
   `client_ts`, `schema_version`, `device_id` og `force`; klienten sender
   `client_ts`, `app_version` og `force`. Ukjente query-parametere ignoreres
@@ -239,6 +279,11 @@ klient-krypterte bloben og skal fortsette å gjøre det.
 - **`retryable` beskytter ikke mot en tom donasjon.** Klassifiseringen i §1
   skiller «prøv igjen» fra «gi opp», men den ser bare statuskoden. Et 201 med
   tomme poenglister (§2) passerer som suksess, og køelementet slettes.
+- **Klienter til og med v0.18 sendte GET som POST.** `Api.send` åpnet alltid
+  utstrømmen, og `HttpURLConnection` gjør da en GET om til en POST. `GET
+  /v1/backup/meta` og `GET /v1/backup/key-escrow` traff derfor serveren som POST
+  og fikk 405. Rettet i v0.19, men **APK-er i felt gjør det fortsatt**, så 405 på
+  de to rutene er en gammel klient, ikke et angrep eller en rutefeil.
 - **Ingen push er verifisert mottatt.** Hele kjeden i §7 er bygget og bygger
   grønt, men den er ikke kjørt ende-til-ende på en enhet — `FCM_SERVICE_ACCOUNT_JSON`
   står ikke som Fly-secret ennå. Formen på meldingen er lest ut av

@@ -4,7 +4,7 @@ To flyter: **CV-kjernen** (`core/`, C++17 bak en ren C-FFI) og **UI-et**
 (`android/`, Kotlin med programmatiske views). De møtes ett sted — JNI-kallet
 `BestefarCore.analyze()` i `CaptureActivity`.
 
-Diagrammene er avledet fra koden slik den står i v0.18, ikke fra spesifikasjonen.
+Diagrammene er avledet fra koden slik den står i v0.19, ikke fra spesifikasjonen.
 Stadienavn er de faktiske funksjonsnavnene, så de kan søkes opp direkte.
 
 ---
@@ -280,3 +280,39 @@ flowchart LR
   varsler som skrus på senere virker med én gang.
 - **Ingen ruting på varseltype ennå.** Alle varsler åpner forsiden; venne- og
   lagsidene er fortsatt skjelett, og en dyplenke til en tom skjerm er verre.
+
+### Nytt i v0.19 — meldingskøen
+
+Pushen over er *rask levering*. Diagrammet under er *garantien*: den veien som
+også virker når pushen ikke kom fram.
+
+```mermaid
+flowchart TD
+    START["MainActivity.onCreate"] --> PAR{{"to ting i parallell"}}
+    PAR --> CHAIN["Oppstartsvinduer:<br/>intro → bildedeling → tutorial"]
+    PAR --> GET["Messages.fetch<br/>GET /v1/messages"]
+
+    GET --> KONTO{"Innlogget?"}
+    KONTO -->|"nei"| TOM["tom liste —<br/>kallet sendes ikke"]
+    KONTO -->|"ja"| SVAR{"Svar?"}
+    SVAR -->|"offline / 401 / ubrukelig"| BEHOLD["tom liste;<br/>køen står igjen på serveren"]
+    SVAR -->|"200"| HOLD["Meldingene holdes"]
+
+    CHAIN --> DONE["onStartupOverlaysDone"]
+    HOLD --> DONE
+    DONE --> VIS["Vis én melding<br/>tittel · tekst · tidspunkt"]
+    VIS --> OK["Brukeren trykker OK"]
+    OK --> ACK["POST /v1/messages/ack<br/>ETTER visning"]
+    ACK --> NESTE{"Flere i køen?"}
+    NESTE -->|"ja"| VIS
+    NESTE -->|"nei"| SLUTT["Forsiden"]
+```
+
+- **Kvitteringen kommer etter visningen, ikke etter hentingen.** Serveren
+  markerer raden i stedet for å slette den, nettopp for å tåle en klient som
+  forsvinner imellom. Prisen er at en melding kan vises to ganger — den billige
+  feilen av de to.
+- **Meldingene holdes til oppstartsvinduene er ferdige.** Et nettverkssvar som
+  lander midt i tutorialen skal ikke legge seg oppå den.
+- **Hentes bare ved appstart.** En melding som kommer mens appen ligger åpen,
+  vises først ved neste oppstart — med mindre pushen når fram.

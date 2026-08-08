@@ -641,4 +641,9 @@
     <string name="push_ask_body">Vi varsler deg når en venn feller et dyr, og når det skjer noe i et lag du er med i — for eksempel at det skal velges ny leder.\n\nIngenting annet. Du kan skru dem av igjen når som helst.</string>
     <string name="push_ask_yes">Ja, gjerne</string>
     <string name="push_ask_no">Ikke nå</string>
+
+    <!-- ===== Meldingskøen (v0.19, backend_spec §11) =====
+         Tittel og brødtekst kommer fra serveren; denne brukes bare hvis en
+         melding mangler tittel, slik at vinduet aldri står uten overskrift. -->
+    <string name="msg_title_fallback">Beskjed</string>
 </resources>

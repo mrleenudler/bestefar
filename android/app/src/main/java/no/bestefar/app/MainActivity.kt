@@ -241,10 +241,67 @@ class MainActivity : AppCompatActivity() {
     // ---------- Oppstartsmelding (musingsUI runde 4) ----------
 
     private fun maybeStartupMessage() {
+        // Meldingskøen hentes PARALLELT med oppstartsvinduene (backend_spec §11).
+        // Den er et nettverkskall, og en offline-først app skal ikke vente på
+        // nett for å komme i gang — men meldingene skal heller ikke lande oppå
+        // et tutorialoverlegg. Derfor holdes de til kjeden er ferdig, se
+        // [onStartupOverlaysDone].
+        Messages.fetch(this) { liste ->
+            // Svaret kommer fra nettet og kan lande etter at aktiviteten er
+            // borte (rotasjon, brukeren gikk ut). Da skal vi ikke legge et
+            // overlegg paa et doedt hierarki - koeen staar igjen paa serveren.
+            if (isFinishing || isDestroyed) return@fetch
+            pendingMessages = liste
+            if (startupOverlaysDone) showPendingMessages()
+        }
         val showIntro = store.startupMsgSeenVersion < STARTUP_MSG_VERSION ||
             store.alwaysShowStartup
         if (showIntro) root.post { startupWindow1() }
         else root.post { maybeDonateThenTutorial() }
+    }
+
+    // ---------- Meldingskøen (backend_spec §11) ----------
+
+    private var pendingMessages: List<Messages.Msg> = emptyList()
+    private var startupOverlaysDone = false
+
+    /**
+     * Alle oppstartsvinduene er unnagjort. Kalles fra HVER utgang av kjeden —
+     * en gren som glemmer den, gir en bruker som aldri ser meldingene sine.
+     */
+    private fun onStartupOverlaysDone() {
+        startupOverlaysDone = true
+        showPendingMessages()
+    }
+
+    private fun showPendingMessages() {
+        val koe = pendingMessages
+        if (koe.isEmpty()) return
+        pendingMessages = emptyList()   // vises én gang per appstart
+        showMessage(koe, 0)
+    }
+
+    /**
+     * Én melding om gangen, i den rekkefølgen serveren ga dem (eldste først).
+     *
+     * **Kvitteringen sendes når meldingen ER vist**, ikke ved henting: serveren
+     * markerer raden i stedet for å slette den nettopp for å tåle en klient som
+     * forsvinner imellom, og den toleransen er verdiløs hvis vi kvitterer for
+     * tidlig. Prisen er at en melding kan vises to ganger; det er en billigere
+     * feil enn å aldri vise den.
+     */
+    private fun showMessage(koe: List<Messages.Msg>, i: Int) {
+        if (i >= koe.size) return
+        val m = koe[i]
+        overlayMessage(
+            title = m.title.ifBlank { getString(R.string.msg_title_fallback) },
+            body = m.body,
+            meta = m.naar.ifBlank { null },
+            positive = getString(R.string.ok),
+            onPositive = {
+                Messages.ack(this, m.id)
+                showMessage(koe, i + 1)
+            })
     }
 
     /**
@@ -274,23 +331,30 @@ class MainActivity : AppCompatActivity() {
             store.shareDevImages != "ja" && store.shareDevImagesSeason != season -> true
             else -> false
         }
-        if (!ask) { if (!store.tutorialSeen) showTutorial(); return }
+        if (!ask) { tutorialThenMessages(); return }
         overlayMessage(null, getString(R.string.startup_donate),
             emoji = getString(R.string.startup_donate_emoji),
             positive = getString(R.string.donate_accept),
             negative = getString(R.string.no_thanks),
             onPositive = {
                 store.shareDevImages = "ja"; store.shareDevImagesSeason = season
-                if (!store.tutorialSeen) showTutorial()
+                tutorialThenMessages()
             },
             onNegative = {
                 store.shareDevImages = "nei"; store.shareDevImagesSeason = season
-                if (!store.tutorialSeen) showTutorial()
+                tutorialThenMessages()
             })
+    }
+
+    /** Siste ledd i oppstartskjeden: tutorial hvis den ikke er sett, så meldinger. */
+    private fun tutorialThenMessages() {
+        if (!store.tutorialSeen) showTutorial { onStartupOverlaysDone() }
+        else onStartupOverlaysDone()
     }
 
     private fun overlayMessage(title: String?, body: String, positive: String,
                                negative: String? = null, emoji: String? = null,
+                               meta: String? = null,
                                onPositive: () -> Unit, onNegative: () -> Unit = {}) {
         val overlay = FrameLayout(this).apply {
             // Nesten ugjennomsiktig flate så knappen bak er dekket
@@ -313,6 +377,12 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, Ui.dp(this@MainActivity, 16))
         })
         col.addView(TextView(this).apply { text = body; textSize = 16f })
+        // Dempet bilinje under teksten — brukes av meldingskøen til tidspunktet.
+        // Egen linje framfor et avsnitt i broedteksten: «7. august kl. 09:14» er
+        // ikke en del av beskjeden, det er naar den kom.
+        if (meta != null) col.addView(Ui.hint(this, meta).apply {
+            setPadding(0, Ui.dp(this@MainActivity, 12), 0, 0)
+        })
         // Stort mellomrom ned til valgene (dekker scan-knappen)
         col.addView(Space(this), LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this@MainActivity, 120)))
@@ -346,12 +416,17 @@ class MainActivity : AppCompatActivity() {
         R.string.tutorial_4_title to R.string.tutorial_4_body,
     )
 
-    fun showTutorial() {
+    /**
+     * [onDone] kalles når tutorialen lukkes. Oppstartskjeden bruker den til å
+     * slippe fram meldingskøen; menyoppføringen «Hvordan bruke appen» lar den
+     * stå tom.
+     */
+    fun showTutorial(onDone: () -> Unit = {}) {
         var idx = 0
         val overlay = FrameLayout(this).apply {
             setBackgroundColor(Color.argb(150, 0, 0, 0)); isClickable = true
         }
-        fun dismiss() { store.tutorialSeen = true; root.removeView(overlay) }
+        fun dismiss() { store.tutorialSeen = true; root.removeView(overlay); onDone() }
         val card = MaterialCardView(this).apply {
             radius = Ui.dp(this@MainActivity, 16).toFloat()
         }
