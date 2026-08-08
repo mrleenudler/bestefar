@@ -77,9 +77,16 @@ jobs:
       # Wrapperen, ikke `gradle` fra bildet: AGP 9.2.0 krever Gradle 9.4.1, og
       # runnerens egen Gradle er en annen versjon. `-PopencvDir` overstyrer
       # verdien i gradle.properties, som peker paa utviklerens Windows-sti.
+      #
+      # chmod: gradlew er sjekket inn med modus 100644. Utvikleren jobber paa
+      # Windows, der git ikke fanger kjoerbar-biten, saa den kan ikke holdes
+      # riktig i repoet uten at noen maa huske det ved hver endring. Ett steg
+      # her er billigere enn en regel ingen kan se at de har brutt.
       - name: assembleDebug
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug -PopencvDir="$GITHUB_WORKSPACE/opencv-android-sdk/sdk/native/jni"
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug -PopencvDir="$GITHUB_WORKSPACE/opencv-android-sdk/sdk/native/jni"
 
       # EN GROENN JOBB SOM IKKE BYGGET NOE ER VERRE ENN EN AVSLAATT, fordi den
       # ser ut som dekning. Derfor sjekkes utfallet, ikke bare exit-koden:

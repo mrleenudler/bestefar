@@ -377,8 +377,12 @@ begge ganger. I tillegg sjekker jobben utfallet — at APK-en finnes og at
 `lib/arm64-v8a/libbestefar_jni.so` ligger i den. Faller `add_subdirectory` av
 `core/` ut av byggingen, fanges det der og ikke av exit-koden alene.
 
-`android/gradlew` ble samtidig satt kjørbar i git (`100644` → `100755`). Uten
-det feiler `./gradlew` med «Permission denied» på Linux.
+`android/gradlew` er sjekket inn med modus `100644`, og `./gradlew` feiler med
+«Permission denied» på Linux. Jobben gjør derfor `chmod +x` selv. Å sette
+kjørbar-biten i git ble prøvd og forkastet: utvikleren jobber på Windows, der
+git ikke fanger den biten, så den ville falt av igjen ved neste endring uten at
+noen kunne se det. Ett steg i workflowen er billigere enn en regel ingen merker
+at de bryter.
 
 Se `docs/ARCHITECTURE.md`, «Bygg/CI», og `android/CLAUDE.md`.
 
