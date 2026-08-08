@@ -303,27 +303,26 @@ Speccen sier bilder skal ligge i objektlagring, aldri i databasen
 men backenden bruker det ikke. Åpent: om feilanalysebildene skal dit nå eller om
 oppsettet skal avvikles.
 
-### ÅP-B10 — Ingen av svarene er typet, så kontrakten beskriver dem ikke · label `backend`
-Målt 2026-08-08 ved generering av `contracts/openapi.json`: **48 av 48
-operasjoner med svarkropp har ingen beskrivelse av kroppen.** Håndtererne er
-annotert `-> dict` eller `-> list[dict]`, og FastAPI kan bare utlede
-`{"type": "object", "additionalProperties": true}`.
+### ÅP-B10 — 34 av 48 svar er utypet, så kontrakten beskriver dem ikke · label `backend`
+Målt 2026-08-08 ved generering av `contracts/openapi.json`. **De 14 rutene
+Android-klienten faktisk kaller, har fått `response_model`** (lista i
+`contracts/README.md`). De øvrige 34 er annotert `-> dict`, og FastAPI kan bare
+utlede `{"type": "object", "additionalProperties": true}`.
 
-Konsekvensen er at den innsjekkede kontrakten forteller hvilke ruter som finnes
-og hva de tar imot, men ikke hva de svarer med — akkurat den halvdelen en klient
-trenger for å parse. `backend/KONTRAKT.md` beskriver svarene i prosa; ingenting
-holder de to i takt.
+Konsekvensen for de 34: den innsjekkede kontrakten forteller hvilke ruter som
+finnes og hva de tar imot, men ikke hva de svarer med. `backend/KONTRAKT.md`
+beskriver svarene i prosa; ingenting holder de to i takt.
 
-`GET /v1/messages` fikk `response_model=list[MessageOut]` 2026-08-08 som den
-første, fordi klienten hadde måttet lese skjemaet ut av kildekoden (issue #5).
+Det gjenstående er venne-, lag- og forskningsflatene, `/v1/stats`, `/v1/profile`
+og `/health` — altså det klienten ennå bare har front-end-skjelett for.
 
-Åpent: om resten skal få `response_model`-er, og i så fall i hvilken rekkefølge.
-Det er ikke gratis — en `response_model` filtrerer og validerer svaret, så et
-felt som i dag sniker seg med, forsvinner. Det er som regel ønsket, men det er
-en atferdsendring per endepunkt og bør ikke gjøres i én runde uten testdekning
-på hver enkelt. Alternativet — å la det være og holde `KONTRAKT.md` som eneste
-kilde for svar — er også farbart, men da bør `contracts/README.md` si det enda
-tydeligere enn den gjør nå.
+Åpent: om resten skal få modeller, og når. **Det er ikke gratis.** En
+`response_model` filtrerer svaret, så et felt som i dag sniker seg med,
+forsvinner uten at noe feiler. `PUT /v1/profile` er det konkrete eksempelet:
+den legger på `advarsel` *bare* når et visningsnavn venter på moderasjon, og en
+modell som glemmer det feltet ville fjernet meldingen brukeren skal se — stille,
+og bare i det ene tilfellet en test sjelden dekker. Rekkefølgen bør derfor følge
+hva klienten tar i bruk, ikke hva som er raskest å skrive.
 
 ### ÅP-B9 — Feedback-kvoten teller i minnet, per maskin · label `backend`
 > «Holder for MVP med én maskin. Ved flere Fly-maskiner er telleren per maskin —

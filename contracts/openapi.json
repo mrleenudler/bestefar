@@ -41,6 +41,56 @@
         "title": "AnnounceIn",
         "type": "object"
       },
+      "BackupMeta": {
+        "properties": {
+          "bytes": {
+            "description": "Stoerrelsen paa den lagrede bloben.",
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "client_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Klientens tidsstempel for oeyeblikksbildet. Godtas baade som epoke-millisekunder og ISO-8601 ved opplasting.",
+            "title": "Client Ts"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "escrowed": {
+            "description": "Om noekkelen er deponert - altsaa om kopien kan gjenopprettes UTEN gjenopprettingskoden. Lar en ny telefon vite det foer den laster ned 16 MB.",
+            "title": "Escrowed",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bytes",
+          "schema_version",
+          "device_id",
+          "client_ts",
+          "updated_at",
+          "escrowed"
+        ],
+        "title": "BackupMeta",
+        "type": "object"
+      },
       "Body_submit_failed_v1_failed_analyses_post": {
         "properties": {
           "confidence": {
@@ -138,6 +188,39 @@
         "title": "DeviceIn",
         "type": "object"
       },
+      "DeviceRegistrert": {
+        "description": "Svarmodell (se routers/auth.py).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "platform"
+        ],
+        "title": "DeviceRegistrert",
+        "type": "object"
+      },
+      "DonasjonMottatt": {
+        "description": "Svarmodell (se routers/auth.py). MERK at multipart-INNGANGEN ikke kan\nbeskrives fullt ut i OpenAPI: feltnavnene her er ikke de samme som noeklene\ni klientens sidecar-JSON (`detected` -> `detected_scores`), og den\nkartleggingen finnes bare i backend/KONTRAKT.md §3.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "DonasjonMottatt",
+        "type": "object"
+      },
       "EpostIn": {
         "properties": {
           "email": {
@@ -165,6 +248,46 @@
           "key_material"
         ],
         "title": "EscrowIn",
+        "type": "object"
+      },
+      "EscrowMateriale": {
+        "properties": {
+          "key_material": {
+            "description": "Base64 av ugjennomsiktige byte. Serveren tolker dem ikke.",
+            "title": "Key Material",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Sist BRUKEREN deponerte. En intern omkryptering ved utskiftning av server-hemmeligheten flytter den ikke.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_material",
+          "updated_at"
+        ],
+        "title": "EscrowMateriale",
+        "type": "object"
+      },
+      "EscrowStatus": {
+        "properties": {
+          "escrowed": {
+            "title": "Escrowed",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "escrowed",
+          "updated_at"
+        ],
+        "title": "EscrowStatus",
         "type": "object"
       },
       "FailedTag": {
@@ -221,6 +344,28 @@
           "body"
         ],
         "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FeedbackMottatt": {
+        "description": "Svarmodell (se routers/auth.py). 202, ikke 200: meldingen er lagret, men\nvideresendingen skjer i bakgrunnen og kan feile uten at brukeren merker\ndet - `forward_error` settes paa raden.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "examples": [
+              "mottatt"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "FeedbackMottatt",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -300,6 +445,64 @@
           "code"
         ],
         "title": "KodeIn",
+        "type": "object"
+      },
+      "KodeSendt": {
+        "description": "Svaret fra /email/start. **Alltid 202**, ogsaa for en ukjent adresse - et\nsvar som skilte kjent fra ukjent ville gjort endepunktet til et\noppslagsverk over hvem som bruker appen.\n\nFristene ligger her nettopp for at klienten ikke skal hardkode dem.",
+        "properties": {
+          "expires_in_minutes": {
+            "description": "Levetid for koden.",
+            "title": "Expires In Minutes",
+            "type": "integer"
+          },
+          "resend_after_seconds": {
+            "description": "Sperrefrist for «send ny kode». Innen fristen svarer endepunktet 429 med Retry-After.",
+            "title": "Resend After Seconds",
+            "type": "integer"
+          },
+          "status": {
+            "examples": [
+              "sendt"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "resend_after_seconds",
+          "expires_in_minutes"
+        ],
+        "title": "KodeSendt",
+        "type": "object"
+      },
+      "Kunngjort": {
+        "description": "Svarmodell (se routers/auth.py).",
+        "properties": {
+          "devices_notified": {
+            "description": "Antall ENHETER som fikk varselet, ikke antall venner. Klienten skal ikke love brukeren mer enn det som skjedde.",
+            "title": "Devices Notified",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Setningen vennene faktisk fikk. Klienten viste den samme teksten som forhaandsvisning foer sending.",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "examples": [
+              "sendt"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "devices_notified"
+        ],
+        "title": "Kunngjort",
         "type": "object"
       },
       "MessageOut": {
@@ -880,6 +1083,111 @@
         "title": "TeamKind",
         "type": "string"
       },
+      "TokenPar": {
+        "description": "Svaret fra /refresh. Alle andre endepunkter tar `access_token` som\n`Authorization: Bearer <token>`.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Sekunder til access-tokenet utloeper.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "public_id": {
+            "description": "Den korte ID-en venner soeker opp, f.eks. BF-7Q4K-9F2M.",
+            "title": "Public Id",
+            "type": "string"
+          },
+          "refresh_token": {
+            "description": "Ugjennomsiktig. Roteres ved hver bruk; to parallelle fornyelser med samme token tolkes som tyveri og tilbakekaller alle oekter.",
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "examples": [
+              "Bearer"
+            ],
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "token_type",
+          "expires_in",
+          "user_id",
+          "public_id",
+          "display_name"
+        ],
+        "title": "TokenPar",
+        "type": "object"
+      },
+      "TokenParNyBruker": {
+        "description": "Svaret fra de tre innloggingsveiene: tokenparet pluss om kontoen ble\nopprettet av dette kallet.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Sekunder til access-tokenet utloeper.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "is_new": {
+            "title": "Is New",
+            "type": "boolean"
+          },
+          "public_id": {
+            "description": "Den korte ID-en venner soeker opp, f.eks. BF-7Q4K-9F2M.",
+            "title": "Public Id",
+            "type": "string"
+          },
+          "refresh_token": {
+            "description": "Ugjennomsiktig. Roteres ved hver bruk; to parallelle fornyelser med samme token tolkes som tyveri og tilbakekaller alle oekter.",
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "examples": [
+              "Bearer"
+            ],
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "token_type",
+          "expires_in",
+          "user_id",
+          "public_id",
+          "display_name",
+          "is_new"
+        ],
+        "title": "TokenParNyBruker",
+        "type": "object"
+      },
       "UnregisterIn": {
         "properties": {
           "push_token": {
@@ -1063,9 +1371,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Logg Inn Apple V1 Auth Apple Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TokenParNyBruker"
                 }
               }
             },
@@ -1107,9 +1413,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Send Kode V1 Auth Email Start Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/KodeSendt"
                 }
               }
             },
@@ -1162,9 +1466,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Verifiser Kode V1 Auth Email Verify Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TokenParNyBruker"
                 }
               }
             },
@@ -1217,9 +1519,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Logg Inn Google V1 Auth Google Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TokenParNyBruker"
                 }
               }
             },
@@ -1307,9 +1607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Forny V1 Auth Refresh Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TokenPar"
                 }
               }
             },
@@ -1492,9 +1790,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Upload Backup V1 Backup Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BackupMeta"
                 }
               }
             },
@@ -1588,9 +1884,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Hent Noekkel V1 Backup Key Escrow Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/EscrowMateriale"
                 }
               }
             },
@@ -1650,9 +1944,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Deponer Noekkel V1 Backup Key Escrow Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/EscrowStatus"
                 }
               }
             },
@@ -1704,9 +1996,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Backup Meta V1 Backup Meta Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BackupMeta"
                 }
               }
             },
@@ -1823,9 +2113,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Register Device V1 Devices Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DeviceRegistrert"
                 }
               }
             },
@@ -1921,9 +2209,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Submit Failed V1 Failed Analyses Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DonasjonMottatt"
                 }
               }
             },
@@ -1964,9 +2250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Submit Feedback V1 Feedback Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FeedbackMottatt"
                 }
               }
             },
@@ -2320,9 +2604,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Announce Kill V1 Hunts Announce Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Kunngjort"
                 }
               }
             },

@@ -56,7 +56,18 @@ def _venner(s: OrmSession, user_id: str) -> list[str]:
             for r in rader]
 
 
-@router.post("/announce")
+class Kunngjort(BaseModel):
+    """Svarmodell (se routers/auth.py)."""
+    status: str = Field(examples=["sendt"])
+    message: str = Field(description="Setningen vennene faktisk fikk. Klienten "
+                                     "viste den samme teksten som "
+                                     "forhaandsvisning foer sending.")
+    devices_notified: int = Field(
+        description="Antall ENHETER som fikk varselet, ikke antall venner. "
+                    "Klienten skal ikke love brukeren mer enn det som skjedde.")
+
+
+@router.post("/announce", response_model=Kunngjort)
 def announce_kill(body: AnnounceIn, user: User = Depends(current_user),
                   s: OrmSession = Depends(db)) -> dict:
     """

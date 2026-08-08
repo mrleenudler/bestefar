@@ -34,6 +34,37 @@ from ..services import escrow
 router = APIRouter(prefix="/v1/backup", tags=["backup"])
 
 
+# Svarmodeller: se kommentaren i routers/auth.py. Selve BLOBEN har ingen modell
+# og kan ikke faa en - den er application/octet-stream, og byte-formatet er
+# klientens (android/KONTRAKT.md §3).
+
+class BackupMeta(BaseModel):
+    bytes: int = Field(description="Stoerrelsen paa den lagrede bloben.")
+    schema_version: int
+    device_id: str
+    client_ts: datetime | None = Field(
+        description="Klientens tidsstempel for oeyeblikksbildet. Godtas baade "
+                    "som epoke-millisekunder og ISO-8601 ved opplasting.")
+    updated_at: datetime
+    escrowed: bool = Field(
+        description="Om noekkelen er deponert - altsaa om kopien kan "
+                    "gjenopprettes UTEN gjenopprettingskoden. Lar en ny telefon "
+                    "vite det foer den laster ned 16 MB.")
+
+
+class EscrowStatus(BaseModel):
+    escrowed: bool
+    updated_at: datetime
+
+
+class EscrowMateriale(BaseModel):
+    key_material: str = Field(
+        description="Base64 av ugjennomsiktige byte. Serveren tolker dem ikke.")
+    updated_at: datetime = Field(
+        description="Sist BRUKEREN deponerte. En intern omkryptering ved "
+                    "utskiftning av server-hemmeligheten flytter den ikke.")
+
+
 def _meta(s: OrmSession, row: Backup) -> dict:
     return {
         "bytes": row.payload_bytes,
@@ -48,7 +79,7 @@ def _meta(s: OrmSession, row: Backup) -> dict:
     }
 
 
-@router.put("")
+@router.put("", response_model=BackupMeta)
 async def upload_backup(request: Request,
                         client_ts: datetime = Query(...),
                         schema_version: int = Query(1),
@@ -121,7 +152,7 @@ def download_backup(user: User = Depends(current_user),
         })
 
 
-@router.get("/meta")
+@router.get("/meta", response_model=BackupMeta)
 def backup_meta(user: User = Depends(current_user),
                 s: OrmSession = Depends(db)) -> dict:
     """
@@ -185,7 +216,7 @@ def _krev_konfigurert(cfg: Settings) -> None:
                                  "serveren. Bruk gjenopprettingskoden.")
 
 
-@router.put("/key-escrow")
+@router.put("/key-escrow", response_model=EscrowStatus)
 def deponer_noekkel(body: EscrowIn, user: User = Depends(current_user),
                     s: OrmSession = Depends(db)) -> dict:
     """
@@ -210,7 +241,7 @@ def deponer_noekkel(body: EscrowIn, user: User = Depends(current_user),
     return {"escrowed": True, "updated_at": row.updated_at}
 
 
-@router.get("/key-escrow")
+@router.get("/key-escrow", response_model=EscrowMateriale)
 def hent_noekkel(user: User = Depends(current_user),
                  s: OrmSession = Depends(db)) -> dict:
     cfg = settings()

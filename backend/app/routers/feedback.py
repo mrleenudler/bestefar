@@ -70,7 +70,15 @@ def _forward(cfg: Settings, feedback_id: int, payload: FeedbackIn) -> None:
         session.close()
 
 
-@router.post("/feedback", status_code=202)
+class FeedbackMottatt(BaseModel):
+    """Svarmodell (se routers/auth.py). 202, ikke 200: meldingen er lagret, men
+    videresendingen skjer i bakgrunnen og kan feile uten at brukeren merker
+    det - `forward_error` settes paa raden."""
+    id: int
+    status: str = Field(examples=["mottatt"])
+
+
+@router.post("/feedback", status_code=202, response_model=FeedbackMottatt)
 def submit_feedback(body: FeedbackIn, request: Request, tasks: BackgroundTasks,
                     s: OrmSession = Depends(db)) -> dict:
     if not limiter().allow(client_ip(request)):

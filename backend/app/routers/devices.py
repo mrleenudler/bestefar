@@ -29,7 +29,13 @@ class DeviceIn(BaseModel):
     model: str = Field(default="", max_length=64)
 
 
-@router.put("", status_code=200)
+class DeviceRegistrert(BaseModel):
+    """Svarmodell (se routers/auth.py)."""
+    id: int
+    platform: str
+
+
+@router.put("", status_code=200, response_model=DeviceRegistrert)
 def register_device(body: DeviceIn, user: User = Depends(current_user),
                     s: OrmSession = Depends(db)) -> dict:
     """

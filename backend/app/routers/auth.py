@@ -38,6 +38,51 @@ router = APIRouter(prefix="/v1/auth", tags=["innlogging"])
 
 
 # --------------------------------------------------------------------
+# Svarmodeller
+#
+# Finnes for at contracts/openapi.json skal beskrive SVARET og ikke bare
+# forespoerselen. Bare rutene klienten faktisk kaller har fått dem; resten av
+# API-et returnerer `dict` og staar under AAPNE_PUNKTER ÅP-B10.
+# --------------------------------------------------------------------
+
+class TokenPar(BaseModel):
+    """Svaret fra /refresh. Alle andre endepunkter tar `access_token` som
+    `Authorization: Bearer <token>`."""
+    access_token: str
+    refresh_token: str = Field(description="Ugjennomsiktig. Roteres ved hver "
+                                          "bruk; to parallelle fornyelser med "
+                                          "samme token tolkes som tyveri og "
+                                          "tilbakekaller alle oekter.")
+    token_type: str = Field(examples=["Bearer"])
+    expires_in: int = Field(description="Sekunder til access-tokenet utloeper.")
+    user_id: str
+    public_id: str = Field(description="Den korte ID-en venner soeker opp, "
+                                       "f.eks. BF-7Q4K-9F2M.")
+    display_name: str
+
+
+class TokenParNyBruker(TokenPar):
+    """Svaret fra de tre innloggingsveiene: tokenparet pluss om kontoen ble
+    opprettet av dette kallet."""
+    is_new: bool
+
+
+class KodeSendt(BaseModel):
+    """
+    Svaret fra /email/start. **Alltid 202**, ogsaa for en ukjent adresse - et
+    svar som skilte kjent fra ukjent ville gjort endepunktet til et
+    oppslagsverk over hvem som bruker appen.
+
+    Fristene ligger her nettopp for at klienten ikke skal hardkode dem.
+    """
+    status: str = Field(examples=["sendt"])
+    resend_after_seconds: int = Field(
+        description="Sperrefrist for «send ny kode». Innen fristen svarer "
+                    "endepunktet 429 med Retry-After.")
+    expires_in_minutes: int = Field(description="Levetid for koden.")
+
+
+# --------------------------------------------------------------------
 # Felles
 # --------------------------------------------------------------------
 
@@ -120,7 +165,7 @@ class IdTokenIn(BaseModel):
     id_token: str = Field(min_length=1, max_length=8192)
 
 
-@router.post("/google")
+@router.post("/google", response_model=TokenParNyBruker)
 def logg_inn_google(body: IdTokenIn,
                     user_agent: str = Header(default=""),
                     s: OrmSession = Depends(db)) -> dict:
@@ -133,7 +178,7 @@ def logg_inn_google(body: IdTokenIn,
     return ut
 
 
-@router.post("/apple")
+@router.post("/apple", response_model=TokenParNyBruker)
 def logg_inn_apple(body: IdTokenIn,
                    user_agent: str = Header(default=""),
                    s: OrmSession = Depends(db)) -> dict:
@@ -159,7 +204,7 @@ class KodeIn(BaseModel):
     code: str = Field(min_length=4, max_length=10)
 
 
-@router.post("/email/start", status_code=202)
+@router.post("/email/start", status_code=202, response_model=KodeSendt)
 def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
     """
     Svarer ALLTID 202, uansett om adressen finnes fra foer. Et svar som skilte
@@ -215,7 +260,7 @@ def send_kode(body: EpostIn, s: OrmSession = Depends(db)) -> dict:
             "expires_in_minutes": cfg.email_code_ttl_minutes}
 
 
-@router.post("/email/verify")
+@router.post("/email/verify", response_model=TokenParNyBruker)
 def verifiser_kode(body: KodeIn, user_agent: str = Header(default=""),
                    s: OrmSession = Depends(db)) -> dict:
     cfg = settings()
@@ -253,7 +298,7 @@ class RefreshIn(BaseModel):
     refresh_token: str = Field(min_length=1, max_length=512)
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=TokenPar)
 def forny(body: RefreshIn, user_agent: str = Header(default=""),
           s: OrmSession = Depends(db)) -> dict:
     cfg = settings()

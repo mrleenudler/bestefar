@@ -342,11 +342,11 @@ idempotens, om hva som er trygt å prøve på nytt, eller om hvorfor en 409 komm
 
 **Fire avvik funnet ved generering 2026-08-08:**
 
-1. **Svarkroppene er ikke beskrevet — for 47 av 48 operasjoner.** Håndtererne er
-   annotert `-> dict`, så OpenAPI får bare `{"type": "object",
-   "additionalProperties": true}`. Alt som står om svar i dette dokumentet,
-   finnes ikke i skjemaet. `GET /v1/messages` er unntaket, med
-   `response_model=list[MessageOut]`. Se ÅP-B10.
+1. **Svarkroppene er beskrevet for 14 av 48 operasjoner** — nøyaktig de rutene
+   Android-klienten faktisk kaller (lista står i `contracts/README.md`). De
+   øvrige 34 er annotert `-> dict`, så OpenAPI får bare `{"type": "object",
+   "additionalProperties": true}`, og for dem er dette dokumentet eneste kilde.
+   Se ÅP-B10.
 2. **`client_ts` oppgis som `string`/`date-time`**, men implementasjonen godtar
    også epoke-millisekunder som heltall — som er det klienten faktisk sender.
    Skjemaet er smalere enn virkeligheten. Se §2.
@@ -364,6 +364,13 @@ idempotens, om hva som er trygt å prøve på nytt, eller om hvorfor en 409 komm
 Verifisert 2026-08-08. Det er tilsiktet — skjemaet ligger innsjekket i
 `contracts/openapi.json` uansett, så å stenge endepunktet ville skjult ingenting
 og gjort det vanskeligere å sammenligne en kjørende instans mot kontrakten.
+
+**Og repoet er offentlig** (`gh repo view`: `visibility: PUBLIC`, verifisert
+2026-08-08). Beslutningen om å la `/openapi.json` stå åpen koster altså ingenting
+i eksponering: de 44 ruteoverflatene ligger allerede lesbare for alle i
+`contracts/openapi.json`. Skulle repoet noen gang bli privat, er dette
+avsnittet det første som må vurderes på nytt — da *ville* endepunktet vært den
+eneste offentlige beskrivelsen av API-flaten.
 Kommentaren i `main.py` sa tidligere «ingen offentlig API-dokumentasjon i
 produksjon», som var feil: skjemaet *er* dokumentasjonen.
 

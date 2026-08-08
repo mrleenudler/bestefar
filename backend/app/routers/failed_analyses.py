@@ -15,6 +15,7 @@ uten konto (§6 er koblet til bildedelings-samtykket, ikke til kontoen).
 import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as OrmSession
 
 from ..config import settings
@@ -22,6 +23,16 @@ from ..db import db
 from ..models import FailedAnalysis, FailedTag
 
 router = APIRouter(prefix="/v1", tags=["feilanalyse"])
+
+
+class DonasjonMottatt(BaseModel):
+    """
+    Svarmodell (se routers/auth.py). MERK at multipart-INNGANGEN ikke kan
+    beskrives fullt ut i OpenAPI: feltnavnene her er ikke de samme som noeklene
+    i klientens sidecar-JSON (`detected` -> `detected_scores`), og den
+    kartleggingen finnes bare i backend/KONTRAKT.md §3.
+    """
+    id: int
 
 
 def _scores(raw: str) -> list:
@@ -36,7 +47,8 @@ def _scores(raw: str) -> list:
     return parsed
 
 
-@router.post("/failed-analyses", status_code=201)
+@router.post("/failed-analyses", status_code=201,
+             response_model=DonasjonMottatt)
 async def submit_failed(status_code: int = Form(...),
                         confidence: float = Form(...),
                         core_version: str = Form(...),

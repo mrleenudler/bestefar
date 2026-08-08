@@ -29,18 +29,32 @@ kontraktsendring.
 Dette er det viktigste avsnittet her. **`openapi.json` er ikke uttømmende**, og
 et generert klientbibliotek vil derfor mangle ting som er avtalt.
 
-### 1. Ingen svarskjemaer — for noen av endepunktene
+### 1. Svarskjemaer finnes bare for det klienten kaller
 
-Per 2026-08-08: **48 av 48 operasjoner med svarkropp beskriver ikke kroppen.**
-Håndtererne er annotert `-> dict` eller `-> list[dict]`, og FastAPI kan bare
-utlede `{"type": "object", "additionalProperties": true}` av det.
+Per 2026-08-08: **14 av 48 operasjoner med svarkropp beskriver kroppen.** De 14
+er nøyaktig de rutene Android-klienten faktisk kaller, avgjort ved å lese
+kallstedene i `android/app/src/main/java/no/bestefar/app/`:
 
-Det ene unntaket er `GET /v1/messages`, som har `response_model=list[MessageOut]`
-fordi klienten måtte lese skjemaet ut av kildekoden vår (issue #5).
+```
+POST /v1/auth/google          POST /v1/auth/apple
+POST /v1/auth/email/start     POST /v1/auth/email/verify
+POST /v1/auth/refresh
+GET  /v1/messages             PUT  /v1/devices
+PUT  /v1/backup               GET  /v1/backup/meta
+PUT  /v1/backup/key-escrow    GET  /v1/backup/key-escrow
+POST /v1/failed-analyses      POST /v1/feedback
+POST /v1/hunts/announce
+```
 
-Praktisk betydning: fila forteller **hvilke ruter som finnes, hva de tar imot,
-og hvilke parametere de har** — ikke hva de svarer med. For svarene er
-`backend/KONTRAKT.md` fasit. Se `AAPNE_PUNKTER.md` ÅP-B10.
+`/v1/auth/apple` er med selv om klienten ikke bygger Apple-innlogging ennå: den
+returnerer samme modell som `/google`, og en tvillingrute som beskrives ulikt er
+verre enn én som ikke beskrives.
+
+**De øvrige 34 har ingen svarbeskrivelse.** Håndtererne er annotert `-> dict`, og
+FastAPI kan bare utlede `{"type": "object", "additionalProperties": true}`. For
+dem er `backend/KONTRAKT.md` eneste kilde. Se `AAPNE_PUNKTER.md` ÅP-B10.
+
+De sju operasjonene som svarer 204 har med rette ingen kropp.
 
 ### 2. Ikke-JSON-nyttelaster
 
