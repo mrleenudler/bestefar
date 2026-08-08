@@ -7,6 +7,12 @@ men som ikke kan fullføres uten konto + server. Bygger på `bestefar_CV-kjerne_
 Status: **utkast** — feltdefinisjoner merket `TODO(eier)` der forskningsinnholdet
 ikke er avklart.
 
+**Dette dokumentet beskriver hvordan backenden er i dag.** Når noe ble bygget,
+står i `backend/CHANGELOG.md`; *hvorfor* det ble slik og hva som ble forkastet, i
+`backend/BESLUTNINGER.md`; hva andre kan stole på, i `backend/KONTRAKT.md`.
+Skriv ikke datostemplede notater inn i paragrafene igjen — de gjorde det umulig å
+lese en paragraf som en beskrivelse av nåtilstanden.
+
 ## 0. Prinsipper (arvet fra spec)
 - **Strukturell adskillelse:** treningsdata, feilanalyse-bilder og forskningsdata i
   separate tabeller/lagre. Forskning bruker pseudonym skytter-ID + samtykketabell.
@@ -26,7 +32,7 @@ Trengs for backup, venner og lag.
   (egenrapportert), hjemkommune (valgfri), findable-flagg.
 - **Endepunkter:** `POST /v1/auth/*`, `GET/PUT /v1/profile`.
 
-*Implementert 2026-08-04 (fase 3):*
+Endepunktene:
 
 | Endepunkt | Inn | Ut |
 |---|---|---|
@@ -58,7 +64,7 @@ user_id, public_id, display_name}`. Alle andre endepunkter tar
 - **`aud` sjekkes alltid.** Uten `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` svarer
   den leverandøren 503. Et gyldig Google-token utstedt til en *annen* app
   skal ikke gi tilgang her.
-- *Tillegg 2026-08-06:* **«Send ny kode» har en sperrefrist på serveren**
+- **«Send ny kode» har en sperrefrist på serveren**
   (`EMAIL_CODE_RESEND_COOLDOWN_SECONDS`, 60 s). Innen fristen svarer
   `/email/start` 429 med `Retry-After`, og ingen e-post sendes. Nedtellingen i
   klienten er bekvemmelighet — en klient kan endres, og en gratis e-post til en
@@ -86,7 +92,7 @@ Problem: appdata forsvinner ved avinstaller/reinstall uten konto.
 - **Sync:** `PUT /v1/backup` (kryptert blob: serier + jaktlogg + innstillinger,
   klient-kryptert), `GET /v1/backup`. Konfliktløsning: last-write-wins per post-ID
   (postene har allerede UUID + `ts`).
-- *Implementert 2026-08-03:* bloben sendes som rå `application/octet-stream` med
+- Bloben sendes som rå `application/octet-stream` med
   metadataene som query-parametere (sparer base64-påslaget på vår største
   nyttelast). `GET /v1/backup/meta` gir metadata uten å laste ned bloben, slik at
   «har jeg noe å gjenopprette?» på en ny telefon er et lite kall.
@@ -189,7 +195,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   `phone` finnes).
 - **Sensur av visningsnavn:** moderasjon server-side før navnet eksponeres for andre
   (regelsett + evt. manuell kø). Avvist navn deles ikke; brukeren varsles.
-- *Implementert 2026-08-03:* regelsettet håndhever tegnsett og lengde (speiler
+- Regelsettet håndhever tegnsett og lengde (speiler
   `Ui.nameFilters()` — klientfilteret er bekvemmelighet, ikke sikkerhet) pluss en
   ordliste satt med `DISPLAY_NAME_BLOCKLIST`. Ordlista sammenlignes på en foldet
   form (uten aksenter, tegnsetting og store bokstaver), så «S-t-y-g-t» ikke
@@ -197,7 +203,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   ikke lekke. Er navnet ikke godkjent, eksponeres «Ukjent skytter» for andre.
   Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
   regelsettet godkjennes derfor direkte.
-- **`kills[]` — avklart 2026-08-05, løst som flyktig kunngjøring:** feltet kunne
+- **`kills[]` — løst som flyktig kunngjøring:** feltet kunne
   ikke leveres som en liste. Jaktloggen ligger inne i den klient-krypterte
   backup-bloben (§2), og å synke jaktposter som egne rader ville lagt hele
   loggen i klartekst på serveren — nettopp det §2 unngår.
@@ -208,7 +214,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   Krever `share_kills`, som allerede fantes i delingsvalgene. Et varsel som ikke
   når fram, er tapt — det er meningen. Dette er en gladmelding i øyeblikket,
   ikke en logg. `kills[]` i modellen over er dermed ikke en serverleveranse.
-- **`trend` — definert 2026-08-05:** snitt per skudd i de siste ~20 skuddene
+- **`trend`:** snitt per skudd i de siste ~20 skuddene
   minus de ~20 foregående; `null` før begge vinduene er fulle. Vinduet telles i
   **skudd**, ikke serier, fordi en serie er 5–10 skudd og fem serier derfor
   kunne bety alt fra 25 til 50 skudd. Hele serier samles til vinduet er fullt —
@@ -227,7 +233,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   EXTRA_TEXT; server leser User-Agent → riktig butikk (Play/App Store). Samme URL som
   QR for e-post/SMS-invitasjon. `POST /v1/teams/{id}/invite { emailOrPhone }` med
   validering (identifiser e-post vs telefon) og **leveringskvittering/-feil** tilbake.
-- *Implementert 2026-08-03:* `GET /i/{token}` leser User-Agent og svarer 302 til
+- `GET /i/{token}` leser User-Agent og svarer 302 til
   Play/App Store. Den svarer likt **uansett om tokenet finnes** — lenken deles i
   åpne kanaler, og et svar som skilte gyldig fra ugyldig ville gjort den til et
   oppslagsverk over hvilke lag som eksisterer. Telefonnumre normaliseres til
@@ -258,7 +264,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
 - Jakt-deling styres av brukerens valg: `{ vilt?, dato?, posisjon(grovhet)?,
   skuddsituasjon?, skadedata? }`. Skadedata private som standard.
 - Samtykketabell: `{ pseudonymId, type(trening|jakt), granted_at, revoked_at? }`.
-- *Implementert 2026-08-02:* tabellene ligger i et eget Postgres-**skjema**
+- Tabellene ligger i et eget Postgres-**skjema**
   (`research.consents`, `research.records`, `research.deletion_requests`) uten
   fremmednøkler til brukertabellene. Pseudonymet **avledes** med
   HMAC-SHA256(server-hemmelighet, bruker-UUID) i stedet for å lagres i en
@@ -267,7 +273,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   bryte koblingen til allerede innsamlede forskningsdata.
 - Endepunktet er sperret av flagget `RESEARCH_ENABLED` (av som standard), på
   linje med `Dialogs.RESEARCH_ENABLED` i klienten.
-- *Implementert 2026-08-04 (fase 7):* `GET/PUT /v1/research/sharing` leser og
+- `GET/PUT /v1/research/sharing` leser og
   setter valgene, og **serveren filtrerer innkommende jakt-payload etter dem**
   (`services/research_filter.py`). Samtykket sier at resultattypen kan deles;
   delingsvalgene sier hva *av* den. Begge må gjelde.
@@ -285,8 +291,7 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   - **Uten datosamtykke beholdes bare året** (1. januar). Kolonnen er
     obligatorisk, så alternativet var å avvise hele innsendingen; året alene
     sier ikke når noen var på jakt, men lar materialet grupperes per sesong.
-  - ~~**Skadedata lagres aldri.**~~ *Endret 2026-08-06:* skadedata har fått
-    sin **egen bryter** (`share_injury_data`, av som standard). «Private som
+  - **Skadedata har sin egen bryter** (`share_injury_data`, av som standard). «Private som
     standard» er oppfylt av standardverdien og av at det kreves et aktivt
     valg — ikke av at det er umulig. Ettersøksdata er den mest verdifulle
     delen av materialet: hvor ofte dyr skadeskytes, hvor langt de går, om de
@@ -332,19 +337,16 @@ Notat til kjerne-repoet (versjonert bump av pinnen ved endring):
   stabilitet, og dedup av treff som ligger nærmere enn X ringavstander i `hits`/`overlap`.
 - **OCR i kjernen:** UI-et bruker foreløpig ML Kit on-device. Vurder om skjerm-OCR bør
   flyttes til kjernen for konsistens og for å utnytte skjermens kjente layout.
-- ~~**`bf_version()` i `bestefar_ffi.h`**~~ — **Løst.** `bf_version()` returnerer
-  nå en semver-streng fra `core/include/bestefar/version.h`
-  (`BESTEFAR_CORE_VERSION`, bevisst UAVHENGIG av appens `versionName` — bump den
-  når en endring i `core/` påvirker analyse eller auto-capture). `Sync.kt`
-  sender `BestefarCore.version` (JNI: `nativeVersion()`) som `core_version` i
-  stedet for `BuildConfig.VERSION_NAME`. Ingen backend-endring nødvendig,
-  kolonnen tok som ventet imot den uendret.
+- **`core_version` i donasjonene** er CV-kjernens egen versjon, ikke appens.
+  Kolonnen tar imot en fri streng og valideres ikke — se `backend/KONTRAKT.md`
+  §3. Kontrakten for `bf_version()` selv eies av kjernen
+  (`core/ARCHITECTURE.md`).
 
 ## 9. Sikkerhet / personvern
 - All PII kryptert i ro og i transitt. Forsknings-ID ikke reversibelt koblet til konto.
 - Sletting: `DELETE /v1/account` (lokalt + sletteanmodning via pseudonym-ID for
   forskningslageret).
-- *Implementert 2026-08-04:* de to lagrene ryddes ulikt, og må gjøre det.
+- De to lagrene ryddes ulikt, og må gjøre det.
   Brukerskjemaet tømmes med det samme — serier, treff, backup, venner,
   lagmedlemskap, stemmer, enheter og innlogginger er borte når kallet
   returnerer. Forskningsskjemaet kan vi *ikke* røre herfra: radene er
@@ -377,7 +379,7 @@ Designsvar på eierens spørsmål om venne-ID og søk:
 - **Feiltastingsvern:** ID-en har innebygd sjekksiffer (siste tegn), så åpenbare
   tastefeil avvises uten oppslag. Rommet er stort nok til at gjetting er
   upraktisk (forventet ~10⁴ reelle brukere mot 10¹⁰ mulige ID-er).
-  *Implementert 2026-08-02* (`backend/app/services/ids.py`): **8 signifikante
+  Implementasjonen (`backend/app/services/ids.py`) bruker **8 signifikante
   tegn** — 7 tilfeldige + sjekksiffer — vist som `BF-XXXX-XXXX`, altså akkurat
   eksempelet over. Det gir ~3,4 · 10¹⁰ ID-er; ett tegn kortere enn de «9 tegn»
   teksten nevner, men fortsatt langt over det gjettingsargumentet krever, og
@@ -401,14 +403,12 @@ Konkretisering av vertsvalg og driftsoppsett for backend-MVP:
   håndskrevne Alembic-migrasjoner. Routerne i `app/routers/` speiler
   paragrafene her; de tre ansvarene fra kjerne-spec §5 (`/v1/stats`,
   `/v1/failed-analyses`, `/v1/research`) har hver sin lagring, og
-  forskningsdataene ligger i et eget Postgres-skjema (§7).
-  *Flyttet hit 2026-08-07 fra `docs/ARCHITECTURE.md`, som beskrev backenden som
-  «FastAPI + SQLite … tre routere». SQLite er testdialekten, ikke
-  produksjonsdialekten, og routerne er nå fjorten.*
+  forskningsdataene ligger i et eget Postgres-skjema (§7). SQLite er
+  testdialekten, ikke produksjonsdialekten.
 - **Vert:** Fly.io, region Amsterdam (EU) — lav driftsbyrde, gratis-tier dekker
   lav trafikk i tidlig fase. Alternativ: Google Cloud Run (scale-to-zero, betal
   kun for faktisk bruk) hvis trafikkmønsteret er svært sporadisk.
-  *Etablert 2026-08-02:* app `bestefar-api`, `https://bestefar-api.fly.dev`.
+  App `bestefar-api`, `https://bestefar-api.fly.dev`.
 - **Database:** Postgres. **Valgt: Supabase** (EU-region, prosjekt
   `Bestefar_base`) — administrasjons-UI på kjøpet. Forskningsdata i
   egne tabeller/skjema i samme database — ikke fysisk separat database
@@ -450,7 +450,7 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   leder på, avbrytes; ellers mister leder lederstatus (forblir medlem), og laget
   kan velge ny leder.
 - **Push-varsler:** krever FCM/APNs-registrering per enhet.
-- *Implementert 2026-08-05 (fase 8):* `PUT /v1/devices` (idempotent registrering),
+- **Enhetsregistrering:** `PUT /v1/devices` (idempotent registrering),
   `GET /v1/devices` (uten `push_token` i svaret), `POST /v1/devices/unregister`.
   Utsending skjer i `teamgov.varsle`, som er eneste stedet §11-varsler oppstår —
   køraden legges inn **først**, push er best effort og kastes aldri oppover.
@@ -458,11 +458,18 @@ UI-et (TeamPageActivity) bygger front-end for dette; alt reelt krever backend.
   et samlet tidsbudsjett (`PUSH_BUDGET_SECONDS`) som avbryter resten. Det er
   ikke datatap — køen bærer meldingen. Døde tokens (`UNREGISTERED`) slettes.
   Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare, og køen står alene.
-- *Implementert 2026-08-03:* meldingskøen er `GET /v1/messages` +
-  `POST /v1/messages/ack`. Kvittering **markerer** raden som levert i stedet for
-  å slette den, så en klient som krasjer mellom henting og visning ikke mister
-  meldingen. Køen erstatter ikke push — push når brukeren mens appen er lukket,
-  køen er garantien for at meldingen når fram til slutt.
+- **Meldingskøen** er `GET /v1/messages` + `POST /v1/messages/ack`. Kvittering
+  **markerer** raden som levert i stedet for å slette den, så en klient som
+  krasjer mellom henting og visning ikke mister meldingen. Køen erstatter ikke
+  push — push når brukeren mens appen er lukket, køen er garantien for at
+  meldingen når fram til slutt. Skjemaet med eksplisitte typer står i
+  `backend/KONTRAKT.md` §4.1.
+
+  **Garantien er ikke innfridd i dag: klienten henter ikke køen.** Push er
+  derfor eneste leveringsvei, og et varsel som ikke når fram er tapt, ikke
+  utsatt. Det er ikke en klientdetalj — det er forutsetningen hele denne
+  paragrafen hviler på, og den avgjør om «push er best effort» er en trygg
+  påstand eller ikke. Se `backend/KONTRAKT.md` §9 og issue #4.
 - **Frister avgjøres lat, ikke av en bakgrunnsjobb:** både avstemningen og
   inaktiv-leder-utfordringen har 7-dagers frist, men appen har ingen jobbkjører.
   De avgjøres første gang noen spør etter dem. Utfallet blir det samme — en

@@ -58,7 +58,7 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user),
         user.display_name_status = status
         user.display_name_reviewed_at = utcnow() if status == NameStatus.approved else None
         if status != NameStatus.approved:
-            advarsel = "Navnet vises for andre naar moderasjonen har godkjent det."
+            advarsel = "Navnet vises for andre når moderasjonen har godkjent det."
 
     if body.birth_year is not None:
         user.birth_year = body.birth_year

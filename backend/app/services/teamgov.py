@@ -171,7 +171,7 @@ def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
     team = s.get(Team, ch.team_id)
     varsle(s, [m.user_id for m in medlemmer(s, ch.team_id)],
            "leader_demoted", "Laget har ingen lagleder",
-           f"{team.name if team else 'Laget'} staar uten lagleder. "
+           f"{team.name if team else 'Laget'} står uten lagleder. "
            "Dere kan velge en ny.", ch.team_id)
     s.commit()
     return ch

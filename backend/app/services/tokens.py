@@ -43,7 +43,7 @@ def krev_hemmelighet(cfg: Settings) -> str:
     if not cfg.jwt_secret:
         raise HTTPException(503, "Innlogging er ikke konfigurert (JWT_SECRET mangler).")
     if len(cfg.jwt_secret.encode()) < MIN_SECRET_BYTES:
-        raise HTTPException(503, "Innlogging er feilkonfigurert: JWT_SECRET maa "
+        raise HTTPException(503, "Innlogging er feilkonfigurert: JWT_SECRET må "
                                  f"være minst {MIN_SECRET_BYTES} tegn.")
     return cfg.jwt_secret
 

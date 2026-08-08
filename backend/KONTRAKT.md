@@ -120,6 +120,11 @@ aldri til en eksisterende konto.
 - **`DELETE /v1/backup` fjerner bloben, ikke deponeringen.** 204 også når det
   ikke fantes noe.
 
+**405 på `GET /v1/backup/meta` og `GET /v1/backup/key-escrow` i loggene er
+gamle klienter, ikke rutefeil.** Begge rutene er og har vært `GET`. Klientfeilen
+er rettet i v0.19; 405-ene avtar etter hvert som appene oppdateres. Ikke bruk
+dem som grunnlag for å endre rutene.
+
 ### Nøkkeldeponering
 
 - **`PUT /v1/backup/key-escrow`** er idempotent; en ny PUT erstatter materialet.
@@ -192,6 +197,64 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   leses.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push": "log"`. Verdien godtas både som rå JSON og base64.
+
+## 4.1 Meldingskøen
+
+`routers/messages.py`, `models/social.py` (`PendingMessage`).
+
+Køen er **garantien** for §11-varsler; push er den raske leveringen. Begge
+krever innlogging, og en bruker ser bare sine egne meldinger.
+
+**`GET /v1/messages`** returnerer en JSON-liste med uleverte meldinger, eldste
+først (`created_at` stigende). Tom liste er 200, ikke 404.
+
+| Felt | Type | Merknad |
+|---|---|---|
+| `id` | **`int`** | Autoinkrement. **Ikke** UUID — bryter med mønsteret ellers i API-et, men er den faktiske typen. |
+| `kind` | `string`, ≤ 32 tegn | **Fri streng, ikke enum.** Se under. |
+| `title` | `string`, ≤ 120 tegn | |
+| `body` | `string` | Ubegrenset (`TEXT`). |
+| `team_id` | `string \| null` | UUID når meldingen gjelder et lag, ellers `null`. |
+| `created_at` | `string` | ISO-8601 med UTC-offset. |
+
+**De to avvikene er reelle og bevisste å dokumentere, ikke å skjule:**
+
+- **`id` er et heltall mens `team_id` er en streng-UUID eller `null`.** En klient
+  som antar samme type i begge, kompilerer og feiler stille. `id` er
+  primærnøkkelen i en tabell bare vi eier og som aldri deles på tvers av
+  installasjoner; `team_id` er en fremmednøkkel til en ID klienten også kjenner.
+- **`kind` er en fri `String(32)`, ikke et enum.** Serveren validerer den ikke,
+  og listen kan vokse uten API-versjonering. De sju verdiene som finnes i koden
+  i dag:
+
+  | `kind` | Sendes til | Utløses av |
+  |---|---|---|
+  | `team_renamed` | alle andre medlemmer | lagnavn endret |
+  | `removed_from_team` | den fjernede | medlem fjernet |
+  | `leadership_offered` | den utpekte | lederskap tilbudt, krever bekreftelse |
+  | `election_started` | alle medlemmer | lederavstemning åpnet, 7 dager |
+  | `leader_challenged` | lederen alene | utfordring av inaktiv leder, 7 dager |
+  | `leader_elected` | alle medlemmer | avstemning avgjort |
+  | `leader_demoted` | alle medlemmer | leder mistet rollen ved frist |
+
+  **Klienten må derfor behandle en ukjent `kind` som gyldig** og falle tilbake
+  på å vise `title` + `body`, som alltid er ferdig formulert tekst på norsk. En
+  klient som `switch`-er uttømmende på `kind` vil før eller siden møte en verdi
+  den ikke kjenner. Trenger dere en lukket liste, er det en **ny** avtale — ikke
+  noe dere kan lese ut av dagens verdier.
+
+**`POST /v1/messages/ack`** tar `{"ids": [int, ...]}` og svarer **204**.
+
+- **Kvittering markerer, den sletter ikke.** Raden får `delivered_at`, så en
+  klient som krasjer mellom henting og visning ikke mister meldingen for godt.
+- **Idempotent og tolerant:** ukjente ID-er, andres ID-er og allerede kvitterte
+  ID-er ignoreres uten feil. Tom liste er også 204.
+- Det finnes **ingen delvis-suksess-respons**. Vil dere vite hva som faktisk ble
+  kvittert, hent køen på nytt.
+
+**Meldingen er ferdig formulert av serveren.** `title` og `body` er norsk
+brukertekst med æøå, ikke nøkler klienten skal oversette. Endrer vi ordlyden,
+endres den for alle klienter samtidig — det er tilsiktet.
 
 ## 5. Forskningsdata
 

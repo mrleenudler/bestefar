@@ -36,7 +36,7 @@ def classify(raw: str) -> tuple[InviteTarget, str]:
     kompakt = re.sub(r"[\s\-()./]", "", verdi)
     if not re.fullmatch(r"\+?\d+", kompakt):
         raise UgyldigMottaker(
-            "Mottakeren maa vaere en e-postadresse eller et telefonnummer.")
+            "Mottakeren må være en e-postadresse eller et telefonnummer.")
 
     if kompakt.startswith("+"):
         if not 8 <= len(kompakt) - 1 <= 15:      # E.164

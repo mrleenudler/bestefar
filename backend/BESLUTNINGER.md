@@ -534,6 +534,64 @@ dokumentert, men følger av idempotenskravet.*
 
 *Kilde: `backend/README.md`, «Datamodell».*
 
+## B-35 Bloben sendes som rå oktettstrøm, ikke base64 i JSON
+
+**Kontekst.** Backup-bloben er den største nyttelasten appen har (grense 16 MB).
+
+**Valg.** `PUT /v1/backup` tar `application/octet-stream` med metadataene som
+query-parametere.
+
+**Forkastet: base64 i en JSON-kropp.** Det ville lagt ~33 % på nettopp den
+forespørselen som er størst, og metadataene er få og enkle nok til å ligge i
+URL-en.
+
+*Kilde: `backend_spec.md` §2; `routers/backup.py`, `upload_backup`.*
+
+## B-36 Et avvist visningsnavn lagres ikke i det hele tatt
+
+**Kontekst.** Visningsnavnet er det eneste feltet som alltid deles med venner,
+og dermed det eneste stedet en bruker kan skrive fritt til andre.
+
+**Valg.** Moderasjonen kjører før navnet lagres. Blir det avvist, skrives det
+ikke til basen — brukeren får en begrunnelse og må velge et annet.
+
+**Forkastet: å lagre navnet med status `rejected`.** Et navn som ikke finnes,
+kan heller ikke lekke — verken gjennom en feil i visningskoden, en databasedump
+eller en senere endring som glemmer å filtrere på status. Er navnet ikke
+godkjent, eksponeres «Ukjent skytter» for andre.
+
+*Kilde: `backend_spec.md` §3; `services/moderation.py`, modul-docstring.*
+
+## B-37 Ordlista sammenliknes på foldet form
+
+**Kontekst.** `DISPLAY_NAME_BLOCKLIST` er en enkel ordliste, tom som standard.
+
+**Valg.** Både navnet og hvert ord i lista foldes før sammenlikning: små
+bokstaver, aksenter fjernet, alt som ikke er alfanumerisk strippet bort.
+
+**Forkastet: direkte delstrengsammenlikning.** Uten foldingen slipper
+«B-a-n-n-e» unna et treff på «banne», og lista blir et spill om skrivemåter i
+stedet for et filter.
+
+**Beslektet valg:** lista er tom som standard. En hardkodet norsk banneordliste
+ville vært både ufullstendig og umulig å vedlikeholde fra repoet.
+
+*Kilde: `services/moderation.py`, `_fold` og modul-docstring.*
+
+## B-38 Telefonnumre normaliseres til E.164
+
+**Kontekst.** Invitasjoner og brukersøk tar imot telefonnumre skrevet på
+vilkårlig form.
+
+**Valg.** Skilletegn strippes, og et norsk åttesifret nummer får `+47`.
+Lengdekontroll 8–15 sifre etter landkode.
+
+**Hvorfor det betyr noe her:** søk gir kun *eksakt* treff (B-26). Uten
+normalisering ville «912 34 567» og «+4791234567» vært to forskjellige
+brukere, og et legitimt søk ville telt som bom mot karantenen.
+
+*Kilde: `backend_spec.md` §4; `services/contacts.py`, `classify`.*
+
 ---
 
 # Beslutninger uten dokumentert begrunnelse

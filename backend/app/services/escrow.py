@@ -71,7 +71,7 @@ def _noekler(cfg: Settings) -> list[bytes]:
             ut.append(_avled(raa))
     if not ut:
         raise EscrowNotConfigured(
-            "Noekkeldeponering er ikke konfigurert paa serveren.")
+            "Nøkkeldeponering er ikke konfigurert på serveren.")
     return ut
 
 
@@ -105,7 +105,7 @@ def dekrypter(cfg: Settings, lagret: bytes,
     utskiftning migrerer seg selv etter hvert som radene leses.
     """
     if not lagret or lagret[0] != VERSJON:
-        raise EscrowUnreadable("Ukjent format paa deponert noekkelmateriale.")
+        raise EscrowUnreadable("Ukjent format på deponert nøkkelmateriale.")
     nonce = lagret[1:1 + NONCE_BYTES]
     ciph = lagret[1 + NONCE_BYTES:]
 
@@ -120,4 +120,4 @@ def dekrypter(cfg: Settings, lagret: bytes,
     # men resultatet for brukeren er det samme: materialet er tapt, koden maa
     # brukes.
     raise EscrowUnreadable(
-        "Deponert noekkelmateriale kan ikke leses. Bruk gjenopprettingskoden.")
+        "Deponert nøkkelmateriale kan ikke leses. Bruk gjenopprettingskoden.")

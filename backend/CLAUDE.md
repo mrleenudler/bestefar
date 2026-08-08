@@ -35,6 +35,7 @@ derfor hele suiten to ganger — SQLite og Postgres.
 | `../backend_spec.md` | Kravene. Backend eier §0–§13; §14–§16 er pekere til klienten. |
 | `backend/KONTRAKT.md` | Det vi garanterer utad — statuskoder, idempotens, grenser |
 | `backend/BESLUTNINGER.md` | Hvorfor det ble slik, og hva som ble forkastet |
+| `backend/CHANGELOG.md` | Når det ble bygget. **Datostemplede notater hører hit, ikke inn i spec-paragrafene** — der gjorde de det umulig å lese en paragraf som en beskrivelse av nåtilstanden. |
 | `backend/README.md` | Oppsett, drift, datamodell, migrasjoner |
 | `../AAPNE_PUNKTER.md` | Det som ikke kan besluttes i kode. Backend-punktene er ÅP-B*, driftspunktene ÅP-E* |
 | `../docs/ARCHITECTURE.md` | Bygg/CI for alle tre områder |
