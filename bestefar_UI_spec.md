@@ -289,9 +289,13 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
 
   **Er kontoen nyopprettet**, tilbys en sikkerhetskopi med det samme — etter
   varseldialogen, aldri samtidig med den. Det er det ene øyeblikket appen vet
-  at brukeren har data lokalt og ingen kopi noe sted. En eksisterende konto får
-  ikke tilbudet; der er det riktige spørsmålet «vil du gjenopprette?», og den
-  flyten er ikke bygget.
+  at brukeren har data lokalt og ingen kopi noe sted.
+
+  **Fantes kontoen fra før**, spør appen serveren om det ligger en kopi der, og
+  tilbyr *gjenoppretting* i stedet — med datoen kopien ble laget. Finnes det
+  ingen kopi, eller svarer ikke serveren, **vises ingenting**. En bruker uten
+  kopi trenger ikke å få vite at funksjonen finnes akkurat da, og et oppslag som
+  ikke nådde fram vet ingenting.
 - **Visningsprofil:** lys / mørk / system, øverst til høyre. Default lys.
 - **Avanserte innstillinger** (egen skjerm, 🎛-ikon fører dit fra alle steder
   som nevner den).

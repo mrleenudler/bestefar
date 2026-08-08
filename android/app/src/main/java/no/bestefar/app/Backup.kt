@@ -260,6 +260,18 @@ object Backup {
      * gjenoppretting: «erstatter alt» er en helt annen beslutning når man vet
      * om kopien er fra i går eller fra i fjor.
      */
+    /**
+     * `escrowed` fra `/meta`: kan kopien låses opp uten at brukeren taster
+     * koden? Dette er **serverens** svar, og det er verdt å merke seg hvorfor
+     * det trumfer den lokale bryteren: bryteren ligger i prefs og forsvinner
+     * ved reinstallasjon, mens dette feltet overlever telefonen.
+     */
+    fun metaEscrowed(resp: Api.Resp): Boolean = try {
+        JSONObject(resp.body).optBoolean("escrowed", false)
+    } catch (_: Exception) {
+        false
+    }
+
     fun metaNaar(resp: Api.Resp): String = try {
         val o = JSONObject(resp.body)
         // `client_ts` er nullable i skjemaet, og org.json gir strengen "null"

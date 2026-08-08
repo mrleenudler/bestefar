@@ -380,81 +380,18 @@ class AvansertActivity : AppCompatActivity() {
             Api.ui {
                 if (isFinishing) return@ui
                 when (meta.code) {
+                    // Her, i motsetning til ved innlogging, HAR brukeren bedt om
+                    // gjenoppretting. Da skylder vi dem et svar når det ikke går
+                    // — det er ikke et uoppfordret vindu.
                     404 -> Ui.toast(this, R.string.backup_none)
                     401 -> Ui.toast(this, R.string.backup_need_login)
-                    else -> showRestoreConfirm(Backup.metaNaar(meta))
+                    else -> Dialogs.bekreftGjenoppretting(this, store,
+                        Backup.metaNaar(meta), Backup.metaEscrowed(meta)) { gjenopprettet ->
+                        // Bare ved faktisk gjenoppretting: da er hele
+                        // innstillingsbildet bygget på data som nettopp ble byttet ut.
+                        if (gjenopprettet) recreate()
+                    }
                 }
-            }
-        }
-    }
-
-    private fun showRestoreConfirm(naar: String) {
-        Ui.warningDialog(this)
-            .setMessage(if (naar.isEmpty()) getString(R.string.backup_restore_confirm)
-                        else getString(R.string.backup_restore_confirm_dated, naar))
-            .setPositiveButton(R.string.backup_restore) { _, _ -> doRestore() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    /**
-     * Gjenoppretting i tre steg (musingsUI runde 13): finn nøkkelen der den
-     * måtte være (lokalt → Block Store → deponering), og spør BARE hvis ingen
-     * av dem har den. På en ny telefon som er gjenopprettet fra Google er
-     * dette ett trykk uten kode — som er hele poenget med runden.
-     */
-    private fun doRestore() {
-        Ui.toast(this, R.string.backup_working)
-        Api.io {
-            val code = BackupKeys.resolve(this)
-            if (code.isEmpty()) Api.ui { askForCode() } else restoreWith(code)
-        }
-    }
-
-    private fun askForCode() {
-        val field = android.widget.EditText(this).apply {
-            hint = getString(R.string.backup_code_hint)
-            inputType = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-            filters = arrayOf(android.text.InputFilter.LengthFilter(29))
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.backup_code_enter)
-            .setMessage(R.string.backup_code_enter_body)
-            .setView(Ui.col(this, 16).apply { addView(field) })
-            .setPositiveButton(R.string.backup_restore) { _, _ ->
-                val code = Backup.normalizeCode(field.text.toString())
-                if (code.isEmpty()) { Ui.toast(this, R.string.backup_bad_code); return@setPositiveButton }
-                Ui.toast(this, R.string.backup_working)
-                Api.io { restoreWith(code) }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    /** Blokkerende; kalles fra [Api.io]. */
-    private fun restoreWith(code: String) {
-        val result = try {
-            Backup.downloadAndRestore(this, code) to null
-        } catch (e: Backup.BadCodeException) {
-            null to e
-        }
-        val resp = result.first
-        Api.ui {
-            when {
-                result.second != null -> Ui.toast(this, R.string.backup_bad_code)
-                resp == null -> Unit
-                resp.ok -> {
-                    // Koden virket: ta vare på den slik at neste gjenoppretting
-                    // ikke spør igjen.
-                    store.backupCode = code
-                    Api.io { BackupKeys.store(this, code) }
-                    Ui.toast(this, R.string.backup_restored)
-                    recreate()
-                }
-                resp.code == 401 -> Ui.toast(this, R.string.backup_need_login)
-                resp.code == 404 -> Ui.toast(this, R.string.backup_none)
-                resp.code == 0 -> Ui.toast(this, R.string.backup_offline)
-                else -> Ui.toast(this, getString(R.string.backup_failed, resp.code))
             }
         }
     }

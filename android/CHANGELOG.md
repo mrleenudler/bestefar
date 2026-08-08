@@ -34,6 +34,31 @@ nåtilstanden.
 
 ---
 
+## v0.22 — gjenoppretting tilbys ved innlogging på eksisterende konto
+
+Speilbildet av v0.21. Det er reinstallasjonen — ny telefon, tømt app — som gjør
+at man logger inn på en konto man allerede har, og da ligger dataene på serveren
+mens skjermen er tom.
+
+- **`is_new = false` → `GET /v1/backup/meta`.** Finnes en kopi, tilbys
+  gjenoppretting med **datoen** fra svaret. «Dette erstatter alt» er en annen
+  beslutning når man vet om kopien er fra i går eller i fjor.
+- **404, offline og 5xx gir ingen dialog.** En bruker uten kopi trenger ikke å
+  få vite at funksjonen finnes akkurat da, og et oppslag som ikke nådde fram vet
+  ingenting. Ber brukeren *selv* om gjenoppretting fra innstillingene, får de
+  fortsatt beskjed — der er det et svar de har bedt om.
+- **`escrowed` styrer om koden etterspørres.** Er nøkkelen deponert, hentes den,
+  og brukeren ser aldri en kodedialog.
+- **Én ekte feil rettet på veien:** `BackupKeys.resolve` sjekket den *lokale*
+  bryteren `backupEscrow` før den spurte serveren om nøkkelmaterialet. Den
+  bryteren ligger i app-preferansene, som er borte etter en reinstallasjon — så
+  på en ny telefon sto den av, og deponeringen ble hoppet over i nøyaktig det
+  scenarioet den finnes for. Serverens `escrowed` overlever telefonen; den
+  lokale bryteren gjør det ikke. Et vellykket oppslag setter nå bryteren
+  tilbake på, så innstillingssiden slutter å påstå noe annet enn det som er.
+- Hele gjenopprettingsflyten er flyttet til `Dialogs` og deles av begge
+  inngangene, så de to ikke kan drive fra hverandre.
+
 ## v0.21 — første sikkerhetskopi tilbys etter at kontoen er opprettet
 
 - **`is_new` leses.** Feltet har ligget i innloggingssvaret siden v0.17 uten at

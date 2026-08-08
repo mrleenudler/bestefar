@@ -126,6 +126,114 @@ object Dialogs {
             .show()
     }
 
+    // ---------- Gjenoppretting ----------
+
+    /**
+     * Speilbildet av [tilbyFoersteSikkerhetskopi]: tilbys etter innlogging paa
+     * en konto som IKKE er ny, og bare hvis serveren faktisk har en kopi.
+     *
+     * **404 gir ingen dialog, og heller ikke offline eller 5xx.** En bruker uten
+     * kopi trenger ikke aa faa vite at funksjonen finnes akkurat der og da; det
+     * ville vaert et vindu som stjeler oppmerksomhet for aa fortelle at det ikke
+     * er noe aa hente. Og et oppslag som ikke naadde fram, vet ingenting - da er
+     * det aa tie det aerlige.
+     */
+    fun tilbyGjenoppretting(a: Activity, store: Store,
+                            onDone: (Boolean) -> Unit = {}) {
+        if (!Auth.isLoggedIn(a)) { onDone(false); return }
+        Api.io {
+            val meta = Backup.meta(a)
+            Api.ui {
+                if (a.isFinishing) { onDone(false); return@ui }
+                if (!meta.ok) { onDone(false); return@ui }   // 404, 401, 0, 5xx: stille
+                bekreftGjenoppretting(a, store, Backup.metaNaar(meta),
+                    Backup.metaEscrowed(meta), onDone)
+            }
+        }
+    }
+
+    /**
+     * Bekreftelsen foran en gjenoppretting. [naar] er tidspunktet kopien ble
+     * laget, og staar i teksten fordi «dette erstatter alt» er en helt annen
+     * beslutning naar man vet om kopien er fra i gaar eller fra i fjor.
+     *
+     * [deponert] er `escrowed` fra `/meta`. Er den satt, skal brukeren ikke
+     * spoerres om koden i det hele tatt - vi henter noekkelmaterialet selv.
+     */
+    fun bekreftGjenoppretting(a: Activity, store: Store, naar: String,
+                              deponert: Boolean, onDone: (Boolean) -> Unit = {}) {
+        Ui.warningDialog(a)
+            .setMessage(if (naar.isEmpty()) a.getString(R.string.backup_restore_confirm)
+                        else a.getString(R.string.backup_restore_confirm_dated, naar))
+            .setPositiveButton(R.string.backup_restore) { _, _ ->
+                Ui.toast(a, R.string.backup_working)
+                Api.io {
+                    val code = BackupKeys.resolve(a, deponertPaaServer = deponert)
+                    if (code.isEmpty()) Api.ui { spoerOmKode(a, store, onDone) }
+                    else gjenopprettMed(a, store, code, onDone)
+                }
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onDone(false) }
+            .setOnCancelListener { onDone(false) }
+            .show()
+    }
+
+    /** Siste utvei: ingen av de tre noekkellagene hadde noe. */
+    private fun spoerOmKode(a: Activity, store: Store, onDone: (Boolean) -> Unit) {
+        val felt = EditText(a).apply {
+            hint = a.getString(R.string.backup_code_hint)
+            inputType = InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            filters = arrayOf(android.text.InputFilter.LengthFilter(29))
+        }
+        AlertDialog.Builder(a)
+            .setTitle(R.string.backup_code_enter)
+            .setMessage(R.string.backup_code_enter_body)
+            .setView(Ui.col(a, 16).apply { addView(felt) })
+            .setPositiveButton(R.string.backup_restore) { _, _ ->
+                val code = Backup.normalizeCode(felt.text.toString())
+                if (code.isEmpty()) {
+                    Ui.toast(a, R.string.backup_bad_code); onDone(false); return@setPositiveButton
+                }
+                Ui.toast(a, R.string.backup_working)
+                Api.io { gjenopprettMed(a, store, code, onDone) }
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onDone(false) }
+            .setOnCancelListener { onDone(false) }
+            .show()
+    }
+
+    /** Blokkerende; kalles fra [Api.io]. */
+    private fun gjenopprettMed(a: Activity, store: Store, code: String,
+                               onDone: (Boolean) -> Unit) {
+        val svar = try {
+            Backup.downloadAndRestore(a, code) to null
+        } catch (e: Backup.BadCodeException) {
+            null to e
+        }
+        val resp = svar.first
+        Api.ui {
+            if (a.isFinishing) { onDone(false); return@ui }
+            var gjenopprettet = false
+            when {
+                svar.second != null -> Ui.toast(a, R.string.backup_bad_code)
+                resp == null -> Unit
+                resp.ok -> {
+                    // Koden virket: ta vare paa den slik at neste gjenoppretting
+                    // ikke spoer igjen.
+                    store.backupCode = code
+                    Api.io { BackupKeys.store(a, code) }
+                    Ui.toast(a, R.string.backup_restored)
+                    gjenopprettet = true
+                }
+                resp.code == 401 -> Ui.toast(a, R.string.backup_need_login)
+                resp.code == 404 -> Ui.toast(a, R.string.backup_none)
+                resp.code == 0 -> Ui.toast(a, R.string.backup_offline)
+                else -> Ui.toast(a, a.getString(R.string.backup_failed, resp.code))
+            }
+            onDone(gjenopprettet)
+        }
+    }
+
     private fun lastOpp(a: Activity, code: String, onDone: () -> Unit) {
         Api.io {
             val resp = Backup.upload(a, code)

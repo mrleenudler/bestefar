@@ -203,10 +203,17 @@ flowchart TD
         LOGA --> LOGT["POST /v1/auth/google<br/>→ egne tokens i Secrets"]
         LOGB --> LOGT
         LOGT --> LOGN{"is_new fra serveren?"}
-        LOGN -->|"nei"| LOGD["ferdig"]
         LOGN -->|"ja"| LOGB1["«Ta vare på loggen din?»<br/>etter varseldialogen"]
         LOGB1 -->|"Ja"| LOGB2["Vis gjenopprettingskoden<br/>avkryssing kreves · kan ikke avbrytes"]
         LOGB2 --> LOGB3["PUT /v1/backup"]
+        LOGN -->|"nei"| LOGM["GET /v1/backup/meta"]
+        LOGM -->|"404 · offline · 5xx"| LOGS["ingenting —<br/>ingen dialog uten en kopi å tilby"]
+        LOGM -->|"200"| LOGR["«Kopien ble laget 7. august …<br/>dette ERSTATTER alt»"]
+        LOGR -->|"Ja"| LOGK{"escrowed?"}
+        LOGK -->|"ja"| LOGK1["nøkkelen hentes fra serveren<br/>ingen kode etterspørres"]
+        LOGK -->|"nei"| LOGK2["lokalt → Block Store<br/>→ tast koden"]
+        LOGK1 --> LOGRD["GET /v1/backup → dekrypter"]
+        LOGK2 --> LOGRD
         M1 --> M1b["🎛 Avanserte innstillinger<br/>våpen · bildearkiv Aldri/Alle/De beste ·<br/>bildedeling · venstrehånd ·<br/>sikkerhetskopi · utviklermeny"]
         M1b --> M1c["Sikkerhetskopi<br/>Sikkerhetskopier nå · Gjenopprett ·<br/>Vis gjenopprettingskode (nødutgang)"]
         M1c --> RST["Gjenopprett:<br/>GET /v1/backup/meta først"]

@@ -135,7 +135,7 @@ object BackupKeys {
      * Returnerer tom streng når ingen kilde har noe. Da (og bare da) må
      * brukeren taste koden.
      */
-    fun resolve(ctx: Context): String {
+    fun resolve(ctx: Context, deponertPaaServer: Boolean = false): String {
         val st = Store.get(ctx)
         st.backupCode.takeIf { it.isNotEmpty() }?.let { return it }
 
@@ -143,11 +143,23 @@ object BackupKeys {
             st.backupCode = it
             return it
         }
-        if (st.backupEscrow && Auth.isLoggedIn(ctx)) {
+        // [deponertPaaServer] kommer fra `escrowed` i GET /v1/backup/meta, og er
+        // ikke det samme som den lokale bryteren.
+        //
+        // DETTE ER POENGET: `st.backupEscrow` ligger i prefs, og prefs er borte
+        // etter en reinstallasjon. Paa en ny telefon staar bryteren derfor av
+        // selv om noekkelen ligger deponert hos oss - og da hoppet vi over
+        // deponeringen i noeyaktig det scenarioet den finnes for. Serverens
+        // `escrowed` overlever reinstallasjonen; den lokale bryteren gjoer det
+        // ikke.
+        if ((st.backupEscrow || deponertPaaServer) && Auth.isLoggedIn(ctx)) {
             val (resp, code) = escrowGet(ctx)
             if (resp.ok && code.isNotEmpty()) {
                 st.backupCode = code
                 store(ctx, code)          // og legg den i Block Store med det samme
+                // Bryteren gjenspeiler naa virkeligheten igjen: brukeren HAR
+                // deponert, og innstillingssiden skal ikke paastaa noe annet.
+                st.backupEscrow = true
                 return code
             }
             // MERK: her forsvinner forskjellen paa «deponeringen er tom» (404)

@@ -333,7 +333,25 @@ class LoggInnActivity : AppCompatActivity() {
      * som ikke er bygget ennå.
      */
     private fun maybeOfferBackup(nyKonto: Boolean) {
-        if (!nyKonto || isFinishing) return
-        Dialogs.tilbyFoersteSikkerhetskopi(this, store)
+        if (isFinishing) return
+        if (nyKonto) Dialogs.tilbyFoersteSikkerhetskopi(this, store)
+        else maybeOfferRestore()
+    }
+
+    /**
+     * Speilbildet: kontoen fantes fra før, så spørsmålet er ikke «vil du ta en
+     * kopi?» men «vil du hente den du har?». Det er nettopp reinstallasjonen —
+     * ny telefon, tømt app — som gjør at brukeren logger inn på en eksisterende
+     * konto, og da ligger dataene på serveren mens skjermen er tom.
+     *
+     * **Ingen dialog uten en kopi å tilby.** 404, offline og 5xx gir ingenting:
+     * en bruker uten kopi trenger ikke å få vite at funksjonen finnes akkurat
+     * da, og et oppslag som ikke nådde fram vet ingenting. Se
+     * [Dialogs.tilbyGjenoppretting].
+     */
+    private fun maybeOfferRestore() {
+        Dialogs.tilbyGjenoppretting(this, store) { gjenopprettet ->
+            if (gjenopprettet && !isFinishing) rebuild()
+        }
     }
 }

@@ -145,6 +145,13 @@ med det samme, og `DELETE` sendes etterpå uten at utfallet leses. Et
 personvernvalg man må ha dekning for å komme ut av, er ikke et valg — men
 konsekvensen er at server og klient kan komme i utakt, se §9.
 
+**`escrowed` i `/meta` er fasit, ikke den lokale bryteren** (fra v0.22). Bryteren
+ligger i app-preferansene og forsvinner ved reinstallasjon; serverens felt
+overlever telefonen. Før v0.22 hoppet klienten over deponeringen når den lokale
+bryteren sto av — altså i nøyaktig det scenarioet deponeringen finnes for, en ny
+telefon. Nå styrer `escrowed` om vi henter materialet, og et vellykket oppslag
+setter den lokale bryteren tilbake på.
+
 ## 5. Gravsteiner sendes, de utelates ikke
 
 En slettet serie eller jaktpost forsvinner ikke fra det som går over ledningen —
