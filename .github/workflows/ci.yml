@@ -22,23 +22,74 @@ jobs:
       # C-sett-verifisering (verify_cset_cpp.py) kjoeres LOKALT:
       # testbildene er for store for repoet/CI. Krav foer merge: 10/10.
 
+  # KUN debug. Release krever signeringsnoekkelen, og den ligger utenfor repoet
+  # (android/keystore.properties + .keystore, begge gitignorert). En
+  # signeringsnoekkel i CI ville vaert en noekkel paa avveie som fortjener det.
+  #
+  # Jobben dekker to ting kjernejobben over IKKE dekker: Kotlin-kompilering med
+  # ressurs- og manifestlenking, og NDK-bygget av core/. Se «NDK-bygget er ikke
+  # dobbeltarbeid» under.
   android:
-    name: Android (assembleDebug)
+    name: Android (assembleDebug + NDK-bygg av core)
     runs-on: ubuntu-latest
-    # Deaktivert til OpenCV-Android-SDK-nedlasting er kablet inn i workflowen.
-    if: false
+    # Uten tak kan en hengende SDK-nedlasting brenne seks timer per kjoering.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
+
+      # BUFRINGEN ER IKKE EN OPTIMALISERING. Uten den bruker jobben flere
+      # minutter paa aa laste ned det samme hver gang, og en jobb som er treig
+      # nok blir slaatt av - som er tilstanden dette punktet skulle rette opp
+      # (AAPNE_PUNKTER ÅP-U12).
+      - name: OpenCV Android SDK (bufret)
+        id: opencv
+        uses: actions/cache@v4
+        with:
+          path: opencv-android-sdk
+          # Versjonen staar i noekkelen: bumper vi SDK-en, faller bufferen bort
+          # av seg selv i stedet for aa levere feil versjon i stillhet.
+          key: opencv-android-sdk-4.10.0
+
       - name: Last ned OpenCV Android SDK
+        if: steps.opencv.outputs.cache-hit != 'true'
         run: |
-          curl -L -o opencv.zip https://github.com/opencv/opencv/releases/download/4.10.0/opencv-4.10.0-android-sdk.zip
+          curl -sSfL -o opencv.zip \
+            https://github.com/opencv/opencv/releases/download/4.10.0/opencv-4.10.0-android-sdk.zip
           unzip -q opencv.zip
-          echo "opencvDir=$PWD/OpenCV-android-sdk/sdk/native/jni" >> android/gradle.properties
-      - name: Bygg
+          mv OpenCV-android-sdk opencv-android-sdk
+
+      # AGP laster ned NDK og CMake selv naar versjonene ikke ligger i
+      # runner-bildet. Det er ~1 GB, og det er den enkeltposten som avgjoer om
+      # jobben tar tre minutter eller femten.
+      - name: NDK og CMake (bufret)
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk
+            /usr/local/lib/android/sdk/cmake
+          key: android-ndk-cmake-${{ hashFiles('android/app/build.gradle.kts', 'android/app/src/main/cpp/CMakeLists.txt') }}
+          restore-keys: android-ndk-cmake-
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Wrapperen, ikke `gradle` fra bildet: AGP 9.2.0 krever Gradle 9.4.1, og
+      # runnerens egen Gradle er en annen versjon. `-PopencvDir` overstyrer
+      # verdien i gradle.properties, som peker paa utviklerens Windows-sti.
+      - name: assembleDebug
         working-directory: android
-        run: gradle assembleDebug
+        run: ./gradlew --no-daemon assembleDebug -PopencvDir="$GITHUB_WORKSPACE/opencv-android-sdk/sdk/native/jni"
+
+      # EN GROENN JOBB SOM IKKE BYGGET NOE ER VERRE ENN EN AVSLAATT, fordi den
+      # ser ut som dekning. Derfor sjekkes utfallet, ikke bare exit-koden:
+      # APK-en skal finnes, og den skal inneholde det NDK-bygde biblioteket.
+      # Faller add_subdirectory av core/ ut av byggingen, fanges det her.
+      - name: APK-en finnes og inneholder kjernen
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          unzip -l "$apk" | grep -q 'lib/arm64-v8a/libbestefar_jni.so'
 
   backend:
     name: Backend (tester)

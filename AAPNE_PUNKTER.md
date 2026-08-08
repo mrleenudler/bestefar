@@ -355,21 +355,32 @@ Merk at selve verdien 5 heller ikke har noen dokumentert begrunnelse
 Gjelder lederavstemning og inaktiv-leder-utfordring, begge med 7-dagers frist.
 Åpent: hva som skal kalle det — Fly cron, ekstern pinger, eller noe annet.
 
-### ÅP-U12 — Klienten bygges ikke av noen automatikk · label `ui`
-> «Deaktivert til OpenCV-Android-SDK-nedlasting er kablet inn i workflowen.»
-> — `.github/workflows/ci.yml`, `android`-jobben, `if: false`
+### ~~ÅP-U12 — Klienten bygges ikke av noen automatikk~~ · **LUKKET 2026-08-08**
 
-Jobben står i CI-oppsettet med navn og steg, men kjører aldri. Det er en
-byggegaranti som **ser ut til å finnes uten å gjøre det** — verre enn ingen
-jobb, fordi en grønn CI-kjøring leses som at klienten kompilerer. Et brudd i
-Kotlin-koden fanges i dag bare av at noen kjører `gradlew assembleDebug` lokalt.
+Android-jobben kjører nå. `if: false` er fjernet, SDK-nedlastingen er kablet
+inn, og jobben bygger `assembleDebug` med wrapperen.
 
-Åpent: om SDK-nedlastingen skal kables inn (steget finnes allerede i
-workflowen, deaktivert sammen med resten), om jobben skal bruke en
-forhåndsbygget container med OpenCV, eller om den skal fjernes så oppsettet
-slutter å love noe det ikke holder. Alle tre er farbare; valget er ikke tatt.
+**Valget som ble tatt:** last ned OpenCV-SDK-en i jobben og buffer den, framfor
+en forhåndsbygget container. Bufferen er ikke en optimalisering — en jobb som er
+treig nok blir slått av, og en avslått jobb var tilstanden punktet handlet om.
+Tre ting bufres: OpenCV-SDK-en (nøkkel på versjonsnummeret, så en bump ikke
+leverer feil versjon i stillhet), NDK og CMake under SDK-roten (den posten som
+avgjør om jobben tar tre eller femten minutter), og Gradle-cachen via
+`gradle/actions/setup-gradle`.
 
-Se `docs/ARCHITECTURE.md`, «Bygg/CI».
+**Kun debug.** Release krever signeringsnøkkelen, som ligger utenfor repoet og
+ikke hører hjemme i CI.
+
+**Jobben er verifisert som en ekte port**, ikke bare grønn: `assembleDebug` ble
+kjørt lokalt med en innført Kotlin-feil og med en innført C++-feil, og feilet
+begge ganger. I tillegg sjekker jobben utfallet — at APK-en finnes og at
+`lib/arm64-v8a/libbestefar_jni.so` ligger i den. Faller `add_subdirectory` av
+`core/` ut av byggingen, fanges det der og ikke av exit-koden alene.
+
+`android/gradlew` ble samtidig satt kjørbar i git (`100644` → `100755`). Uten
+det feiler `./gradlew` med «Permission denied» på Linux.
+
+Se `docs/ARCHITECTURE.md`, «Bygg/CI», og `android/CLAUDE.md`.
 
 ### ÅP-U13 — `device_id` på backupen er alltid tom · label `ui`
 Serveren tar imot `device_id` på `PUT /v1/backup` og eksponerer den både i

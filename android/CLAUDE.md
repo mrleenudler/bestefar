@@ -36,9 +36,14 @@ manuelt steg, og `versionCode`/`versionName` i `app/build.gradle.kts` bumpes i
 samme runde. Kopier med **absolutte stier** — står du i `android/`, blir en
 relativ sti til `android\app\build\…` til `android\android\app\build\…`.
 
-**CI bygger ikke klienten.** `android`-jobben i `.github/workflows/ci.yml` står
-med `if: false` — se ÅP-U12. En grønn CI-kjøring sier ingenting om at Kotlin
-kompilerer; det gjør bare `gradlew assembleDebug` lokalt.
+**CI bygger klienten** fra 2026-08-08. `android`-jobben i
+`.github/workflows/ci.yml` kjører `assembleDebug` med wrapperen, mot en bufret
+OpenCV-SDK, og sjekker at APK-en faktisk inneholder `libbestefar_jni.so` — en
+grønn jobb som ikke bygget noe er verre enn en avslått. Kun debug: release
+krever signeringsnøkkelen, som ikke hører hjemme i CI.
+
+Det betyr **ikke** at du kan la være å bygge lokalt. CI svarer først etter push,
+og tre instanser deler dette treet.
 
 ### Byggoppsettet har tre feller som ikke feiler tydelig
 
@@ -127,7 +132,8 @@ Du leser gjerne koden deres. Du redigerer den ikke — issue med label
 ## Arbeidsetikette i dette området
 
 - **Meld aldri en runde ferdig uten at `assembleDebug` faktisk har kjørt grønt i
-  denne økten.** Ingen automatikk fanger et Kotlin-brudd for deg (ÅP-U12).
+  denne økten.** CI fanger et brudd, men først etter at det er pushet — og da
+  har de to andre instansene allerede trukket det inn.
 - **Brukertekst har æøå, kodekommentarer og logg er ASCII-translitterert.**
   Grensen har lekket før — sjekk hvilken side du står på. Datoer i UI er norske,
   datoer i dokumenter er ISO.

@@ -59,10 +59,21 @@ begrunnelsen intakt — det er begrunnelsen som er verdt noe når noen om et hal
 
 **Rettelser 2026-08-07 (verifisert mot `.github/workflows/`):**
 
-- **Android-jobben er slått av.** `ci.yml` har `if: false` på den, med
-  begrunnelsen «Deaktivert til OpenCV-Android-SDK-nedlasting er kablet inn i
-  workflowen». Klienten bygges altså ikke i CI i dag — `assembleDebug` må kjøres
-  lokalt, og et brudd i Kotlin-koden fanges ikke av noen automatikk.
+- **Android-jobben kjører fra 2026-08-08** (ÅP-U12 lukket). `if: false` er
+  fjernet, OpenCV Android SDK lastes ned og bufres, og jobben bygger
+  `assembleDebug` med wrapperen — kun debug, siden release krever
+  signeringsnøkkelen som ligger utenfor repoet. Jobben sjekker utfallet og ikke
+  bare exit-koden: APK-en skal finnes og inneholde `libbestefar_jni.so`.
+
+  **NDK-bygget er ikke dobbeltarbeid mot core-jobben.** De to konsumerer samme
+  `core/CMakeLists.txt`, men med hver sin toolchain: core-jobben bygger for
+  x86_64 med systemets GCC/libstdc++ mot `libopencv-dev`, android-jobben for
+  arm64-v8a med NDK-ens Clang og libc++ mot OpenCV Android SDK, med `minSdk 26`
+  som API-nivå. Det som brekker i den ene og ikke i den andre er reelt:
+  transitive `#include`-er libstdc++ drar inn og libc++ ikke, 32/64-bits
+  antakelser, og OpenCV-moduler som finnes i apt-pakken men ikke i
+  Android-SDK-en. I tillegg dekker android-jobben Kotlin-kompilering, ressurs-
+  og manifestlenking, som core-jobben ikke rører.
 - **Backend-jobben kjører pytest to ganger:** først mot SQLite, så mot Postgres
   16 som service-container. Begge trengs — Postgres er produksjonsdialekten, og
   skjemaet `research` finnes bare der (SQLite har ikke skjemaer), så
