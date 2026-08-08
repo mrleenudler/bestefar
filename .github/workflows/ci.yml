@@ -43,11 +43,18 @@ jobs:
       # minutter paa aa laste ned det samme hver gang, og en jobb som er treig
       # nok blir slaatt av - som er tilstanden dette punktet skulle rette opp
       # (AAPNE_PUNKTER ÅP-U12).
+      # SDK-en pakkes ut UTENFOR arbeidstreet, i ~/opencv-android-sdk.
+      # Foerste kjoering pakket den ut i workspace, og da fant
+      # setup-gradle sin wrapper-validering `samples/gradle/wrapper/
+      # gradle-wrapper.jar` inne i SDK-en og stoppet jobben paa en ukjent
+      # wrapper-JAR. Valideringen har rett: en fremmed wrapper-JAR i treet er
+      # noeyaktig det den skal fange. Feilen var aa legge et nedlastet
+      # tredjepartsarkiv i kildetreet i det hele tatt.
       - name: OpenCV Android SDK (bufret)
         id: opencv
         uses: actions/cache@v4
         with:
-          path: opencv-android-sdk
+          path: ~/opencv-android-sdk
           # Versjonen staar i noekkelen: bumper vi SDK-en, faller bufferen bort
           # av seg selv i stedet for aa levere feil versjon i stillhet.
           key: opencv-android-sdk-4.10.0
@@ -55,10 +62,10 @@ jobs:
       - name: Last ned OpenCV Android SDK
         if: steps.opencv.outputs.cache-hit != 'true'
         run: |
-          curl -sSfL -o opencv.zip \
+          curl -sSfL -o "$RUNNER_TEMP/opencv.zip" \
             https://github.com/opencv/opencv/releases/download/4.10.0/opencv-4.10.0-android-sdk.zip
-          unzip -q opencv.zip
-          mv OpenCV-android-sdk opencv-android-sdk
+          unzip -q "$RUNNER_TEMP/opencv.zip" -d "$RUNNER_TEMP"
+          mv "$RUNNER_TEMP/OpenCV-android-sdk" "$HOME/opencv-android-sdk"
 
       # AGP laster ned NDK og CMake selv naar versjonene ikke ligger i
       # runner-bildet. Det er ~1 GB, og det er den enkeltposten som avgjoer om
@@ -86,7 +93,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon assembleDebug -PopencvDir="$GITHUB_WORKSPACE/opencv-android-sdk/sdk/native/jni"
+          ./gradlew --no-daemon assembleDebug -PopencvDir="$HOME/opencv-android-sdk/sdk/native/jni"
 
       # EN GROENN JOBB SOM IKKE BYGGET NOE ER VERRE ENN EN AVSLAATT, fordi den
       # ser ut som dekning. Derfor sjekkes utfallet, ikke bare exit-koden:
