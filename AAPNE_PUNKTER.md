@@ -377,6 +377,16 @@ begge ganger. I tillegg sjekker jobben utfallet — at APK-en finnes og at
 `lib/arm64-v8a/libbestefar_jni.so` ligger i den. Faller `add_subdirectory` av
 `core/` ut av byggingen, fanges det der og ikke av exit-koden alene.
 
+**Første kjøring ble rød på riktig måte.** SDK-en ble pakket ut i workspace, og
+`setup-gradle` sin wrapper-validering fant `samples/gradle/wrapper/gradle-wrapper.jar`
+inne i den. Valideringen har rett — en fremmed wrapper-JAR i kildetreet er
+nøyaktig det den skal fange — så løsningen var å pakke SDK-en ut i
+`~/opencv-android-sdk`, utenfor treet, ikke å slå av sjekken.
+
+**Målt kjøretid:** 17m39s kald buffer (`31265758984`). Den varme kjøringen er
+tallet som avgjør om jobben overlever, siden kald buffer bare inntreffer når
+SDK- eller NDK-versjonen bumpes.
+
 `android/gradlew` er sjekket inn med modus `100644`, og `./gradlew` feiler med
 «Permission denied» på Linux. Jobben gjør derfor `chmod +x` selv. Å sette
 kjørbar-biten i git ble prøvd og forkastet: utvikleren jobber på Windows, der
