@@ -192,14 +192,28 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
 - **Alle `data`-verdier sendes som strenger**, og `None` fjernes. FCM avviser
   tall og `null`.
 - **Døde tokens slettes** (`UNREGISTERED`, `INVALID_ARGUMENT`, `NOT_FOUND`).
+- **Utsendingen skjer ETTER at svaret er sendt** (`BackgroundTasks`). Den som
+  bytter lagnavn eller kunngjør en felling venter ikke på at tjue andre får
+  varsel. Enhetene slås opp mens forespørselen lever; bare HTTP-kallene mot FCM
+  og oppryddingen av døde tokens ligger etterpå.
+
+  **Konsekvensen skal ikke være underforstått: bakgrunnsjobben kjører i samme
+  prosess.** Dør maskinen mellom svaret og utsendingen — Fly skalerer til null,
+  og en deploy bytter maskin — går de gjenstående pushene tapt uten spor.
+  Køraden er committet før svaret, så meldingen kommer ved neste appstart. Det
+  er akseptert nettopp fordi push er varsel og ikke leveranse.
+
 - **`PUSH_BUDGET_SECONDS` (6 s) avbryter resten av en utsending.** Sjekken skjer
   **før hvert kall**, aldri under, og timeouten per kall er 5 s — så budsjettet
   tåler nøyaktig ett tregt kall. Målt med ti mottakere: 5 s per kall ⇒ **2
   forsøkt, 8 aldri forsøkt, 10 s veggtid**; 0,2 s per kall ⇒ alle ti på 2 s.
-  Øvre veggtid er `budsjett + timeout` = 11 s, ikke 6. Se issue #3.
 
-  **Avbruddet er en utsettelse, ikke tap** — klienten henter køen ved appstart
-  fra og med v0.19. Se §9 for hva den garantien faktisk dekker.
+  Tallene er ikke lenger et svartidsproblem — ingen venter på dem — men de er
+  fortsatt en grense på hvor mange som faktisk får varselet. Se issue #3.
+
+- **`devices_notified` i `POST /v1/hunts/announce` teller forsøk, ikke
+  leveranser.** Serveren svarer før utsendingen har skjedd og vet derfor ikke
+  utfallet. Klienten skal ikke love brukeren mer enn det.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push": "log"`. Verdien godtas både som rå JSON og base64.
 

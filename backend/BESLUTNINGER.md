@@ -319,6 +319,42 @@ appstart — ikke til nå.
 *Kilde: `services/push.py`, modul-docstring og `send`; `backend/KONTRAKT.md`
 §4 og §9; `android/app/src/main/java/no/bestefar/app/Messages.kt`.*
 
+## B-18.1 Utsendingen ut av forespørselen — og loggen ned til avvik
+
+**Kontekst.** Push ble opprinnelig sendt synkront inne i forespørselen, med
+`PUSH_BUDGET_SECONDS` som vern mot at et stort lag skulle henge svaret.
+Målingene i issue #3 viste at budsjettet ikke gjorde den jobben: sjekken skjer
+bare *mellom* kall, så seks sekunders budsjett kunne bruke elleve.
+
+**Valg.** Utsendingen flyttet til `BackgroundTasks`. Enhetene slås opp mens
+sesjonen lever; bare HTTP-kallene og opprydding av døde tokens ligger etter
+svaret. Budsjettet beholdes, men er nå en grense på *jobben* og ikke på
+svartiden.
+
+**Forkastet: å justere budsjettet.** Et budsjett som skal begrense svartid, må
+kunne avbryte et kall som pågår — ikke bare la være å starte det neste. Det
+krever timeout-håndtering per kall, og hele problemet forsvinner når ingen
+venter.
+
+**Prisen, som er akseptert:** `BackgroundTasks` kjører i samme prosess. Dør
+maskinen mellom svar og utsending, går de gjenstående pushene tapt uten spor.
+Køraden er committet før svaret, så meldingen kommer ved neste appstart. Det er
+holdbart bare fordi push er nedgradert til varsel: fristen avgjør, resultatet er
+meldingen som teller, og køen tar resten.
+
+**Loggingen er samtidig strammet til to linjer.** Én når budsjettet avbryter
+(med antall mottakere og antall forsøkt), og én ved en FCM-avvisning som *ikke*
+er et dødt token — døde tokens er normal opprydding, ikke en feil. «Push er ikke
+konfigurert» er flyttet fra INFO til DEBUG; den tilstanden står i `/health`, og
+som INFO ville den lagt igjen en linje ved hver eneste varsling.
+
+**Forkastet: en tabell eller teller over utsendinger.** Prosjektet er i alfa
+uten reelle brukere. En tom logg er svaret vi trenger nå, og da må stillhet bety
+noe — det gjør den bare hvis ingenting skriver til loggen uten grunn.
+
+*Kilde: eieravklaring 2026-08-09 (issue #3); `services/teamgov.py`, `varsle` og
+`send_og_rydd`; `services/push.py`, `send`.*
+
 ## B-19 Ikke `google-auth` for FCM
 
 **Kontekst.** FCM HTTP v1 krever et OAuth-token fra en tjenestekonto.

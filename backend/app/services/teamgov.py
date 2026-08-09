@@ -13,10 +13,12 @@ import logging
 from collections import Counter
 from datetime import timedelta
 
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
 from ..config import settings
+from ..db import db
 from ..models import (ChallengeOutcome, Device, ElectionOutcome,
                       LeaderChallenge, PendingMessage, Team, TeamElection,
                       TeamMember, TeamRole, TeamVote, User, utcnow)
@@ -30,7 +32,8 @@ INAKTIV_GRENSE = timedelta(days=30)
 
 
 def varsle(s: OrmSession, user_ids, kind: str, title: str, body: str,
-           team_id: str | None = None) -> None:
+           team_id: str | None = None,
+           bg: BackgroundTasks | None = None) -> None:
     """
     Legger meldinger i koen (§11) og sender push til brukerens enheter.
 
@@ -38,41 +41,66 @@ def varsle(s: OrmSession, user_ids, kind: str, title: str, body: str,
     garantien for at meldingen naar fram - push er bare det som naar brukeren
     med én gang. Feiler push, mister ingen noe (services/push.py kaster aldri).
 
-    Push skjer synkront, inne i forespoerselen. Det koster litt svartid, men
-    alternativet - en bakgrunnstraad - er verre her: Fly skalerer til null, og
-    en traad som ligger og venter blir drept naar maskinen sovner. Budsjettet i
-    push.send holder kostnaden nede for store lag.
+    UTSENDINGEN LIGGER UTENFOR FORESPOERSELEN naar `bg` er gitt. Brukeren som
+    bytter lagnavn skal ikke vente paa at tjue andre faar varsel. Budsjettet i
+    push.send begrenset uansett aldri svartiden - sjekken skjer bare MELLOM
+    kall, saa seks sekunders budsjett kunne bruke elleve. Naa er det ingen som
+    venter, og budsjettet kan settes ut fra hva som er rimelig for jobben.
+
+    Uten `bg` (tester, skript) sendes det inline, saa oppfoerselen er den samme
+    bortsett fra hvem som venter.
+
+    Enhetene slaas opp HER, mens sesjonen lever. Bare selve HTTP-kallet og
+    oppryddingen av doede tokens gaar i bakgrunnen.
     """
     ider = list(user_ids)
     for uid in ider:
         s.add(PendingMessage(user_id=uid, kind=kind, title=title, body=body,
                              team_id=team_id))
-    _push(s, ider, kind, title, body, team_id)
-
-
-def _push(s: OrmSession, user_ids: list[str], kind: str, title: str,
-          body: str, team_id: str | None) -> None:
-    if not user_ids:
+    if not ider:
         return
-    # Belte og seler: push.send kaster ikke, men et varsel skal uansett aldri
-    # kunne velte operasjonen som utloeste det. Koeraden er allerede lagt inn,
-    # saa det verste som skjer her er at brukeren maa aapne appen selv.
+
+    tokens = list(s.scalars(select(Device.push_token)
+                            .where(Device.user_id.in_(ider))))
+    if not tokens:
+        return
+
+    data = {"kind": kind, "team_id": team_id}
+    if bg is not None:
+        bg.add_task(send_og_rydd, tokens, title, body, data)
+    else:
+        send_og_rydd(tokens, title, body, data)
+
+
+def send_og_rydd(tokens: list[str], title: str, body: str, data: dict) -> None:
+    """
+    Sender og rydder bort doede tokens. Kjoerer som BackgroundTask, altsaa
+    ETTER at svaret er sendt - og i SAMME PROSESS.
+
+    Doer maskinen mellom svar og utsending, gaar de gjenstaaende pushene tapt.
+    Det er akseptert: koeraden er allerede committet, saa brukeren faar
+    meldingen ved neste app-aapning. Se backend/KONTRAKT.md §4.
+
+    Kaster aldri. Et varsel skal ikke kunne velte noe - og her finnes det ikke
+    engang en forespoersel aa velte.
+    """
     try:
-        enheter = list(s.scalars(select(Device).where(Device.user_id.in_(user_ids))))
-        if not enheter:
+        _, doede = push.send(settings(), tokens, title, body, data)
+        if not doede:
             return
-
-        _, doede = push.send(settings(), [e.push_token for e in enheter], title,
-                             body, {"kind": kind, "team_id": team_id})
-
+        # Egen sesjon: den som utloeste varselet er lukket for lengst.
         # FCM sier fra naar et token er avinstallert eller byttet ut. Rydder vi
         # ikke, vokser devices-tabellen med adresser vi aldri naar - og hver av
         # dem koster et kall av push-budsjettet ved neste varsel.
-        for e in enheter:
-            if e.push_token in doede:
+        s = next(db())
+        try:
+            for e in s.scalars(select(Device).where(Device.push_token.in_(doede))):
                 s.delete(e)
+            s.commit()
+        finally:
+            s.close()
     except Exception:                                      # noqa: BLE001
-        log.exception("Push feilet under varsling (%s) - koeen baerer meldingen", kind)
+        log.exception("Push feilet etter svar - koeen baerer meldingen")
 
 
 def medlemmer(s: OrmSession, team_id: str) -> list[TeamMember]:
@@ -125,7 +153,12 @@ def annuller_overkjoerte(s: OrmSession, team_id: str, kinds: list[str]) -> None:
         rad.superseded_at = naa
 
 
-def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
+def resolve_election(s: OrmSession, election: TeamElection,
+                     bg: BackgroundTasks | None = None) -> TeamElection:
+    # `bg` traades hele veien inn hit fordi avgjoerelsen er LAT: varselet om ny
+    # lagleder oppstaar i et hvilket som helst kall som tilfeldigvis er det
+    # foerste etter fristen. Den brukeren skal ikke betale svartiden for et
+    # varsel til alle andre.
     if election.outcome != ElectionOutcome.pending:
         return election
 
@@ -179,7 +212,7 @@ def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
         varsle(s, [m.user_id for m in medlemmer(s, election.team_id)],
                "leader_elected", "Ny lagleder",
                f"{navn.display_name} er valgt som lagleder for "
-               f"{team.name if team else 'laget'}.", election.team_id)
+               f"{team.name if team else 'laget'}.", election.team_id, bg)
 
     election.resolved_at = utcnow()
     annuller_overkjoerte(s, election.team_id, ["election_started"])
@@ -187,7 +220,8 @@ def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
     return election
 
 
-def active_election(s: OrmSession, team_id: str) -> TeamElection | None:
+def active_election(s: OrmSession, team_id: str,
+                    bg: BackgroundTasks | None = None) -> TeamElection | None:
     """
     Den PAAGAAENDE avstemningen, eller None.
 
@@ -202,7 +236,7 @@ def active_election(s: OrmSession, team_id: str) -> TeamElection | None:
         TeamElection.outcome == ElectionOutcome.pending))
     if rad is None:
         return None
-    rad = resolve_election(s, rad)
+    rad = resolve_election(s, rad, bg)
     return rad if rad.outcome == ElectionOutcome.pending else None
 
 
@@ -210,7 +244,8 @@ def active_election(s: OrmSession, team_id: str) -> TeamElection | None:
 # Utfordring av inaktiv leder (§11)
 # --------------------------------------------------------------------
 
-def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
+def resolve_challenge(s: OrmSession, ch: LeaderChallenge,
+                      bg: BackgroundTasks | None = None) -> LeaderChallenge:
     if ch.outcome != ChallengeOutcome.pending:
         return ch
 
@@ -239,12 +274,13 @@ def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
     varsle(s, [m.user_id for m in medlemmer(s, ch.team_id)],
            "leader_demoted", "Laget har ingen lagleder",
            f"{team.name if team else 'Laget'} står uten lagleder. "
-           "Dere kan velge en ny.", ch.team_id)
+           "Dere kan velge en ny.", ch.team_id, bg)
     s.commit()
     return ch
 
 
-def active_challenge(s: OrmSession, team_id: str) -> LeaderChallenge | None:
+def active_challenge(s: OrmSession, team_id: str,
+                     bg: BackgroundTasks | None = None) -> LeaderChallenge | None:
     """Samme forbehold som active_election: en utfordring som avgjoeres i dette
     kallet, er ikke lenger paagaaende."""
     rad = s.scalar(select(LeaderChallenge).where(
@@ -252,5 +288,5 @@ def active_challenge(s: OrmSession, team_id: str) -> LeaderChallenge | None:
         LeaderChallenge.outcome == ChallengeOutcome.pending))
     if rad is None:
         return None
-    rad = resolve_challenge(s, rad)
+    rad = resolve_challenge(s, rad, bg)
     return rad if rad.outcome == ChallengeOutcome.pending else None

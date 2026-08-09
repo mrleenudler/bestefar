@@ -22,6 +22,12 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ## 2026-08-09
 
+**§11 — push flyttet ut av forespørselen** (`BackgroundTasks`, issue #3).
+Brukeren venter ikke lenger på at andre får varsel. `BackgroundTasks` deler
+prosess, så pusher som ikke er sendt når maskinen dør, er tapt — køraden
+overlever. Loggingen strammet til to linjer: budsjettavbrudd og FCM-avvisning
+som ikke er et dødt token.
+
 **§11 — kvorum på lederavstemningen.** 25 % av medlemstallet ved start, rundet
 opp, låst i `member_count_at_open`. Under kvorum ved fristen gir `expired`, uten
 sperrefrist før en ny avstemning. Migrasjon `b4c81f0d3a97`.

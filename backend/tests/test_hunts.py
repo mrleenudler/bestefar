@@ -120,3 +120,25 @@ def test_ikke_godkjent_navn_lekker_ikke(client, sendte, session):
 def test_uten_innlogging_svarer_401(client):
     assert client.post("/v1/hunts/announce",
                        json={"species": "en elg"}).status_code == 401
+
+
+def test_devices_notified_teller_forsoek_ikke_leveranser(client, monkeypatch):
+    """
+    Utsendingen ligger ETTER svaret (BackgroundTasks), saa serveren vet ikke om
+    noen faktisk fikk varselet naar den svarer. Tallet er antall enheter det
+    sendes TIL.
+
+    Her holdes push Â«nedeÂ» - null levert - men klienten faar likevel 1, fordi
+    det er ett forsoek som er satt i gang.
+    """
+    from app.services import push
+    monkeypatch.setattr(push, "send", lambda *a, **k: (0, []))
+
+    _venner(client)
+    _slaa_paa(client)
+
+    r = client.post("/v1/hunts/announce", json={"species": "en elg"},
+                    headers=AUTH)
+    assert r.status_code == 200
+    assert r.json()["devices_notified"] == 1
+

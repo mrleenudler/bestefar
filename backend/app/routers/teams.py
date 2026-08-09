@@ -9,7 +9,8 @@ Frister avgjoeres LAT, se services/teamgov.py.
 """
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
+                     Request, Response)
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -132,12 +133,15 @@ def teams_near(lat: float = Query(ge=-90, le=90),
 
 
 @router.get("/{team_id}")
-def team_details(team_id: str, user: User = Depends(current_user),
+def team_details(team_id: str, tasks: BackgroundTasks,
+                 user: User = Depends(current_user),
                  s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)      # §11: egen bruker er alltid i lista
     team = s.get(Team, team_id)
     ut = _team_ut(s, team, med_medlemmer=True)
-    valg = teamgov.active_election(s, team_id)
+    # `tasks`: avgjoerelsen er lat, saa dette kallet kan vaere det som kaarer en
+    # leder - og da skal ikke den som bare aapnet lagsiden vente paa varselet.
+    valg = teamgov.active_election(s, team_id, tasks)
     ut["election_open"] = valg is not None and valg.outcome == ElectionOutcome.pending
     return ut
 
@@ -147,7 +151,8 @@ class RenameIn(BaseModel):
 
 
 @router.put("/{team_id}")
-def rename_team(team_id: str, body: RenameIn, user: User = Depends(current_user),
+def rename_team(team_id: str, body: RenameIn, tasks: BackgroundTasks,
+                user: User = Depends(current_user),
                 s: OrmSession = Depends(db)) -> dict:
     _krev_leder(s, team_id, user.id)
     team = s.get(Team, team_id)
@@ -160,7 +165,7 @@ def rename_team(team_id: str, body: RenameIn, user: User = Depends(current_user)
             s, [m.user_id for m in teamgov.medlemmer(s, team_id) if m.user_id != user.id],
             "team_renamed", "Navneendring",
             f"Lagleder for {gammelt} har endret navnet på laget til {team.name}.",
-            team_id)
+            team_id, tasks)
     s.commit()
     return _team_ut(s, team)
 
@@ -247,7 +252,8 @@ def join_team(body: JoinIn, user: User = Depends(current_user),
 # --------------------------------------------------------------------
 
 @router.delete("/{team_id}/members/{member_id}", status_code=204)
-def remove_member(team_id: str, member_id: str, user: User = Depends(current_user),
+def remove_member(team_id: str, member_id: str, tasks: BackgroundTasks,
+                  user: User = Depends(current_user),
                   s: OrmSession = Depends(db)):
     _krev_leder(s, team_id, user.id)
     rad = s.scalar(select(TeamMember).where(
@@ -258,7 +264,8 @@ def remove_member(team_id: str, member_id: str, user: User = Depends(current_use
     s.delete(rad)
     if member_id != user.id:
         teamgov.varsle(s, [member_id], "removed_from_team", "Fjernet fra lag",
-                       f"Lagleder har fjernet deg fra {team.name}.", team_id)
+                       f"Lagleder har fjernet deg fra {team.name}.", team_id,
+                       tasks)
     s.commit()
     return Response(status_code=204)
 
@@ -282,7 +289,7 @@ def confirm_leadership(team_id: str, user: User = Depends(current_user),
 
 
 @router.post("/{team_id}/leaders/{member_id}")
-def offer_leadership(team_id: str, member_id: str,
+def offer_leadership(team_id: str, member_id: str, tasks: BackgroundTasks,
                      user: User = Depends(current_user),
                      s: OrmSession = Depends(db)) -> dict:
     """
@@ -301,7 +308,7 @@ def offer_leadership(team_id: str, member_id: str,
     team = s.get(Team, team_id)
     teamgov.varsle(s, [member_id], "leadership_offered", "Tilbud om lederskap",
                    f"{user.display_name} vil gjøre deg til lagleder for "
-                   f"{team.name}. Bekreft i appen.", team_id)
+                   f"{team.name}. Bekreft i appen.", team_id, tasks)
     s.commit()
     return {"status": "avventer_bekreftelse", "member_id": member_id}
 
@@ -311,12 +318,13 @@ def offer_leadership(team_id: str, member_id: str,
 # --------------------------------------------------------------------
 
 @router.post("/{team_id}/election", status_code=201)
-def start_election(team_id: str, user: User = Depends(current_user),
+def start_election(team_id: str, tasks: BackgroundTasks,
+                   user: User = Depends(current_user),
                    s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)
     if teamgov.ledere(s, team_id):
         raise HTTPException(409, "Laget har allerede en lagleder.")
-    if teamgov.active_election(s, team_id) is not None:
+    if teamgov.active_election(s, team_id, tasks) is not None:
         raise HTTPException(409, "Det pågår allerede en avstemning.")
 
     # Medlemstallet LAASES her. Kvorumet regnes av det, ikke av medlemstallet
@@ -329,7 +337,7 @@ def start_election(team_id: str, user: User = Depends(current_user),
     teamgov.varsle(s, [m.user_id for m in teamgov.medlemmer(s, team_id)],
                    "election_started", "Velg lagleder",
                    f"{team.name} skal velge lagleder. Avstemningen er åpen i "
-                   "7 dager.", team_id)
+                   "7 dager.", team_id, tasks)
     s.commit()
     return {"election_id": valg.id, "closes_at": valg.closes_at}
 
@@ -339,10 +347,11 @@ class VoteIn(BaseModel):
 
 
 @router.post("/{team_id}/vote")
-def cast_vote(team_id: str, body: VoteIn, user: User = Depends(current_user),
+def cast_vote(team_id: str, body: VoteIn, tasks: BackgroundTasks,
+              user: User = Depends(current_user),
               s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)
-    valg = teamgov.active_election(s, team_id)
+    valg = teamgov.active_election(s, team_id, tasks)
     if valg is None:
         raise HTTPException(404, "Ingen pågående avstemning.")
     if s.scalar(select(TeamMember).where(
@@ -360,19 +369,22 @@ def cast_vote(team_id: str, body: VoteIn, user: User = Depends(current_user),
         stemme.candidate_id = body.candidate_id
     s.commit()
 
-    teamgov.resolve_election(s, valg)
-    return vote_status(team_id, user, s)
+    # Kan avgjoere avstemningen (enstemmighet eller forfall), og da oppstaar
+    # varselet om ny lagleder her.
+    teamgov.resolve_election(s, valg, tasks)
+    return vote_status(team_id, tasks, user, s)
 
 
 @router.get("/{team_id}/vote-status")
-def vote_status(team_id: str, user: User = Depends(current_user),
+def vote_status(team_id: str, tasks: BackgroundTasks,
+                user: User = Depends(current_user),
                 s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)
     valg = s.scalar(select(TeamElection).where(TeamElection.team_id == team_id)
                     .order_by(TeamElection.opened_at.desc()))
     if valg is None:
         raise HTTPException(404, "Ingen avstemning.")
-    valg = teamgov.resolve_election(s, valg)
+    valg = teamgov.resolve_election(s, valg, tasks)
 
     stemmer = list(s.scalars(select(TeamVote).where(TeamVote.election_id == valg.id)))
     telling: dict[str, int] = {}
@@ -404,13 +416,14 @@ def vote_status(team_id: str, user: User = Depends(current_user),
 # --------------------------------------------------------------------
 
 @router.post("/{team_id}/leader-challenge", status_code=201)
-def challenge_leader(team_id: str, user: User = Depends(current_user),
+def challenge_leader(team_id: str, tasks: BackgroundTasks,
+                     user: User = Depends(current_user),
                      s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)
     lagledere = teamgov.ledere(s, team_id)
     if not lagledere:
         raise HTTPException(409, "Laget har ingen lagleder.")
-    if teamgov.active_challenge(s, team_id) is not None:
+    if teamgov.active_challenge(s, team_id, tasks) is not None:
         raise HTTPException(409, "Det pågår allerede en slik prosess.")
 
     leder = s.get(User, lagledere[0].user_id)
@@ -427,20 +440,21 @@ def challenge_leader(team_id: str, user: User = Depends(current_user),
     teamgov.varsle(s, [leder.id], "leader_challenged", "Er du fortsatt aktiv?",
                    f"Et medlem har meldt at {team.name} står uten aktiv "
                    "lagleder. Logger du på innen 7 dager, skjer ingenting.",
-                   team_id)
+                   team_id, tasks)
     s.commit()
     return {"challenge_id": ch.id, "deadline_at": ch.deadline_at}
 
 
 @router.get("/{team_id}/leader-challenge")
-def challenge_status(team_id: str, user: User = Depends(current_user),
+def challenge_status(team_id: str, tasks: BackgroundTasks,
+                     user: User = Depends(current_user),
                      s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)
     ch = s.scalar(select(LeaderChallenge).where(LeaderChallenge.team_id == team_id)
                   .order_by(LeaderChallenge.opened_at.desc()))
     if ch is None:
         raise HTTPException(404, "Ingen pågående prosess.")
-    ch = teamgov.resolve_challenge(s, ch)
+    ch = teamgov.resolve_challenge(s, ch, tasks)
     return {"challenge_id": ch.id, "outcome": ch.outcome.value,
             "leader_id": ch.leader_id, "deadline_at": ch.deadline_at,
             "seconds_left": max(0, int((ch.deadline_at - utcnow()).total_seconds()))}

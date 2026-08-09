@@ -139,8 +139,11 @@ def send(cfg: Settings, push_tokens: list[str], title: str, body: str,
     data = data or {}
     konto = _konto(cfg)
     if konto is None:
-        log.info("Push (kun logg) til %d enhet(er) | %s: %s",
-                 len(push_tokens), title, body)
+        # DEBUG, ikke INFO: uten FCM-konto ville hver eneste varsling lagt igjen
+        # en linje, og da drukner de linjene som betyr noe. At push er av staar
+        # i /health («push»: «log»), som er stedet aa spoerre.
+        log.debug("Push er ikke konfigurert - %d enhet(er) fikk ingenting",
+                  len(push_tokens))
         return 0, []
 
     prosjekt = project_id(cfg)
@@ -165,12 +168,16 @@ def send(cfg: Settings, push_tokens: list[str], title: str, body: str,
     with httpx.Client(timeout=cfg.push_timeout_seconds, headers=hoder) as klient:
         for pt in push_tokens:
             if time.monotonic() > frist:
-                # Budsjettet er brukt opp. Dette er IKKE et datatap: koeen
-                # ligger allerede i basen, og resten faar meldingen ved neste
-                # app-aapning.
-                log.warning("Push-budsjettet brukt opp - %d enhet(er) fikk "
-                            "ikke varsel (meldingen ligger i koeen).",
-                            len(push_tokens) - sendt - len(doede))
+                # Budsjettet er brukt opp. IKKE datatap: koeraden ligger i
+                # basen, og resten faar meldingen ved neste app-aapning.
+                #
+                # Dette er en av to linjene som skal finnes i en frisk logg -
+                # den andre er en FCM-avvisning som ikke er et doedt token.
+                # Ingen linje per utsending: da er stillhet informasjon.
+                log.warning("Push-budsjettet (%.1f s) avbroet: %d mottakere, "
+                            "%d forsoekt. Resten tas av koeen.",
+                            cfg.push_budget_seconds, len(push_tokens),
+                            sendt + len(doede))
                 break
             try:
                 r = klient.post(url, json=_melding(pt, title, body, data))

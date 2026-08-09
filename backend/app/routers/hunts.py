@@ -18,17 +18,16 @@ feil her.
 import logging
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as OrmSession
 
-from ..config import settings
 from ..db import db
 from ..deps import current_user
 from ..models import (Device, Friendship, FriendshipStatus, NameStatus,
                       SharingPreference, User, utcnow)
-from ..services import push
+from ..services import teamgov
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +67,8 @@ class Kunngjort(BaseModel):
 
 
 @router.post("/announce", response_model=Kunngjort)
-def announce_kill(body: AnnounceIn, user: User = Depends(current_user),
+def announce_kill(body: AnnounceIn, tasks: BackgroundTasks,
+                  user: User = Depends(current_user),
                   s: OrmSession = Depends(db)) -> dict:
     """
     Sender «{navn} har felt {art} i {kommune}» til vennene som push.
@@ -103,17 +103,18 @@ def announce_kill(body: AnnounceIn, user: User = Depends(current_user),
         tokens = list(s.scalars(
             select(Device.push_token).where(Device.user_id.in_(venn_ider))))
 
-    sendt = 0
+    # Utsendingen ligger UTENFOR forespoerselen: jegeren som nettopp felte et
+    # dyr skal ikke staa og vente paa at tjue venner faar varsel. Her betyr det
+    # ekstra mye - dette er det ene §11-varselet som er en gladmelding i
+    # oeyeblikket, og oeyeblikket er nettopp naa.
     if tokens:
-        sendt, doede = push.send(settings(), tokens, "Felt dyr", tekst,
-                                 {"kind": "hunt_announced"})
-        if doede:
-            for enhet in s.scalars(select(Device).where(
-                    Device.push_token.in_(doede))):
-                s.delete(enhet)
+        tasks.add_task(teamgov.send_og_rydd, tokens, "Felt dyr", tekst,
+                       {"kind": "hunt_announced"})
 
     user.hunt_announced_at = naa
     s.commit()
-    # `devices_notified` er antall ENHETER som fikk varselet, ikke antall
-    # venner. Klienten skal ikke love brukeren mer enn det som faktisk skjedde.
-    return {"status": "sendt", "message": tekst, "devices_notified": sendt}
+    # `devices_notified` er antall ENHETER varselet ble sendt TIL, ikke antall
+    # som fikk det: utsendingen skjer etter at dette svaret er sendt. Klienten
+    # skal ikke love brukeren mer enn det - og ingen av delene er en garanti,
+    # push er varsel og ikke leveranse.
+    return {"status": "sendt", "message": tekst, "devices_notified": len(tokens)}
