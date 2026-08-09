@@ -383,9 +383,11 @@ inne i den. Valideringen har rett — en fremmed wrapper-JAR i kildetreet er
 nøyaktig det den skal fange — så løsningen var å pakke SDK-en ut i
 `~/opencv-android-sdk`, utenfor treet, ikke å slå av sjekken.
 
-**Målt kjøretid:** 17m39s kald buffer (`31265758984`). Den varme kjøringen er
-tallet som avgjør om jobben overlever, siden kald buffer bare inntreffer når
-SDK- eller NDK-versjonen bumpes.
+**Målt kjøretid:** 17m39s kald buffer (`31265758984`), **2m31s varm**
+(`31295862290`). Kald buffer inntreffer bare når SDK- eller NDK-versjonen
+bumpes, så 2m31s er tallet som gjelder i praksis — og det er lavt nok til at
+ingen får noen grunn til å slå jobben av igjen. Det var hele risikoen ved å
+åpne dette punktet.
 
 `android/gradlew` er sjekket inn med modus `100644`, og `./gradlew` feiler med
 «Permission denied» på Linux. Jobben gjør derfor `chmod +x` selv. Å sette
