@@ -257,6 +257,33 @@ først (`created_at` stigende). Tom liste er 200, ikke 404.
 - Det finnes **ingen delvis-suksess-respons**. Vil dere vite hva som faktisk ble
   kvittert, hent køen på nytt.
 
+### En melding som er overkjørt av et resultat, leveres ikke
+
+**Serveren filtrerer; klienten skal ikke måtte skjule noe.** Når et §11-utfall
+skrives, merkes køede meldinger som bare varslet om at prosessen *pågikk*, og de
+kommer aldri med i `GET /v1/messages`.
+
+| Varsel om at noe pågår | Annulleres av |
+|---|---|
+| `election_started` | `leader_elected` eller at avstemningen utløper |
+| `leader_challenged` | `leader_demoted` eller at utfordringen avbrytes |
+
+**Hvorfor det er serverens jobb:** klienten henter køen ved *appstart*. En
+«avstemningen er åpen i 7 dager» kan derfor bli hentet ni dager senere og vist
+rett over «avstemningen er avsluttet». Skulle klienten avgjort dette selv,
+måtte den gjenskapt lagstyre-logikken — hvilke meldingstyper som overkjører
+hvilke, og om utfallet finnes. Serveren vet det allerede.
+
+**Utfallsmeldingen leveres alltid.** Det er varselet om at noe *pågår* som
+annulleres, aldri resultatet.
+
+Raden slettes ikke, den får `superseded_at` — samme grunn som at en kvittering
+markerer i stedet for å slette.
+
+**Konsekvens for klienten:** en melding kan forsvinne fra køen mellom to
+oppstarter uten at noen kvitterte for den. Det er ikke tap, og det skal ikke
+logges som en feil.
+
 **Meldingen er ferdig formulert av serveren.** `title` og `body` er norsk
 brukertekst med æøå, ikke nøkler klienten skal oversette. Endrer vi ordlyden,
 endres den for alle klienter samtidig — det er tilsiktet.
@@ -302,6 +329,29 @@ endres den for alle klienter samtidig — det er tilsiktet.
   som eksisterer.
 - **Telefoninvitasjon gir `delivery_status: failed` med lenken vedlagt** — det
   finnes ingen SMS-leverandør (ÅP-E9), så klienten deler den selv.
+
+## 6.1 Lederavstemning (§11)
+
+`services/teamgov.py`, `routers/teams.py`. Gjelder **avstemningen i et lederløst
+lag** — utfordringen av en inaktiv leder har ingen stemmer og ikke noe kvorum.
+
+- **Kvorum: 25 % av medlemstallet *ved avstemningens start*, rundet opp.**
+  Tallet låses når avstemningen opprettes (`member_count_at_open`) og brukes
+  uendret ved avgjørelse. Ingen unntak for små lag: 25 % av tre er 1.
+- **Under kvorum ved fristen gir `expired`** — samme utfall som uavgjort. Ingen
+  leder kåres på et mindretall.
+- **Ingen sperrefrist etter `expired`.** Et lederløst lag kan starte en ny
+  avstemning med én gang.
+- **Fristen er absolutt.** Avgjørelsen er lat — den skjer første gang noen spør
+  — men en avstemning som avgjøres etter `closes_at` gir *resultatet*, den
+  reåpnes ikke. En stemme etter fristen svarer 404, også for den som utløste
+  den late avgjørelsen.
+- **Enstemmighet avslutter tidlig**, og må også klare kvorumet.
+
+`GET /v1/teams/{id}/vote-status` gir både `member_count` (nå) og
+`member_count_at_open` (nevneren kvorumet regnes av), pluss `quorum` og
+`votes_cast`. **Regn andelen mot `member_count_at_open`** — bruker klienten
+`member_count`, viser den feil brøk i akkurat de lagene der det betyr noe.
 
 ## 7. Kunngjøring av felt dyr
 

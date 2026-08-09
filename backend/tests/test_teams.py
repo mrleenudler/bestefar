@@ -378,3 +378,134 @@ def test_frist_uten_paalogging_fjerner_lederstatus(client, session):
 def test_uten_innlogging_svarer_401(client):
     assert client.get("/v1/teams").status_code == 401
     assert client.get("/v1/messages").status_code == 401
+
+
+# --------------------------------------------------------------------
+# Kvorum, absolutt frist og overkjoerte meldinger (Â§11-avklaringer 2026-08-09)
+# --------------------------------------------------------------------
+
+def _forfall(session, team_id, sekunder_siden=60):
+    """Flytter fristen bakover saa avstemningen er forfalt uten aa vente."""
+    from datetime import timedelta
+
+    from app.models import TeamElection, utcnow
+    valg = session.query(TeamElection).filter(
+        TeamElection.team_id == team_id).order_by(
+        TeamElection.opened_at.desc()).first()
+    valg.closes_at = utcnow() - timedelta(seconds=sekunder_siden)
+    session.commit()
+    return valg
+
+
+def test_kvorum_laases_ved_start_ikke_ved_avgjoerelse(client, session):
+    """
+    Kjernen i kvorumsregelen: medlemstallet maales NAAR avstemningen starter.
+    Maalte vi ved avgjoerelse, kunne den som starter avstemningen senke
+    terskelen ved aa fjerne medlemmer mens den paagaar.
+    """
+    lag = _lag_uten_leder(client)                      # AUTH + B = 2 medlemmer
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+
+    status = client.get(f"/v1/teams/{lag['id']}/vote-status", headers=AUTH).json()
+    assert status["member_count_at_open"] == 2
+    assert status["quorum"] == 1                       # ceil(2 * 0.25)
+
+
+def test_kvorum_rundes_opp_og_har_ingen_unntak_for_smaa_lag(client):
+    """25 % av tre er 0,75 - og kvorumet er da 1, ikke 0."""
+    lag = _lag(client, i_am_leader=False)              # ett medlem
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+    status = client.get(f"/v1/teams/{lag['id']}/vote-status", headers=AUTH).json()
+    assert status["member_count_at_open"] == 1
+    assert status["quorum"] == 1
+
+
+def test_under_kvorum_ved_fristen_gir_expired(client, session, monkeypatch):
+    """
+    For faa stemmer gir samme utfall som uavgjort: expired. Ingen leder kaares
+    paa et mindretall, og laget kan proeve igjen med Ã©n gang.
+    """
+    lag = _lag_uten_leder(client)
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+
+    # Hev kvorumet kunstig: lat som laget hadde tolv medlemmer ved start, saa
+    # kravet blir tre stemmer og den ene under er for lite.
+    from app.models import TeamElection
+    valg = session.query(TeamElection).filter(
+        TeamElection.team_id == lag["id"]).one()
+    valg.member_count_at_open = 12
+    session.commit()
+
+    client.post(f"/v1/teams/{lag['id']}/vote",
+                json={"candidate_id": _uid(client, AUTH)}, headers=AUTH)
+    _forfall(session, lag["id"])
+
+    status = client.get(f"/v1/teams/{lag['id']}/vote-status", headers=AUTH).json()
+    assert status["quorum"] == 3
+    assert status["votes_cast"] == 1
+    assert status["outcome"] == "expired"
+    assert status["elected_user_id"] is None
+
+
+def test_ingen_sperrefrist_etter_expired(client, session):
+    """Et lederloest lag skal ikke hindres i aa proeve igjen med Ã©n gang."""
+    lag = _lag_uten_leder(client)
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+    _forfall(session, lag["id"])
+    # Foerste kall etter fristen avgjoer den late avstemningen.
+    assert client.get(f"/v1/teams/{lag['id']}/vote-status",
+                      headers=AUTH).json()["outcome"] == "expired"
+
+    assert client.post(f"/v1/teams/{lag['id']}/election",
+                       headers=AUTH).status_code == 201
+
+
+def test_fristen_er_absolutt_stemme_etter_frist_avvises(client, session):
+    """
+    Lat avgjoerelse er en implementasjonsdetalj, ikke en utsettelse. Den foerste
+    som ser paa avstemningen etter fristen faar RESULTATET - avstemningen
+    reaapnes ikke fordi ingen saa paa den i tide.
+    """
+    lag = _lag_uten_leder(client)
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+    _forfall(session, lag["id"], sekunder_siden=3 * 86400)
+
+    r = client.post(f"/v1/teams/{lag['id']}/vote",
+                    json={"candidate_id": _uid(client, AUTH)}, headers=AUTH)
+    assert r.status_code == 404                        # ingen paagaaende avstemning
+    assert client.get(f"/v1/teams/{lag['id']}/vote-status",
+                      headers=AUTH).json()["outcome"] == "expired"
+
+
+def test_overkjoert_koemelding_leveres_ikke(client, session):
+    """
+    Â«Avstemningen er aapen i 7 dagerÂ» skal ikke dukke opp i koen etter at
+    avstemningen er avgjort. Klienten henter koen ved appstart, saa den kunne
+    ellers blitt vist ni dager for sent - rett over resultatet.
+    """
+    lag = _lag_uten_leder(client)
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+    assert any(m["kind"] == "election_started"
+               for m in client.get("/v1/messages", headers=B).json())
+
+    _forfall(session, lag["id"])
+    client.get(f"/v1/teams/{lag['id']}/vote-status", headers=AUTH)
+
+    koe = client.get("/v1/messages", headers=B).json()
+    assert not any(m["kind"] == "election_started" for m in koe)
+
+
+def test_resultatet_leveres_selv_om_varselet_ble_overkjoert(client, session):
+    """Det er varselet om at noe PAAGAAR som annulleres, ikke utfallet."""
+    lag = _lag_uten_leder(client)
+    client.post(f"/v1/teams/{lag['id']}/election", headers=AUTH)
+    a_id = _uid(client, AUTH)
+    client.post(f"/v1/teams/{lag['id']}/vote",
+                json={"candidate_id": a_id}, headers=AUTH)
+    client.post(f"/v1/teams/{lag['id']}/vote",
+                json={"candidate_id": a_id}, headers=B)   # enstemmig
+
+    kinds = [m["kind"] for m in client.get("/v1/messages", headers=B).json()]
+    assert "leader_elected" in kinds
+    assert "election_started" not in kinds
+

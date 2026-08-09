@@ -104,6 +104,11 @@ class TeamElection(Base):
     team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     opened_at: Mapped[datetime] = mapped_column(default=utcnow)
     closes_at: Mapped[datetime] = mapped_column(index=True)
+    # Medlemstallet DA AVSTEMNINGEN STARTET, laast fordi kvorumet regnes av det.
+    # Maalte vi ved avgjoerelse, kunne terskelen senkes ved aa fjerne medlemmer
+    # mens avstemningen paagaar. 0 paa rader fra foer kolonnen fantes; de
+    # behandles som «uten kvorumskrav», se services/teamgov.kvorum().
+    member_count_at_open: Mapped[int] = mapped_column(default=0)
     resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
     outcome: Mapped[ElectionOutcome] = mapped_column(
         Enum(ElectionOutcome, native_enum=False, length=24), default=ElectionOutcome.pending)
@@ -161,3 +166,9 @@ class PendingMessage(Base):
         ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     delivered_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Satt naar meldingen er OVERKJOERT av et senere utfall - f.eks. en
+    # «avstemningen er aapen i 7 dager» etter at avstemningen er avgjort.
+    # Klienten henter koen ved appstart, saa en slik melding kan bli hentet ni
+    # dager for sent og vist rett over resultatet. Overkjoerte meldinger
+    # leveres ikke; se backend/KONTRAKT.md §4.1.
+    superseded_at: Mapped[datetime | None] = mapped_column(nullable=True)

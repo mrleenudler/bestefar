@@ -87,6 +87,44 @@ def ledere(s: OrmSession, team_id: str) -> list[TeamMember]:
 # Lederavstemning (§11)
 # --------------------------------------------------------------------
 
+# Andel av medlemstallet VED START som maa ha stemt for at avstemningen skal
+# kunne kaare en leder. Se backend/BESLUTNINGER.md B-39 for hvorfor den finnes.
+KVORUM_ANDEL = 0.25
+
+
+def kvorum(election: TeamElection) -> int:
+    """
+    Minste antall stemmer for et gyldig utfall: 25 % av medlemstallet ved
+    start, RUNDET OPP. Ingen unntak for smaa lag - 25 % av tre er én.
+
+    0 for rader fra foer `member_count_at_open` fantes: en avstemning som
+    allerede loeper skal ikke kunne bli ugyldig av en migrasjon.
+    """
+    n = election.member_count_at_open or 0
+    return -(-n * 1 // 4) if n else 0        # ceil(n/4) uten aa dra inn math
+
+
+def annuller_overkjoerte(s: OrmSession, team_id: str, kinds: list[str]) -> None:
+    """
+    Merker koeede meldinger som OVERKJOERT av et utfall som nettopp ble skrevet.
+
+    Klienten henter koen ved appstart, saa en «avstemningen er aapen i 7 dager»
+    kan bli hentet ni dager senere og vist rett over «avstemningen er
+    avsluttet». Filtreringen ligger her og ikke i klienten fordi det er
+    serveren som vet at utfallet finnes - klienten ville maattet gjenskape
+    lagstyre-logikken for aa avgjoere det samme. Se backend/KONTRAKT.md §4.1.
+
+    Raden slettes ikke, av samme grunn som en kvittering ikke sletter den.
+    """
+    naa = utcnow()
+    for rad in s.scalars(select(PendingMessage).where(
+            PendingMessage.team_id == team_id,
+            PendingMessage.kind.in_(kinds),
+            PendingMessage.delivered_at.is_(None),
+            PendingMessage.superseded_at.is_(None))):
+        rad.superseded_at = naa
+
+
 def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
     if election.outcome != ElectionOutcome.pending:
         return election
@@ -104,11 +142,25 @@ def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
     if not (forfalt or enstemmig):
         return election
 
-    if not telling:
-        election.outcome = ElectionOutcome.expired
+    # FRISTEN ER ABSOLUTT. Naar vi kommer hit etter `closes_at`, skrives
+    # utfallet - avstemningen reaapnes ikke fordi ingen saa paa den i tide.
+    # Lat avgjoerelse er en implementasjonsdetalj, ikke en utsettelse.
+    def _avslutt(utfall: ElectionOutcome) -> TeamElection:
+        election.outcome = utfall
         election.resolved_at = utcnow()
+        annuller_overkjoerte(s, election.team_id, ["election_started"])
         s.commit()
         return election
+
+    if not telling:
+        return _avslutt(ElectionOutcome.expired)
+
+    # Kvorum: for faa stemmer gir `expired`, samme utfall som uavgjort. Ingen
+    # sperrefrist - et lederloest lag skal kunne proeve igjen med én gang.
+    if len(stemmer) < kvorum(election):
+        log.info("Avstemning %s naadde ikke kvorum (%d av %d kreves)",
+                 election.id, len(stemmer), kvorum(election))
+        return _avslutt(ElectionOutcome.expired)
 
     vinner, topp = telling.most_common(1)[0]
     # Uavgjort ved fristen avgjoeres ikke av terningkast - avstemningen
@@ -130,15 +182,28 @@ def resolve_election(s: OrmSession, election: TeamElection) -> TeamElection:
                f"{team.name if team else 'laget'}.", election.team_id)
 
     election.resolved_at = utcnow()
+    annuller_overkjoerte(s, election.team_id, ["election_started"])
     s.commit()
     return election
 
 
 def active_election(s: OrmSession, team_id: str) -> TeamElection | None:
+    """
+    Den PAAGAAENDE avstemningen, eller None.
+
+    Merk siste linje: `resolve_election` kan avgjoere raden i dette kallet, og
+    da er den ikke lenger paagaaende. Uten sjekken returnerte funksjonen en
+    ferdig avstemning som om den var aapen, og det foerste kallet etter fristen
+    fikk lov til aa stemme - fristen var absolutt for alle andre enn den som
+    tilfeldigvis utloeste den late avgjoerelsen.
+    """
     rad = s.scalar(select(TeamElection).where(
         TeamElection.team_id == team_id,
         TeamElection.outcome == ElectionOutcome.pending))
-    return resolve_election(s, rad) if rad is not None else None
+    if rad is None:
+        return None
+    rad = resolve_election(s, rad)
+    return rad if rad.outcome == ElectionOutcome.pending else None
 
 
 # --------------------------------------------------------------------
@@ -155,6 +220,7 @@ def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
             and leder.last_seen_at > ch.opened_at:
         ch.outcome = ChallengeOutcome.cancelled_leader_active
         ch.resolved_at = utcnow()
+        annuller_overkjoerte(s, ch.team_id, ["leader_challenged"])
         s.commit()
         return ch
 
@@ -168,6 +234,7 @@ def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
         rad.role = TeamRole.member
     ch.outcome = ChallengeOutcome.leader_demoted
     ch.resolved_at = utcnow()
+    annuller_overkjoerte(s, ch.team_id, ["leader_challenged"])
     team = s.get(Team, ch.team_id)
     varsle(s, [m.user_id for m in medlemmer(s, ch.team_id)],
            "leader_demoted", "Laget har ingen lagleder",
@@ -178,7 +245,12 @@ def resolve_challenge(s: OrmSession, ch: LeaderChallenge) -> LeaderChallenge:
 
 
 def active_challenge(s: OrmSession, team_id: str) -> LeaderChallenge | None:
+    """Samme forbehold som active_election: en utfordring som avgjoeres i dette
+    kallet, er ikke lenger paagaaende."""
     rad = s.scalar(select(LeaderChallenge).where(
         LeaderChallenge.team_id == team_id,
         LeaderChallenge.outcome == ChallengeOutcome.pending))
-    return resolve_challenge(s, rad) if rad is not None else None
+    if rad is None:
+        return None
+    rad = resolve_challenge(s, rad)
+    return rad if rad.outcome == ChallengeOutcome.pending else None

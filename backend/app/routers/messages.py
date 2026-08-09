@@ -53,9 +53,13 @@ class MessageOut(BaseModel):
 @router.get("", response_model=list[MessageOut])
 def list_messages(user: User = Depends(current_user),
                   s: OrmSession = Depends(db)) -> list[dict]:
+    # `superseded_at`: meldingen er overkjoert av et senere utfall og skal ikke
+    # leveres. Koen hentes ved appstart, saa «avstemningen er aapen i 7 dager»
+    # kan ellers bli vist ni dager for sent, rett over resultatet.
     rader = s.scalars(select(PendingMessage).where(
         PendingMessage.user_id == user.id,
-        PendingMessage.delivered_at.is_(None))
+        PendingMessage.delivered_at.is_(None),
+        PendingMessage.superseded_at.is_(None))
         .order_by(PendingMessage.created_at))
     return [{"id": r.id, "kind": r.kind, "title": r.title, "body": r.body,
              "team_id": r.team_id, "created_at": r.created_at} for r in rader]

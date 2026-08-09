@@ -20,6 +20,19 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-09
+
+**§11 — kvorum på lederavstemningen.** 25 % av medlemstallet ved start, rundet
+opp, låst i `member_count_at_open`. Under kvorum ved fristen gir `expired`, uten
+sperrefrist før en ny avstemning. Migrasjon `b4c81f0d3a97`.
+
+**§11 — fristen gjort absolutt.** `active_election` returnerte raden også når
+den nettopp var avgjort, så det første kallet etter fristen fikk stemme på en
+avstemning som allerede var utløpt. `active_challenge` hadde samme feil.
+
+**§11 — overkjørte kømeldinger leveres ikke.** `pending_messages.superseded_at`
+settes når et utfall skrives, og `GET /v1/messages` filtrerer dem bort.
+
 ## 2026-08-08
 
 **§11 — kø-garantien ble reell.** Klientens v0.19 henter `/v1/messages` ved

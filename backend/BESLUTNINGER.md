@@ -595,6 +595,100 @@ brukere, og et legitimt søk ville telt som bom mot karantenen.
 
 *Kilde: `backend_spec.md` §4; `services/contacts.py`, `classify`.*
 
+## B-39 Kvorum på 25 %, målt ved avstemningens start
+
+**Kontekst.** Et lederløst lag velger ny leder ved avstemning med 7-dagers
+frist. Uten en nedre grense kan én stemme i et lag på tjue kåre en leder.
+
+**Valg.** Minst 25 % av medlemstallet **da avstemningen startet** må ha stemt,
+rundet opp. Tallet låses i `member_count_at_open` når avstemningen opprettes.
+
+**Hvorfor terskelen finnes i det hele tatt:** eierens begrunnelse, og den er
+bedre enn den prosedyremessige — *et lag som ikke får 25 % til å stemme, har et
+kommunikasjonsproblem en avstemning ikke løser.* Kvorumet er ikke der for å
+gjøre valget «gyldigere», men for å hindre at et lag får en leder det ikke vet
+om at det har fått.
+
+**Forkastet: å måle medlemstallet ved avgjørelse.** Da er terskelen
+manipulerbar — man fjerner medlemmer til de gjenværende stemmene holder. Og den
+som starter en avstemning i et lederløst lag er ofte den samme som kan fjerne
+folk. En terskel som kan senkes av den som skal klare den, er ingen terskel.
+
+**Forkastet: unntak for små lag.** 25 % av tre er 1, og det er akseptert. Et
+unntak ville krevd en grense for «lite», og den grensen ville vært like
+vilkårlig som kvorumet uten å ha begrunnelsen bak seg.
+
+**Rader fra før kolonnen fantes har `member_count_at_open = 0`**, og `kvorum()`
+gir da 0 — altså ingen krav. En avstemning som allerede løper skal ikke kunne
+bli ugyldig av en migrasjon.
+
+*Kilde: eieravklaring 2026-08-09; `services/teamgov.py`, `kvorum()` og
+`resolve_election`; `models/social.py`, `TeamElection`.*
+
+## B-40 Under kvorum gir `expired`, og ingen sperrefrist
+
+**Kontekst.** Hva skjer når fristen går ut uten nok stemmer?
+
+**Valg.** `expired` — nøyaktig samme utfall som uavgjort. Laget kan starte en ny
+avstemning umiddelbart.
+
+**Forkastet: et eget utfall for «for få stemmer».** Klienten ville måttet
+håndtere en tredje tilstand som fører til akkurat samme handling.
+
+**Forkastet: en sperrefrist før ny avstemning.** Et lederløst lag er allerede i
+den tilstanden ordningen finnes for å komme ut av. Å låse det ute en periode
+straffer laget for at for få stemte — og det er som regel de mest passive lagene
+som trenger flest forsøk.
+
+*Kilde: eieravklaring 2026-08-09; `services/teamgov.py`, `resolve_election`.*
+
+## B-41 Fristen er absolutt, selv om avgjørelsen er lat
+
+**Kontekst.** Frister avgjøres lat (B-18-mønsteret): første gang noen spør. Da
+oppstår spørsmålet om hva som skjer med den som spør *etter* fristen.
+
+**Valg.** Utfallet skrives, og avstemningen reåpnes ikke. En stemme etter
+`closes_at` svarer 404.
+
+**Forkastet: å la den som utløser avgjørelsen få stemme først.** Det er
+fristende, fordi koden allerede har raden i hånden — men det ville gjort fristen
+avhengig av *hvem som åpnet appen først*, som er ren tilfeldighet.
+
+**Bug funnet av denne avklaringen (2026-08-09):** `active_election` returnerte
+raden også når `resolve_election` nettopp hadde avgjort den, så det første
+kallet etter fristen fikk stemme på en avstemning som allerede var `expired`.
+Fristen var altså absolutt for alle andre enn den som tilfeldigvis utløste den
+late avgjørelsen. Rettet i samme runde; `active_challenge` hadde samme feil.
+
+*Kilde: eieravklaring 2026-08-09; `services/teamgov.py`, `active_election` og
+`active_challenge`; `tests/test_teams.py`,
+`test_fristen_er_absolutt_stemme_etter_frist_avvises`.*
+
+## B-42 Serveren filtrerer overkjørte kømeldinger
+
+**Kontekst.** Klienten henter meldingskøen ved *appstart*, ikke løpende
+(B-18). En «avstemningen er åpen i 7 dager» kan derfor hentes ni dager senere og
+vises rett over «avstemningen er avsluttet».
+
+**Valg.** Når et utfall skrives, får køede meldinger som bare varslet om at
+prosessen pågikk, `superseded_at` satt, og de filtreres bort i
+`GET /v1/messages`.
+
+**Forkastet: å la klienten skjule dem.** Klienten måtte da gjenskapt
+lagstyre-logikken — hvilke `kind`-verdier som overkjører hvilke, og om utfallet
+finnes i det hele tatt. Serveren vet det allerede, og en regel som håndheves ett
+sted kan ikke komme i utakt med seg selv. Det følger også eierskapsprinsippet:
+invarianten eies av den som håndhever den.
+
+**Forkastet: å slette raden.** Samme grunn som at en kvittering markerer i
+stedet for å slette — historikken er verdt mer enn de få bytene.
+
+**Utfallsmeldingen annulleres aldri.** Det er varselet om at noe *pågår* som
+er ferskvare.
+
+*Kilde: eieravklaring 2026-08-09; `services/teamgov.py`,
+`annuller_overkjoerte`; `routers/messages.py`; `backend/KONTRAKT.md` §4.1.*
+
 ---
 
 # Beslutninger uten dokumentert begrunnelse

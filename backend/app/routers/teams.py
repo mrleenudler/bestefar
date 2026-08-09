@@ -319,7 +319,11 @@ def start_election(team_id: str, user: User = Depends(current_user),
     if teamgov.active_election(s, team_id) is not None:
         raise HTTPException(409, "Det pågår allerede en avstemning.")
 
-    valg = TeamElection(team_id=team_id, closes_at=utcnow() + teamgov.FRIST)
+    # Medlemstallet LAASES her. Kvorumet regnes av det, ikke av medlemstallet
+    # ved avgjoerelse - ellers kunne terskelen senkes ved aa fjerne medlemmer
+    # mens avstemningen paagaar.
+    valg = TeamElection(team_id=team_id, closes_at=utcnow() + teamgov.FRIST,
+                        member_count_at_open=len(teamgov.medlemmer(s, team_id)))
     s.add(valg)
     team = s.get(Team, team_id)
     teamgov.varsle(s, [m.user_id for m in teamgov.medlemmer(s, team_id)],
@@ -384,6 +388,12 @@ def vote_status(team_id: str, user: User = Depends(current_user),
         "seconds_left": max(0, int((valg.closes_at - utcnow()).total_seconds()))
                         if valg.outcome == ElectionOutcome.pending else 0,
         "member_count": len(teamgov.medlemmer(s, team_id)),
+        # Kvorumet regnes av medlemstallet DA AVSTEMNINGEN STARTET, saa
+        # `member_count` over kan avvike. Begge sendes med, ellers ville en
+        # klient som viser «3 av 5 har stemt» regne mot feil nevner.
+        "member_count_at_open": valg.member_count_at_open,
+        "quorum": teamgov.kvorum(valg),
+        "votes_cast": len(stemmer),
         "votes": telling,
         "my_vote": min_stemme,
     }
