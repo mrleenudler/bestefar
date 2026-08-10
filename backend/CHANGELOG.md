@@ -20,6 +20,12 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-10
+
+**§2.1 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly er på plass** (ÅP-E6, utført
+av eier). Ingen kodeendring; det var det siste av de tre tiltakene mot at
+hemmeligheten er et enkeltpunkt, og alle tre er nå på plass.
+
 ## 2026-08-09
 
 **§11 — push flyttet ut av forespørselen** (`BackgroundTasks`, issue #3).

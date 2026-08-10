@@ -139,11 +139,12 @@ Mistes den, er ikke dataene tapt — bloben er fortsatt brukerens, fortsatt
 deponering aldri var slått på». Det treffer skjevt: nettopp de som slo den på,
 er de som minst sannsynlig tok vare på koden. Tre tiltak:
 
-1. **En kopi utenfor Fly.** Dette er en konfigurasjonsverdi, ikke en
-   brukerlegitimasjon: den gir ingenting alene (uten databasen er den
-   verdiløs), skal aldri roteres rutinemessig og utløper ikke. En kopi i
-   utviklerens passordhvelv er det enkleste og mest virkningsfulle tiltaket
-   som finnes, og det koster ingenting.
+1. **En kopi utenfor Fly** — *på plass 2026-08-10.* Dette er en
+   konfigurasjonsverdi, ikke en brukerlegitimasjon: den gir ingenting alene
+   (uten databasen er den verdiløs), skal aldri roteres rutinemessig og utløper
+   ikke. En kopi utenfor Fly er det enkleste og mest virkningsfulle tiltaket som
+   finnes, og det koster ingenting. Hvor kopien oppbevares er bevisst ikke
+   dokumentert her — dette repoet er offentlig.
 2. **`BACKUP_ESCROW_SECRET_OLD`.** Rader som ikke åpnes av den gjeldende
    hemmeligheten prøves med den forrige, og **krypteres om ved første
    lesing**. En utskiftning blir da en gradvis migrering i stedet for et stup,

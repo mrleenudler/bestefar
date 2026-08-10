@@ -231,15 +231,6 @@ slått på på serveren ennå».
 
 Endepunktet er bygget og røres ikke. Klientknappen finnes ikke.
 
-### ÅP-E6 — Kopi av `BACKUP_ESCROW_SECRET` utenfor Fly
-> «**En kopi utenfor Fly.** … En kopi i utviklerens passordhvelv er det enkleste
-> og mest virkningsfulle tiltaket som finnes, og det koster ingenting.»
-> — backend_spec §2.1, linje 136–140
-
-Tiltak 2 og 3 i samme avsnitt (`BACKUP_ESCROW_SECRET_OLD` og nøkkel-ID i
-`/health`) er bygget. Tiltak 1 er en handling hos eier, og er ikke bekreftet
-utført.
-
 ### ÅP-E7 — Eget domene for API og OAuth-redirect
 > «Domene: eget domene for API-endepunkt og OAuth-redirect-URLer.»
 > — backend_spec §0.1, linje 416
@@ -468,4 +459,5 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | `kills[]` som liste i venne-modellen | 2026-08-05 | Kan ikke leveres. Løst som flyktig push-kunngjøring (`POST /v1/hunts/announce`); ingenting om art eller sted lagres. backend_spec §3. |
 | Definisjonen av `trend` | 2026-08-05 | Siste ~20 skudd minus de ~20 foregående, talt i skudd. Se ÅP-B3 for det som fortsatt er åpent. |
 | Skadedata i forskningsdata | 2026-08-06 | Skal kunne lagres, bak egen bryter, av som standard. Se ÅP-B2 for navn/feltliste. |
-| Utskiftning av `BACKUP_ESCROW_SECRET` | 2026-08-06 | `_OLD`-fallback med omkryptering ved lesing + nøkkel-ID i `/health`. Se ÅP-E6 for det som gjenstår. |
+| Utskiftning av `BACKUP_ESCROW_SECRET` | 2026-08-06 | `_OLD`-fallback med omkryptering ved lesing + nøkkel-ID i `/health`. Siste del lukket som ÅP-E6. |
+| ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |
