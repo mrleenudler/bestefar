@@ -604,9 +604,13 @@ Det serveren håndhever og sender. Verifisert mot `routers/devices.py` og
   meldingskøen (§11) er garantien, push er rask levering.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push":"log"`. Den er **den eneste som må settes**; `FCM_PROJECT_ID` er
-  valgfri og leses fra JSON-en om den står tom. Ikke satt ennå — ÅP-E3.
+  valgfri og leses fra JSON-en om den står tom. **Satt i produksjon
+  2026-08-10** — `/health` svarer nå `"push":"fcm"`.
+
   Merk at `/health` ikke skiller «ikke satt» fra «satt, men ubrukelig»: begge
-  gir `"push":"log"`, og forklaringen står bare i applikasjonsloggen.
+  gir `"push":"log"`, og forklaringen står bare i applikasjonsloggen. Motsatt
+  vei sier `"fcm"` bare at JSON-en lot seg lese — ikke at FCM godtar
+  legitimasjonen. Det viser seg først ved en faktisk utsending.
 
 ### 17. Klientens lesing av meldingskøen (Android, v0.19)
 

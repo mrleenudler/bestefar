@@ -25,10 +25,11 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 **§15 — `GOOGLE_CLIENT_IDS` satt i produksjon** (ÅP-E4). `/v1/auth/google`
 svarer nå 401 på et ugyldig token i stedet for 503. Ingen kodeendring.
 
-**§16 — ÅP-E3 presisert mot koden.** Punktet påsto at både
-`FCM_SERVICE_ACCOUNT_JSON` og `FCM_PROJECT_ID` måtte settes. Bare den første må;
-den andre leses fra tjenestekonto-JSON-en. Fortsatt åpent — `/health` svarer
-`"push":"log"`.
+**§16 — `FCM_SERVICE_ACCOUNT_JSON` satt i produksjon** (ÅP-E3). `/health` svarer
+`"push":"fcm"`, og §11-kjeden er hel fra utløsende hendelse til varsel på
+telefonen. `FCM_PROJECT_ID` ble aldri nødvendig — den leses fra JSON-en. Punktet
+påsto tidligere at begge måtte settes; det var feil, og er rettet i samme
+omgang. Ingen kodeendring.
 
 **§2.1 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly er på plass** (ÅP-E6, utført
 av eier). Ingen kodeendring; det var det siste av de tre tiltakene mot at

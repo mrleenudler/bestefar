@@ -211,30 +211,6 @@ gjør den mer nødvendig.
 En bruker som har slettet kontoen sin, har fått en anmodning lagt inn — ikke
 data slettet. Det er en forpliktelse med en frist, ikke et teknisk løst punkt.
 
-### ÅP-E3 — `FCM_SERVICE_ACCOUNT_JSON` er ikke satt · label `backend`
-> «Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare, og `/health` sier
-> `"push":"log"`.»
-> — backend_spec §16
-
-*Presisert 2026-08-10 mot koden.* Punktet het tidligere «`FCM_SERVICE_ACCOUNT_JSON`
-og `FCM_PROJECT_ID`», som overdrev hva som mangler:
-
-- **`FCM_SERVICE_ACCOUNT_JSON` er den eneste som må settes.** Rå JSON eller
-  base64 — `push.py` godtar begge.
-- **`FCM_PROJECT_ID` er valgfri.** `push.project_id()` faller tilbake på
-  `project_id` inne i tjenestekonto-JSON-en. Den trengs bare hvis prosjektet
-  skal være et annet enn det nøkkelen tilhører.
-
-**`/health` skiller ikke «ikke satt» fra «satt, men ubrukelig».** Begge gir
-`"push":"log"`, fordi `_konto()` returnerer `None` i begge tilfellene. Er
-verdien satt men verken gyldig JSON eller gyldig base64, står forklaringen kun i
-applikasjonsloggen (`log.error`). Sjekk der før du konkluderer med at secreten
-mangler.
-
-Hele §11-kjeden er bygget på begge sider og venter bare på dette. Status
-2026-08-10: `/health` svarer fortsatt `"push":"log"`, så punktet står reelt
-åpent.
-
 ### ÅP-E5 — Apple: utviklerkonto og verifisert domene
 > «Krever Apple Developer Program + verifisert domene, fordi Sign in with Apple på
 > Android går via web-flyten. Services ID-en er verdien.»
@@ -471,5 +447,6 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | Definisjonen av `trend` | 2026-08-05 | Siste ~20 skudd minus de ~20 foregående, talt i skudd. Se ÅP-B3 for det som fortsatt er åpent. |
 | Skadedata i forskningsdata | 2026-08-06 | Skal kunne lagres, bak egen bryter, av som standard. Se ÅP-B2 for navn/feltliste. |
 | Utskiftning av `BACKUP_ESCROW_SECRET` | 2026-08-06 | `_OLD`-fallback med omkryptering ved lesing + nøkkel-ID i `/health`. Siste del lukket som ÅP-E6. |
+| ÅP-E3 — `FCM_SERVICE_ACCOUNT_JSON` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `GET /health` svarer `"push":"fcm"` og ikke `"push":"log"` — `push.backend_name()` gir `fcm` bare når tjenestekonto-JSON-en lot seg lese. `FCM_PROJECT_ID` ble aldri nødvendig; `push.project_id()` leser den fra JSON-en. Merk hva testen *ikke* dekker: at nøkkelen er lesbar er ikke det samme som at FCM godtar den. Det viser seg først når et varsel faktisk sendes. |
 | ÅP-E4 — `GOOGLE_CLIENT_IDS` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `POST /v1/auth/google` med et ugyldig `id_token` svarer **401 «Ugyldig Google-token»** og ikke 503 — altså at `aud`-sjekken faktisk kjører i stedet for å bli hoppet over som ukonfigurert. Testen sier at secreten er lest; den sier ikke at *verdien* er riktig web-klient-ID. Det viser seg først ved en ekte innlogging fra klienten. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |

@@ -215,7 +215,12 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   leveranser.** Serveren svarer før utsendingen har skjedd og vet derfor ikke
   utfallet. Klienten skal ikke love brukeren mer enn det.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
-  `"push": "log"`. Verdien godtas både som rå JSON og base64.
+  `"push": "log"`. Verdien godtas både som rå JSON og base64. **Satt i
+  produksjon 2026-08-10** — `/health` svarer `"push":"fcm"`, og §11-kjeden er
+  dermed hel fra utløsende hendelse til varsel på telefonen.
+
+  `"fcm"` betyr at JSON-en lot seg lese, ikke at FCM godtar legitimasjonen.
+  Blir den avvist, ser du det som en FCM-avvisning i loggen — ikke i `/health`.
 
 ## 4.1 Meldingskøen
 
