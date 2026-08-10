@@ -22,6 +22,14 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ## 2026-08-10
 
+**§15 — `GOOGLE_CLIENT_IDS` satt i produksjon** (ÅP-E4). `/v1/auth/google`
+svarer nå 401 på et ugyldig token i stedet for 503. Ingen kodeendring.
+
+**§16 — ÅP-E3 presisert mot koden.** Punktet påsto at både
+`FCM_SERVICE_ACCOUNT_JSON` og `FCM_PROJECT_ID` måtte settes. Bare den første må;
+den andre leses fra tjenestekonto-JSON-en. Fortsatt åpent — `/health` svarer
+`"push":"log"`.
+
 **§2.1 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly er på plass** (ÅP-E6, utført
 av eier). Ingen kodeendring; det var det siste av de tre tiltakene mot at
 hemmeligheten er et enkeltpunkt, og alle tre er nå på plass.

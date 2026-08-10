@@ -567,8 +567,8 @@ Det serveren håndhever:
 - **`aud` sjekkes mot `GOOGLE_CLIENT_IDS`.** Verdien skal være **WEB**-klient-ID-en
   (`client_type: 3` i `google-services.json`), ikke Android-klient-ID-en:
   `977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com`.
-  Tom liste ⇒ `/v1/auth/google` svarer 503 (`services/oidc.py`). Ikke satt ennå
-  — `AAPNE_PUNKTER.md` ÅP-E4.
+  Tom liste ⇒ `/v1/auth/google` svarer 503 (`services/oidc.py`). **Satt i
+  produksjon 2026-08-10** — et ugyldig `id_token` gir nå 401, ikke 503.
 - **Sperrefristen på «send ny kode» håndheves med 429 + `Retry-After`**, og
   verdiene ligger i 202-svaret. Detaljene i §1.
 - **Apple:** `/v1/auth/apple` finnes og er uendret. `APPLE_CLIENT_IDS` er ikke
@@ -603,8 +603,10 @@ Det serveren håndhever og sender. Verifisert mot `routers/devices.py` og
 - **`PUSH_BUDGET_SECONDS` avbryter resten av runden.** Det er ikke datatap:
   meldingskøen (§11) er garantien, push er rask levering.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
-  `"push":"log"`. `FCM_PROJECT_ID` leses fra JSON-en om den står tom. Ingen av
-  dem er satt — ÅP-E3.
+  `"push":"log"`. Den er **den eneste som må settes**; `FCM_PROJECT_ID` er
+  valgfri og leses fra JSON-en om den står tom. Ikke satt ennå — ÅP-E3.
+  Merk at `/health` ikke skiller «ikke satt» fra «satt, men ubrukelig»: begge
+  gir `"push":"log"`, og forklaringen står bare i applikasjonsloggen.
 
 ### 17. Klientens lesing av meldingskøen (Android, v0.19)
 
