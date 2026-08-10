@@ -45,6 +45,63 @@ class ProfilActivity : AppCompatActivity() {
         override fun afterTextChanged(s: Editable?) = onText(s?.toString() ?: "")
     }
 
+    /** Navnet som sist ble godtatt av serveren; hindrer at vi sender det samme igjen. */
+    private var sendtNavn: String = ""
+    private var nickFelt: EditText? = null
+    private var nickHint: TextView? = null
+
+    /**
+     * Forlater brukeren skjermen uten å ta fokus ut av feltet først, rekker
+     * ikke fokuslytteren å fyre. Da sendes navnet her i stedet.
+     *
+     * En avvisning kan ikke vises på en skjerm som er borte — men den blir ikke
+     * usynlig av det: neste gang profilen åpnes, fylles feltet fra serverens
+     * navn, så det avviste navnet står ikke igjen og ser lagret ut.
+     */
+    override fun onPause() {
+        super.onPause()
+        val f = nickFelt ?: return
+        sendVisningsnavn(f, nickHint ?: return)
+    }
+
+    /**
+     * Sender visningsnavnet og viser utfallet **med det samme**.
+     *
+     * Moderasjonen på serveren er synkron, så svaret er endelig når det kommer:
+     * godkjent og lagret, eller avvist og ikke lagret. Det finnes ingen
+     * «venter på moderasjon»-tilstand å vise — regelsettet svarer ja eller nei,
+     * og den manuelle køen finnes ikke (ÅP-B8). Ved avvisning vises serverens
+     * egen begrunnelse ordrett; den er skrevet for å leses av brukeren, og en
+     * omskrevet versjon ville sagt mindre presist hva som må endres.
+     *
+     * Uten konto sendes ingenting. Navnet er da bare et lokalt kallenavn på
+     * venne- og lagskjermene, som uansett ikke er koblet til server ennå.
+     */
+    private fun sendVisningsnavn(felt: EditText, hint: TextView) {
+        if (!Auth.isLoggedIn(this)) return
+        val navn = felt.text.toString().trim()
+        if (navn.isEmpty() || navn == sendtNavn) return
+        Login.lagreVisningsnavn(this, navn) { godkjent, tekst ->
+            if (isFinishing) return@lagreVisningsnavn
+            if (godkjent) {
+                sendtNavn = tekst
+                store.accountName = tekst
+                store.nickname = tekst
+                if (felt.text.toString() != tekst) felt.setText(tekst)
+                hint.visibility = android.view.View.GONE
+            } else {
+                // Det avviste navnet ble IKKE lagret paa serveren, saa feltet
+                // skal ikke staa igjen og se lagret ut. Vi setter tilbake det
+                // som faktisk gjelder.
+                felt.error = tekst.ifBlank { getString(R.string.profile_name_failed) }
+                hint.text = tekst.ifBlank { getString(R.string.profile_name_failed) }
+                hint.visibility = android.view.View.VISIBLE
+                val gjeldende = store.accountName
+                if (gjeldende.isNotEmpty()) felt.setText(gjeldende)
+            }
+        }
+    }
+
     private fun themeLabel() = when (store.themeMode) {
         "dark" -> getString(R.string.theme_dark)
         "system" -> getString(R.string.theme_system)
@@ -66,14 +123,31 @@ class ProfilActivity : AppCompatActivity() {
         })
         content.addView(header)
 
+        // Visningsnavnet. Fram til v0.23 skrev dette feltet BARE til en lokal
+        // verdi som aldri ble sendt noe sted, mens serveren hadde sitt eget
+        // display_name brukeren ikke kunne endre. To navn, og feltet som het
+        // «Visningsnavn» var det som ikke ble vist til noen.
         val nick = EditText(this).apply {
             hint = getString(R.string.profile_display_hint)
             filters = Ui.nameFilters()
         }
         Ui.capitalize(nick)
-        nick.setText(store.nickname)
+        // Innlogget er serverens navn fasit — det er det vennene ser.
+        nick.setText(if (Auth.isLoggedIn(this) && store.accountName.isNotEmpty())
+                         store.accountName else store.nickname)
         nick.addTextChangedListener(watcher { store.nickname = it.trim() })
         content.addView(nick)
+        val nickHint = Ui.hint(this, "")
+        nickHint.visibility = android.view.View.GONE
+        content.addView(nickHint)
+        // Sendes naar feltet forlates, ikke per tastetrykk: et PUT per bokstav
+        // ville vaert stoey, og moderasjonssvaret skal komme mens brukeren
+        // fortsatt staar paa skjermen — ikke ved neste appstart.
+        nick.setOnFocusChangeListener { _, harFokus ->
+            if (!harFokus) sendVisningsnavn(nick, nickHint)
+        }
+        nickFelt = nick
+        this.nickHint = nickHint
 
         val birthRow = Ui.row(this)
         birthRow.addView(TextView(this).apply {

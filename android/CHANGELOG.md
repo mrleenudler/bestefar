@@ -34,6 +34,30 @@ nåtilstanden.
 
 ---
 
+## v0.23 — visningsnavnet sendes faktisk til serveren
+
+- **Feltet som het «Visningsnavn» ble aldri sendt noe sted.** Det skrev til en
+  lokal verdi brukt på venne- og lagskjermene, mens serveren hadde sitt eget
+  `display_name` — det vennene faktisk ser — som brukeren ikke hadde noen vei
+  til å endre. To navn, og det som het «Visningsnavn» var det ingen andre så.
+- **`PUT /v1/profile` kalles nå**, ved fokustap og ved at skjermen forlates.
+  Ikke per tastetrykk: det ville vært ett kall per bokstav.
+- **Avvisning vises der og da.** Moderasjonen er synkron, så svaret er endelig
+  når det kommer: godkjent og lagret, eller avvist og ikke lagret. Serverens
+  egen begrunnelse vises ordrett — den er skrevet for å leses av brukeren.
+- **Ingen «venter på moderasjon»-tilstand.** `moderation.review` returnerer bare
+  `approved` eller `rejected`, aldri `pending`, og den manuelle køen finnes ikke
+  (ÅP-B8). Serverens `advarsel`-felt for den tilstanden er i praksis død kode og
+  leses ikke av klienten.
+- **Et avvist navn blir ikke stående i feltet.** Serveren lagret det ikke, så
+  feltet settes tilbake til navnet som faktisk gjelder.
+- Innlogget fylles feltet fra serverens navn, ikke fra den lokale verdien.
+
+Blokkert på backend, meldt som issue: **#7** (Google-innlogging bruker
+e-postens lokaldel som visningsnavn i stedet for `name`-kravet i ID-tokenet) og
+**#8** (innloggingssvaret mangler e-post, så «Logget inn med Google som
+ola@gmail.com» kan ikke bygges uten at klienten gjetter halve setningen).
+
 ## v0.22 — gjenoppretting tilbys ved innlogging på eksisterende konto
 
 Speilbildet av v0.21. Det er reinstallasjonen — ny telefon, tømt app — som gjør

@@ -364,6 +364,7 @@
 
     <!-- Profil (runde 4) -->
     <string name="profile_display_hint">Visningsnavn</string>
+    <string name="profile_name_failed">Navnet kunne ikke lagres. Prøv igjen når du har dekning.</string>
     <string name="profile_advanced">Avanserte innstillinger</string>
     <string name="profile_weapons_mine">Mine våpen</string>
 

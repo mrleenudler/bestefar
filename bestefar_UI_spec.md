@@ -279,12 +279,34 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
 - **Skytterprofil:** visningsnavn, fødselsår (kun for 18-årsgrensen på
   forskningssamtykke), lag (skytterlag/jaktlag, flere mulig), «La venner finne
   meg» (**av** som standard).
+
+  **Visningsnavnet er det vennene ser**, og det modereres på serveren. Er man
+  innlogget, sendes navnet når feltet forlates, og svaret er endelig med det
+  samme: godkjent og lagret, eller avvist med serverens egen begrunnelse vist i
+  feltet. **Ingen «venter på moderasjon»-tilstand vises** — regelsettet svarer
+  ja eller nei, og den manuelle køen finnes ikke (ÅP-B8). Et avvist navn blir
+  ikke stående i feltet, fordi serveren ikke lagret det.
+
+  Uten konto er navnet bare et lokalt kallenavn på venne- og lagskjermene.
+
+  **E-postadressen skal aldri brukes som visningsnavn.** Navnet deles med
+  venner, og lokaldelen av en adresse er ofte nok til å finne adressen. Serveren
+  setter i dag likevel lokaldelen som startnavn ved Google-innlogging — meldt
+  som issue #7.
 - **Mitt jaktmål:** den valgte **skadeskytingsrate-grensen**, som en setning i
   jegerspråk («1 av 20») med (i)-forklaring. Endring virker umiddelbart.
   Tilbys automatisk etter tredje serie.
 - **Konto:** innlogging med Google (Credential Manager) eller sekssifret kode på
-  e-post. Innlogget vises navn, bruker-ID og «Logg ut». Apple-innlogging er ikke
-  bygget. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
+  e-post. Innlogget vises kontonavnet, bruker-ID og «Logg ut».
+  Apple-innlogging er ikke bygget.
+
+  **Hvilken konto du er logget inn med, kan ikke vises ennå.** Formen skal være
+  «Logget inn med Google som ola@gmail.com» — hele adressen, siden samme lokaldel
+  finnes hos flere leverandører, og vist kun for brukeren selv. Innloggingssvaret
+  inneholder ingen e-post, og klienten skal ikke gjette den ut av ID-tokenet:
+  kontosammenslåing på verifisert adresse (`backend_spec.md` §1) betyr at kontoen
+  kan være knyttet til en annen adresse enn den man nettopp logget inn med. Meldt
+  som issue #8. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
   eksplisitt at alt annet virker uten konto.
 
   **Er kontoen nyopprettet**, tilbys en sikkerhetskopi med det samme — etter

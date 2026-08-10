@@ -218,6 +218,45 @@ object Login {
     }
 
     /**
+     * Lagrer visningsnavnet (`PUT /v1/profile`).
+     *
+     * **Moderasjonen kjører synkront på serveren**, så svaret er endelig i det
+     * øyeblikket det kommer: 200 betyr godkjent og lagret, 422 betyr avvist og
+     * *ikke* lagret. Det finnes ingen mellomtilstand å vise —
+     * `moderation.review` returnerer bare `approved` eller `rejected`, aldri
+     * `pending`, og den manuelle køen finnes ikke (ÅP-B8). Klienten skal derfor
+     * aldri si «venter på moderasjon».
+     *
+     * [onDone] får serverens normaliserte navn ved suksess, eller
+     * **begrunnelsen** ved avvisning — den er skrevet for å vises til brukeren
+     * (`moderation.review`, «Begrunnelsen er ment aa vises for brukeren»), så vi
+     * viser den ordrett framfor å finne på vår egen.
+     */
+    fun lagreVisningsnavn(ctx: Context, navn: String,
+                          onDone: (godkjent: Boolean, tekst: String) -> Unit) {
+        Api.io {
+            val kropp = JSONObject().put("display_name", navn)
+                .toString().toByteArray(Charsets.UTF_8)
+            val resp = Api.send(ctx, "PUT", "/v1/profile",
+                "application/json; charset=utf-8", kropp)
+            val tekst = when {
+                // Serveren normaliserer navnet (trimmer, kollapser mellomrom),
+                // saa vi tar imot DET og ikke det brukeren skrev.
+                resp.ok -> try {
+                    JSONObject(resp.body).optString("display_name", navn)
+                } catch (_: Exception) { navn }
+                // FastAPI pakker HTTPException(422, begrunnelse) som
+                // {"detail": "<begrunnelse>"}.
+                resp.code == 422 -> try {
+                    JSONObject(resp.body).optString("detail", "")
+                } catch (_: Exception) { "" }
+                else -> ""
+            }
+            Api.ui { onDone(resp.ok, tekst) }
+        }
+    }
+
+    /**
      * Utlogging. [Auth.logout] gjør selve arbeidet; her legger vi bare på det
      * som er UI-ets ansvar: låsen glemmer at den er åpnet, slik at neste
      * bruker av telefonen ikke arver en gyldig frist.
