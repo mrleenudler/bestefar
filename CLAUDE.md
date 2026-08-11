@@ -340,6 +340,15 @@ slett punktet når det ikke lenger kan skje.
   ut som «ingen nøkkel deponert» i tre versjoner — brukeren ble bedt om
   gjenopprettingskoden, altså nøyaktig det funksjonen fantes for å slippe. Skill
   «fant ingenting» fra «fikk ikke svar», i det minste i loggen.
+- **En destruktiv operasjon skal lese ferdig før den skriver.** Gjenopprettingen
+  lastet ned, dekrypterte og overskrev i ett kall, så det fantes ikke et øyeblikk
+  der noen kunne se hva kopien inneholdt før det lokale var borte. Da en kopi ga
+  null poster, ble det skrevet som en vellykket gjenoppretting — og serier og
+  jaktlogg var slettet. Del lesing fra skriving, og la beslutningen ligge
+  imellom.
+- **Ikke lag en tom sikkerhetskopi.** Den verner ingenting, men ligger og *ser
+  ut* som en kopi til noen gjenoppretter fra den. Førstegangstilbudet tok
+  øyeblikksbilde uten å sjekke om det fantes noe å ta vare på.
 - **Kode uten kaller blir aldri verifisert.** `Backup.meta()` var skrevet,
   dokumentert og ødelagt fra dag én. Ingen oppdaget det, fordi ingen kalte den.
   Bygger du et endepunkt du «skal bruke senere», er det ikke bygget.
@@ -367,6 +376,7 @@ slett punktet når det ikke lenger kan skje.
   løkke.** Sperrefristen på «send ny kode» brøt ni innloggingstester.
 - **Les grensen fra `settings()` i tester.** En test som hardkodet kvoten 5
   feilet da kvoten ble hevet til 10 — på kvoten, ikke på oppførselen.
+- **En påstand om produksjonstilstand skal ha verifiseringen ved seg.** «Satt i produksjon 2026-08-10» er ikke en observasjon. backend_spec.md §15 og §16 hadde begge den formuleringen samme dag; §15 var sann, §16 var usann, og ingen kunne se forskjell ved lesing. Skriv hva som ble kjørt og hva det svarte: «/health → "push":"fcm", verifisert 2026-08-11».
 
 ### 7.5 Områdespesifikke feller
 
@@ -396,3 +406,9 @@ kommentar — feilmeldingen peker aldri på årsaken. `targetSdk` 36 gjør
 kan krasje i sin egen UAST-kode («this is a bug in lint») på en Java-getter lest
 som Kotlin-egenskap i en lokal variabel — kall getteren eksplisitt i stedet for å
 skru av `lintVital`, som ville skjult alle framtidige ekte funn.
+
+### 7.6 Dokumentasjonsdisiplin
+
+Dokumentasjonen oppdateres i samme commit som endringen, ikke etterpå. KONTRAKT.md, ARCHITECTURE.md, AAPNE_PUNKTER.md og områdets CHANGELOG.md er en del av endringen, ikke en oppfølging av den.
+
+Kun contracts/openapi.json har en CI-sjekk mot drift. Alt annet hviler på denne regelen alene — en runde som melder seg ferdig med dokumentasjonen «til neste gang», har flyttet arbeidet til den som leser fila og tror på den.

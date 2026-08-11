@@ -105,6 +105,17 @@ object Dialogs {
      */
     fun tilbyFoersteSikkerhetskopi(a: Activity, store: Store, onDone: () -> Unit = {}) {
         if (!Auth.isLoggedIn(a)) { onDone(); return }
+        // INGEN KOPI AV INGENTING. En tom kopi verner ingenting, og den er
+        // verre enn ingen kopi: den ligger paa serveren og ser ut som en
+        // sikkerhetskopi helt til noen gjenoppretter fra den og faar en tom
+        // telefon tilbake. Nettopp det skjedde i v0.24.
+        //
+        // Brukeren som logger inn foer de har skutt en serie, faar tilbudet
+        // igjen naar det finnes noe aa ta vare paa - «Sikkerhetskopier naa»
+        // staar i Avanserte innstillinger.
+        if (store.allSeriesRaw().isEmpty() && store.allHuntsRaw().isEmpty()) {
+            onDone(); return
+        }
         AlertDialog.Builder(a)
             .setTitle(R.string.backup_offer_title)
             .setMessage(R.string.backup_offer_body)
@@ -202,36 +213,86 @@ object Dialogs {
             .show()
     }
 
-    /** Blokkerende; kalles fra [Api.io]. */
+    /** Blokkerende; kalles fra [Api.io]. Skriver ingenting selv. */
     private fun gjenopprettMed(a: Activity, store: Store, code: String,
                                onDone: (Boolean) -> Unit) {
         val svar = try {
-            Backup.downloadAndRestore(a, code) to null
+            Backup.hentOgLes(a, code) to null
         } catch (e: Backup.BadCodeException) {
             null to e
         }
-        val resp = svar.first
+        val resp = svar.first?.first
+        val snapshot = svar.first?.second
         Api.ui {
             if (a.isFinishing) { onDone(false); return@ui }
-            var gjenopprettet = false
             when {
-                svar.second != null -> Ui.toast(a, R.string.backup_bad_code)
-                resp == null -> Unit
-                resp.ok -> {
+                svar.second != null -> { Ui.toast(a, R.string.backup_bad_code); onDone(false) }
+                resp == null -> onDone(false)
+                resp.ok && snapshot != null -> {
                     // Koden virket: ta vare paa den slik at neste gjenoppretting
                     // ikke spoer igjen.
                     store.backupCode = code
                     Api.io { BackupKeys.store(a, code) }
-                    Ui.toast(a, R.string.backup_restored)
-                    gjenopprettet = true
+                    vurderOgSkriv(a, store, snapshot, onDone)
                 }
-                resp.code == 401 -> Ui.toast(a, R.string.backup_need_login)
-                resp.code == 404 -> Ui.toast(a, R.string.backup_none)
-                resp.code == 0 -> Ui.toast(a, R.string.backup_offline)
-                else -> Ui.toast(a, a.getString(R.string.backup_failed, resp.code))
+                resp.code == 401 -> { Ui.toast(a, R.string.backup_need_login); onDone(false) }
+                resp.code == 404 -> { Ui.toast(a, R.string.backup_none); onDone(false) }
+                resp.code == 0 -> { Ui.toast(a, R.string.backup_offline); onDone(false) }
+                else -> {
+                    Ui.toast(a, a.getString(R.string.backup_failed, resp.code)); onDone(false)
+                }
             }
-            onDone(gjenopprettet)
         }
+    }
+
+    /**
+     * Siste skanse foer noe overskrives.
+     *
+     * **Bakgrunnen:** i v0.24 ble en gjenoppretting kjoert der kopien ga null
+     * serier og null jaktposter, og klienten skrev det rett over en telefon som
+     * HADDE data. Utad saa det ut som en vellykket gjenoppretting - «kopien ble
+     * funnet og lastet ned» - mens resultatet var en sletting. To ting gjorde
+     * det mulig: parsefeil ble svelget per post, og skrivingen skjedde uten at
+     * noen hadde sett paa innholdet.
+     *
+     * Derfor: en kopi som ikke inneholder noe, faar ikke i stillhet erstatte
+     * noe. Brukeren maa se tallene og bekrefte. Og poster vi ikke klarte aa
+     * lese, sies det fra om - de er ikke det samme som poster som ikke fantes.
+     */
+    private fun vurderOgSkriv(a: Activity, store: Store, s: Backup.Snapshot,
+                              onDone: (Boolean) -> Unit) {
+        val lokaleSerier = store.allSeriesRaw().size
+        val lokaleJakt = store.allHuntsRaw().size
+        val harLokalt = lokaleSerier + lokaleJakt > 0
+
+        fun skriv() {
+            Backup.skriv(a, s)
+            Ui.toast(a, a.getString(R.string.backup_restored_counts,
+                s.series.size, s.hunts.size))
+            if (s.hoppet > 0) {
+                AlertDialog.Builder(a)
+                    .setTitle(R.string.backup_partial_title)
+                    .setMessage(a.getString(R.string.backup_partial_body, s.hoppet))
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            }
+            onDone(true)
+        }
+
+        if (s.tom && harLokalt) {
+            Ui.warningDialog(a)
+                .setTitle(R.string.backup_empty_title)
+                .setMessage(a.getString(R.string.backup_empty_body,
+                    lokaleSerier, lokaleJakt))
+                .setPositiveButton(R.string.backup_empty_proceed) { _, _ -> skriv() }
+                .setNegativeButton(R.string.cancel) { _, _ ->
+                    Ui.toast(a, R.string.backup_empty_kept); onDone(false)
+                }
+                .setOnCancelListener { onDone(false) }
+                .show()
+            return
+        }
+        skriv()
     }
 
     private fun lastOpp(a: Activity, code: String, onDone: () -> Unit) {

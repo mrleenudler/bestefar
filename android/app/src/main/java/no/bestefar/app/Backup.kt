@@ -123,26 +123,54 @@ object Backup {
     }
 
     /**
-     * Skriv et øyeblikksbilde tilbake. ERSTATTER alt lokalt innhold — dette er
+     * Et lest, men ENNÅ IKKE SKREVET øyeblikksbilde.
+     *
+     * [hoppet] er poster som lå i kopien og ikke lot seg lese. Tallet finnes
+     * fordi det er forskjell på «kopien var tom» og «vi klarte ikke å lese
+     * den» — og fram til v0.25 så de to like ut: parsefeil ble logget per post
+     * og ellers svelget, så en kopi der alt feilet ble skrevet som en vellykket
+     * gjenoppretting av ingenting.
+     */
+    class Snapshot(val series: List<SeriesRecord>, val hunts: List<HuntRecord>,
+                   val prefs: JSONObject?, val hoppet: Int) {
+        val tom get() = series.isEmpty() && hunts.isEmpty()
+    }
+
+    /**
+     * Leser et øyeblikksbilde **uten å røre noe**. Delt fra [skriv] med vilje:
+     * ingenting lokalt skal ødelegges før vi vet hva kopien faktisk inneholder,
+     * og før brukeren har fått se det.
+     */
+    fun les(snap: JSONObject): Snapshot {
+        var hoppet = 0
+        val sArr = snap.optJSONArray("series") ?: JSONArray()
+        val hArr = snap.optJSONArray("hunts") ?: JSONArray()
+        val series = (0 until sArr.length()).mapNotNull {
+            try { SeriesRecord.fromJson(sArr.getJSONObject(it)) }
+            catch (e: Exception) { hoppet++; Log.w(TAG, "Ugyldig serie i kopien", e); null }
+        }
+        val hunts = (0 until hArr.length()).mapNotNull {
+            try { HuntRecord.fromJson(hArr.getJSONObject(it)) }
+            catch (e: Exception) { hoppet++; Log.w(TAG, "Ugyldig jaktpost i kopien", e); null }
+        }
+        Log.i(TAG, "Kopi lest: ${series.size} serier, ${hunts.size} jaktposter, " +
+            "$hoppet hoppet over")
+        return Snapshot(series, hunts, snap.optJSONObject("prefs"), hoppet)
+    }
+
+    /**
+     * Skriv øyeblikksbildet. ERSTATTER alt lokalt innhold — dette er
      * «gjenopprett på ny telefon», ikke en fletting. Fletting ville krevd at vi
      * kunne avgjøre hvilken side som er nyest per post, og det er nettopp den
      * regelen §2 legger på klienten (last-write-wins per post-ID); den hører
      * hjemme i synken, ikke i gjenopprettingen.
+     *
+     * **Kalles først når den som kaller har bestemt seg**, se [les].
      */
-    fun restore(ctx: Context, snap: JSONObject) {
+    fun skriv(ctx: Context, s: Snapshot) {
         val store = Store.get(ctx)
-        val series = snap.optJSONArray("series") ?: JSONArray()
-        val hunts = snap.optJSONArray("hunts") ?: JSONArray()
-        store.replaceAll(
-            (0 until series.length()).mapNotNull {
-                try { SeriesRecord.fromJson(series.getJSONObject(it)) }
-                catch (e: Exception) { Log.w(TAG, "Hopper over ugyldig serie", e); null }
-            },
-            (0 until hunts.length()).mapNotNull {
-                try { HuntRecord.fromJson(hunts.getJSONObject(it)) }
-                catch (e: Exception) { Log.w(TAG, "Hopper over ugyldig jaktpost", e); null }
-            })
-        snap.optJSONObject("prefs")?.let { store.importPrefs(it) }
+        store.replaceAll(s.series, s.hunts)
+        s.prefs?.let { store.importPrefs(it) }
     }
 
     // ---------- Kryptering ----------
@@ -197,8 +225,8 @@ object Backup {
     fun build(ctx: Context, code: String): ByteArray =
         encrypt(snapshot(ctx).toString().toByteArray(Charsets.UTF_8), code)
 
-    fun open(ctx: Context, blob: ByteArray, code: String) =
-        restore(ctx, JSONObject(String(decrypt(blob, code), Charsets.UTF_8)))
+    fun open(blob: ByteArray, code: String): Snapshot =
+        les(JSONObject(String(decrypt(blob, code), Charsets.UTF_8)))
 
     // ---------- Opplasting / nedlasting (backend_spec §2) ----------
 
@@ -231,6 +259,16 @@ object Backup {
      *  - **`device_id` sendes fortsatt ikke** — vi har ingen stabil
      *    installasjons-ID aa sette der. AAPNE_PUNKTER ÅP-U13.
      */
+    /**
+     * Har vi i det hele tatt noe å ta vare på? En kopi uten serier og
+     * jaktposter verner ingenting, men ligger på serveren og *ser ut* som en
+     * sikkerhetskopi — helt til noen gjenoppretter fra den.
+     */
+    fun harNoeAaKopiere(ctx: Context): Boolean {
+        val store = Store.get(ctx)
+        return store.allSeriesRaw().isNotEmpty() || store.allHuntsRaw().isNotEmpty()
+    }
+
     fun upload(ctx: Context, code: String, force: Boolean = false): Api.Resp {
         // Tidsstempelet tas FOER bloben bygges: feltet heter «klientens
         // tidsstempel for oeyeblikksbildet», og noekkelutledningen tar et kvart
@@ -283,14 +321,17 @@ object Backup {
     }
 
     /**
-     * `GET /v1/backup` + dekryptering + gjenoppretting. Alt lokalt innhold
-     * ERSTATTES ved suksess; feiler dekrypteringen, røres ingenting.
+     * `GET /v1/backup` + dekryptering + lesing. **Skriver ingenting.**
+     *
+     * Tidligere gjorde dette kallet også selve gjenopprettingen, og det var
+     * feilen: da fantes det ikke noe øyeblikk mellom «vi vet hva kopien
+     * inneholder» og «det lokale er overskrevet». Nå er de to atskilt, og
+     * [skriv] kalles først når noen har sett på innholdet.
      */
-    fun downloadAndRestore(ctx: Context, code: String): Api.Resp {
+    fun hentOgLes(ctx: Context, code: String): Pair<Api.Resp, Snapshot?> {
         val (resp, blob) = Api.download(ctx, "/v1/backup")
-        if (!resp.ok || blob == null) return resp
-        open(ctx, blob, code)          // kaster BadCodeException ved feil kode
-        return resp
+        if (!resp.ok || blob == null) return resp to null
+        return resp to open(blob, code)   // kaster BadCodeException ved feil kode
     }
 
     /**

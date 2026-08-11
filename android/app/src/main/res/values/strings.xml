@@ -544,6 +544,14 @@
     <string name="backup_restore">Gjenopprett fra sikkerhetskopi</string>
     <string name="backup_restore_confirm">Gjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i sikkerhetskopien. Det som ligger her nå, blir borte.</string>
     <string name="backup_restore_confirm_dated">Sikkerhetskopien ble laget %1$s.\n\nGjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i kopien. Det som ligger her nå, blir borte.</string>
+    <string name="backup_restored_counts">Gjenopprettet: %1$d serier og %2$d jaktposter</string>
+    <!-- Siste skanse: en tom kopi skal ikke i stillhet erstatte data som finnes. -->
+    <string name="backup_empty_title">Kopien er tom</string>
+    <string name="backup_empty_body">Sikkerhetskopien inneholder ingen serier og ingen jaktposter.\n\nPå denne telefonen ligger det %1$d serier og %2$d jaktposter. Fortsetter du, blir de slettet og erstattet med ingenting.\n\nEr du usikker, avbryt — dataene på telefonen blir stående, og du kan lage en ny sikkerhetskopi i stedet.</string>
+    <string name="backup_empty_proceed">Slett og gjenopprett likevel</string>
+    <string name="backup_empty_kept">Ingenting ble endret</string>
+    <string name="backup_partial_title">Deler av kopien kunne ikke leses</string>
+    <string name="backup_partial_body">%1$d poster i sikkerhetskopien var i et format appen ikke forsto, og ble hoppet over. Resten er gjenopprettet.</string>
     <string name="backup_working">Jobber …</string>
     <string name="backup_done">Sikkerhetskopi lagret (%1$d KB)</string>
     <string name="backup_restored">Sikkerhetskopi gjenopprettet</string>
@@ -612,6 +620,7 @@
          lokaldel finnes hos flere leverandører. -->
     <string name="login_account_as">Logget inn med %1$s som %2$s</string>
     <string name="login_account_via">Logget inn med %1$s</string>
+    <string name="login_account_plain">Logget inn som %1$s</string>
     <string name="login_provider_google">Google</string>
     <string name="login_provider_email">e-post</string>
     <string name="login_unnamed">Uten navn</string>

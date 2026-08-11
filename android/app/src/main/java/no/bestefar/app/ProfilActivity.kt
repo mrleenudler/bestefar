@@ -128,8 +128,36 @@ class ProfilActivity : AppCompatActivity() {
                 getString(R.string.login_account_as, leverandoer, epost)
             leverandoer.isNotEmpty() ->
                 getString(R.string.login_account_via, leverandoer)
+            // Oekt startet foer klienten begynte aa huske leverandoeren (v0.24).
+            // Adressen er det som betyr noe; leverandoeren er pynt.
+            epost.isNotEmpty() -> getString(R.string.login_account_plain, epost)
             else -> null
         }
+    }
+
+    /**
+     * Trykk utenfor et tekstfelt skal ta fokus ut av det.
+     *
+     * Uten dette beholdt visningsnavn- og fødselsårsfeltene fokus til man
+     * forlot skjermen — og visningsnavnet sendes nettopp ved fokustap, så
+     * moderasjonssvaret kom aldri mens brukeren så på feltet. Det var hele
+     * poenget med å sende der.
+     */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
+            val fokusert = currentFocus
+            if (fokusert is EditText) {
+                val r = android.graphics.Rect()
+                fokusert.getGlobalVisibleRect(r)
+                if (!r.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                    fokusert.clearFocus()
+                    (getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                        as? android.view.inputmethod.InputMethodManager)
+                        ?.hideSoftInputFromWindow(fokusert.windowToken, 0)
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     private fun themeLabel() = when (store.themeMode) {

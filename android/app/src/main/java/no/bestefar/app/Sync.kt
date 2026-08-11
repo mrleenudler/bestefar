@@ -27,6 +27,13 @@ object Sync {
     /** Sendes når en gammel kø-fil ikke har konfidens. Backenden lagrer den rått. */
     private const val UNKNOWN_CONFIDENCE = -1.0
 
+    /**
+     * Serverens grense for bildet i en donasjon (`MAX_UPLOAD_BYTES`,
+     * `backend/KONTRAKT.md` §3). Speilet her fordi klienten skal la vaere aa
+     * koee noe den vet vil bli avvist - ikke fordi klienten eier tallet.
+     */
+    private const val MAX_UPLOAD_BYTES = 8L * 1024 * 1024
+
     private val running = AtomicBoolean(false)
 
     fun dir(ctx: Context): File = File(ctx.filesDir, "dev_uploads")
@@ -46,6 +53,17 @@ object Sync {
             val d = dir(ctx).apply { mkdirs() }
             imagePath?.let { p ->
                 val src = File(p)
+                // Grensen sjekkes FOER vi koer, ikke naar vi sender. Et bilde
+                // over grensa gir 413, og 413 er ikke `retryable`, saa det
+                // hadde blitt kastet uansett - men da hadde vi foerst kopiert
+                // 11 MB inn i appens filkatalog og latt dem ligge til neste
+                // toemming. Grensen er serverens (backend/KONTRAKT.md paragraf 3,
+                // MAX_UPLOAD_BYTES 8 MB).
+                if (src.exists() && src.length() > MAX_UPLOAD_BYTES) {
+                    Log.w(TAG, "Bildet er ${src.length()} byte, over grensa " +
+                        "$MAX_UPLOAD_BYTES - koeer ikke $seriesId/$tag")
+                    return
+                }
                 if (src.exists()) src.copyTo(File(d, "${seriesId}_$tag.jpg"), overwrite = true)
             }
             val meta = JSONObject().apply {
@@ -54,7 +72,7 @@ object Sync {
                 put("tag", tag)
                 put("status_code", statusCode)
                 put("confidence", confidence)
-                put("core_version", BuildConfig.VERSION_NAME)
+                put("core_version", BestefarCore.version)
                 put("detected", JSONArray(detected))
                 ocr?.let { put("ocr", JSONArray(it)) }
             }
@@ -128,13 +146,26 @@ object Sync {
             // Endepunktet krever bildet; uten det er metadataene verdiløse.
             remove(meta); return Verdict.DROP
         }
+        if (image.length() > MAX_UPLOAD_BYTES) {
+            // Koeet foer grensen ble sjekket ved koeing. Serveren ville svart
+            // 413, saa utfallet er det samme - men da hadde vi lastet opp
+            // 11 MB foerst for aa faa vite det.
+            Log.w(TAG, "Kaster ${meta.name}: bildet er ${image.length()} byte")
+            remove(meta); return Verdict.DROP
+        }
 
         val fields = mapOf(
             "status_code" to o.optInt("status_code", BestefarCore.OK).toString(),
             "confidence" to o.optDouble("confidence", UNKNOWN_CONFIDENCE).toString(),
             "core_version" to o.optString("core_version", "ukjent"),
             "tag" to o.optString("tag", "rejected"),
-            "series_id" to o.optString("series_id", meta.nameWithoutExtension),
+            // Filnavnstammen er «{uuid}_{tag}» og altsaa LENGRE enn UUID-en.
+            // Sendt som series_id ble den 49 tegn mot serverens VARCHAR(36),
+            // og svaret var 500 - som er `retryable`, saa koeelementet ble
+            // staaende og proevd i det uendelige mot en feil som aldri kunne
+            // gaa bra. Vi sender UUID-en alene, og heller ingenting enn noe
+            // for langt: feltet er valgfritt.
+            "series_id" to seriesId(o, meta),
             "detected_scores" to (o.optJSONArray("detected") ?: JSONArray()).toString(),
             "ocr_scores" to (o.optJSONArray("ocr") ?: JSONArray()).toString(),
         )
@@ -150,6 +181,16 @@ object Sync {
             }
             else -> Verdict.KEEP
         }
+    }
+
+    /** Serverens `series_id` er `VARCHAR(36)` — en UUID, ikke et filnavn. */
+    private const val SERIES_ID_MAX = 36
+
+    private fun seriesId(o: JSONObject, meta: File): String {
+        val fraFil = o.optString("series_id", "")
+        val kandidat = if (fraFil.isNotEmpty()) fraFil
+                       else meta.nameWithoutExtension.substringBeforeLast('_')
+        return if (kandidat.length <= SERIES_ID_MAX) kandidat else ""
     }
 
     private fun remove(meta: File) {

@@ -34,6 +34,48 @@ nåtilstanden.
 
 ---
 
+## v0.25 — en gjenoppretting kan ikke lenger slette data i stillhet
+
+Etter datatap i felt: første gjenoppretting noensinne (v0.24) ga tilbake
+visningsnavnet, og slettet serier og jaktlogg.
+
+- **Gjenopprettingen er delt i to.** `hentOgLes` laster ned, dekrypterer og
+  **leser** kopien uten å skrive noe; `skriv` kalles først når noen har sett på
+  innholdet. Før dette fantes det ikke et øyeblikk mellom «vi vet hva kopien
+  inneholder» og «det lokale er overskrevet».
+- **En tom kopi får ikke erstatte data som finnes.** Er kopien uten serier og
+  jaktposter mens telefonen har noen, må brukeren bekrefte — med tallene på
+  skjermen: «Kopien inneholder ingen serier … På denne telefonen ligger 42.»
+  Avbryt er standardvalget.
+- **Poster som ikke lot seg lese, telles og meldes.** De ble tidligere logget
+  per post og ellers svelget, så en kopi der *alt* feilet ble skrevet som en
+  vellykket gjenoppretting av ingenting. «Kopien var tom» og «vi klarte ikke å
+  lese den» er ikke samme sak, og skal ikke se like ut.
+- **Resultatet sier hva som kom tilbake:** «Gjenopprettet: 42 serier og 7
+  jaktposter», ikke bare «gjenopprettet».
+- **Ingen kopi av ingenting.** Førstegangstilbudet etter innlogging (v0.21) tok
+  øyeblikksbilde uten å sjekke om det fantes noe å ta vare på. Logget man inn
+  før første serie, la vi en tom kopi på serveren som så ut som en
+  sikkerhetskopi helt til noen gjenopprettet fra den. Tilbudet hoppes nå over
+  når det ikke er noe å kopiere.
+
+### Tre mindre funn fra samme økt
+
+- **`series_id` var filnavnstammen**, `{uuid}_{tag}` — 49 tegn mot serverens
+  `VARCHAR(36)`. Serveren svarte 500, som er `retryable`, så køelementet ble
+  stående og prøvd i det uendelige mot en feil som aldri kunne gå bra. Nå sendes
+  UUID-en alene, og heller ingenting enn noe for langt: feltet er valgfritt.
+- **Bildegrensen sjekkes før noe køes.** Et 11 MB bilde ble kopiert inn i
+  appens filkatalog og lå der til neste tømming, for så å bli avvist. Grensen er
+  serverens (`MAX_UPLOAD_BYTES`, 8 MB); allerede køede storfiler kastes ved
+  sending i stedet for å lastes opp først.
+- **Trykk utenfor et tekstfelt tar nå fokus ut av det.** Visningsnavnet sendes
+  ved fokustap, så uten dette kom moderasjonssvaret aldri mens brukeren så på
+  feltet — hele poenget med å sende der.
+- Kontoraden faller tilbake på «Logget inn som \<adresse\>» når leverandøren er
+  ukjent. En økt startet før v0.24 har hverken adresse eller leverandør lagret;
+  den raden fylles først ved neste innlogging.
+
 ## v0.24 — «Logget inn med Google som ola@gmail.com»
 
 Backend rettet #7 og #8; dette er klientsiden.
