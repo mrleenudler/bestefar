@@ -32,7 +32,7 @@ derfor hele suiten to ganger — SQLite og Postgres.
 
 | Fil | Hva |
 |---|---|
-| `../backend_spec.md` | Kravene. Backend eier §0–§13; §14–§16 er pekere til klienten. |
+| `../backend_spec.md` | Kravene. **Backend eier §0–§11; klienten eier §12–§17** (transportlag, backup-blob, økt, innlogging, push-mottak, meldingskø). Rediger kun din del. Denne fila sa tidligere «§0–§13, §14–§16 er pekere»; det var feil i begge ender, og `android/CLAUDE.md` hadde riktig grense hele tiden. |
 | `backend/KONTRAKT.md` | Det vi garanterer utad — statuskoder, idempotens, grenser |
 | `backend/BESLUTNINGER.md` | Hvorfor det ble slik, og hva som ble forkastet |
 | `backend/CHANGELOG.md` | Når det ble bygget. **Datostemplede notater hører hit, ikke inn i spec-paragrafene** — der gjorde de det umulig å lese en paragraf som en beskrivelse av nåtilstanden. |

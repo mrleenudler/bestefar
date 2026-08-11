@@ -403,6 +403,18 @@ Se `android/KONTRAKT.md` §3 og §9.
 
 Speccen forutsetter «regelsett + evt. manuell kø». Bare halvparten finnes.
 
+**Og halvparten som finnes har en rest som ser ut som mer enn den er**
+(oppdaget 2026-08-11): `routers/profile.py` legger et `advarsel`-felt på svaret
+fra `PUT /v1/profile` — «Navnet vises for andre når moderasjonen har godkjent
+det». Feltet settes bare når `moderation.review` returnerer `pending`, og
+**den returnerer aldri `pending`**: den gir `approved` eller `rejected`, og
+ingenting annet. Grenen er død kode.
+
+Det betyr at en klient som bygger mot svaret, kan komme til å implementere en
+«navnet ditt er til vurdering»-tilstand som aldri inntreffer. Feltet fjernes
+ikke nå — det er riktig den dagen køen finnes — men det skal ikke leses som en
+fungerende mekanisme før den gjør det.
+
 ### ÅP-K3 — Konfidensmålet er en interim-heuristikk · label `kjerne`
 > «Kvalitetsmålet skal være at beregnede poeng ikke matcher maskinens score, men
 > **OCR er ikke implementert enda**. Det skal ikke prioriteres akkurat nå.»

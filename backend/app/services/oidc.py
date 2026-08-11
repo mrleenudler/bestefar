@@ -42,6 +42,13 @@ class Identitet:
     subject: str
     email: str | None
     email_verifisert: bool
+    # Navnet fra de VERIFISERTE kravene i ID-tokenet, ikke fra klienten.
+    # Klienten har navnet fra Credential Manager, men aa sende det derfra ville
+    # byttet en signaturverifisert kilde mot en klient-oppgitt - og
+    # visningsnavnet er det ene feltet som alltid deles med venner (§3).
+    # Tomt for e-postinnlogging og som regel for Apple, som ikke legger `name`
+    # i tokenet.
+    navn: str | None = None
 
 
 def _jwks(url: str) -> jwt.PyJWKClient:
@@ -83,7 +90,9 @@ def verifiser_google(cfg: Settings, id_token: str) -> Identitet:
     krav = _verifiser(id_token, GOOGLE_JWKS, GOOGLE_ISSUERS,
                       cfg.google_client_id_list, "Google")
     return Identitet(provider=Provider.google, subject=str(krav["sub"]),
-                     email=krav.get("email"), email_verifisert=_er_verifisert(krav))
+                     email=krav.get("email"),
+                     email_verifisert=_er_verifisert(krav),
+                     navn=krav.get("name"))
 
 
 def verifiser_apple(cfg: Settings, id_token: str) -> Identitet:
@@ -94,5 +103,10 @@ def verifiser_apple(cfg: Settings, id_token: str) -> Identitet:
     """
     krav = _verifiser(id_token, APPLE_JWKS, (APPLE_ISSUER,),
                       cfg.apple_client_id_list, "Apple")
+    # Apple legger normalt ikke `name` i ID-tokenet - navnet kommer i
+    # autorisasjonssvaret ved aller foerste innlogging, som klienten haandterer.
+    # `krav.get("name")` staar likevel her: er den der, er den verifisert.
     return Identitet(provider=Provider.apple, subject=str(krav["sub"]),
-                     email=krav.get("email"), email_verifisert=_er_verifisert(krav))
+                     email=krav.get("email"),
+                     email_verifisert=_er_verifisert(krav),
+                     navn=krav.get("name"))

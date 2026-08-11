@@ -20,6 +20,23 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-11
+
+**§1 — visningsnavn fra ID-tokenet** (issue #7). `name` leses nå ut av de
+verifiserte kravene i stedet for å forkastes, så en Google-konto får et ekte
+navn og ikke lokaldelen av adressen. Navnet modereres, og med den ekte ordlista
+— den utledede navnet gikk tidligere gjennom moderasjonen med tom blokkliste.
+
+**§1 — `email` i tokenparet** (issue #8). `auth_sessions.identity_id` husker
+hvilken identitet økten ble startet med, så svaret sier hva brukeren logget inn
+*som* — også etter `/refresh`. Migrasjon `c7e2b91f4d08`.
+
+**Rettelser.** `backend/CLAUDE.md` oppga feil eierskapsgrense i `backend_spec`
+(sa §0–§13; riktig er §0–§11, klienten eier §12–§17). §15 og §16 fikk
+verifiseringen ved seg i stedet for en påstand om når en secret ble satt — §16
+sin dato var usann. ÅP-B8 utvidet med at `advarsel`-feltet i `PUT /v1/profile`
+er død kode: `moderation.review` returnerer aldri `pending`.
+
 ## 2026-08-10
 
 **§15 — `GOOGLE_CLIENT_IDS` satt i produksjon** (ÅP-E4). `/v1/auth/google`

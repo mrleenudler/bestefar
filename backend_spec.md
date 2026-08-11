@@ -44,8 +44,10 @@ Endepunktene:
 | `POST /v1/auth/logout` | `{refresh_token}` | 204 |
 
 Tokenparet er `{access_token, refresh_token, token_type:"Bearer", expires_in,
-user_id, public_id, display_name}`. Alle andre endepunkter tar
-`Authorization: Bearer <access_token>`.
+user_id, public_id, display_name, email}`. Alle andre endepunkter tar
+`Authorization: Bearer <access_token>`. `email` er adressen på identiteten økten
+ble startet med — se `backend/KONTRAKT.md` §1 for hvorfor det ikke er det samme
+som «kontoens e-post».
 
 - **To ulike tokentyper, med vilje.** Access-tokenet er et kortlivet JWT
   (HS256, 60 min) som verifiseres med signatur alene — ingen databaseoppslag
@@ -567,8 +569,11 @@ Det serveren håndhever:
 - **`aud` sjekkes mot `GOOGLE_CLIENT_IDS`.** Verdien skal være **WEB**-klient-ID-en
   (`client_type: 3` i `google-services.json`), ikke Android-klient-ID-en:
   `977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com`.
-  Tom liste ⇒ `/v1/auth/google` svarer 503 (`services/oidc.py`). **Satt i
-  produksjon 2026-08-10** — et ugyldig `id_token` gir nå 401, ikke 503.
+  Tom liste ⇒ `/v1/auth/google` svarer 503 (`services/oidc.py`).
+  **`POST /v1/auth/google` med et ugyldig `id_token` → 401, ikke 503;
+  verifisert 2026-08-11.** Det viser at `aud`-sjekken kjører — ikke at verdien
+  er riktig web-klient-ID. Forveksling med Android-klient-ID-en gir *også* 401,
+  og oppdages først ved en ekte innlogging.
 - **Sperrefristen på «send ny kode» håndheves med 429 + `Retry-After`**, og
   verdiene ligger i 202-svaret. Detaljene i §1.
 - **Apple:** `/v1/auth/apple` finnes og er uendret. `APPLE_CLIENT_IDS` er ikke
@@ -604,8 +609,14 @@ Det serveren håndhever og sender. Verifisert mot `routers/devices.py` og
   meldingskøen (§11) er garantien, push er rask levering.
 - **Uten `FCM_SERVICE_ACCOUNT_JSON` logges push bare**, og `/health` sier
   `"push":"log"`. Den er **den eneste som må settes**; `FCM_PROJECT_ID` er
-  valgfri og leses fra JSON-en om den står tom. **Satt i produksjon
-  2026-08-10** — `/health` svarer nå `"push":"fcm"`.
+  valgfri og leses fra JSON-en om den står tom.
+  **`GET /health` → `"push":"fcm"`, verifisert 2026-08-11.**
+
+  *Rettet 2026-08-11:* her sto «Satt i produksjon 2026-08-10». Den datoen var
+  usann — secretene ble satt 08-11, og `/health` svarte `"log"` fram til da.
+  Feilen var ikke bare datoen: påstanden gjaldt *når noen satte en secret*, som
+  jeg aldri hadde observert. Det jeg hadde observert var hva `/health` svarte i
+  det øyeblikket jeg spurte. Se rot-`CLAUDE.md` §7.4.
 
   Merk at `/health` ikke skiller «ikke satt» fra «satt, men ubrukelig»: begge
   gir `"push":"log"`, og forklaringen står bare i applikasjonsloggen. Motsatt

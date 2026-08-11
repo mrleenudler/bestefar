@@ -38,9 +38,11 @@ def falsk_google(monkeypatch):
     from app.routers import auth as auth_router
     from app.services import oidc
 
-    def sett(sub: str, epost: str | None, verifisert: bool = True) -> None:
+    def sett(sub: str, epost: str | None, verifisert: bool = True,
+             navn: str | None = None) -> None:
         ident = oidc.Identitet(provider=oidc.Provider.google, subject=sub,
-                               email=epost, email_verifisert=verifisert)
+                               email=epost, email_verifisert=verifisert,
+                               navn=navn)
         monkeypatch.setattr(auth_router.oidc, "verifiser_google",
                             lambda cfg, token: ident)
 
@@ -327,3 +329,82 @@ def test_daarlig_signeringsnoekkel_svarer_503(client, monkeypatch, hemmelighet):
     settings.cache_clear()
     r = client.post("/v1/auth/email/start", json={"email": "ola@example.com"})
     assert r.status_code == 503
+
+
+# --------------------------------------------------------------------
+# Navn fra ID-tokenet (issue #7) og e-post i tokenparet (issue #8)
+# --------------------------------------------------------------------
+
+def test_visningsnavn_hentes_fra_id_tokenet(client, falsk_google):
+    """
+    `name` staar i de verifiserte kravene. Foer dette ble det forkastet, og
+    lokaldelen av adressen ble visningsnavn ogsaa for Google-kontoer.
+    """
+    falsk_google("g-navn", "ola.nordmann@example.com", navn="Ola Nordmann")
+    r = client.post("/v1/auth/google", json={"id_token": "x"})
+    assert r.json()["display_name"] == "Ola Nordmann"
+
+
+def test_uten_navn_i_tokenet_brukes_lokaldelen(client, falsk_google):
+    """Apple sender normalt ikke `name`, og e-postinnlogging har det aldri."""
+    falsk_google("g-utennavn", "ola.nordmann@example.com")
+    r = client.post("/v1/auth/google", json={"id_token": "x"})
+    assert r.json()["display_name"] == "ola nordmann"
+
+
+def test_navn_fra_leverandoer_modereres(client, falsk_google, monkeypatch):
+    """
+    En leverandoer garanterer ikke at brukeren har valgt et navn vi vil vise,
+    og visningsnavnet er det ene feltet som ALLTID deles med venner (Â§3).
+    """
+    monkeypatch.setenv("DISPLAY_NAME_BLOCKLIST", "stygt")
+    from app.config import settings
+    settings.cache_clear()
+
+    falsk_google("g-stygt", "ola@example.com", navn="Stygt Navn")
+    r = client.post("/v1/auth/google", json={"id_token": "x"})
+    assert r.json()["display_name"] == "Skytter"
+
+
+def test_tokenparet_inneholder_epostadressen(client, falsk_google):
+    falsk_google("g-epost", "ola@example.com", navn="Ola")
+    r = client.post("/v1/auth/google", json={"id_token": "x"})
+    assert r.json()["email"] == "ola@example.com"
+
+
+def test_epostadressen_overlever_fornyelse(client, falsk_google):
+    """
+    Ved fornyelse finnes ikke ID-tokenet lenger. Uten identiteten paa oekten
+    maatte serveren gjettet, og Â«Logget inn somÂ» ville tomt seg selv etter en
+    time.
+    """
+    falsk_google("g-forny", "ola@example.com", navn="Ola")
+    par = client.post("/v1/auth/google", json={"id_token": "x"}).json()
+
+    ny = client.post("/v1/auth/refresh",
+                     json={"refresh_token": par["refresh_token"]}).json()
+    assert ny["email"] == "ola@example.com"
+
+
+def test_epost_er_identiteten_ikke_kontoen(client, falsk_google, sendte):
+    """
+    Kjernen i hvorfor klienten ikke kan lese adressen ut av ID-tokenet selv:
+    ved kontosammenslaaing paa verifisert e-post kan kontoen naas gjennom flere
+    adresser. Svaret sier hva man logget inn SOM.
+    """
+    # Foerst e-postinnlogging, saa Google med samme verifiserte adresse -
+    # samme konto (Â§1 kontosammenslaaing).
+    client.post("/v1/auth/email/start", json={"email": "delt@example.com"})
+    par1 = client.post("/v1/auth/email/verify",
+                       json={"email": "delt@example.com",
+                             "code": _kode(sendte)}).json()
+
+    falsk_google("g-slaatt-sammen", "delt@example.com", navn="Ola")
+    par2 = client.post("/v1/auth/google", json={"id_token": "x"}).json()
+
+    assert par2["user_id"] == par1["user_id"], "skal vaere samme konto"
+    assert par2["is_new"] is False
+    # Begge oektene lever, og hver av dem sier hva DEN ble startet med.
+    assert par1["email"] == "delt@example.com"
+    assert par2["email"] == "delt@example.com"
+

@@ -105,6 +105,59 @@ deres.
 
 *Kilde: `routers/auth.py`, modul-docstring og `_finn_eller_lag_bruker`.*
 
+## B-06.1 Visningsnavnet hentes fra ID-tokenet, ikke fra klienten
+
+**Kontekst.** En ny konto trenger et visningsnavn. `oidc.py` leste `sub`,
+`email` og `email_verified` ut av de verifiserte kravene, men ikke `name` — så
+lokaldelen av adressen ble visningsnavn også for Google-kontoer, der et ekte
+navn lå rett ved siden av.
+
+**Valg.** `name` leses fra de samme verifiserte kravene og brukes når det finnes.
+Faller tilbake på lokaldelen av adressen, så på «Skytter».
+
+**Forkastet: å la klienten sende navnet.** Credential Manager gir klienten
+navnet, og det ville vært enklere. Men det bytter en signaturverifisert kilde mot
+en klient-oppgitt, i **det ene feltet som alltid deles med venner** (§3). En
+modifisert klient kunne satt hva som helst som andres første inntrykk.
+
+**Navnet modereres som ethvert annet.** En leverandør garanterer ikke at
+brukeren har valgt et navn vi vil vise. Her ble også en eksisterende svakhet
+rettet: den utledede navnet gikk tidligere gjennom `moderation.review` med en
+**tom** ordliste, altså uten `DISPLAY_NAME_BLOCKLIST`. Det var lite farlig så
+lenge kilden var en e-postadresse brukeren allerede eide; det er noe annet når
+kilden er et fritt valgt profilnavn.
+
+*Kilde: issue #7; `services/oidc.py`, `Identitet.navn`; `routers/auth.py`,
+`_foerste_navn`.*
+
+## B-06.2 Økten husker identiteten den ble startet med
+
+**Kontekst.** Klienten skal kunne vise «Logget inn med Google som
+ola@example.com». Tokenparet inneholdt ingen adresse.
+
+**Valg.** `auth_sessions.identity_id` peker på `AuthIdentity`-raden
+innloggingen kom gjennom, og tokenparet svarer med `email` derfra — også ved
+fornyelse.
+
+**Forkastet: å la klienten lese adressen ut av ID-tokenet.** Kontosammenslåing
+skjer på verifisert e-post (B-06), så kontoen kan være knyttet til en annen
+adresse enn den man nettopp logget inn med. Skjermen ville løyet i akkurat det
+tilfellet den finnes for.
+
+**Forkastet: å returnere «kontoens e-post».** Etter en sammenslåing har kontoen
+flere identiteter og ingen av adressene er mer «kontoens» enn de andre. Det
+finnes ikke noe entydig svar å gi, og et vilkårlig valgt ett ville sett entydig
+ut.
+
+**Forkastet: å utlede den ved fornyelse.** Ved `/refresh` finnes ikke
+ID-tokenet lenger. Uten kolonnen måtte serveren gjettet — og «Logget inn som»
+ville tømt seg selv etter en time.
+
+`SET NULL` og ikke `CASCADE`: forsvinner identiteten, skal ikke brukeren logges
+ut. Hen mister bare adressen i visningen.
+
+*Kilde: issue #8; migrasjon `c7e2b91f4d08`; `routers/auth.py`, `_start_oekt`.*
+
 ## B-07 409 på eldre `client_ts` i backup
 
 **Kontekst.** Spec §2 sier last-write-wins per post-ID. Serveren kan ikke

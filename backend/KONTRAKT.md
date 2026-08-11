@@ -75,7 +75,27 @@ har ingen legitim grunn til å gjenta seg.
 
 **Tokenparet** som returneres av `/google`, `/apple`, `/email/verify` og
 `/refresh`: `{access_token, refresh_token, token_type: "Bearer", expires_in,
-user_id, public_id, display_name}`. Innloggingene legger dessuten på `is_new`.
+user_id, public_id, display_name, email}`. Innloggingene legger dessuten på
+`is_new`.
+
+**`email` er identitetens, ikke kontoens.** Den sier hva brukeren logget inn
+*som* — adressen på den `AuthIdentity`-raden økten ble startet med. Ved
+kontosammenslåing kan kontoen nås gjennom flere adresser, og da er «kontoens
+e-post» ikke et entydig begrep.
+
+- **Ikke les den ut av ID-tokenet i stedet.** Etter en sammenslåing kan kontoen
+  være knyttet til en annen adresse enn den man nettopp logget inn med, og da
+  ville skjermen løyet i akkurat det tilfellet den finnes for.
+- **Den overlever `/refresh`** — økten husker identiteten (`identity_id`).
+- **Den kan være `null`:** Apple med «Skjul e-postadressen min», og økter
+  startet før feltet fantes. Klienten må tåle det.
+
+**`display_name` på en ny konto kommer fra `name` i ID-tokenet** når
+leverandøren sender det, ellers fra lokaldelen av adressen. Navnet er
+signaturverifisert på lik linje med `sub` og `email`, og modereres som ethvert
+annet visningsnavn før det lagres. Klienten skal **ikke** sende sitt eget navn
+fra Credential Manager — det ville byttet en verifisert kilde mot en
+klient-oppgitt, i det ene feltet som alltid deles med venner.
 
 **`aud` verifiseres alltid** mot `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS`. Tom
 liste ⇒ 503 for den leverandøren. Et gyldig Google-token utstedt til en *annen*

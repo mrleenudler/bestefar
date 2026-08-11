@@ -59,6 +59,13 @@ class TokenPar(BaseModel):
     public_id: str = Field(description="Den korte ID-en venner soeker opp, "
                                        "f.eks. BF-7Q4K-9F2M.")
     display_name: str
+    email: str | None = Field(
+        default=None,
+        description="Adressen brukeren logget inn SOM - fra identiteten oekten "
+                    "ble startet med, ikke fra kontoen. Ved kontosammenslaaing "
+                    "kan de vaere ulike. `null` for Apple med skjult adresse, "
+                    "og for oekter startet foer feltet fantes. Baeres uendret "
+                    "gjennom /refresh.")
 
 
 class TokenParNyBruker(TokenPar):
@@ -86,24 +93,37 @@ class KodeSendt(BaseModel):
 # Felles
 # --------------------------------------------------------------------
 
-def _navn_fra_epost(epost: str | None) -> str:
+def _foerste_navn(ident: oidc.Identitet) -> str:
     """
     Et foerste visningsnavn saa kontoen ikke staar tom. Brukeren endrer det i
     profilen; her handler det bare om aa ha noe lesbart aa vise.
+
+    Rekkefoelgen er `name` fra ID-TOKENET foerst, deretter lokaldelen av
+    e-postadressen. Navnet er signaturverifisert paa lik linje med `sub` og
+    `email` - det er derfor vi kan bruke det, og derfor klienten IKKE sender
+    sitt eget navn fra Credential Manager: det ville byttet en verifisert kilde
+    mot en klient-oppgitt, i det ene feltet som alltid deles med venner (§3).
+
+    Navnet modereres som ethvert annet visningsnavn, med den ekte ordlista.
+    En leverandoer garanterer ikke at brukeren har valgt et navn vi vil vise.
     """
-    lokal = (epost or "").split("@")[0].replace(".", " ").replace("_", " ")
-    navn, status, _ = moderation.review(lokal or "Skytter", [])
+    kandidat = (ident.navn or "").strip()
+    if not kandidat:
+        kandidat = ((ident.email or "").split("@")[0]
+                    .replace(".", " ").replace("_", " "))
+    navn, status, _ = moderation.review(
+        kandidat or "Skytter", settings().display_name_blocklist_list)
     return navn if status == NameStatus.approved else "Skytter"
 
 
-def _ny_bruker(s: OrmSession, epost: str | None) -> User:
+def _ny_bruker(s: OrmSession, ident: oidc.Identitet) -> User:
     # Statusen MAA settes eksplisitt. `_navn_fra_epost` lagrer bare navn som
     # har passert moderasjonen - ellers reservenavnet - saa navnet ER godkjent,
     # men standardverdien paa kolonnen er `pending`. Uten dette viste
     # sharing.friend_view «Navn under vurdering» til venner og lagkamerater for
     # hver eneste nye konto, helt til brukeren tilfeldigvis lagret profilen sin
     # paa nytt; PUT /v1/profile var det eneste stedet statusen ble satt.
-    user = User(public_id=ids.generate(), display_name=_navn_fra_epost(epost),
+    user = User(public_id=ids.generate(), display_name=_foerste_navn(ident),
                 display_name_status=NameStatus.approved,
                 display_name_reviewed_at=utcnow())
     s.add(user)
@@ -115,8 +135,14 @@ def _ny_bruker(s: OrmSession, epost: str | None) -> User:
     return user
 
 
-def _finn_eller_lag_bruker(s: OrmSession, ident: oidc.Identitet) -> tuple[User, bool]:
-    """Returnerer (bruker, er_ny)."""
+def _finn_eller_lag_bruker(s: OrmSession,
+                           ident: oidc.Identitet) -> tuple[User, bool, AuthIdentity]:
+    """
+    Returnerer (bruker, er_ny, identitetsraden som ble brukt).
+
+    Identitetsraden foelger med ut fordi oekten skal huske hvilken den ble
+    startet med - se `_start_oekt`.
+    """
     rad = s.scalar(select(AuthIdentity).where(
         AuthIdentity.provider == ident.provider,
         AuthIdentity.subject == ident.subject))
@@ -124,7 +150,7 @@ def _finn_eller_lag_bruker(s: OrmSession, ident: oidc.Identitet) -> tuple[User, 
         # Leverandoeren kan ha faatt ny adresse siden sist.
         if ident.email and rad.email != ident.email:
             rad.email = ident.email
-        return rad.user, False
+        return rad.user, False, rad
 
     user: User | None = None
     if ident.email and ident.email_verifisert:
@@ -136,25 +162,44 @@ def _finn_eller_lag_bruker(s: OrmSession, ident: oidc.Identitet) -> tuple[User, 
 
     er_ny = user is None
     if user is None:
-        user = _ny_bruker(s, ident.email)
-    s.add(AuthIdentity(user_id=user.id, provider=ident.provider,
-                       subject=ident.subject, email=ident.email))
-    return user, er_ny
+        user = _ny_bruker(s, ident)
+    rad = AuthIdentity(user_id=user.id, provider=ident.provider,
+                       subject=ident.subject, email=ident.email)
+    s.add(rad)
+    # Flush for aa faa `rad.id` - oekten under peker paa den.
+    s.flush()
+    return user, er_ny, rad
 
 
-def _start_oekt(s: OrmSession, cfg: Settings, user: User,
-                user_agent: str) -> dict:
+def _start_oekt(s: OrmSession, cfg: Settings, user: User, user_agent: str,
+                identitet: AuthIdentity | None = None) -> dict:
+    """
+    Utsteder et tokenpar og lagrer oekten.
+
+    `identitet` er raden innloggingen kom gjennom. Den lagres paa oekten fordi
+    `email` i svaret skal si hva brukeren logget inn SOM - og ved fornyelse
+    finnes ikke ID-tokenet lenger. Uten den ville `/refresh` maattet gjette.
+
+    Hvorfor ikke bare la klienten lese `email` ut av ID-tokenet: kontoen kan
+    vaere slaatt sammen paa verifisert e-post (se modulkommentaren), og da er
+    adressen kontoen er knyttet til ikke noedvendigvis den man nettopp logget
+    inn med. Skjermen ville loeyet i akkurat det tilfellet den finnes for.
+    """
     access, levetid = tokens.lag_access_token(cfg, user.id)
     raa, hash_ = tokens.nytt_refresh_token()
     s.add(AuthSession(user_id=user.id, refresh_hash=hash_,
                       user_agent=(user_agent or "")[:200],
+                      identity_id=identitet.id if identitet else None,
                       expires_at=utcnow() + timedelta(days=cfg.refresh_token_ttl_days)))
     user.last_seen_at = utcnow()
     s.commit()
     return {"access_token": access, "refresh_token": raa,
             "token_type": "Bearer", "expires_in": levetid,
             "user_id": user.id, "public_id": user.public_id,
-            "display_name": user.display_name}
+            "display_name": user.display_name,
+            # None for oekter startet foer kolonnen fantes, og for en identitet
+            # uten adresse (Apple med skjult e-post). Klienten maa taale det.
+            "email": identitet.email if identitet else None}
 
 
 # --------------------------------------------------------------------
@@ -172,8 +217,8 @@ def logg_inn_google(body: IdTokenIn,
     cfg = settings()
     tokens.krev_hemmelighet(cfg)
     ident = oidc.verifiser_google(cfg, body.id_token)
-    user, er_ny = _finn_eller_lag_bruker(s, ident)
-    ut = _start_oekt(s, cfg, user, user_agent)
+    user, er_ny, identitet = _finn_eller_lag_bruker(s, ident)
+    ut = _start_oekt(s, cfg, user, user_agent, identitet)
     ut["is_new"] = er_ny
     return ut
 
@@ -185,8 +230,8 @@ def logg_inn_apple(body: IdTokenIn,
     cfg = settings()
     tokens.krev_hemmelighet(cfg)
     ident = oidc.verifiser_apple(cfg, body.id_token)
-    user, er_ny = _finn_eller_lag_bruker(s, ident)
-    ut = _start_oekt(s, cfg, user, user_agent)
+    user, er_ny, identitet = _finn_eller_lag_bruker(s, ident)
+    ut = _start_oekt(s, cfg, user, user_agent, identitet)
     ut["is_new"] = er_ny
     return ut
 
@@ -284,8 +329,8 @@ def verifiser_kode(body: KodeIn, user_agent: str = Header(default=""),
     rad.consumed_at = naa
     ident = oidc.Identitet(provider=Provider.email, subject=epost,
                            email=epost, email_verifisert=True)
-    user, er_ny = _finn_eller_lag_bruker(s, ident)
-    ut = _start_oekt(s, cfg, user, user_agent)
+    user, er_ny, identitet = _finn_eller_lag_bruker(s, ident)
+    ut = _start_oekt(s, cfg, user, user_agent, identitet)
     ut["is_new"] = er_ny
     return ut
 
@@ -331,7 +376,10 @@ def forny(body: RefreshIn, user_agent: str = Header(default=""),
     # Rotasjon: den gamle raden merkes brukt og erstattes av en ny.
     oekt.revoked_at = naa
     oekt.last_used_at = naa
-    return _start_oekt(s, cfg, user, user_agent or oekt.user_agent)
+    # Identiteten baeres videre: fornyelse skal ikke endre hva klienten viser
+    # under «Logget inn som».
+    return _start_oekt(s, cfg, user, user_agent or oekt.user_agent,
+                       oekt.identity)
 
 
 @router.post("/logout", status_code=204)

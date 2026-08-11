@@ -1094,6 +1094,18 @@
             "title": "Display Name",
             "type": "string"
           },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Adressen brukeren logget inn SOM - fra identiteten oekten ble startet med, ikke fra kontoen. Ved kontosammenslaaing kan de vaere ulike. `null` for Apple med skjult adresse, og for oekter startet foer feltet fantes. Baeres uendret gjennom /refresh.",
+            "title": "Email"
+          },
           "expires_in": {
             "description": "Sekunder til access-tokenet utloeper.",
             "title": "Expires In",
@@ -1143,6 +1155,18 @@
           "display_name": {
             "title": "Display Name",
             "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Adressen brukeren logget inn SOM - fra identiteten oekten ble startet med, ikke fra kontoen. Ved kontosammenslaaing kan de vaere ulike. `null` for Apple med skjult adresse, og for oekter startet foer feltet fantes. Baeres uendret gjennom /refresh.",
+            "title": "Email"
           },
           "expires_in": {
             "description": "Sekunder til access-tokenet utloeper.",

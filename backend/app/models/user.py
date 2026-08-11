@@ -90,10 +90,18 @@ class AuthSession(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     refresh_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     user_agent: Mapped[str] = mapped_column(String(200), default="")
+    # Identiteten oekten ble startet MED. Baeres videre ved fornyelse, saa
+    # `email` i tokenparet svarer paa «hva logget jeg inn som» ogsaa etter at
+    # ID-tokenet er borte. SET NULL og ikke CASCADE: mister vi identiteten,
+    # skal ikke brukeren logges ut - hen mister bare adressen i visningen.
+    identity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("auth_identities.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     last_used_at: Mapped[datetime] = mapped_column(default=utcnow)
     expires_at: Mapped[datetime] = mapped_column()
     revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    identity: Mapped[AuthIdentity | None] = relationship()
 
 
 class EmailLoginCode(Base):
