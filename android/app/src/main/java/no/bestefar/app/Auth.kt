@@ -77,6 +77,19 @@ object Auth {
         store.authExpiresAt = System.currentTimeMillis() + o.optLong("expires_in", 3600) * 1000L
         store.accountPublicId = o.optString("public_id", store.accountPublicId)
         store.accountName = o.optString("display_name", store.accountName)
+        // `email` er NULLBAR i skjemaet, og org.json gir strengen "null" for en
+        // JSON-null via optString - derfor isNull foerst.
+        //
+        // Merk hva vi IKKE gjoer: en manglende eller null adresse overskriver
+        // ikke en vi allerede har. `null` betyr «serveren vet ikke» (oekt
+        // startet foer kolonnen fantes, Apple med skjult e-post), ikke «adressen
+        // er borte». Uten dette ville «Logget inn som» toemt seg selv ved
+        // foerste fornyelse - som er nettopp det backend la inn en kolonne for
+        // aa unngaa.
+        if (!o.isNull("email")) {
+            o.optString("email", "").takeIf { it.isNotEmpty() }
+                ?.let { store.accountEmail = it }
+        }
         return true
     }
 
@@ -87,6 +100,8 @@ object Auth {
         store.authExpiresAt = 0L
         store.accountPublicId = ""
         store.accountName = ""
+        store.accountEmail = ""
+        store.accountProvider = ""
         // Merk: backupCode og lokale data røres IKKE. Å logge ut er ikke å
         // slette seg selv, og en app som mister loggen ved utlogging er en app
         // ingen tør logge ut av.

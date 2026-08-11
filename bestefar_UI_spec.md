@@ -290,9 +290,14 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
   Uten konto er navnet bare et lokalt kallenavn på venne- og lagskjermene.
 
   **E-postadressen skal aldri brukes som visningsnavn.** Navnet deles med
-  venner, og lokaldelen av en adresse er ofte nok til å finne adressen. Serveren
-  setter i dag likevel lokaldelen som startnavn ved Google-innlogging — meldt
-  som issue #7.
+  venner, og lokaldelen av en adresse er ofte nok til å finne adressen. Ved
+  Google-innlogging settes startnavnet nå fra `name` i det verifiserte
+  ID-tokenet, med lokaldelen og «Skytter» som reserve.
+
+  **Kontoer opprettet før dette beholder navnet de fikk.** Serveren rører ikke
+  visningsnavnet ved senere innlogginger — å overskrive det ville stille
+  tilbakestilt et navn brukeren selv har satt. Har du en konto med lokaldelen
+  som navn, endrer du den i feltet over.
 - **Mitt jaktmål:** den valgte **skadeskytingsrate-grensen**, som en setning i
   jegerspråk («1 av 20») med (i)-forklaring. Endring virker umiddelbart.
   Tilbys automatisk etter tredje serie.
@@ -300,13 +305,18 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
   e-post. Innlogget vises kontonavnet, bruker-ID og «Logg ut».
   Apple-innlogging er ikke bygget.
 
-  **Hvilken konto du er logget inn med, kan ikke vises ennå.** Formen skal være
-  «Logget inn med Google som ola@gmail.com» — hele adressen, siden samme lokaldel
-  finnes hos flere leverandører, og vist kun for brukeren selv. Innloggingssvaret
-  inneholder ingen e-post, og klienten skal ikke gjette den ut av ID-tokenet:
-  kontosammenslåing på verifisert adresse (`backend_spec.md` §1) betyr at kontoen
-  kan være knyttet til en annen adresse enn den man nettopp logget inn med. Meldt
-  som issue #8. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
+  **Under kontonavnet står «Logget inn med Google som ola@gmail.com».** Hele
+  adressen, siden samme lokaldel finnes hos flere leverandører, og vist **kun
+  for brukeren selv** — dette er en kontoidentifikator, ikke et navn.
+
+  Adressen er den økten ble startet med, hentet fra innloggingssvaret. Klienten
+  leser den ikke ut av ID-tokenet: kontosammenslåing på verifisert adresse
+  (`backend_spec.md` §1) gjør at kontoen kan være knyttet til en annen adresse
+  enn den man nettopp logget inn med, og linja ville løyet i akkurat det
+  tilfellet den finnes for.
+
+  Vet ikke serveren adressen — Apple med skjult e-post, eller en økt startet før
+  feltet fantes — vises bare leverandøren. Mangler begge, står det ingenting. **Appen ber aldri om innlogging uoppfordret**, og skjermen sier
   eksplisitt at alt annet virker uten konto.
 
   **Er kontoen nyopprettet**, tilbys en sikkerhetskopi med det samme — etter

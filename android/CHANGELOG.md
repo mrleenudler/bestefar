@@ -34,6 +34,44 @@ nåtilstanden.
 
 ---
 
+## v0.24 — «Logget inn med Google som ola@gmail.com»
+
+Backend rettet #7 og #8; dette er klientsiden.
+
+- **Kontoraden viser nå hvilken konto økten tilhører**, som en egen linje under
+  kontonavnet. To forskjellige ting, to forskjellige linjer: visningsnavnet er
+  det vennene ser, adressen er hvilken konto *du* er logget inn med, og den
+  vises kun for deg.
+- **Adressen kommer fra tokenparet**, ikke fra ID-tokenet. Kontoen kan være
+  slått sammen på verifisert e-post, og da er adressen man nettopp logget inn
+  med ikke nødvendigvis den økten er knyttet til. Serveren svarer med
+  identitetens.
+- **`email` overskrives aldri med tomt.** `null` betyr «serveren vet ikke» — økt
+  startet før kolonnen fantes, eller Apple med skjult e-post — ikke «adressen er
+  borte». Uten den regelen ville linja tømt seg selv ved første fornyelse, som
+  er nettopp det backend la inn en kolonne for å unngå. Verifisert at `/refresh`
+  bærer identiteten videre (`auth.py`, `forny` → `_start_oekt(…, oekt.identity)`).
+- **Leverandøren huskes lokalt.** Tokenparet har ingen `provider`, og trenger
+  ikke ha det: hvilket endepunkt klienten kalte er klientens egen kunnskap om
+  sitt eget kall. Økten er knyttet til én identitet og fornyelse bytter den
+  ikke, så verdien holder økten ut. Settes først når økten er lagret, tømmes ved
+  utlogging.
+- **Mangler adressen, vises bare leverandøren; mangler begge, står det
+  ingenting.** En halv setning om hvilken konto du er logget inn med er verre
+  enn ingen.
+- `accountEmail` og `accountProvider` er unntatt sikkerhetskopien. Kopien kan
+  gjenopprettes på en telefon som er logget inn som noen andre, og «Logget inn
+  som» skal ikke komme fra kopien. Begge fylles uansett ved hver innlogging og
+  hver fornyelse.
+
+**Eksisterende kontoer beholder navnet de har.** `_finn_eller_lag_bruker`
+returnerer tidlig for en identitet som finnes, og rører ikke `display_name` —
+det nye navnet fra ID-tokenet gjelder bare kontoer som opprettes etter
+rettelsen. Det er riktig: å overskrive navnet ved hver innlogging ville stille
+tilbakestilt et navn brukeren selv har satt. Konsekvensen er at en konto som
+allerede fikk lokaldelen som navn, beholder den til brukeren endrer den — og
+veien til å endre den kom i v0.23.
+
 ## v0.23 — visningsnavnet sendes faktisk til serveren
 
 - **Feltet som het «Visningsnavn» ble aldri sendt noe sted.** Det skrev til en

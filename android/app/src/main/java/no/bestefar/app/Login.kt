@@ -37,6 +37,15 @@ object Login {
 
     private const val TAG = "BestefarLogin"
 
+    /**
+     * Hvilken vei inn som ble brukt. Serveren sender ingen `provider` i
+     * tokenparet, og skal ikke trenge det: dette er klientens kunnskap om sitt
+     * eget kall, ikke en gjetning om servertilstand. Oekten er knyttet til én
+     * identitet og fornyelse bytter den ikke, saa verdien holder oekten ut.
+     */
+    const val PROVIDER_GOOGLE = "google"
+    const val PROVIDER_EMAIL = "email"
+
     /** Egen tråd: Credential Manager kaller tilbake på den vi gir den. */
     private val executor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "bestefar-login").apply { isDaemon = true }
@@ -102,7 +111,7 @@ object Login {
                     // Vi er allerede utenfor UI-tråden, men bytt til Apis egen
                     // kø slik at innloggingskallet står i samme rekkefølge som
                     // resten av nettverkstrafikken.
-                    Api.io { exchange(a, "/v1/auth/google", token, onDone) }
+                    Api.io { exchange(a, "/v1/auth/google", token, PROVIDER_GOOGLE, onDone) }
                 }
 
                 override fun onError(e: GetCredentialException) {
@@ -176,7 +185,7 @@ object Login {
         Api.io {
             val resp = Api.postJson(ctx, "/v1/auth/email/verify",
                 JSONObject().put("email", epost).put("code", kode), authRetry = false)
-            finish(ctx, resp, onDone)
+            finish(ctx, resp, PROVIDER_EMAIL, onDone)
         }
     }
 
@@ -184,14 +193,19 @@ object Login {
 
     /** Blokkerende; kalles fra [Api.io]. */
     private fun exchange(ctx: Context, path: String, idToken: String,
-                         onDone: (Result) -> Unit) {
+                         provider: String, onDone: (Result) -> Unit) {
         val resp = Api.postJson(ctx, path,
             JSONObject().put("id_token", idToken), authRetry = false)
-        finish(ctx, resp, onDone)
+        finish(ctx, resp, provider, onDone)
     }
 
-    private fun finish(ctx: Context, resp: Api.Resp, onDone: (Result) -> Unit) {
+    private fun finish(ctx: Context, resp: Api.Resp, provider: String,
+                       onDone: (Result) -> Unit) {
         val ok = resp.ok && Auth.saveSession(ctx, resp.body)
+        // Settes ETTER at oekten er lagret: uten en oekt er det ingenting aa
+        // knytte leverandoeren til, og en verdi som blir staaende igjen etter
+        // et mislykket forsoek ville beskrevet en innlogging som ikke skjedde.
+        if (ok) Store.get(ctx).accountProvider = provider
         // `is_new` staar i svaret fra alle tre innloggingsveiene
         // (TokenParNyBruker i contracts/openapi.json). Mangler feltet, antar vi
         // eksisterende konto: aa tilby en foerstegangs-sikkerhetskopi til noen

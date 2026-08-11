@@ -102,6 +102,36 @@ class ProfilActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Setningen som sier hvilken konto økten tilhører, eller `null` når vi ikke
+     * vet nok til å si noe sant.
+     *
+     * Adressen kommer fra **tokenparet**, ikke fra ID-tokenet: kontoen kan være
+     * slått sammen på verifisert e-post, og da er adressen man nettopp logget
+     * inn med ikke nødvendigvis den økten er knyttet til. Serveren svarer med
+     * identitetens adresse — den økten faktisk ble startet med.
+     *
+     * Mangler adressen (Apple med skjult e-post, eller en økt startet før
+     * serveren hadde feltet), viser vi bare leverandøren. Mangler begge, står
+     * det ingenting: en halv setning om hvilken konto du er logget inn med, er
+     * verre enn ingen.
+     */
+    private fun kontoIdentitet(): String? {
+        val leverandoer = when (store.accountProvider) {
+            Login.PROVIDER_GOOGLE -> getString(R.string.login_provider_google)
+            Login.PROVIDER_EMAIL -> getString(R.string.login_provider_email)
+            else -> ""
+        }
+        val epost = store.accountEmail
+        return when {
+            leverandoer.isNotEmpty() && epost.isNotEmpty() ->
+                getString(R.string.login_account_as, leverandoer, epost)
+            leverandoer.isNotEmpty() ->
+                getString(R.string.login_account_via, leverandoer)
+            else -> null
+        }
+    }
+
     private fun themeLabel() = when (store.themeMode) {
         "dark" -> getString(R.string.theme_dark)
         "system" -> getString(R.string.theme_system)
@@ -255,6 +285,12 @@ class ProfilActivity : AppCompatActivity() {
                 startActivity(Intent(this@ProfilActivity, LoggInnActivity::class.java))
             }
         })
+        // «Logget inn med Google som ola@gmail.com» — HVILKEN konto, ikke hvem
+        // du er. Hele adressen, fordi samme lokaldel finnes hos flere
+        // leverandører, og linja vises bare for brukeren selv.
+        if (Auth.isLoggedIn(this)) kontoIdentitet()?.let {
+            content.addView(Ui.hint(this, it))
+        }
         content.addView(Ui.hint(this, getString(
             if (Auth.isLoggedIn(this)) R.string.login_hint_in
             else R.string.login_hint_out)))

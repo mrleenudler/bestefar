@@ -608,6 +608,12 @@
     <string name="login_section">Konto</string>
     <string name="login_title">Logg inn</string>
     <string name="login_account_is">Konto: %1$s</string>
+    <!-- Kontoidentifikator, vist kun for brukeren selv. Hele adressen: samme
+         lokaldel finnes hos flere leverandører. -->
+    <string name="login_account_as">Logget inn med %1$s som %2$s</string>
+    <string name="login_account_via">Logget inn med %1$s</string>
+    <string name="login_provider_google">Google</string>
+    <string name="login_provider_email">e-post</string>
     <string name="login_unnamed">Uten navn</string>
     <string name="login_hint_out">Du trenger ikke konto for å bruke appen. Den gir deg sikkerhetskopi til server, venner og lag.</string>
     <string name="login_hint_in">Sikkerhetskopi, venner og lag er tilgjengelig.</string>

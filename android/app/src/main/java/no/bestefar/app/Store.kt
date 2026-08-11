@@ -381,10 +381,34 @@ class Store private constructor(ctx: Context) {
         get() = prefs.getString("accountPublicId", "") ?: ""
         set(v) { prefs.edit().putString("accountPublicId", v).apply() }
 
-    /** Visningsnavnet slik serveren kjenner det. */
+    /** Visningsnavnet slik serveren kjenner det. Dette er det vennene ser. */
     var accountName: String
         get() = prefs.getString("accountName", "") ?: ""
         set(v) { prefs.edit().putString("accountName", v).apply() }
+
+    /**
+     * Adressen økten ble startet med — **ikke** «kontoens adresse». Etter en
+     * kontosammenslåing har kontoen flere, og ingen av dem er mer riktig enn de
+     * andre; serveren svarer derfor med identitetens (backend_spec §1).
+     *
+     * Vises kun for brukeren selv, aldri for venner. Tom når serveren ikke vet:
+     * Apple med skjult e-post, eller en økt startet før feltet fantes.
+     */
+    var accountEmail: String
+        get() = prefs.getString("accountEmail", "") ?: ""
+        set(v) { prefs.edit().putString("accountEmail", v).apply() }
+
+    /**
+     * Hvilken vei brukeren logget inn: `"google"` eller `"email"`.
+     *
+     * Dette er klientens egen kunnskap om hva den selv gjorde — serveren sender
+     * ingen `provider` i tokenparet. Det er trygt fordi økten er knyttet til én
+     * identitet: fornyelse bytter den ikke, så verdien holder så lenge økten
+     * gjør. Settes ved hver innlogging og tømmes ved utlogging.
+     */
+    var accountProvider: String
+        get() = prefs.getString("accountProvider", "") ?: ""
+        set(v) { prefs.edit().putString("accountProvider", v).apply() }
 
     /**
      * FCM-tokenet, altså adressen til denne telefonen. Ikke en hemmelighet,
@@ -627,7 +651,12 @@ class Store private constructor(ctx: Context) {
      * telefonen, og en gjenoppretting som drar med seg dem ville gitt to
      * enheter som tror de er den samme.
      */
-    private val neverBackedUp = setOf("authToken", "authExpiresAt", "pushToken")
+    private val neverBackedUp = setOf("authToken", "authExpiresAt", "pushToken",
+        // Hvilken konto DENNE telefonen er logget inn med. Kopien kan
+        // gjenopprettes på en telefon som er logget inn som noen andre, og da
+        // skal ikke «Logget inn som» hentes fra kopien. Begge fylles uansett
+        // på nytt ved hver innlogging og hver fornyelse.
+        "accountEmail", "accountProvider")
 
     @Synchronized
     fun exportPrefs(): JSONObject = JSONObject().apply {
