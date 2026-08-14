@@ -146,12 +146,13 @@ object BackupKeys {
         // [deponertPaaServer] kommer fra `escrowed` i GET /v1/backup/meta, og er
         // ikke det samme som den lokale bryteren.
         //
-        // DETTE ER POENGET: `st.backupEscrow` ligger i prefs, og prefs er borte
-        // etter en reinstallasjon. Paa en ny telefon staar bryteren derfor av
-        // selv om noekkelen ligger deponert hos oss - og da hoppet vi over
-        // deponeringen i noeyaktig det scenarioet den finnes for. Serverens
-        // `escrowed` overlever reinstallasjonen; den lokale bryteren gjoer det
-        // ikke.
+        // DETTE ER POENGET: serverens svar er autoritativt, den lokale bryteren
+        // er det ikke. Bryteren ligger i prefs, og hva som skjer med prefs ved
+        // en reinstallasjon avhenger av Androids automatiske sikkerhetskopi -
+        // en mekanisme vi verken styrer eller kan forutsi, og som er slaatt AV
+        // fra v0.26. Paa en ny telefon kan bryteren derfor staa av selv om
+        // noekkelen ligger deponert hos oss, og da ville vi hoppet over
+        // deponeringen i noeyaktig det scenarioet den finnes for.
         if ((st.backupEscrow || deponertPaaServer) && Auth.isLoggedIn(ctx)) {
             val (resp, code) = escrowGet(ctx)
             if (resp.ok && code.isNotEmpty()) {

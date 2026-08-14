@@ -351,7 +351,7 @@ Meny → Profil. Alt lagres fortløpende; ingen «Lagre»-knapp.
 - **Lagre skannede skjermbilder i bildearkivet** — tre valg, ikke av/på:
   *Aldri*, *Alle*, *De beste*. «De beste» = blant de 25 % beste i samme
   stilling, eller beste serie noensinne.
-- **Gjenopprett uten kode** — **av** som standard. Se under.
+- **Gjenopprett uten kode** — **på** som standard fra v0.26. Se under.
 - **Krev opplåsing for jaktloggen** — **av** som standard, §4.
 - **Venstrehåndsmodus.**
 - **Utviklermeny** (kun i debug-bygg).
@@ -366,9 +366,15 @@ søkes opp i tre lag, i denne rekkefølgen:
    gjenoppretting. Brukes bare når innholdet er ende-til-ende-kryptert; er det
    ikke det, lagres ingenting der. En nøkkel som ligger lesbar hos en tredjepart
    er dårligere enn ingen nøkkel der.
-3. **Frivillig deponering hos oss** — bryteren «Gjenopprett uten kode», av som
-   standard. **Dette er det eneste tilfellet der vi kan lese kopien din**, og
-   hjelpeteksten sier det rett ut.
+3. **Deponering hos oss** — bryteren «Gjenopprett uten kode», **på som
+   standard** fra v0.26. **Dette er det eneste tilfellet der vi kan lese kopien
+   din**, og teksten sier det rett ut både ved første kopi og i innstillingene.
+
+   Begrunnelsen for at den er på: brukerne er jegere, ikke teknologer, og
+   forventningen etter innlogging er at dataene er trygge. Sikkerhet som må
+   velges, blir ikke valgt. Slår brukeren den **av**, blir gjenopprettingskoden
+   eneste vei tilbake, og da vises koden der og da med krav om avkryssing —
+   det som endret seg er ikke koden, men hva som skjer hvis den mistes.
 
 Den 20-tegns **gjenopprettingskoden er nødutgangen**, ikke hovedveien. Brukeren
 blir bedt om å *taste* den bare når ingen av de tre lagene har noe.

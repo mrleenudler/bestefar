@@ -34,6 +34,57 @@ nåtilstanden.
 
 ---
 
+## v0.26 — deponering på som standard, Androids automatiske kopi av
+
+To endringer i rekkefølge: den andre fjerner et sikkerhetsnett, så den første
+måtte være på plass først.
+
+### Nøkkeldeponering er på som standard
+
+- Begrunnelsen er §7.3-regelen om at sikkerhet gis usynlig framfor som et valg.
+  Brukerne er jegere, ikke teknologer, og forventningen etter innlogging er at
+  dataene er trygge. Sikkerhet som må velges, blir ikke valgt.
+- **Teksten sier hva som byttes**, både ved første kopi og i innstillingene:
+  nøkkelen ligger hos oss, så vi — og den som bryter seg inn hos oss — kan låse
+  opp kopien. For jaktdata er det en reell avveining, ikke en formalitet.
+- **Slår brukeren det av, vises koden der og da**, med den avkryssingen som
+  allerede fantes, og med en tekst som sier at koden nå er eneste vei tilbake.
+  Koden vises **før** nøkkelen slettes hos oss — den rekkefølgen er den eneste
+  som ikke kan ende med at brukeren står uten begge deler.
+- Avbryter brukeren kodedialogen, blir bryteren stående på. Ingenting er endret,
+  og skjermen skal ikke påstå noe annet.
+- En bruker som *har* slått den av, blir stående av: den lagrede verdien vinner
+  over standardverdien.
+
+### `android:allowBackup="false"`
+
+- **Verifisert hva som sto:** `allowBackup="true"` uten `dataExtractionRules`
+  eller `fullBackupContent`, altså standardomfang — hele `filesDir`,
+  `shared_prefs` og `databases`. Konkret `hunts.json` med art, sted,
+  koordinater og utfall, køede skivebilder, og alle innstillinger. Hos Google, i
+  klartekst.
+- **Grunn 1:** det motsier hele backup-designet. Vi krypterer bloben nettopp
+  for at serveren ikke skal kunne lese jaktloggen, mens den samme loggen lå
+  ukryptert hos en tredjepart uten at noen hadde spurt.
+- **Grunn 2:** den gjorde gjenopprettingstestene verdiløse. Data som kom tilbake
+  etter reinstallering av v0.25 kan like gjerne ha vært Androids verk som
+  appens.
+- **Rettelse til v0.22:** begrunnelsen der — at `backupEscrow` ikke overlever en
+  reinstallasjon — holder ikke når Androids kopi er på. Rettelsen var likevel
+  riktig, men av en sterkere grunn: serverens `escrowed` er autoritativ uansett
+  hva som skjer med lokale preferanser.
+- Prisen er akseptert: bytter man telefon uten å ha tatt en kopi i appen, er
+  dataene borte. Motvekten er at kopi tilbys ved første innlogging og at
+  deponering nå er på. Begrunnelsen står i `android/ARCHITECTURE.md` og i
+  manifestet, så den ikke slås på igjen av noen som ser en manglende
+  sikkerhetskopi.
+
+### Også
+
+- **0 serier og 0 jaktposter vises som dialog, ikke toast.** En bruker uten
+  logcat skal se det samme som logglinja sier, og et overraskende utfall
+  fortjener mer enn en melding man kan gå glipp av.
+
 ## v0.25 — en gjenoppretting kan ikke lenger slette data i stillhet
 
 Etter datatap i felt: første gjenoppretting noensinne (v0.24) ga tilbake

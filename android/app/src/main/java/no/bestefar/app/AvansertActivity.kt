@@ -165,10 +165,10 @@ class AvansertActivity : AppCompatActivity() {
         content.addView(Ui.hint(this, getString(R.string.save_scans_gallery_hint)))
         content.addView(Ui.hint(this, getString(R.string.save_scans_best_hint)))
 
-        // «Gjenopprett uten kode» (musingsUI runde 13). AV som standard, og
-        // hjelpeteksten sier rett ut hva prisen er. Et personvernvalg som
-        // selger seg selv som «enklere» uten å nevne konsekvensen, er ikke et
-        // valg brukeren har tatt.
+        // «Gjenopprett uten kode». PÅ som standard fra v0.26, og hjelpeteksten
+        // sier rett ut hva prisen er. Et personvernvalg som selger seg selv som
+        // «enklere» uten å nevne konsekvensen, er ikke et valg brukeren har
+        // tatt — det gjelder like mye når standardverdien er på.
         content.addView(SwitchCompat(this).apply {
             text = getString(R.string.backup_escrow_toggle)
             isChecked = store.backupEscrow
@@ -176,7 +176,9 @@ class AvansertActivity : AppCompatActivity() {
                 0, Ui.dp(this@AvansertActivity, 12))
             setOnCheckedChangeListener { _, on ->
                 if (on) confirmEscrow { ok -> if (!ok) isChecked = false }
-                else disableEscrow()
+                // Avbryter brukeren kodedialogen, blir bryteren staaende paa:
+                // ingenting er endret, og skjermen skal ikke paastaa noe annet.
+                else disableEscrow { avbrutt -> if (avbrutt) isChecked = true }
             }
         })
         content.addView(Ui.hint(this, getString(R.string.backup_escrow_hint)))
@@ -328,11 +330,24 @@ class AvansertActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun disableEscrow() {
-        store.backupEscrow = false
-        Api.io {
-            BackupKeys.escrowDelete(this)
-            Api.ui { Ui.toast(this, R.string.backup_escrow_off) }
+    /**
+     * Slår av deponering. Da er gjenopprettingskoden **eneste** vei tilbake til
+     * kopien, og brukeren skal se den der og da — med avkryssingen, fordi det
+     * som endret seg ikke er koden, men hva som skjer hvis den mistes.
+     *
+     * Rekkefølgen: koden vises FØR nøkkelen slettes hos oss. Blir brukeren
+     * stående uten begge deler, er kopien tapt, og den rekkefølgen er den
+     * eneste som ikke kan ende slik.
+     */
+    private fun disableEscrow(onUtfall: (avbrutt: Boolean) -> Unit) {
+        Dialogs.visGjenopprettingskode(this, store, tvingKvittering = true,
+            onAvbryt = { onUtfall(true) }) {
+            store.backupEscrow = false
+            Api.io {
+                BackupKeys.escrowDelete(this)
+                Api.ui { if (!isFinishing) Ui.toast(this, R.string.backup_escrow_off) }
+            }
+            onUtfall(false)
         }
     }
 

@@ -534,7 +534,7 @@
 
     <!-- Tilbud om første sikkerhetskopi, etter at kontoen er opprettet (v0.21) -->
     <string name="backup_offer_title">Ta vare på loggen din?</string>
-    <string name="backup_offer_body">Serier og jaktlogg ligger i dag bare på denne telefonen. Nå som du har konto, kan appen ta en kryptert sikkerhetskopi, så du får dem tilbake om telefonen blir borte.\n\nDu får se en gjenopprettingskode først. Den må du ta vare på.</string>
+    <string name="backup_offer_body">Serier og jaktlogg ligger i dag bare på denne telefonen. Nå som du har konto, kan appen ta en kryptert sikkerhetskopi, så du får dem tilbake om telefonen blir borte.\n\nKopien krypteres på telefonen din. Vi tar vare på nøkkelen, slik at gjenoppretting virker uten at du må huske noe — men det betyr også at vi kan låse opp kopien din. Er det ikke greit, kan du slå det av under Avanserte innstillinger; da er gjenopprettingskoden din eneste vei tilbake.\n\nDu får se koden uansett. Ta vare på den.</string>
     <string name="backup_offer_yes">Ja, ta en kopi</string>
     <string name="backup_offer_no">Ikke nå</string>
     <string name="backup_offer_later">Du finner den igjen under Avanserte innstillinger → Sikkerhetskopi</string>
@@ -545,6 +545,8 @@
     <string name="backup_restore_confirm">Gjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i sikkerhetskopien. Det som ligger her nå, blir borte.</string>
     <string name="backup_restore_confirm_dated">Sikkerhetskopien ble laget %1$s.\n\nGjenoppretting ERSTATTER alle serier og jaktposter på denne telefonen med innholdet i kopien. Det som ligger her nå, blir borte.</string>
     <string name="backup_restored_counts">Gjenopprettet: %1$d serier og %2$d jaktposter</string>
+    <string name="backup_restored_empty_title">Kopien inneholdt ingen data</string>
+    <string name="backup_restored_empty_body">Sikkerhetskopien ble hentet og låst opp, men den inneholdt 0 serier og 0 jaktposter — bare innstillingene dine.\n\nDet betyr som regel at kopien ble tatt før du hadde logget noe. Lag en ny sikkerhetskopi under Avanserte innstillinger når du har data du vil ta vare på.</string>
     <!-- Siste skanse: en tom kopi skal ikke i stillhet erstatte data som finnes. -->
     <string name="backup_empty_title">Kopien er tom</string>
     <string name="backup_empty_body">Sikkerhetskopien inneholder ingen serier og ingen jaktposter.\n\nPå denne telefonen ligger det %1$d serier og %2$d jaktposter. Fortsetter du, blir de slettet og erstattet med ingenting.\n\nEr du usikker, avbryt — dataene på telefonen blir stående, og du kan lage en ny sikkerhetskopi i stedet.</string>
@@ -587,7 +589,8 @@
 
     <!-- Sikkerhetskopi: nøkkelforvaltning -->
     <string name="backup_escrow_toggle">Sikkerhetskopi: gjenopprett uten kode</string>
-    <string name="backup_escrow_hint">Av: bare denne telefonen og gjenopprettingskoden kan låse opp kopien din. På: vi tar vare på nøkkelen for deg.</string>
+    <string name="backup_escrow_hint">På: vi tar vare på nøkkelen, så du får dataene tilbake selv om du mister både telefonen og koden. Prisen er at vi da kan låse opp kopien din. Av: bare denne telefonen og gjenopprettingskoden kan låse den opp.</string>
+    <string name="backup_code_now_only_body">Nå er denne koden den ENESTE veien tilbake til sikkerhetskopien din.\n\nDu har slått av at vi tar vare på nøkkelen. Mister du telefonen uten å ha koden, er kopien tapt — også for oss. Vi kan ikke hjelpe deg, uansett hvor gjerne vi vil.\n\nSkriv den ned et annet sted enn på telefonen før du fortsetter. Du finner den igjen under Sikkerhetskopi så lenge du har denne telefonen.</string>
     <string name="backup_escrow_explain">Slår du dette på, kan du hente dataene dine tilbake selv om du mister både telefonen og gjenopprettingskoden.\n\nMEN: da oppbevarer vi nøkkelen til kopien din. Kopien er fortsatt kryptert, men vi kan låse den opp — og det kan også noen som bryter seg inn hos oss.\n\nSpørsmålet du bør stille deg er: «Hvor ille er det for meg om andre kan lese alt jeg har i appen?»</string>
     <string name="backup_escrow_accept">Ja, ta vare på nøkkelen</string>
     <string name="backup_escrow_on">Nøkkelen er lagret hos oss</string>

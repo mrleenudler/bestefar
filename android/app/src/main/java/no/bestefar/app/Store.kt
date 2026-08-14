@@ -426,12 +426,24 @@ class Store private constructor(ctx: Context) {
         set(v) { prefs.edit().putBoolean("backupCodeShown", v).apply() }
 
     /**
-     * Skal serveren kunne låse opp kopien for deg? (musingsUI runde 13)
-     * AV som standard. På = nøkkelen deponeres hos oss, og da kan vi — og den
-     * som eventuelt bryter seg inn hos oss — lese innholdet.
+     * Skal serveren kunne låse opp kopien for deg?
+     *
+     * **PÅ som standard fra v0.26** (var av fra runde 13). Begrunnelsen er
+     * CLAUDE.md §7.3: sikkerhet gis usynlig framfor som et valg. Brukerne er
+     * jegere, ikke teknologer, og forventningen etter innlogging er at dataene
+     * er trygge — ikke at det ligger en nøkkel de må ha tatt vare på selv.
+     * Med deponering på virker gjenoppretting, og gjenopprettingskoden blir det
+     * speccen alltid har kalt den: en nødutgang i innstillingene.
+     *
+     * Prisen er reell og står i teksten: nøkkelen ligger hos oss, så vi — og
+     * den som eventuelt bryter seg inn hos oss — kan lese kopien. For jaktdata
+     * er det en avveining som fortjener et valg, og brukeren kan slå det av.
+     *
+     * En bruker som HAR slått den av, blir stående av: den lagrede `false`
+     * vinner over standardverdien.
      */
     var backupEscrow: Boolean
-        get() = prefs.getBoolean("backupEscrow", false)
+        get() = prefs.getBoolean("backupEscrow", true)
         set(v) { prefs.edit().putBoolean("backupEscrow", v).apply() }
 
     /**

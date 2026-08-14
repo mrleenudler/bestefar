@@ -123,6 +123,48 @@ igjen det brukeren slettet. `allSeries()`/`allHunts()` filtrerer dem bort, så
 visningskoden er uendret; `allSeriesRaw()`/`allHuntsRaw()` gir hele sannheten
 til synk og sikkerhetskopi. Hva som må sendes over ledningen: `KONTRAKT.md` §5.
 
+## Androids automatiske sikkerhetskopi er slått av (v0.26)
+
+`android:allowBackup="false"` i manifestet. **Ikke sett den tilbake til `true`
+fordi appen ser ut til å mangle sikkerhetskopi.** Appen har en, og den er
+klient-kryptert; Androids er en annen ting med andre egenskaper.
+
+**Hva den omfattet.** Fram til v0.26 sto `allowBackup="true"` uten
+`dataExtractionRules` eller `fullBackupContent`, altså med standardomfang: hele
+`filesDir`, `shared_prefs` og `databases`. Konkret betyr det `series.json`,
+**`hunts.json`** — art, sted, koordinater og utfall — køede skivebilder i
+`filesDir/dev_uploads`, og hele `bestefar_ui`. Alt hos Google, i klartekst.
+
+**Grunn 1: det motsier hele backup-designet.** Vi krypterer bloben på telefonen
+nettopp for at serveren ikke skal kunne lese jaktloggen, og deponerer nøkkelen
+bare når brukeren sier ja. Samtidig lå den samme loggen ukryptert hos en
+tredjepart, uten at noen hadde spurt. Den ene halvparten av designet gjorde den
+andre meningsløs.
+
+`bestefar_secrets` var mindre alvorlig: innholdet er chiffertekst fra en
+Keystore-nøkkel som er enhetsbundet og slettes ved avinstallering, så den
+kopien er ubrukelig uansett hvor den havner.
+
+**Grunn 2: den gjorde gjenopprettingstestene verdiløse.** Data som kom tilbake
+etter avinstallering og reinstallering av v0.25 kan like gjerne ha vært Androids
+verk som appens. Uten å skru den av kan vi ikke skille «vår gjenoppretting
+virket» fra «Android la det tilbake» — og det er den ene funksjonen vi ikke har
+råd til å tro på uten bevis.
+
+**Rettelse til v0.22-begrunnelsen.** Der står det at `BackupKeys.resolve` hoppet
+over deponeringen fordi «`st.backupEscrow` ligger i prefs, og prefs er borte
+etter en reinstallasjon». Den siste delen holder ikke når Androids kopi er på —
+da legges prefs tilbake. **Rettelsen i v0.22 er likevel riktig**, men av en
+sterkere grunn enn den som ble skrevet: serverens `escrowed` er autoritativ
+uansett hva som skjer med lokale preferanser, mens den lokale bryteren avhenger
+av en mekanisme vi verken styrer eller kan forutsi.
+
+**Prisen.** Bytter brukeren telefon uten å ha tatt en sikkerhetskopi i appen, er
+dataene borte. Det er en reell kostnad, og den er akseptert fordi alternativet
+er å dele jaktloggen med en tredjepart uten samtykke. Motvekten er at
+sikkerhetskopi nå tilbys ved første innlogging, og at nøkkeldeponering er på som
+standard (v0.26) — appens egen kopi skal være den som virker.
+
 ## Broen til CV-kjernen
 
 `app/src/main/cpp/jni_bridge.cpp` ligger i dette området, men er **forbruker** av

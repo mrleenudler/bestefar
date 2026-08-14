@@ -46,14 +46,24 @@ object Dialogs {
      * igjen, er koden til en telefon som er borte - og det er hele grunnen til
      * at den skal skrives ned et annet sted enn paa telefonen.
      */
-    fun visGjenopprettingskode(a: Activity, store: Store, after: (() -> Unit)? = null) {
+    fun visGjenopprettingskode(a: Activity, store: Store,
+                               tvingKvittering: Boolean = false,
+                               onAvbryt: (() -> Unit)? = null,
+                               after: (() -> Unit)? = null) {
         if (store.backupCode.isEmpty()) store.backupCode = Backup.newRecoveryCode()
-        val foersteGang = !store.backupCodeShown
+        // [tvingKvittering] settes naar koden nettopp BLE eneste vei tilbake -
+        // altsaa naar brukeren slaar av deponeringen. Da er avkryssingen
+        // paakrevd igjen selv om koden har vaert vist foer: det som endret seg
+        // er ikke koden, men hva som skjer hvis den mistes.
+        val foersteGang = tvingKvittering || !store.backupCodeShown
 
         val col = Ui.col(a, 24)
         col.addView(TextView(a).apply {
-            setText(if (foersteGang) R.string.backup_code_first_body
-                    else R.string.backup_code_body)
+            setText(when {
+                tvingKvittering -> R.string.backup_code_now_only_body
+                foersteGang -> R.string.backup_code_first_body
+                else -> R.string.backup_code_body
+            })
             textSize = 15f
         })
         col.addView(TextView(a).apply {
@@ -72,7 +82,7 @@ object Dialogs {
             }
         kvittering?.let { col.addView(it) }
 
-        val dialog = AlertDialog.Builder(a)
+        val bygger = AlertDialog.Builder(a)
             .setTitle(R.string.backup_code_title)
             .setView(androidx.core.widget.NestedScrollView(a).apply { addView(col) })
             .setPositiveButton(R.string.backup_code_saved) { _, _ ->
@@ -80,7 +90,11 @@ object Dialogs {
                 after?.invoke()
             }
             .setCancelable(false)
-            .create()
+        // Uten en vei ut ville en paakrevd avkryssing vaert en felle: den som
+        // ikke vil skrive ned koden, ville staatt fast i dialogen. Veien ut er
+        // aa la vaere aa gjoere endringen.
+        onAvbryt?.let { bygger.setNegativeButton(R.string.cancel) { _, _ -> it() } }
+        val dialog = bygger.create()
 
         dialog.show()
         kvittering?.let { boks ->
@@ -126,6 +140,11 @@ object Dialogs {
                     Api.ui {
                         if (a.isFinishing) return@ui
                         visGjenopprettingskode(a, store) { lastOpp(a, code, onDone) }
+                        // MERK: koden vises fortsatt, ogsaa naar deponeringen
+                        // er paa. Den er noedutgangen hvis brukeren senere slaar
+                        // deponeringen av, eller hvis vi ikke kan levere - og en
+                        // noedutgang man foerst faar vite om naar man trenger
+                        // den, er ingen noedutgang.
                     }
                 }
             }
@@ -267,8 +286,19 @@ object Dialogs {
 
         fun skriv() {
             Backup.skriv(a, s)
-            Ui.toast(a, a.getString(R.string.backup_restored_counts,
-                s.series.size, s.hunts.size))
+            if (s.tom) {
+                // 0 og 0 er et overraskende utfall og fortjener mer enn en
+                // toast man kan gaa glipp av. Brukeren skal se det samme som
+                // logglinja sier, uten aa hente logcat.
+                AlertDialog.Builder(a)
+                    .setTitle(R.string.backup_restored_empty_title)
+                    .setMessage(R.string.backup_restored_empty_body)
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            } else {
+                Ui.toast(a, a.getString(R.string.backup_restored_counts,
+                    s.series.size, s.hunts.size))
+            }
             if (s.hoppet > 0) {
                 AlertDialog.Builder(a)
                     .setTitle(R.string.backup_partial_title)

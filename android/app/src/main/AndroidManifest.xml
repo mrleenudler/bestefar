@@ -15,11 +15,18 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
+    <!-- allowBackup=false ER ET BEVISST VALG (v0.26). Ikke sett den tilbake
+         til true fordi appen «mangler sikkerhetskopi» - appen HAR en, og den
+         er klient-kryptert. Androids automatiske kopi ville lagt jaktloggen
+         med art, sted og utfall hos Google i klartekst, altsaa noeyaktig det
+         den krypterte bloben finnes for aa unngaa. Begrunnelsen i sin helhet
+         staar i android/ARCHITECTURE.md, «Androids automatiske sikkerhetskopi
+         er slaatt av». -->
     <application
         android:name=".BestefarApp"
         android:label="@string/app_name"
         android:theme="@style/Theme.Bestefar"
-        android:allowBackup="true">
+        android:allowBackup="false">
 
         <!-- PORTRETT overalt unntatt Scan (musingsUI runde 10): layoutene er
              bygget for staaende telefon, og liggende ga skjeve/klemte rammer. -->
