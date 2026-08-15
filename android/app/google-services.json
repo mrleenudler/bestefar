@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "977694072067-rvdfji37jgc1gusc2oa2vkjrqriv4aj8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "no.bestefar.app",
+            "certificate_hash": "9dd679bad6d353ca81f175c8095cee16dcb3782b"
+          }
+        },
+        {
           "client_id": "977694072067-i8enscnhed5clstll7o92mpmkmpfrbit.apps.googleusercontent.com",
           "client_type": 3
         }
