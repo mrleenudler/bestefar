@@ -299,6 +299,12 @@ slett punktet når det ikke lenger kan skje.
   - **Sjekken er `git status` før du melder deg ferdig**, ikke at bygget ditt
     var grønt. Står det noe igjen som *din* runde trenger, er runden ikke
     committet.
+  - **En commit uten filendring trenger også en sti.** En tom commit — en
+    rettelse til en pushet commit-melding, for eksempel — har ingen naturlig sti
+    å oppgi, og `git commit --allow-empty` uten stier committer *indeksen*. Den
+    tok med en annen instans' stagede `gradlew` i det den ble skrevet. Oppgi en
+    ren fil: `git commit --allow-empty <ren sti> -F melding.txt` bygger commiten
+    fra stien og lar indeksen være.
   - **Er du i tvil om noe henger sammen, verifiser fra en ren utsjekking:**
     `git worktree add C:\Users\mrlee\bfverify HEAD`, bygg der (sett
     `ANDROID_HOME`; `local.properties` er gitignorert med vilje), og
