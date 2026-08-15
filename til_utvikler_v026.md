@@ -134,24 +134,29 @@ et valg — koble inn eller avvikle oppsettet — og speccen avgjorde det: §6 o
 relasjonelt. Å avvikle R2 ville krevd en endring i speccen, og det er ikke en
 beslutning kode kan ta.
 
-**Det du må gjøre:** sette fire secrets. Til de står, lagrer produksjonen
-fortsatt bildene i databasen, uten at noe feiler — det er ÅP-E10, og det er den
-eneste delen som gjenstår.
+**Det du må gjøre — rettet etter deployen samme dag.** Jeg skrev først at fire
+secrets måtte settes. Det stemte ikke: `GET /health` svarte
+`"bilder": "r2 (5 gamle rader i basen)"` med én gang, og det svaret er bare
+mulig når alle fire står. De var satt fra før, antakelig da du opprettet
+R2-kontoen.
+
+Følgen er at **koden gikk rett i bruk i produksjon i det UI pushet.** Hver
+donasjon gjør nå en ekte signert PUT mot R2. Det som gjenstår er derfor ikke en
+konfigurasjonsjobb, men verifiseringen — og den haster mer enn den så ut til:
 
 ```powershell
-flyctl secrets set R2_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_BUCKET="<bucket>" -a bestefar-api
-flyctl secrets set R2_ACCESS_KEY_ID="<id>" R2_SECRET_ACCESS_KEY="<hemmelighet>" -a bestefar-api
+backend\.venv\Scripts\python.exe backend\tools\r2_check.py
 ```
 
-Verdiene ligger hos deg; de skal ikke i chat-loggen. Verifiser med **begge**:
+Den trenger de fire verdiene i `backend\.env` (de ligger hos deg og skal ikke i
+chat-loggen), og gjør PUT, GET, sammenlikning og DELETE mot ekte R2.
 
-```powershell
-backend\.venv\Scripts\python.exe backend\tools\r2_check.py   # ekte PUT/GET/DELETE
-curl https://bestefar-api.fly.dev/health                     # "bilder": "r2"
-```
-
-De sier ikke det samme. `/health` sier at verdiene er lest; `r2_check.py` sier
-at R2 faktisk godtar signaturen vår. Signeringen er skrevet her (SigV4, ~50
+`/health` er ikke nok alene. Den sier at verdiene er **lest** — ikke at
+Cloudflare godtar signaturen. SigV4-signeringen er vår egen, og alt jeg har
+prøvd den mot er et utbyttet HTTP-kall. Er den feil, svarer endepunktet 503 på
+hver eneste donasjon, klientene beholder køen i `dev_uploads/` og prøver igjen i
+det uendelige — og ingenting annet ser galt ut. `r2_check.py` skiller de tre
+svarene som betyr noe: `SignatureDoesNotMatch`, `NoSuchBucket`, `AccessDenied`. Signeringen er skrevet her (SigV4, ~50
 linjer i `app/services/objstore.py`) i stedet for å dra inn boto3 med hele
 AWS-katalogen — samme avveining som da google-auth ble droppet for push. Prisen
 er at den må prøves mot ekte R2 én gang, og det er det scriptet er til for.

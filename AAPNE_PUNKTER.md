@@ -248,22 +248,34 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 Konsekvens i dag: telefoninvitasjoner til lag får `delivery_status: failed` med
 lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 
-### ÅP-E10 — R2-secretene er ikke satt i produksjon
-Opplastingen til objektlagring ble koblet inn 2026-08-15 (ÅP-B5, backend
-B-44). Til de fire verdiene står som Fly secrets, lagrer produksjonen fortsatt
-bildene i databasen — altså det §6 forbyr — uten at noe feiler.
+### ÅP-E10 — R2 er i bruk i produksjon, men signeringen er aldri prøvd mot ekte R2
+Opplastingen til objektlagring ble koblet inn 2026-08-15 (ÅP-B5, backend B-44).
+
+**Secretene sto allerede.** `GET /health` svarte `"bilder": "r2 (5 gamle rader i
+basen)"` rett etter deployen samme dag — og `objstore.er_konfigurert()` er bare
+sann når alle fire miljøvariablene er ikke-tomme. Punktet ble skrevet med
+motsatt påstand («ikke satt») og var feil i under en time; det rettes her i
+stedet for å strykes, fordi rekkefølgen er poenget: koden ble rullet ut i en
+konfigurasjon ingen hadde sjekket.
+
+**Det som gjenstår er verifiseringen, og den haster mer enn den så ut til.**
+Hver donasjon gjør nå en ekte signert PUT. SigV4-signeringen er vår egen
+(`app/services/objstore.py`), og den er bare enhetstestet — testene bytter ut
+HTTP-kallet, så ingenting har spurt Cloudflare om signaturen godtas. Er den
+feil, svarer endepunktet 503 på hver donasjon, klientene beholder køen sin i
+`dev_uploads/` og prøver igjen i det uendelige, uten at noe annet ser galt ut.
+
+Verifiseres med de fire verdiene i `backend\.env` og:
 
 ```powershell
-flyctl secrets set R2_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_BUCKET="<bucket>" -a bestefar-api
-flyctl secrets set R2_ACCESS_KEY_ID="<id>" R2_SECRET_ACCESS_KEY="<hemmelighet>" -a bestefar-api
+backend\.venv\Scripts\python.exe backend\tools\r2_check.py
 ```
 
-Verdiene ligger hos utvikler (`musings_backend.txt`); en instans skal verken
-generere eller skrive dem ut. Verifiseres med
-`backend\tools\r2_check.py` (ekte PUT/GET/DELETE) **og** `GET /health`, som skal
-svare `"bilder": "r2"` i stedet for `"database (avvik fra spec §6)"`. Begge
-trengs: `/health` sier bare at verdiene er lest, ikke at R2 godtar signaturen
-vår.
+Den gjør PUT, GET, sammenlikner innholdet og sletter igjen, og skiller de tre
+svarene som betyr noe: `SignatureDoesNotMatch` (signering eller `R2_REGION`),
+`NoSuchBucket`, `AccessDenied` (tokenet mangler skrivetilgang). Verdiene ligger
+hos utvikler; en instans skal verken generere eller skrive dem ut.
+`/health` alene er ikke nok — den sier at verdiene er lest, ikke at de virker.
 
 Gjenstår etterpå: bildene som allerede ligger i `image_legacy` er ikke flyttet.
 `/health` teller dem (`r2 (N gamle rader i basen)`), og kolonnen kan ikke
