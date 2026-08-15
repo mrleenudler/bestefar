@@ -932,6 +932,43 @@ gang nøkkelen roteres.
 
 *Kilde: `backend/Dockerfile`; `tools/r2_check.py`, modul-docstring; ÅP-E10.*
 
+## B-48 De gamle bildene flyttes, og basen tømmes først etter tilbakelesing
+
+**Kontekst.** Fem donasjoner ble tatt imot før opplastingen ble koblet inn og
+ligger som blob i `image_legacy` (ÅP-B11). Eieravklaring 2026-08-15: de skal
+**flyttes, ikke kastes** — det er materialet ÅP-U14 mangler for dedupliseringen,
+og ett av dem er en ekte over-deteksjon fra felt.
+
+**Valg.** `services/legacy_bilder.py` gjør per rad: last opp → **les tilbake og
+sammenlign byte for byte** → tøm `image_legacy` → commit. Feiler noe av det,
+står raden urørt med bildet i behold.
+
+**Hvorfor tilbakelesingen ikke er overflødig.** Databasen er den *eneste* kopien.
+En PUT som svarte 200 uten at objektet er lesbart, ville kostet bildet, og vi
+ville sett en vellykket flytting. Det er samme klasse som gjenopprettingen som
+skrev over lokale data før noen hadde sett hva kopien inneholdt (§7.3).
+
+**Commit per rad, ikke én til slutt.** Feiler den fjerde, står de tre første
+flyttet og resten urørt. Ingen halvveis tilstand å rydde i.
+
+**Tørrkjøring er standard.** `flytt(..., toerrkjoer=True)` er default, og
+`tools/migrate_legacy_images.py` krever `--utfoer` for å skrive. Et verktøy som
+kjøres én gang mot produksjon, skal kunne kjøres én gang uten å gjøre noe.
+
+**`MAX_UPLOAD_BYTES` gjelder ikke her.** Grensen er en regel for hva *mottaket*
+tar imot. Én rad er 11 MB, fra tiden før grensen fantes; å avvise den her ville
+vært å kaste det største bildet vi har fordi en senere regel ikke likte det.
+
+**En blob vi ikke kjenner igjen, blir liggende.** `objstore.bildetype()` avgjør
+typen fra de første bytene; er den ukjent, hoppes raden over og telles som
+«hoppet over», ikke som feil. Vi flytter ikke noe vi ikke kan navngi.
+
+**Bildesniffingen flyttet fra routeren til `objstore`** i samme runde. Både
+mottaket og flyttingen må ta den samme avgjørelsen, og flyttingen har ingen
+multipart å spørre.
+
+*Kilde: `services/legacy_bilder.py`, modul-docstring; `tests/test_legacy_bilder.py`.*
+
 ---
 
 # Beslutninger uten dokumentert begrunnelse

@@ -253,15 +253,21 @@ Fem donasjoner ble tatt imot før opplastingen til R2 ble koblet inn
 (2026-08-15, ÅP-B5) og ligger som blob i `failed_analyses.image_legacy`.
 `GET /health` teller dem: `"bilder": "r2 (5 gamle rader i basen)"`.
 
-Kolonnen kan ikke fjernes før tallet er null, og det er to veier dit: flytte
-radene til R2, eller kaste bildene og beholde metadataene. Ingen av dem kan
-avgjøres i kode — det er et spørsmål om materialet er verdt noe. Fem bilder av
-feilet analyse er lite, men det er nettopp den typen materiale ÅP-U14 sier vi
-mangler.
+**Avgjort av eier 2026-08-15: de skal flyttes, ikke kastes.** De er nettopp
+materialet ÅP-U14 mangler for dedupliseringen, og ett av dem er en ekte
+over-deteksjon fra felt på 11 MB.
 
-En flytting skal i så fall bygges som et eget verktøy med tørrkjøring, ikke som
-et script kjørt én gang: det leser fra basen og skriver til et sted vi ikke
-skrev til da radene ble laget.
+Verktøyet er bygget (`tools/migrate_legacy_images.py`, B-48) og ligger i
+produksjonsimaget, siden det trenger både databasen og R2-nøklene:
+
+```powershell
+flyctl ssh console -a bestefar-api -C "python tools/migrate_legacy_images.py"
+flyctl ssh console -a bestefar-api -C "python tools/migrate_legacy_images.py --utfoer"
+```
+
+**Punktet står åpent til kjøringen er gjort og `/health` svarer `"bilder":
+"r2"` uten radtelling.** Det er den observasjonen som lukker det — ikke at
+verktøyet finnes.
 
 ---
 

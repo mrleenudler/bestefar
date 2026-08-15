@@ -19,6 +19,7 @@ COPY migrations ./migrations
 # Repo-verktoey hoerer ikke hjemme her. gen_openapi.py skriver inn i repoet og
 # er utelatt med vilje; legger du til et verktoey, avgjoer det skillet.
 COPY tools/r2_check.py ./tools/r2_check.py
+COPY tools/migrate_legacy_images.py ./tools/migrate_legacy_images.py
 
 EXPOSE 8080
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

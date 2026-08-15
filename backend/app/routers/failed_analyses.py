@@ -30,14 +30,6 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["feilanalyse"])
 
-# Magiske byte -> (content-type, filendelse). Klienten sender JPEG; PNG og WebP
-# staar her fordi de er de to andre en telefon kan produsere, ikke fordi noen
-# ber om dem.
-_BILDETYPER = (
-    (b"\xff\xd8\xff", "image/jpeg", ".jpg"),
-    (b"\x89PNG\r\n\x1a\n", "image/png", ".png"),
-)
-
 
 class DonasjonMottatt(BaseModel):
     """
@@ -61,17 +53,6 @@ def _scores(raw: str) -> list:
     return parsed
 
 
-def _bildetype(data: bytes) -> tuple[str, str] | None:
-    """(content-type, endelse) ut fra de foerste bytene, eller None."""
-    for magi, ctype, endelse in _BILDETYPER:
-        if data.startswith(magi):
-            return ctype, endelse
-    # RIFF....WEBP
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp", ".webp"
-    return None
-
-
 @router.post("/failed-analyses", status_code=201,
              response_model=DonasjonMottatt)
 async def submit_failed(status_code: int = Form(...),
@@ -87,7 +68,7 @@ async def submit_failed(status_code: int = Form(...),
     data = await image.read()
     if len(data) > cfg.max_upload_bytes:
         raise HTTPException(413, f"Bildet er stoerre enn {cfg.max_upload_bytes} byte")
-    type_og_endelse = _bildetype(data)
+    type_og_endelse = objstore.bildetype(data)
     if type_og_endelse is None:
         raise HTTPException(415, "Filen er ikke et JPEG-, PNG- eller WebP-bilde")
     content_type, endelse = type_og_endelse

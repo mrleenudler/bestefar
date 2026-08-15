@@ -22,6 +22,15 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ## 2026-08-15
 
+**§6 — de gamle `image_legacy`-bildene flyttes til R2** (B-48, ÅP-B11). Ny
+`app/services/legacy_bilder.py` med `tools/migrate_legacy_images.py` som skall.
+Per rad: last opp, **les tilbake og sammenlign byte for byte**, og først da tøm
+kolonnen — basen er den eneste kopien, så en PUT som svarte 200 uten et lesbart
+objekt ville kostet bildet. Commit per rad, tørrkjøring som standard (`--utfoer`
+for å skrive), og `MAX_UPLOAD_BYTES` gjelder ikke: én rad er 11 MB fra tiden før
+grensen fantes. Bildesniffingen flyttet fra routeren til `objstore.bildetype()`,
+siden både mottaket og flyttingen trenger den.
+
 **`tools/r2_check.py` er med i produksjonsimaget** (B-47). Verktøyet krever de
 fire R2-verdiene, og de finnes bare som Fly secrets — Fly leser dem ikke ut
 igjen. Verifiseringen kunne derfor bare kjøres et sted den ikke virket. Nå:

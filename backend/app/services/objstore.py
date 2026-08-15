@@ -45,6 +45,32 @@ class LagringFeilet(RuntimeError):
     """Opplasting/nedlasting naadde ikke fram, eller ble avvist av R2."""
 
 
+# Magiske byte -> (content-type, filendelse). Klienten sender JPEG; PNG og WebP
+# staar her fordi de er de to andre en telefon kan produsere, ikke fordi noen
+# ber om dem.
+_BILDETYPER = (
+    (b"\xff\xd8\xff", "image/jpeg", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png", ".png"),
+)
+
+
+def bildetype(data: bytes) -> tuple[str, str] | None:
+    """
+    (content-type, endelse) ut fra de FOERSTE BYTENE, eller None.
+
+    Innholdet avgjoer, ikke `Content-Type` fra avsenderen (B-46). Ligger her og
+    ikke i routeren fordi flyttingen av gamle rader (services/legacy_bilder.py)
+    trenger den samme avgjoerelsen - der finnes det ingen multipart aa spoerre.
+    """
+    for magi, ctype, endelse in _BILDETYPER:
+        if data.startswith(magi):
+            return ctype, endelse
+    # RIFF....WEBP
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+    return None
+
+
 def _hmac(noekkel: bytes, melding: str) -> bytes:
     return hmac.new(noekkel, melding.encode("utf-8"), hashlib.sha256).digest()
 

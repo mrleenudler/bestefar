@@ -199,6 +199,11 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   sjekken finnes. Klienten sender JPEG og merker ikke grensen.
 - **Bildet lagres i Cloudflare R2**, ikke i databasen (§6). Basen har bare
   `object_key`. Nøkkelen er vår, klienten ser den aldri.
+- **Hele veien er kjørt i produksjon.** 2026-08-15 10:51:32 tok
+  `POST /v1/failed-analyses` imot en multipart fra appen, la 2 841 823 byte i R2
+  (PUT svarte 200) og svarte **201 Created**. Det er noe annet enn
+  `tools/r2_check.py`, som bare beviser at vi kan skrive til bucketen med våre
+  nøkler: dette er klientens eget skjema, gjennom mottaket, ut i objektlagringen.
 - **Er lagringen utilgjengelig, svarer vi 503** — aldri 4xx, og aldri 201 med
   bildet lagt i basen i stillhet. 503 er `retryable` hos klienten, så køen i
   `dev_uploads/` beholdes og donasjonen kommer fram senere. Ved 503 er det
