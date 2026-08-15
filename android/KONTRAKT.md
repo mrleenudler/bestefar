@@ -71,6 +71,20 @@ Skal serveren noen gang få vite hvilket format fila hadde, er det en **ny**
 avtale mellom begge parter, ikke et felt som «egentlig skulle vært med».
 
 - **`tag` ∈ {`ocr_match`, `ocr_mismatch`, `rejected`}.**
+- **`ocr_mismatch` dekker to ulike avvik, og lengdene skiller dem.** Fram til
+  v0.26 hadde `detected` og `ocr` alltid like mange elementer, og taggen betydde
+  bare at *verdiene* spriket. Fra v0.27 sendes også antalls-avvik, fordi de er
+  det mest interessante materialet vi har:
+  `len(detected) > len(ocr)` er **over-deteksjon** (kjernen så merker som ikke er
+  skudd), `len(detected) < len(ocr)` er **skjulte treff** (to skudd i samme
+  hull). Ingen av dem har et eget felt — retningen leses av lengdene.
+- **`rejected` med `status_code = 0` er klientens avvisning, ikke kjernens.**
+  Kjernen svarte OK; klienten forkastet serien fordi `detected` inneholdt flere
+  treff enn en serie kan ha skudd (10) og OCR ikke ga noen fasit å korrigere mot.
+  `status_code != 0` er som før kjernens egen avvisning, og da er `detected` tom.
+  Skal du finne over-deteksjonsbilder å kalibrere mot, er det disse to du vil ha:
+  `rejected` med `status_code = 0`, og `ocr_mismatch` med
+  `len(detected) > len(ocr)`.
 - **`detected` er alltid poengene CV-kjernen ga**, også når OCR har overskrevet
   visningen — ellers ville en `ocr_match`-donasjon ikke si noe om hva kjernen så.
 - **`confidence = -1.0`** betyr *ukjent*, ikke lav konfidens.

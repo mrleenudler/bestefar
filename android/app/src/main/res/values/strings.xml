@@ -324,6 +324,12 @@
     <string name="ocr_discard">Forkast</string>
     <string name="ocr_save_screen">Lagre leste poeng</string>
 
+    <!-- Ulikt ANTALL treff og poeng (runde 14). To retninger, to feil. -->
+    <string name="ocr_over_detected">Appen fant %1$d treff, men skjermen viser %2$d poeng.\nDa har appen sett merker som ikke er skudd — gjerne doble merker eller uskarphet fra kamerabevegelse.\nLagrer du de leste poengene, blir de overtallige treffene fjernet.</string>
+    <string name="ocr_hidden_hits">Skjermen viser %1$d poeng, men appen fant bare %2$d treff.\nDa ligger trolig to skudd i samme hull. Lagrer du de leste poengene, blir summen riktig — men det skjulte skuddet får ingen markering på skiva.</string>
+    <string name="too_many_hits_body">Appen fant %1$d treff. En serie er høyst %2$d skudd, så minst ett av merkene er ikke et skudd.</string>
+    <string name="too_many_hits_hint">Poengene fra skjermen kunne ikke leses denne gangen, så appen har ingen fasit å rette seg etter. Scan på ny — gjerne med skarpere bilde og roligere hånd.</string>
+
     <!-- musingsUI runde 10 -->
     <string name="result_detected_label">Identifiserte treff:</string>
     <string name="rescan_body">Bildet ble ikke korrekt analysert. Scan bildet på ny.</string>

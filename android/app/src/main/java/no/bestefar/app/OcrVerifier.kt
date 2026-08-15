@@ -29,6 +29,24 @@ object OcrVerifier {
         data class Match(val scores: List<Double>, val maxDiff: Double) : Result()
         /** OCR er uenig (> 0.2). `scores` er OCR-poengene i skjermrekkefølge. */
         data class Mismatch(val scores: List<Double>) : Result()
+        /**
+         * OCR leste et annet ANTALL poeng enn kjernen fant treff. Dette er ogsaa
+         * `ocr_mismatch`, men retningen er to helt ulike feil:
+         *
+         * - **Faerre detekterte enn OCR-poeng** ([overDetected] = false): skjulte
+         *   treff - to skudd i samme hull. OCR-presedens loeser det: poengene og
+         *   summen blir riktige, det skjulte treffet mangler bare et merke.
+         * - **Flere detekterte enn OCR-poeng** ([overDetected] = true):
+         *   over-deteksjon. Her kan OCR-presedens ikke redde noe, fordi det
+         *   overtallige treffet ikke eksisterer - det maa ut av serien.
+         *
+         * `scores` er OCR-poengene i skjermrekkefoelge.
+         */
+        data class CountMismatch(
+            val scores: List<Double>, val detectedCount: Int,
+        ) : Result() {
+            val overDetected get() = detectedCount > scores.size
+        }
         /** Fant ikke et sammenlignbart sett — la de detekterte stå urørt. */
         object Inconclusive : Result()
     }
@@ -52,9 +70,17 @@ object OcrVerifier {
     }
 
     private fun compare(detected: List<Double>, ocr: List<Double>): Result {
-        // Trenger like mange kandidat-poeng som detekterte treff for en ærlig
-        // sammenligning; ellers er vi ikke trygge nok til å overstyre.
-        if (ocr.size != detected.size) return Result.Inconclusive
+        // Fant vi ingen tall, har vi ingen fasit i det hele tatt.
+        if (ocr.isEmpty()) return Result.Inconclusive
+        // Leste vi FLERE tall enn en serie kan ha skudd, er settet ikke
+        // poenglista - da har heuristikken plukket opp tall fra resten av
+        // skjermen, og det er ikke noe vi kan sammenligne mot. (Grensa paa de
+        // DETEKTERTE treffene haandheves av kalleren, som ogsaa har den naar
+        // OCR ikke gir noe svar.)
+        if (ocr.size > SeriesRecord.MAX_SHOTS) return Result.Inconclusive
+        // Ulikt antall er ikke lenger "kunne ikke sammenlignes": det ER et
+        // avvik, og retningen forteller hvilken av de to feilene det er.
+        if (ocr.size != detected.size) return Result.CountMismatch(ocr, detected.size)
         // SAMMENLIGNINGEN sorterer (settene skal matche uansett rekkefølge), men
         // `ocr` returneres UROERT — visningen skal vise skjermrekkefølgen.
         val d = detected.sorted()

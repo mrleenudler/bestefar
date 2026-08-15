@@ -164,12 +164,18 @@ flowchart TD
         SI -->|"nei"| OCR
         SIQ --> OCR["OcrVerifier · ML Kit<br/>leser apparatets poengliste"]
         OCR -->|"Match ≤ 0,2"| P1["OCR-poeng i SKJERMREKKEFØLGE"]
-        OCR -->|"Inconclusive"| P2["Detekterte poeng, stigende"]
+        OCR -->|"Inconclusive"| MAX{"Flere enn 10<br/>detekterte treff?"}
+        MAX -->|"nei"| P2["Detekterte poeng, stigende"]
+        MAX -->|"ja"| TMH["«Appen fant N treff.<br/>En serie er høyst 10 skudd»<br/>Forkast · Scan på ny<br/>+ ⌷ Send bildet til feilanalyse<br/>serien kan ikke lagres"]
         OCR -->|"Mismatch > 0,2"| P3["OCR øverst · «Identifiserte treff» nederst<br/>Forkast · Lagre leste poeng"]
+        OCR -->|"CountMismatch<br/>flere detekterte enn OCR-poeng"| P4["Over-deteksjon forklart<br/>Lagre leste poeng = overtallige treff fjernes"]
+        OCR -->|"CountMismatch<br/>færre detekterte enn OCR-poeng"| P5["Skjulte treff forklart<br/>Lagre leste poeng = skuddet lagres<br/>uten posisjon, uten merke på skiva"]
         SAVE{"Lagre"}
         P1 --> SAVE
         P2 --> SAVE
         P3 --> SAVE
+        P4 --> SAVE
+        P5 --> SAVE
         SAVE --> DUP{"Lik forrige serie?<br/>poeng < 0,05 OG treffpunkter ≤ 0,1 p"}
         DUP -->|"ja"| DUPQ["«Lik forrige serie»<br/>lagre likevel?"]
         DUP -->|"nei"| STORE
@@ -180,6 +186,7 @@ flowchart TD
 
     HOME --> SCAN
     RSC --> SCAN
+    TMH --> SCAN
     JM -->|"nei"| HOME
     JMD --> HOME
 
@@ -248,6 +255,12 @@ flowchart TD
 - **To uavhengige kvalitetsporter.** `status != OK` fanger «jeg fikk ikke
   kalibrert skiva»; OCR-uenighet fanger den vanskeligere klassen der analysen
   *lyktes* men leste feil — typisk opp-ned-bildene.
+- **Antallet er en egen kontroll, ikke en del av verdi-sammenligningen.** En
+  serie er 0–10 skudd; kjernens `BF_MAX_HITS` (32) er en bufferstørrelse. Er
+  antallet detekterte treff og antallet OCR-poeng ulikt, forteller *retningen*
+  hvilken feil det er — flere detekterte er over-deteksjon (treffet finnes ikke,
+  OCR kan ikke redde poengene), færre er skjulte treff (OCR-presedens gir riktig
+  sum). Uten OCR-fasit er 10 en hard grense: serien kan ikke lagres.
 - **Alt er offline.** `Store` skriver `series.json` / `hunts.json` i appens egen
   filkatalog. Appen virker uten konto; venner/lag er front-end-skjelett (se
   `backend_spec.md`). Nettet brukes til feilanalyse-køen, sikkerhetskopien,

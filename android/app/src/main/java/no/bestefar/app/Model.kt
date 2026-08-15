@@ -195,10 +195,21 @@ data class OpticProfile(
 }
 
 data class Shot(val decimal: Double, val integer: Int, val rRel: Double, val theta: Double) {
+    /**
+     * Falsk for et SKJULT treff: poenget er kjent fra skjermen, men kjernen
+     * fant ikke merket - to skudd i samme hull. Alt som regner geometri
+     * (spredning, bias, sigma, tegningen av skiva) skal hoppe over disse;
+     * alt som teller skudd eller summerer poeng skal ta dem med.
+     */
+    val hasPosition get() = rRel >= 0.0
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("d", decimal); put("i", integer); put("r", rRel); put("t", theta)
     }
     companion object {
+        /** rRel for et treff uten kjent posisjon; radier er ellers aldri < 0. */
+        const val NO_POSITION = -1.0
+
         fun fromJson(o: JSONObject) =
             Shot(o.getDouble("d"), o.getInt("i"), o.getDouble("r"), o.getDouble("t"))
     }
@@ -227,6 +238,8 @@ data class SeriesRecord(
     val deleted get() = deletedAt > 0L
     val sumDecimal get() = shots.sumOf { it.decimal }
     val sumInteger get() = shots.sumOf { it.integer }
+    /** Treffene med kjent posisjon - alt som regner geometri bruker denne. */
+    val placedShots get() = shots.filter { it.hasPosition }
     /** Alle øvelsesserier teller nå (benk fjernet, musingsUI runde 4). */
     val countsInEvidence get() = true
 
@@ -241,6 +254,16 @@ data class SeriesRecord(
         put("deletedAt", deletedAt)
     }
     companion object {
+        /**
+         * DOMENEGRENSE: en serie er 0-10 skudd. CV-kjernens BF_MAX_HITS (32) er
+         * en bufferstoerrelse og ikke et antall som er mulig, saa kjernen kan
+         * levere flere treff enn det finnes skudd (doble merker,
+         * kamerabevegelse - backend_spec paragraf 8). Kjernen ser bare bildet;
+         * klienten ser bildet OG poenglista, og er derfor stedet grensa kan
+         * haandheves.
+         */
+        const val MAX_SHOTS = 10
+
         fun fromJson(o: JSONObject): SeriesRecord {
             val sh = o.getJSONArray("shots")
             return SeriesRecord(

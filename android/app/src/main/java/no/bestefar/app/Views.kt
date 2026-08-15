@@ -63,7 +63,9 @@ class TargetView @JvmOverloads constructor(
 
         // Skudd
         val holeR = 0.45f * step
-        for (h in hits) {
+        // Et skjult treff har ingen posisjon aa tegne. Da tegner vi det ikke -
+        // en prikk i senter ville vaert en paastand vi ikke har dekning for.
+        for (h in hits.filter { it.hasPosition }) {
             val x = cx + (h.rRel * cos(h.theta)).toFloat() * step
             val y = cy - (h.rRel * sin(h.theta)).toFloat() * step
             paint.style = Paint.Style.FILL

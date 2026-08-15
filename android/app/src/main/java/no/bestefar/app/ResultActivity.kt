@@ -71,6 +71,13 @@ class ResultActivity : AppCompatActivity() {
     private var ocrScores: List<Double>? = null
     /** Falsk når OCR og de detekterte treffene er uenige (> 0.2). */
     private var ocrAgrees = true
+    /**
+     * Retningen paa et ANTALLS-avvik, eller null naar antallene stemmer (og ved
+     * et rent verdiavvik). True = flere detekterte treff enn poeng paa skjermen
+     * (over-deteksjon), false = faerre (skjulte treff). Se
+     * [OcrVerifier.Result.CountMismatch].
+     */
+    private var overDetected: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -288,23 +295,45 @@ class ResultActivity : AppCompatActivity() {
                     ocrScores = result.scores; ocrAgrees = false
                     render()
                 }
+                is OcrVerifier.Result.CountMismatch -> {
+                    // Ulikt antall er ogsaa uenighet: poenglista til venstre og
+                    // treffene til hoeyre kan ikke begge stemme. Retningen
+                    // avgjoer bare hva vi kan tilby aa gjoere med det.
+                    ocrScores = result.scores; ocrAgrees = false
+                    overDetected = result.overDetected
+                    render()
+                }
                 OcrVerifier.Result.Inconclusive -> render()
             }
         }
     }
 
-    /** Erstatt de viste poengene (sortert) med et nytt sett, behold posisjon. */
+    /**
+     * Erstatt poengene med et nytt sett (OCR-poengene), og behold posisjonen
+     * til hvert treff. Hvert poeng tar det naermeste ubrukte treffet - for like
+     * lange lister er det den samme rangparingen som foer.
+     *
+     * ULIKT ANTALL er ikke en feil her, det er hele poenget:
+     *
+     * - Er det FLERE treff enn poeng, blir de overtallige treffene staaende
+     *   igjen uparet, og de foelger IKKE med videre. Det er den eneste
+     *   behandlingen som er aerlig: skjermen sier at skuddet ikke finnes.
+     * - Er det FAERRE, er skuddet skjult i et annet hull. Poenget lagres med
+     *   [Shot.NO_POSITION] - summen blir riktig, og geometrien later ikke som
+     *   den vet hvor skuddet traff.
+     */
     private fun applyScores(scores: List<Double>) {
         val r = record ?: return
-        val order = r.shots.indices.sortedBy { r.shots[it].decimal }
-        val sorted = scores.sorted()
-        val newShots = r.shots.toMutableList()
-        order.forEachIndexed { rank, idx ->
-            val v = sorted[rank]
-            newShots[idx] = r.shots[idx].copy(
-                decimal = v, integer = floor(v).toInt().coerceIn(0, 10))
+        val free = r.shots.toMutableList()
+        r.shots = scores.sorted().map { v ->
+            val integer = floor(v).toInt().coerceIn(0, 10)
+            val nearest = free.minByOrNull { abs(it.decimal - v) }
+            if (nearest == null) Shot(v, integer, Shot.NO_POSITION, 0.0)
+            else {
+                free.remove(nearest)
+                nearest.copy(decimal = v, integer = integer)
+            }
         }
-        r.shots = newShots
     }
 
     /**
@@ -369,8 +398,70 @@ class ResultActivity : AppCompatActivity() {
         content.addView(btnRow, Ui.matchWrap(12, this))
     }
 
+    /**
+     * Flere treff enn en serie kan ha skudd, uten OCR-fasit aa korrigere mot.
+     * Over-deteksjon er meldt fra felt (backend_spec paragraf 8): doble merker
+     * og mistenkt kamerabevegelse. Serien kan ikke reddes her - vi vet at minst
+     * ett merke ikke er et skudd, men ikke hvilket, og en liste vi vet er feil
+     * skal ikke kunne lagres som en serie. Bildet er derimot nettopp det
+     * kjernen trenger for aa laere aa deduplisere, saa det tilbys sendt.
+     */
+    private fun renderTooManyHits(n: Int) {
+        content.removeAllViews()
+        content.addView(Ui.title(this, getString(R.string.app_name)))
+        content.addView(Ui.body(this,
+            getString(R.string.too_many_hits_body, n, SeriesRecord.MAX_SHOTS)))
+        content.addView(Ui.hint(this, getString(R.string.too_many_hits_hint)))
+        val r = record
+        if (imagePath != null && r != null) {
+            content.addView(MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = getString(R.string.result_send_fail)
+                layoutParams = Ui.matchWrap(16, this@ResultActivity)
+                setOnClickListener {
+                    isEnabled = false
+                    // Taggen er `rejected` fordi serien BLE avvist, men
+                    // status_code er OK: kjernen var fornoeyd, det var
+                    // klienten som sa nei. De to feltene sammen skiller de to
+                    // avvisningene fra hverandre (android/KONTRAKT.md par. 2).
+                    queueDevImage(r, "rejected")
+                    Toast.makeText(this@ResultActivity, R.string.upload_queued,
+                        Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+        val btnRow = Ui.row(this)
+        btnRow.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.borderlessButtonStyle).apply {
+            text = getString(R.string.result_discard)
+            setOnClickListener { finish() }
+        })
+        btnRow.addView(android.widget.Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+        btnRow.addView(MaterialButton(this).apply {
+            text = getString(R.string.rescan_scan)
+            minWidth = Ui.dp(this@ResultActivity, 120)
+            setOnClickListener {
+                startActivity(Intent(this@ResultActivity, CaptureActivity::class.java))
+                finish()
+            }
+        })
+        content.addView(btnRow, Ui.matchWrap(12, this))
+    }
+
     private fun render() {
         val r = record ?: return
+
+        // OEVRE KONTROLL uten fasit: naar OCR ikke ga oss en poengliste, finnes
+        // det ingenting aa korrigere mot - da er domenegrensa det eneste vi
+        // har. Flere enn MAX_SHOTS treff er ikke en serie, uansett hvor sikker
+        // kjernen er, og aa vise dem stigende som foer gjoer feilen usynlig.
+        // (Er OCR-lista der, er antallsavviket allerede fanget som
+        // CountMismatch, og den veien kan brukeren faktisk redde serien.)
+        if (ocrScores == null && r.shots.size > SeriesRecord.MAX_SHOTS) {
+            renderTooManyHits(r.shots.size)
+            return
+        }
+
         content.removeAllViews()
 
         val mainRow = LinearLayout(this).apply {
@@ -499,10 +590,17 @@ class ResultActivity : AppCompatActivity() {
             samePos.map { it.sumDecimal }.average())))
     }
 
-    /** OCR uenig (> 0.2): vis melding + forkast / lagre de leste poengene. */
+    /** OCR uenig (> 0.2 eller ulikt antall): melding + forkast / lagre de leste. */
     private fun renderOcrMismatch() {
         val ocr = ocrScores ?: return
-        content.addView(Ui.body(this, getString(R.string.ocr_mismatch)))
+        val n = record?.shots?.size ?: return
+        // Tre ulike ting kan ha gaatt galt, og brukeren kan ikke se forskjell
+        // paa dem uten aa faa det sagt.
+        content.addView(Ui.body(this, when (overDetected) {
+            null -> getString(R.string.ocr_mismatch)
+            true -> getString(R.string.ocr_over_detected, n, ocr.size)
+            false -> getString(R.string.ocr_hidden_hits, ocr.size, n)
+        }))
         val btnRow = Ui.row(this)
         btnRow.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.borderlessButtonStyle).apply {
@@ -603,9 +701,14 @@ class ResultActivity : AppCompatActivity() {
         val sb = b.shots.map { it.decimal }.sorted()
         if (!sa.indices.all { abs(sa[it] - sb[it]) < 0.05 }) return false
         // Parer treffpunktene grådig: hvert treff i a må ha et ubrukt treff i b
-        // innenfor 0,1 poeng (rRel er i ringsteg = poeng).
-        val free = b.shots.toMutableList()
-        for (s in a.shots) {
+        // innenfor 0,1 poeng (rRel er i ringsteg = poeng). Skjulte treff har
+        // ingen posisjon aa pare paa; de er allerede sammenlignet paa poeng
+        // over, og to serier maa ha like mange av dem for aa kunne vaere like.
+        val pa = a.placedShots
+        val pb = b.placedShots
+        if (pa.size != pb.size) return false
+        val free = pb.toMutableList()
+        for (s in pa) {
             val match = free.minByOrNull { hitDistance(s, it) } ?: return false
             if (hitDistance(s, match) > SAME_HIT_POINTS) return false
             free.remove(match)

@@ -34,6 +34,66 @@ nåtilstanden.
 
 ---
 
+## v0.27 — en serie kan ikke ha flere treff enn den kan ha skudd
+
+Detekterte treff hadde ingen øvre kontroll. `BF_MAX_HITS` (32) er en
+bufferstørrelse, ikke et antall som er mulig — en serie er 0–10 skudd — og
+klienten viste det kjernen fant, stigende, uten å telle. Tretten treff så ut
+som en serie på tretten skudd. Over-deteksjon er meldt fra felt
+(`backend_spec.md` §8): doble merker og mistenkt kamerabevegelse.
+
+Kontrollen hører hjemme her: kjernen ser bare bildet, klienten ser bildet **og**
+poenglista fra skjermen.
+
+### Ulikt antall er et avvik, ikke «kunne ikke sammenlignes»
+
+- `OcrVerifier` returnerte `Inconclusive` når OCR leste et annet antall poeng
+  enn kjernen fant treff — altså nøyaktig den situasjonen som er mest alvorlig,
+  behandlet som fravær av informasjon. Nå er den `CountMismatch`, og **retningen
+  følger med**, fordi de to retningene er to ulike feil:
+  - **Færre detekterte enn OCR-poeng** — skjulte treff, to skudd i samme hull.
+    OCR-presedens løser det: poengene og summen blir riktige.
+  - **Flere detekterte enn OCR-poeng** — over-deteksjon. Her kan OCR-presedens
+    ikke redde poengene, for det overtallige treffet finnes ikke; det må ut.
+- Brukeren får de to forklart hver for seg. De så like ut før («appen klarte
+  ikke å se poengene riktig»), og de krever motsatt handling.
+- **Leser OCR flere enn 10 tall, er settet ikke poenglista** — da har
+  heuristikken plukket opp tall fra resten av skjermen, og vi har ingen fasit.
+  Samme domenegrense, brukt på begge sider.
+
+### Å lagre de leste poengene rydder faktisk opp
+
+`applyScores` antok stilltiende like lange lister (rangparing indeks for
+indeks). Nå parer hvert poeng seg med det nærmeste ubrukte treffet, og
+overskuddet håndteres i den retningen det peker:
+
+- **Overtallige treff blir stående uparet og følger ikke med i serien.**
+  Skjermen sier at skuddet ikke finnes, og da skal det ikke lagres.
+- **Et poeng uten treff lagres uten posisjon** (`Shot.NO_POSITION`, `rRel < 0`).
+  Summen blir riktig, og geometrien later ikke som den vet hvor skuddet traff:
+  `TargetView` tegner ikke merket, og σ, bias og spredning hopper over det.
+  Alternativet — å plassere det skjulte skuddet oppå naboen — ville krympet
+  gruppa med et punkt vi har funnet på.
+
+### Uten fasit er 10 en hard grense
+
+- Leverte kjernen flere enn 10 treff og OCR ga ingen poengliste, lagres serien
+  ikke. Vi vet at minst ett merke ikke er et skudd, men ikke hvilket, og en
+  liste vi vet er feil skal ikke kunne bli en serie i loggen.
+- Skjermen sier hva som ble funnet og hvorfor det ikke går, og tilbyr **Scan på
+  ny**. Bildet kan sendes til feilanalyse med tagg `rejected` og
+  `status_code = 0` — kjernen var fornøyd, det var klienten som sa nei. De to
+  feltene sammen skiller de to avvisningene (`android/KONTRAKT.md` §2).
+- Er OCR-lista der, slår `CountMismatch` inn først, og da kan brukeren faktisk
+  redde serien. Grensa er siste utvei, ikke førstevalget.
+
+### Ikke i denne runden
+
+Dedupliseringen hører hjemme i CV-kjernen — den ser hullene og kan slå sammen
+doble merker. Den krever testbilder av over-deteksjon, som ikke finnes ennå;
+`rejected`-donasjonene over er nettopp materialet som skal til. Ført som
+ÅP-U14.
+
 ## v0.26 — deponering på som standard, Androids automatiske kopi av
 
 To endringer i rekkefølge: den andre fjerner et sikkerhetsnett, så den første

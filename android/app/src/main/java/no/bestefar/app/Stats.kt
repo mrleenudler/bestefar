@@ -56,7 +56,8 @@ object Stats {
      */
     fun sigmaCmAt100(series: List<SeriesRecord>): Double? {
         val r2 = series.flatMap { s ->
-            s.shots.map { sh ->
+            // Skjulte treff har ingen radius; de ville telt som treff i senter.
+            s.placedShots.map { sh ->
                 val rCm = sh.rRel * RING_STEP_CM * (100.0 / s.distanceM)
                 rCm * rCm
             }
@@ -141,27 +142,30 @@ object Stats {
      * RING_STEP_CM er en plassholder. Returnerer (biasCm, spreadCm).
      */
     fun biasAndSpread(shots: List<Shot>): Pair<Double, Double> {
-        if (shots.isEmpty()) return 0.0 to 0.0
-        val xs = shots.map { it.rRel * RING_STEP_CM * cos(it.theta) }
-        val ys = shots.map { it.rRel * RING_STEP_CM * sin(it.theta) }
+        // Uten posisjon er det ingen geometri aa regne paa (Shot.hasPosition).
+        val placed = shots.filter { it.hasPosition }
+        if (placed.isEmpty()) return 0.0 to 0.0
+        val xs = placed.map { it.rRel * RING_STEP_CM * cos(it.theta) }
+        val ys = placed.map { it.rRel * RING_STEP_CM * sin(it.theta) }
         val mx = xs.average(); val my = ys.average()
         val bias = sqrt(mx * mx + my * my)
         val spread = sqrt((xs.indices.sumOf {
             (xs[it] - mx) * (xs[it] - mx) + (ys[it] - my) * (ys[it] - my)
-        } / shots.size))
+        } / placed.size))
         return bias to spread
     }
 
     /** Bias-vektor (cm) — brukes til å sammenligne to seriers skjevhet. */
     fun biasVector(shots: List<Shot>): Pair<Double, Double> {
-        if (shots.isEmpty()) return 0.0 to 0.0
-        return shots.map { it.rRel * RING_STEP_CM * cos(it.theta) }.average() to
-            shots.map { it.rRel * RING_STEP_CM * sin(it.theta) }.average()
+        val placed = shots.filter { it.hasPosition }
+        if (placed.isEmpty()) return 0.0 to 0.0
+        return placed.map { it.rRel * RING_STEP_CM * cos(it.theta) }.average() to
+            placed.map { it.rRel * RING_STEP_CM * sin(it.theta) }.average()
     }
 
     /** Tydelig feilkalibrering: senteret ligger godt utenfor egen spredning. */
     fun looksMiscalibrated(shots: List<Shot>): Boolean {
-        if (shots.size < 3) return false
+        if (shots.count { it.hasPosition } < 3) return false
         val (bias, spread) = biasAndSpread(shots)
         return bias > 1.5 * spread.coerceAtLeast(0.1) && bias > 2.0 * RING_STEP_CM
     }
