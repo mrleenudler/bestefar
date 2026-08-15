@@ -53,6 +53,11 @@ Java_no_bestefar_app_BestefarCore_nativeAnalyze(JNIEnv* env, jobject /*thiz*/,
     return out;
 }
 
+JNIEXPORT jstring JNICALL
+Java_no_bestefar_app_BestefarCore_nativeVersion(JNIEnv* env, jobject) {
+    return env->NewStringUTF(bf_version());
+}
+
 JNIEXPORT jlong JNICALL
 Java_no_bestefar_app_BestefarCore_nativeAutoCaptureCreate(JNIEnv*, jobject) {
     return reinterpret_cast<jlong>(bf_autocapture_create(nullptr));

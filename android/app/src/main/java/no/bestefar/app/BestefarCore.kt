@@ -23,6 +23,15 @@ object BestefarCore {
     const val FMT_RGBA8 = 2
     const val FMT_NV21 = 3
 
+    /**
+     * Kjernens EGEN versjon (semver, se core/include/bestefar/version.h) —
+     * uavhengig av appens BuildConfig.VERSION_NAME. Til bruk som `core_version`
+     * i §6-donasjonene (Sync.kt): en kalibreringsmaaling er verdiloes uten aa
+     * vite hvilken kjerne som produserte den, og de to versjonstallene bumpes
+     * IKKE i takt med hverandre.
+     */
+    val version: String by lazy { nativeVersion() }
+
     data class Hit(
         val xPx: Double, val yPx: Double,
         val rRel: Double, val theta: Double,
@@ -118,6 +127,7 @@ object BestefarCore {
 
     @JvmStatic private external fun nativeAnalyze(
         data: ByteArray, w: Int, h: Int, stride: Int, format: Int, tsMs: Long): DoubleArray
+    @JvmStatic private external fun nativeVersion(): String
     @JvmStatic private external fun nativeAutoCaptureCreate(): Long
     @JvmStatic private external fun nativeAutoCaptureDestroy(handle: Long)
     @JvmStatic private external fun nativeAutoCaptureFeed(
