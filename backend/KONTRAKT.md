@@ -512,9 +512,9 @@ hele tatt.
 - **`GET /v1/teams/near` sorterer i Python.** Holder på dagens datamengde. ÅP-B6.
 - **Fristene i §11 avgjøres lat**, første gang noen spør — ikke på selve
   fristen. ÅP-B7.
-- **Feilanalyse-bilder lastes opp til R2** fra 2026-08-15 (ÅP-B5). To ting
-  gjelder fortsatt: bildene som ble tatt imot *før* den datoen ligger i
-  `image_legacy` i basen og er ikke flyttet, og uten R2-secrets satt lagrer
-  serveren i basen som før. Hvilken av delene som gjelder på en gitt maskin,
+- **Feilanalyse-bilder lastes opp til R2** fra 2026-08-15 (ÅP-B5), og de fem
+  som ble tatt imot før den datoen er flyttet dit samme dag (ÅP-B11) —
+  `image_legacy` er tom i produksjon. Uten R2-secrets satt lagrer serveren
+  fortsatt i basen som før. Hvilken av delene som gjelder på en gitt maskin,
   står i `GET /health` under `bilder` — det er den ene kilden, ikke denne
   setningen.

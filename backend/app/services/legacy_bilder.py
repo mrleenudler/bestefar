@@ -18,10 +18,14 @@ flyttet og fjerde rad uroert - ingen halvveis tilstand aa rydde opp i.
 
 ## Grensen for opplasting gjelder IKKE her
 
-`max_upload_bytes` (8 MB) er en regel for hva MOTTAKET tar imot. Én av radene er
-paa 11 MB, fra tiden foer grensen fantes. Den skal flyttes som de andre; aa
-avvise den her ville vaert aa kaste det stoerste bildet vi har fordi en senere
-regel ikke likte det.
+`max_upload_bytes` (8 MB) er en regel for hva MOTTAKET tar imot, ikke for hva vi
+flytter. En rad som er stoerre, skal flyttes som de andre; aa avvise den her
+ville vaert aa kaste det stoerste bildet vi har fordi en senere regel ikke likte
+det.
+
+Merk at ingen av radene faktisk traff grensen. Maalt ved kjoeringen 2026-08-15:
+fem rader, 13 byte til 3 844 036 byte, 10 509 298 byte til sammen. Modulen ble
+skrevet med en 11 MB-rad som eksempel; det tallet var totalen, ikke en enkeltrad.
 """
 import logging
 from collections.abc import Callable

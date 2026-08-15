@@ -956,8 +956,15 @@ flyttet og resten urørt. Ingen halvveis tilstand å rydde i.
 kjøres én gang mot produksjon, skal kunne kjøres én gang uten å gjøre noe.
 
 **`MAX_UPLOAD_BYTES` gjelder ikke her.** Grensen er en regel for hva *mottaket*
-tar imot. Én rad er 11 MB, fra tiden før grensen fantes; å avvise den her ville
-vært å kaste det største bildet vi har fordi en senere regel ikke likte det.
+tar imot, ikke for hva vi flytter — å avvise en stor rad her ville vært å kaste
+det største bildet vi har fordi en senere regel ikke likte det.
+
+*Rettet 2026-08-15 etter kjøringen:* begrunnelsen over ble skrevet med «én rad er
+11 MB» som eksempel. Det stemte ikke. De fem radene var 13 byte til 3 844 036
+byte, **10 509 298 byte til sammen** — 11 MB var totalen. Ingen rad traff
+grensen, så valget ble aldri prøvd i praksis. Prinsippet står; eksempelet var
+feil, og det er skilt ut her i stedet for å rettes bort, siden det er avstanden
+mellom antatt og målt som er verdt å huske.
 
 **En blob vi ikke kjenner igjen, blir liggende.** `objstore.bildetype()` avgjør
 typen fra de første bytene; er den ukjent, hoppes raden over og telles som

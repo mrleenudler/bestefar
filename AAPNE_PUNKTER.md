@@ -248,27 +248,6 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 Konsekvens i dag: telefoninvitasjoner til lag får `delivery_status: failed` med
 lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 
-### ÅP-B11 — De gamle bildene i `image_legacy` er ikke flyttet · label `backend`
-Fem donasjoner ble tatt imot før opplastingen til R2 ble koblet inn
-(2026-08-15, ÅP-B5) og ligger som blob i `failed_analyses.image_legacy`.
-`GET /health` teller dem: `"bilder": "r2 (5 gamle rader i basen)"`.
-
-**Avgjort av eier 2026-08-15: de skal flyttes, ikke kastes.** De er nettopp
-materialet ÅP-U14 mangler for dedupliseringen, og ett av dem er en ekte
-over-deteksjon fra felt på 11 MB.
-
-Verktøyet er bygget (`tools/migrate_legacy_images.py`, B-48) og ligger i
-produksjonsimaget, siden det trenger både databasen og R2-nøklene:
-
-```powershell
-flyctl ssh console -a bestefar-api -C "python tools/migrate_legacy_images.py"
-flyctl ssh console -a bestefar-api -C "python tools/migrate_legacy_images.py --utfoer"
-```
-
-**Punktet står åpent til kjøringen er gjort og `/health` svarer `"bilder":
-"r2"` uten radtelling.** Det er den observasjonen som lukker det — ikke at
-verktøyet finnes.
-
 ---
 
 ## E. Uavklart teknisk retning
@@ -513,5 +492,6 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | ÅP-E3 — `FCM_SERVICE_ACCOUNT_JSON` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `GET /health` svarer `"push":"fcm"` og ikke `"push":"log"` — `push.backend_name()` gir `fcm` bare når tjenestekonto-JSON-en lot seg lese. `FCM_PROJECT_ID` ble aldri nødvendig; `push.project_id()` leser den fra JSON-en. Merk hva testen *ikke* dekker: at nøkkelen er lesbar er ikke det samme som at FCM godtar den. Det viser seg først når et varsel faktisk sendes. |
 | ÅP-E4 — `GOOGLE_CLIENT_IDS` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `POST /v1/auth/google` med et ugyldig `id_token` svarer **401 «Ugyldig Google-token»** og ikke 503 — altså at `aud`-sjekken faktisk kjører i stedet for å bli hoppet over som ukonfigurert. Testen sier at secreten er lest; den sier ikke at *verdien* er riktig web-klient-ID. Det viser seg først ved en ekte innlogging fra klienten. **Den innloggingen er gjort 2026-08-15:** bruker logget inn med Google fra v0.27 og gjenopprettet en kopi tatt med v0.25 — en gjennomført gjenoppretting krever gyldig tokenpar, så verdien er riktig. Dermed er også ÅP-E4 helt lukket, ikke bare delvis. Se `android/ARCHITECTURE.md`. |
 | ÅP-B5 — Cloudflare R2 er betalt for og ubrukt | 2026-08-15 | **Koblet inn.** Speccen avgjorde valget: §6 og §0.1 sier begge at bildene ligger i objektlagring, så «avvikle oppsettet» ville krevd en spec-endring og ikke en kodebeslutning. `POST /v1/failed-analyses` laster opp via `app/services/objstore.py` (SigV4 uten boto3) og lagrer bare `object_key`. Backend B-44/B-45/B-46. Gamle `image_legacy`-rader er ikke flyttet — se ÅP-B11. |
+| ÅP-B11 — gamle bilder i `image_legacy` | 2026-08-15 | **Flyttet til R2, ikke kastet** (eieravklaring: de er materialet ÅP-U14 mangler). Kjørt med `tools/migrate_legacy_images.py --utfoer` på Fly-maskinen: fem rader, 13 byte til 3 844 036 byte, 10 509 298 byte til sammen, alle JPEG, alle med innsendingsdatoen i nøkkelen. Hver rad ble lest tilbake og sammenlignet byte for byte før `image_legacy` ble tømt (B-48). Verifisert ved at `GET /health` gikk fra `"bilder": "r2 (5 gamle rader i basen)"` til `"bilder": "r2"`. Merk to ting for ettertiden: «11 MB-raden» fantes ikke — det var totalen, og ingen rad var over 8 MB-grensen — og rad 2 er 13 byte, altså en avkortet innsending uten bildeinnhold. Fire av de fem er `ocr_mismatch`. |
 | ÅP-E10 — R2-secretene og signeringen | 2026-08-15 | **Virker mot ekte R2.** Secretene sto i Fly fra før (punktet påstod først det motsatte, og ble rettet). Verifisert ved å kjøre `tools/r2_check.py` **inne på Fly-maskinen**, der secretene faktisk er: `flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"` svarte `PUT: ok` / `GET: ok (64 byte, identisk)` / `DELETE: ok` mot bucketen `bestefar-scan-failures`. Det er hele rundturen, ikke bare at verdiene lot seg lese — `/health` sier `"bilder": "r2"` uansett om Cloudflare avviser signaturen. Verktøyet ligger i imaget nettopp derfor (B-47). Merk hva testen *ikke* dekker: at en ekte donasjon fra klienten går gjennom hele veien; det viser seg først når `POST /v1/failed-analyses` svarer 201 med en `object_key`. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |

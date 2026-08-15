@@ -27,9 +27,15 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 Per rad: last opp, **les tilbake og sammenlign byte for byte**, og først da tøm
 kolonnen — basen er den eneste kopien, så en PUT som svarte 200 uten et lesbart
 objekt ville kostet bildet. Commit per rad, tørrkjøring som standard (`--utfoer`
-for å skrive), og `MAX_UPLOAD_BYTES` gjelder ikke: én rad er 11 MB fra tiden før
-grensen fantes. Bildesniffingen flyttet fra routeren til `objstore.bildetype()`,
-siden både mottaket og flyttingen trenger den.
+for å skrive), og `MAX_UPLOAD_BYTES` gjelder ikke, siden den er en regel for
+mottaket. Bildesniffingen flyttet fra routeren til `objstore.bildetype()`, siden
+både mottaket og flyttingen trenger den.
+
+**Kjørt i produksjon samme dag.** Fem rader, 13 byte til 3 844 036 byte,
+10 509 298 byte til sammen, alle JPEG og alle med innsendingsdatoen i nøkkelen.
+`GET /health` svarer nå `"bilder": "r2"` uten radtelling, og `image_legacy` er
+tom. ÅP-B11 lukket. Merk at «11 MB-raden» som sto som begrunnelse i B-48 ikke
+fantes — det tallet var totalen; ingen enkeltrad var over 8 MB.
 
 **`tools/r2_check.py` er med i produksjonsimaget** (B-47). Verktøyet krever de
 fire R2-verdiene, og de finnes bare som Fly secrets — Fly leser dem ikke ut
