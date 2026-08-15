@@ -134,6 +134,15 @@ Du leser gjerne koden deres. Du redigerer den ikke — issue med label
 - **Meld aldri en runde ferdig uten at `assembleDebug` faktisk har kjørt grønt i
   denne økten.** CI fanger et brudd, men først etter at det er pushet — og da
   har de to andre instansene allerede trukket det inn.
+- **Et grønt bygg sier ingenting om hva du har committet.** Bygget leser
+  arbeidstreet, CI leser det pushede. Kjør `git status` før du melder ferdig, og
+  se etter filer *din* runde trenger. `BestefarCore.version` og `nativeVersion`
+  lå ucommittet i tre døgn mens tre signerte APK-er ble bygget fra dem
+  (rot-`CLAUDE.md` §7.1). **JNI-broas to halvdeler committes alltid sammen**, og
+  begge er dine — se rot-`CLAUDE.md` §1.
+- **Sjekk CI før du legger fra deg runden:**
+  `gh run list --branch main --limit 3`. En rød kjøring som ingen ser, blir
+  stående; denne var rød i tre døgn.
 - **Brukertekst har æøå, kodekommentarer og logg er ASCII-translitterert.**
   Grensen har lekket før — sjekk hvilken side du står på. Datoer i UI er norske,
   datoer i dokumenter er ISO.

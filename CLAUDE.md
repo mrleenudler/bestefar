@@ -50,10 +50,19 @@ Bestefar/
 | **backend** | `backend/`, `.github/workflows/deploy-backend.yml` | backend-instansen |
 | **ui** | `android/`, `UI/`, `dist/` | UI-instansen |
 
-**Grensetilfellet `android/app/src/main/cpp/jni_bridge.cpp`:** filen ligger i
-UI-området, men den er *forbruker* av kjernens C-API. Endres `bestefar_ffi.h`,
-er det kjernen som eier endringen og UI som må følge etter — meld det som issue
-begge veier, ikke rett i den andres fil.
+**Grensetilfellet JNI-broa — to filer, én halvdel hver:**
+`android/app/src/main/cpp/jni_bridge.cpp` og `external`-erklæringene i
+`android/app/src/main/java/no/bestefar/app/BestefarCore.kt`. **Begge ligger i
+UI-området og eies av UI**, men de er *forbrukere* av kjernens C-API. Endres
+`bestefar_ffi.h`, er det kjernen som eier endringen og UI som må følge etter —
+meld det som issue begge veier, ikke rett i den andres fil.
+
+**De to halvdelene committes sammen.** En `external fun` uten `Java_…`-symbol
+lenker ikke, og et symbol uten erklæring er dødt. At kjernen står bak endringen
+gjør den ikke til kjernens å committe: `bf_version()` var committet i `core/`
+hele tiden, mens *begge* UI-halvdelene ble liggende igjen i én arbeidskopi i tre
+døgn (§7.1). Er du i tvil om hvem som skal committe en fil under `android/`, er
+svaret UI.
 
 ---
 
@@ -244,6 +253,19 @@ cd android; .\gradlew assembleDebug
 
 Rapporter utfallet slik det faktisk ble. Feiler noe, si det med utdraget.
 
+**Disse kjører mot arbeidstreet, som ikke er det andre får.** Har du pushet,
+hører to ting til før runden legges fra deg:
+
+```powershell
+git status                                  # noe igjen som runden din trenger?
+& "C:\Program Files\GitHub CLI\gh.exe" run list --branch main --limit 3
+```
+
+CI var rød fra 2026-08-11 til 2026-08-15 uten at noen så det, mens lokale bygg
+var grønne hele veien (§7.1). **En rød kjøring på `main` blokkerer alle tre
+områdene** — er den rød når du kommer, er det første oppgave, uansett hvem som
+brøt den.
+
 ---
 
 ## 7. Feller og lærdommer
@@ -264,6 +286,24 @@ slett punktet når det ikke lenger kan skje.
   kan den ikke skrives om. Bruk `git commit <sti> … -F melding.txt` med
   **eksplisitte stier på selve commit-kommandoen**. Tidsvinduet mellom `add` og
   `commit` er hele problemet.
+- **En commit skal etterlate treet byggbart.** Dette er den *motsatte* fella av
+  den over, og eksplisitte stier gjør den lettere å gå i: de verner mot å ta med
+  for mye, og hjelper deg ikke det minste mot å ta med for lite. Committer du en
+  kaller, skal definisjonen være med i samme commit — eller allerede være pushet.
+  `Sync.kt` ble committet i `b5eb033` (v0.25) mens `BestefarCore.version` og
+  `nativeVersion` i `jni_bridge.cpp` ble liggende ucommittet i arbeidskopien.
+  **Lokalt bygde alt grønt i tre døgn**, fordi arbeidstreet hadde begge
+  halvdelene; CI sjekker ut det som faktisk er pushet, og var rød hele tiden.
+  Tre signerte APK-er (v0.25–v0.27) ble bygget og lagt i `dist\` fra kode som
+  ikke fantes i repoet — binærer uten byggbart utgangspunkt. Rettet i `cd9ee4f`.
+  - **Sjekken er `git status` før du melder deg ferdig**, ikke at bygget ditt
+    var grønt. Står det noe igjen som *din* runde trenger, er runden ikke
+    committet.
+  - **Er du i tvil om noe henger sammen, verifiser fra en ren utsjekking:**
+    `git worktree add C:\Users\mrlee\bfverify HEAD`, bygg der (sett
+    `ANDROID_HOME`; `local.properties` er gitignorert med vilje), og
+    `git worktree remove` etterpå. Bruk en **kort sti** — NDK/CMake under en lang
+    temp-sti treffer Windows' stigrense og gir en feil som ikke handler om koden.
 - **Delte filer redigeres samtidig.** Edit-verktøyet melder «modified since
   read». Ta det varselet alvorlig: gjør små, målrettede endringer og les
   regionen på nytt rett før du skriver noe som avhenger av konteksten rundt.
