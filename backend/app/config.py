@@ -126,8 +126,9 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 8 * 1024 * 1024
     # Cloudflare R2, S3-kompatibelt. §6 krever at bildene ligger her og ikke i
     # databasen. Mangler én av de fire verdiene, er lagringen «ikke
-    # konfigurert»: bildet legges i `image_legacy` som foer, og /health sier
-    # «bilder»: «database (avvik fra spec §6)». Det er lokal- og testmodus.
+    # konfigurert», og da tar POST /v1/failed-analyses ikke imot noe - 503.
+    # Bildekolonnen i basen er fjernet (B-49), saa det finnes ikke et annet sted
+    # aa gjoere av donasjonen. /health sier «bilder»: «ikke konfigurert (§6)».
     #   R2_ENDPOINT: https://<konto-id>.r2.cloudflarestorage.com (uten bucket)
     r2_endpoint: str = ""
     r2_bucket: str = ""

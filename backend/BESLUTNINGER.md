@@ -974,7 +974,47 @@ typen fra de første bytene; er den ukjent, hoppes raden over og telles som
 mottaket og flyttingen må ta den samme avgjørelsen, og flyttingen har ingen
 multipart å spørre.
 
-*Kilde: `services/legacy_bilder.py`, modul-docstring; `tests/test_legacy_bilder.py`.*
+*Kilde: `services/legacy_bilder.py`, modul-docstring (fjernet med B-49);
+migrasjonen `a3f7c1e59b24`; `backend/CHANGELOG.md` 2026-08-15.*
+
+## B-49 `image_legacy` er fjernet, og uten R2 tar vi ikke imot donasjoner
+
+**Kontekst.** Kolonnen var tom etter B-48, og §6 sier at bilder aldri skal ligge
+i databasen. Migrasjon `a3f7c1e59b24` dropper den.
+
+**Følgen måtte avgjøres, ikke bare aksepteres.** Fallbacken «uten R2 → legg i
+basen» (B-44) hadde ikke lenger noe sted å legge bildet. Valget er **503 før
+kroppen leses**: uten objektlagring tar vi ikke imot donasjonen i det hele tatt.
+
+**Forkastet: å ta imot og forkaste bildet.** Et 201 på noe vi kastet er
+kvittering for datatap — den klassen feil hele §6-arbeidet har handlet om.
+
+**Forkastet: å beholde kolonnen «i tilfelle».** En tom kolonne er en åpning: den
+neste som mangler R2 lokalt, fyller den, og §6 er brutt igjen uten at noen tar en
+beslutning. Nå er invarianten strukturell, og `tests/test_failed_analyses.py`
+har en test som faller hvis kolonnen kommer tilbake.
+
+**Prisen er lokal utvikling.** Uten R2-nøkler kan man ikke lenger ta imot en
+donasjon lokalt; testene stubber `objstore`. Det er samme form som
+`JWT_SECRET`-invarianten (uten den utstedes ingenting), og det er en pris verdt å
+betale for at §6 ikke kan brytes ved et uhell.
+
+**`/health` sier nå `r2` eller `ikke konfigurert (§6)`.** Radtellingen forsvant
+med kolonnen — den svarte på når kolonnen kunne fjernes, og det svaret er gitt.
+
+**Vinduet under deploy er kjent og akseptert.** `release_command` kjører
+migrasjonen før den nye versjonen slippes til, så i noen sekunder kjører gammel
+kode mot et skjema uten kolonnen. Bare INSERT-en i `POST /v1/failed-analyses`
+treffes; den feiler med 500, som klienten behandler som `retryable`. `/health`
+tåler det, fordi tellingen der lå i en try/except.
+
+**`legacy_bilder.py`, verktøyet og testene er slettet, ikke flagget.** Regelen om
+å pause funksjonalitet bak et navngitt flagg gjelder funksjoner som skal tilbake.
+Dette var en engangsflytting som er utført; koden står i historikken, og
+CHANGELOG sier hvilken commit.
+
+*Kilde: migrasjonen `a3f7c1e59b24`, docstring; `routers/failed_analyses.py`,
+modul-docstring; `routers/health.py`, `_bilder_status`.*
 
 ---
 

@@ -11,9 +11,10 @@ droppet til fordel for PyJWT vi allerede hadde. SigV4-signeringen er de foerste
 femti linjene under, og den er dekket av tester.
 
 **Ikke konfigurert** (tom R2_BUCKET eller manglende noekler) => `er_konfigurert`
-er False, og `routers/failed_analyses.py` legger bildet i `image_legacy` som
-foer. Det er utviklings- og testmodus. Hvilken av de to som gjelder, staar i
-`/health` under «bilder» - det er stedet aa spoerre.
+er False, og `routers/failed_analyses.py` svarer 503 uten aa lese kroppen.
+Bildekolonnen i basen er fjernet (B-49), saa det finnes ikke et annet sted aa
+gjoere av donasjonen. `/health` under «bilder» sier hvilken tilstand maskinen er
+i - det er stedet aa spoerre.
 
 **En feil herfra blir aldri en stille fallback til basen.** Da ville en feilsatt
 noekkel sett ut som «R2 er ikke konfigurert», bildene lagt seg i basen igjen, og

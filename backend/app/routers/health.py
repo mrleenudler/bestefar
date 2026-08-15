@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session as OrmSession
 from .. import db as database
 from ..config import Settings, settings
 from ..db import db
-from ..models import BackupKeyEscrow, FailedAnalysis
+from ..models import BackupKeyEscrow
 from ..services import escrow, mailer, objstore, push
 
 log = logging.getLogger(__name__)
@@ -55,27 +55,20 @@ def _escrow_status(cfg: Settings, s: OrmSession) -> str:
     return "ok" if not avvik else f"{avvik} rader paa annen hemmelighet"
 
 
-def _bilder_status(cfg: Settings, s: OrmSession) -> str:
+def _bilder_status(cfg: Settings) -> str:
     """
-    Hvor feilanalyse-bildene faktisk havner (§6), og hvor mange som ligger igjen
-    i basen.
+    Om objektlagringen for feilanalyse-bilder (§6) er koblet paa.
 
-    To ting skal vaere synlige uten aa lese kode. Det ene er om R2 er koblet paa
-    i det hele tatt: uten dette feltet ville en glemt secret sett ut som helt
-    normal drift, mens bildene stille la seg i databasen §6 forbyr. Det andre er
-    nedtellingen - `image_legacy` kan foerst fjernes naar tallet er null, og
-    ellers ville ingen visst naar det er.
+    Uten dette feltet ville en glemt secret sett ut som helt normal drift.
+    Konsekvensen er ikke lenger at bildene stille legger seg i databasen -
+    kolonnen er borte (a3f7c1e59b24) - men at `POST /v1/failed-analyses` svarer
+    503 paa hver donasjon, og det er like usynlig herfra.
+
+    Feltet talte tidligere rader i `image_legacy`. Tellingen forsvant med
+    kolonnen 2026-08-15; den sa naar kolonnen kunne fjernes, og det svaret er
+    gitt.
     """
-    if not objstore.er_konfigurert(cfg):
-        return "database (avvik fra spec §6)"
-    try:
-        igjen = s.scalar(select(func.count()).select_from(FailedAnalysis)
-                         .where(FailedAnalysis.image_legacy.is_not(None)))
-    except Exception:                                      # noqa: BLE001
-        # /health skal aldri kunne velte av sin egen diagnostikk.
-        log.exception("Kunne ikke telle bilder som ligger i databasen")
-        return "r2 (ukjent antall gamle rader)"
-    return "r2" if not igjen else f"r2 ({igjen} gamle rader i basen)"
+    return "r2" if objstore.er_konfigurert(cfg) else "ikke konfigurert (§6)"
 
 
 @router.get("/health")
@@ -88,5 +81,5 @@ def health(s: OrmSession = Depends(db)) -> dict:
         "mailer": mailer.backend_name(cfg),
         "push": push.backend_name(cfg),
         "escrow": _escrow_status(cfg, s),
-        "bilder": _bilder_status(cfg, s),
+        "bilder": _bilder_status(cfg),
     }

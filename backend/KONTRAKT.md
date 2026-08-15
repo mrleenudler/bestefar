@@ -197,6 +197,11 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   bytene og ikke av `Content-Type` i multiparten. Noe annet ⇒ **415**.
   Endepunktet er en åpen skrivevei inn i betalt objektlagring; det er derfor
   sjekken finnes. Klienten sender JPEG og merker ikke grensen.
+- **Er objektlagringen ikke konfigurert, svarer vi 503 med én gang** — før
+  kroppen leses. Databasen har ingen bildekolonne lenger, så det finnes ikke et
+  annet sted å gjøre av donasjonen, og et 201 ville vært kvittering for noe vi
+  kastet. Gjelder ikke produksjon, der R2 står; det er lokale oppsett uten
+  nøkler som merker den.
 - **Bildet lagres i Cloudflare R2**, ikke i databasen (§6). Basen har bare
   `object_key`. Nøkkelen er vår, klienten ser den aldri.
 - **Hele veien er kjørt i produksjon.** 2026-08-15 10:51:32 tok
@@ -512,9 +517,9 @@ hele tatt.
 - **`GET /v1/teams/near` sorterer i Python.** Holder på dagens datamengde. ÅP-B6.
 - **Fristene i §11 avgjøres lat**, første gang noen spør — ikke på selve
   fristen. ÅP-B7.
-- **Feilanalyse-bilder lastes opp til R2** fra 2026-08-15 (ÅP-B5), og de fem
-  som ble tatt imot før den datoen er flyttet dit samme dag (ÅP-B11) —
-  `image_legacy` er tom i produksjon. Uten R2-secrets satt lagrer serveren
-  fortsatt i basen som før. Hvilken av delene som gjelder på en gitt maskin,
-  står i `GET /health` under `bilder` — det er den ene kilden, ikke denne
+- **Feilanalyse-bilder ligger i R2, aldri i databasen.** Opplastingen kom
+  2026-08-15 (ÅP-B5), de fem gamle radene ble flyttet samme dag (ÅP-B11), og
+  kolonnen som holdt dem er fjernet (`a3f7c1e59b24`, B-49). Uten R2 konfigurert
+  tas donasjoner ikke imot i det hele tatt — 503. `GET /health` under `bilder`
+  sier hvilken tilstand en gitt maskin er i; det er den ene kilden, ikke denne
   setningen.

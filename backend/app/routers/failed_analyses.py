@@ -5,9 +5,13 @@ Klienten koer innsendinger i `filesDir/dev_uploads/{seriesId}_{tag}.jpg|json`
 naar brukeren har godtatt bildedeling, og sender dem opportunistisk.
 
 Bildet lagres i Cloudflare R2 og er bare REFERERT herfra (`object_key`); §6/§0.1
-er tydelige paa at bilder aldri lagres i databasen. Er R2 ikke konfigurert -
-lokalt og i testene - legges bildet i `image_legacy` i stedet, og /health sier
-«bilder»: «database (avvik fra spec §6)». Se services/objstore.py.
+er tydelige paa at bilder aldri lagres i databasen. Se services/objstore.py.
+
+UTEN R2 KONFIGURERT TAR VI IKKE IMOT NOE - 503, ikke 201. Kolonnen som holdt
+bildene i basen er fjernet (migrasjon a3f7c1e59b24), saa det finnes ikke lenger
+et annet sted aa gjoere av dem, og aa svare 201 paa noe vi kastet ville vaert
+stille datatap. Samme form som JWT_SECRET: uten det vi trenger, utsteder vi
+ingenting. 503 er `retryable` hos klienten, saa koen i `dev_uploads/` beholdes.
 
 Endepunktet krever ikke innlogging: donasjonen skal fungere ogsaa for brukere
 uten konto (§6 er koblet til bildedelings-samtykket, ikke til kontoen). Det er
@@ -65,6 +69,10 @@ async def submit_failed(status_code: int = Form(...),
                         image: UploadFile = File(...),
                         s: OrmSession = Depends(db)) -> dict:
     cfg = settings()
+    if not objstore.er_konfigurert(cfg):
+        # Foer noe leses: uten lagring har donasjonen ingen steder aa gaa, og et
+        # 201 ville vaert en kvittering paa noe vi kastet. Se modul-docstringen.
+        raise HTTPException(503, "Bildelagringen er ikke konfigurert")
     data = await image.read()
     if len(data) > cfg.max_upload_bytes:
         raise HTTPException(413, f"Bildet er stoerre enn {cfg.max_upload_bytes} byte")
@@ -77,12 +85,6 @@ async def submit_failed(status_code: int = Form(...),
                         core_version=core_version, tag=tag, series_id=series_id,
                         detected_scores=_scores(detected_scores),
                         ocr_scores=_scores(ocr_scores))
-
-    if not objstore.er_konfigurert(cfg):
-        fa.image_legacy = data
-        s.add(fa)
-        s.commit()
-        return {"id": fa.id}
 
     # Raden foerst, for id-en noekkelen navngis med - men bare i basens
     # transaksjon. Feiler opplastingen, rulles den tilbake, og det ligger ingen

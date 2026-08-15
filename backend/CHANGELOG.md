@@ -22,6 +22,16 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ## 2026-08-15
 
+**§6 — `image_legacy` er borte, og uten R2 tar vi ikke imot donasjoner**
+(B-49). Migrasjon `a3f7c1e59b24` dropper kolonnen. Fallbacken «uten R2 → legg i
+basen» hadde da ikke lenger noe sted å gå, og er erstattet med **503 før
+kroppen leses** — et 201 på noe vi kastet ville vært kvittering for datatap.
+`GET /health` svarer nå `"bilder": "r2"` eller `"ikke konfigurert (§6)"`;
+radtellingen forsvant med kolonnen. `services/legacy_bilder.py`,
+`tools/migrate_legacy_images.py` og testene deres er slettet — engangsjobben er
+utført (se commit `b29b4b3` og `3f4e634` for koden). Merk for lokal utvikling:
+uten R2-nøkler kan endepunktet ikke lenger ta imot noe.
+
 **§6 — de gamle `image_legacy`-bildene flyttes til R2** (B-48, ÅP-B11). Ny
 `app/services/legacy_bilder.py` med `tools/migrate_legacy_images.py` som skall.
 Per rad: last opp, **les tilbake og sammenlign byte for byte**, og først da tøm

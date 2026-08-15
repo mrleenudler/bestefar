@@ -3,8 +3,7 @@ Drift: feilanalyse-innsending (§6) og melding til utvikler (§10).
 """
 from datetime import datetime
 
-from sqlalchemy import (JSON, Enum, Float, ForeignKey, Integer,
-                        LargeBinary, String, Text)
+from sqlalchemy import JSON, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, FailedTag, utcnow
@@ -17,10 +16,11 @@ class FailedAnalysis(Base):
     Bildet ligger i Cloudflare R2 og er bare REFERERT herfra (`object_key`);
     §6/§0.1 er tydelige paa at bilder aldri lagres i databasen.
 
-    `image_legacy` brukes fortsatt naar R2 ikke er konfigurert (lokalt og i
-    testene), og holder dessuten bildene som ble tatt imot foer opplastingen ble
-    koblet inn 2026-08-15. Kolonnen kan ikke fjernes foer de radene er flyttet
-    eller kastet - /health teller dem under «bilder».
+    Kolonnen `image_legacy` holdt bildene mens opplastingen ikke fantes. Den ble
+    fjernet 2026-08-15 (migrasjon a3f7c1e59b24) etter at de fem radene som laa
+    igjen var flyttet til R2. Er ikke R2 konfigurert, tar endepunktet ikke imot
+    donasjoner i det hele tatt - det finnes ikke lenger et annet sted aa gjoere
+    av dem.
     """
     __tablename__ = "failed_analyses"
 
@@ -37,7 +37,6 @@ class FailedAnalysis(Base):
     core_version: Mapped[str] = mapped_column(String(32))
 
     object_key: Mapped[str | None] = mapped_column(String(255), nullable=True)  # R2-noekkel
-    image_legacy: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     detected_scores: Mapped[list] = mapped_column(JSON, default=list)
     ocr_scores: Mapped[list] = mapped_column(JSON, default=list)

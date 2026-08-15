@@ -23,22 +23,29 @@ def _send(client, data=JPEG, felt=None):
                        files={"image": ("skive.jpg", data, "image/jpeg")})
 
 
-# --- Uten R2: bildet ligger i basen, og /health sier fra ------------------
+# --- Uten R2: vi tar ikke imot noe ---------------------------------------
 
-def test_uten_r2_lagres_bildet_i_basen(client, session):
+def test_uten_r2_svarer_503(client):
+    """
+    Kolonnen som holdt bildene i basen er borte (a3f7c1e59b24), saa det finnes
+    ikke et annet sted aa gjoere av dem. 503 og ikke 201: en kvittering paa noe
+    vi kastet ville vaert stille datatap. 503 er `retryable`, saa klienten
+    beholder koen sin.
+    """
+    assert _send(client).status_code == 503
+
+
+def test_uten_r2_lagres_ingen_rad(client, session):
+    from sqlalchemy import func, select
+
     from app.models import FailedAnalysis
 
-    r = _send(client)
-    assert r.status_code == 201, r.text
-    fa = session.get(FailedAnalysis, r.json()["id"])
-    assert fa.image_legacy == JPEG
-    assert fa.object_key is None
-    assert fa.detected_scores == [10.4, 9.1]
-    assert fa.tag.value == "ocr_mismatch"
+    _send(client)
+    assert session.scalar(select(func.count()).select_from(FailedAnalysis)) == 0
 
 
-def test_health_melder_avviket_naar_r2_mangler(client):
-    assert client.get("/health").json()["bilder"] == "database (avvik fra spec §6)"
+def test_health_melder_at_lagringen_mangler(client):
+    assert client.get("/health").json()["bilder"] == "ikke konfigurert (§6)"
 
 
 # --- Med R2: bildet ligger der, og basen har bare noekkelen ---------------
@@ -82,7 +89,6 @@ def test_med_r2_lagres_bildet_utenfor_basen(client, session, r2):
     assert r.status_code == 201, r.text
 
     fa = session.get(FailedAnalysis, r.json()["id"])
-    assert fa.image_legacy is None, "§6: bildet skal ikke ligge i databasen"
     assert fa.object_key in r2["lagret"]
     data, content_type = r2["lagret"][fa.object_key]
     assert data == JPEG
@@ -123,32 +129,37 @@ def test_r2_feil_lager_ingen_rad(client, session, r2):
     assert antall == 0, "en feilet opplasting skal ikke etterlate en rad"
 
 
-def test_health_teller_gamle_rader_i_basen(client, session, r2):
+def test_health_melder_r2(client, r2):
+    assert client.get("/health").json()["bilder"] == "r2"
+
+
+def test_ingen_bildekolonne_igjen(session, r2):
+    """
+    §6 som invariant, ikke som praksis: modellen skal ikke ha et sted aa legge
+    bilder i basen. Testen faller hvis noen tar kolonnen inn igjen.
+    """
     from app.models import FailedAnalysis
 
-    session.add(FailedAnalysis(status_code=3, confidence=0.1,
-                               core_version="1.0.0", image_legacy=JPEG))
-    session.commit()
-    assert client.get("/health").json()["bilder"] == "r2 (1 gamle rader i basen)"
-
-    _send(client)   # en ny donasjon havner i R2 og teller ikke med
-    assert client.get("/health").json()["bilder"] == "r2 (1 gamle rader i basen)"
+    assert "image_legacy" not in FailedAnalysis.__table__.columns
 
 
 # --- Avvisninger ---------------------------------------------------------
+#
+# Alle med `r2`: sjekken av lagringen staar FOERST i endepunktet, saa uten den
+# ville disse testene faatt 503 og ikke naadd fram til det de tester.
 
-def test_for_stort_bilde_gir_413(client):
+def test_for_stort_bilde_gir_413(client, r2):
     from app.config import settings
 
     stort = JPEG + b"\x00" * settings().max_upload_bytes
     assert _send(client, stort).status_code == 413
 
 
-def test_ikke_et_bilde_gir_415(client):
+def test_ikke_et_bilde_gir_415(client, r2):
     assert _send(client, b"dette er ikke et bilde").status_code == 415
 
 
-def test_ugyldig_json_i_poengfeltet_gir_422(client):
+def test_ugyldig_json_i_poengfeltet_gir_422(client, r2):
     assert _send(client, felt={"detected_scores": "{ikke json"}).status_code == 422
 
 
