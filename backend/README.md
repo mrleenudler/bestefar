@@ -74,7 +74,7 @@ Interaktiv API-dok paa `/docs` naar `ENV != prod`.
 |---|---|
 | Vert | Fly.io, app `bestefar-api`, region `ams` (EU/EOES) |
 | Database | Supabase Postgres (`Bestefar_base`, EU) |
-| Objektlagring | Cloudflare R2 — for feilanalyse-bilder (fase 6) |
+| Objektlagring | Cloudflare R2 — feilanalyse-bilder (§6), `app/services/objstore.py` |
 | CI/CD | GitHub Actions: push til `main` → `flyctl deploy` |
 
 Secrets settes som Fly secrets, aldri i repoet (samme prinsipp som
@@ -84,6 +84,27 @@ Secrets settes som Fly secrets, aldri i repoet (samme prinsipp som
 flyctl secrets set DATABASE_URL="postgresql://postgres:<passord>@db.<ref>.supabase.co:5432/postgres" -a bestefar-api
 flyctl secrets set FEEDBACK_TO="<utviklerens e-post>" -a bestefar-api
 ```
+
+Objektlagringen (§6) trenger fire verdier. Mangler én av dem, lagres
+feilanalyse-bildene i databasen — som er nettopp det §6 forbyr. Det er lokal- og
+testmodus; i produksjon skal de staa:
+
+```powershell
+flyctl secrets set R2_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_BUCKET="<bucket>" -a bestefar-api
+flyctl secrets set R2_ACCESS_KEY_ID="<id>" R2_SECRET_ACCESS_KEY="<hemmelighet>" -a bestefar-api
+```
+
+Verifiser etterpaa, begge deler:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\tools\r2_check.py   # ekte PUT/GET/DELETE
+curl https://bestefar-api.fly.dev/health                     # "bilder": "r2"
+```
+
+`r2_check.py` er den eneste maaten aa vite at signeringen faktisk godtas av R2;
+`/health` sier bare at verdiene er lest. Feilene R2 svarer med, og hva de
+betyr: `SignatureDoesNotMatch` (feil noekkel, eller `R2_REGION` som ikke er
+`auto`), `NoSuchBucket`, `AccessDenied` (tokenet mangler skrivetilgang).
 
 E-postvideresending (§10) er leverandoer-agnostisk: sett `RESEND_API_KEY`
 ELLER `SMTP_HOST`+`SMTP_USER`+`SMTP_PASSWORD`. Uten noen av delene lagres

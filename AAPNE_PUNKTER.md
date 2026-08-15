@@ -238,6 +238,27 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 Konsekvens i dag: telefoninvitasjoner til lag får `delivery_status: failed` med
 lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 
+### ÅP-E10 — R2-secretene er ikke satt i produksjon
+Opplastingen til objektlagring ble koblet inn 2026-08-15 (ÅP-B5, backend
+B-44). Til de fire verdiene står som Fly secrets, lagrer produksjonen fortsatt
+bildene i databasen — altså det §6 forbyr — uten at noe feiler.
+
+```powershell
+flyctl secrets set R2_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_BUCKET="<bucket>" -a bestefar-api
+flyctl secrets set R2_ACCESS_KEY_ID="<id>" R2_SECRET_ACCESS_KEY="<hemmelighet>" -a bestefar-api
+```
+
+Verdiene ligger hos utvikler (`musings_backend.txt`); en instans skal verken
+generere eller skrive dem ut. Verifiseres med
+`backend\tools\r2_check.py` (ekte PUT/GET/DELETE) **og** `GET /health`, som skal
+svare `"bilder": "r2"` i stedet for `"database (avvik fra spec §6)"`. Begge
+trengs: `/health` sier bare at verdiene er lest, ikke at R2 godtar signaturen
+vår.
+
+Gjenstår etterpå: bildene som allerede ligger i `image_legacy` er ikke flyttet.
+`/health` teller dem (`r2 (N gamle rader i basen)`), og kolonnen kan ikke
+fjernes før tallet er null.
+
 ---
 
 ## E. Uavklart teknisk retning
@@ -274,12 +295,6 @@ for alle tre etter avtale, eller så deles det opp per jobb.
 `superfly/flyctl-actions/setup-flyctl@master` — en flyttbar gren, ikke en
 tagget versjon. Den kan endre seg under føttene på en deploy uten at noe i
 repoet er endret. Om den skal pinnes, er ikke besluttet.
-
-### ÅP-B5 — Cloudflare R2 er betalt for og ubrukt · label `backend`
-Speccen sier bilder skal ligge i objektlagring, aldri i databasen
-(backend_spec §6 linje 253–254, §0.1 linje 410–411). R2 er opprettet med nøkler,
-men backenden bruker det ikke. Åpent: om feilanalysebildene skal dit nå eller om
-oppsettet skal avvikles.
 
 ### ÅP-B10 — 34 av 48 svar er utypet, så kontrakten beskriver dem ikke · label `backend`
 Målt 2026-08-08 ved generering av `contracts/openapi.json`. **De 14 rutene
@@ -461,4 +476,5 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | Utskiftning av `BACKUP_ESCROW_SECRET` | 2026-08-06 | `_OLD`-fallback med omkryptering ved lesing + nøkkel-ID i `/health`. Siste del lukket som ÅP-E6. |
 | ÅP-E3 — `FCM_SERVICE_ACCOUNT_JSON` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `GET /health` svarer `"push":"fcm"` og ikke `"push":"log"` — `push.backend_name()` gir `fcm` bare når tjenestekonto-JSON-en lot seg lese. `FCM_PROJECT_ID` ble aldri nødvendig; `push.project_id()` leser den fra JSON-en. Merk hva testen *ikke* dekker: at nøkkelen er lesbar er ikke det samme som at FCM godtar den. Det viser seg først når et varsel faktisk sendes. |
 | ÅP-E4 — `GOOGLE_CLIENT_IDS` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `POST /v1/auth/google` med et ugyldig `id_token` svarer **401 «Ugyldig Google-token»** og ikke 503 — altså at `aud`-sjekken faktisk kjører i stedet for å bli hoppet over som ukonfigurert. Testen sier at secreten er lest; den sier ikke at *verdien* er riktig web-klient-ID. Det viser seg først ved en ekte innlogging fra klienten. |
+| ÅP-B5 — Cloudflare R2 er betalt for og ubrukt | 2026-08-15 | **Koblet inn.** Speccen avgjorde valget: §6 og §0.1 sier begge at bildene ligger i objektlagring, så «avvikle oppsettet» ville krevd en spec-endring og ikke en kodebeslutning. `POST /v1/failed-analyses` laster opp via `app/services/objstore.py` (SigV4 uten boto3) og lagrer bare `object_key`. Backend B-44/B-45/B-46. Det som gjenstår er drift, ikke kode: secretene er ikke satt i produksjon (ÅP-E10), og gamle `image_legacy`-rader er ikke flyttet. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |

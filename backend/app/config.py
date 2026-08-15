@@ -107,8 +107,23 @@ class Settings(BaseSettings):
     def display_name_blocklist_list(self) -> list[str]:
         return [w.strip() for w in self.display_name_blocklist.split(",") if w.strip()]
 
-    # --- Opplasting (§6) ---
+    # --- Opplasting og objektlagring (§6) ---
     max_upload_bytes: int = 8 * 1024 * 1024
+    # Cloudflare R2, S3-kompatibelt. §6 krever at bildene ligger her og ikke i
+    # databasen. Mangler én av de fire verdiene, er lagringen «ikke
+    # konfigurert»: bildet legges i `image_legacy` som foer, og /health sier
+    # «bilder»: «database (avvik fra spec §6)». Det er lokal- og testmodus.
+    #   R2_ENDPOINT: https://<konto-id>.r2.cloudflarestorage.com (uten bucket)
+    r2_endpoint: str = ""
+    r2_bucket: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    # R2 har ingen regioner; SigV4 krever likevel en, og «auto» er den
+    # Cloudflare foreskriver. Feil verdi her gir 403 SignatureDoesNotMatch.
+    r2_region: str = "auto"
+    # Opplastingen skjer inne i forespoerselen fra klienten. Kort nok til at et
+    # tregt R2 blir en 503 klienten proever igjen paa, ikke en hengende bruker.
+    r2_timeout_seconds: float = 10.0
 
     # --- Backup (§2) ---
     # Bloben er serier + jaktlogg + innstillinger, komprimert og kryptert av

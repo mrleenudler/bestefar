@@ -20,6 +20,30 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-15
+
+**§6 — feilanalyse-bildene lastes opp til Cloudflare R2** (B-44, B-45, B-46;
+ÅP-B5 lukket). Ny `app/services/objstore.py`: SigV4-signert PUT/GET/DELETE mot
+S3-API-et, uten boto3. `POST /v1/failed-analyses` skriver bildet dit og setter
+`failed_analyses.object_key`; `image_legacy` fylles ikke lenger når R2 er
+konfigurert. Nye innstillinger `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_REGION` (standard `auto`), `R2_TIMEOUT_SECONDS`.
+
+Tre ting fulgte med:
+
+- **`GET /health` fikk feltet `bilder`**: `r2`, `r2 (N gamle rader i basen)`
+  eller `database (avvik fra spec §6)`. Uten det ville en glemt secret sett ut
+  som normal drift mens bildene la seg i basen §6 forbyr.
+- **En feilet opplasting gir 503**, og raden rulles tilbake — aldri 201 med
+  bildet lagt i basen i stillhet (B-45).
+- **415 på noe som ikke er JPEG/PNG/WebP**, avgjort av de første bytene (B-46).
+  Endepunktet er åpent og skriver nå til betalt lagring.
+
+`tools/r2_check.py` gjør en ekte PUT/GET/DELETE med de secretene som står, og er
+måten å verifisere at signeringen virker mot ekte R2. Ingen migrasjon:
+`object_key` fantes fra `d21e5f8ac782`. Rader fra før i dag er ikke flyttet.
+Endepunktet hadde ingen tester før nå; `tests/test_failed_analyses.py` er ny.
+
 ## 2026-08-11
 
 **§1 — visningsnavn fra ID-tokenet** (issue #7). `name` leses nå ut av de

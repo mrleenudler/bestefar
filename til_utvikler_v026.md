@@ -123,3 +123,73 @@ En bruker uten logcat ser dermed det samme som logglinja sier.
 (sjekket 2026-08-12). Uten den ville `PUT /v1/backup/key-escrow` svart 503, og
 bryteren gått tilbake til av for hver eneste nye bruker — altså ville
 standardverdien vært på i teksten og av i praksis.
+
+---
+
+# backend — R2 er koblet inn (ÅP-B5)
+
+Feilanalyse-bildene (§6) lastes nå opp til Cloudflare R2. Punktet var stilt som
+et valg — koble inn eller avvikle oppsettet — og speccen avgjorde det: §6 og
+§0.1 sier begge at bildene ligger i objektlagring og at bare metadata ligger
+relasjonelt. Å avvikle R2 ville krevd en endring i speccen, og det er ikke en
+beslutning kode kan ta.
+
+**Det du må gjøre:** sette fire secrets. Til de står, lagrer produksjonen
+fortsatt bildene i databasen, uten at noe feiler — det er ÅP-E10, og det er den
+eneste delen som gjenstår.
+
+```powershell
+flyctl secrets set R2_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_BUCKET="<bucket>" -a bestefar-api
+flyctl secrets set R2_ACCESS_KEY_ID="<id>" R2_SECRET_ACCESS_KEY="<hemmelighet>" -a bestefar-api
+```
+
+Verdiene ligger hos deg; de skal ikke i chat-loggen. Verifiser med **begge**:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\tools\r2_check.py   # ekte PUT/GET/DELETE
+curl https://bestefar-api.fly.dev/health                     # "bilder": "r2"
+```
+
+De sier ikke det samme. `/health` sier at verdiene er lest; `r2_check.py` sier
+at R2 faktisk godtar signaturen vår. Signeringen er skrevet her (SigV4, ~50
+linjer i `app/services/objstore.py`) i stedet for å dra inn boto3 med hele
+AWS-katalogen — samme avveining som da google-auth ble droppet for push. Prisen
+er at den må prøves mot ekte R2 én gang, og det er det scriptet er til for.
+
+**Tre ting fulgte med, som er verdt å kjenne til:**
+
+- `/health` har fått feltet `bilder`. Det svarer `r2`,
+  `r2 (N gamle rader i basen)` eller `database (avvik fra spec §6)`. Uten det
+  ville en glemt secret sett ut som helt normal drift.
+- Feiler opplastingen, svarer endepunktet **503** og lagrer ingen rad. Ikke
+  fallback til basen: da ville en feilsatt nøkkel sett ut som «R2 er ikke
+  konfigurert», og bildene stille lagt seg i basen igjen — samme felle som
+  `BackupKeys.resolve` gikk i på klientsiden. 503 er `retryable`, så klienten
+  beholder køen sin i `dev_uploads/` og prøver igjen.
+- Noe som ikke er JPEG, PNG eller WebP avvises med **415**, avgjort av de første
+  bytene og ikke av det klienten påstår. Endepunktet krever ikke innlogging og
+  skriver nå til betalt lagring. Klienten sender JPEG og merker ingenting.
+
+**Bildene som allerede ligger i databasen er ikke flyttet.** En engangsflytting
+ville vært et script kjørt nøyaktig én gang uten å ha vært prøvd før. De blir
+liggende i `image_legacy`, `/health` teller dem, og kolonnen kan ikke fjernes
+før tallet er null. Si fra hvis du vil ha dem flyttet, så bygges det som en
+egen runde med tørrkjøring.
+
+## Verifisert
+
+- `backend\.venv\Scripts\python.exe -m pytest backend\tests -q` →
+  **222 passed, 1 skipped** (den skippede er `test_migrations.py`, som bare
+  kjører mot Postgres). 17 av dem er nye.
+- `tools/gen_openapi.py --check` → «i takt med koden». Multipart-inngangen og
+  `201 {id}` er uendret, så kontrakten er den samme.
+- Endepunktet hadde **ingen** tester før denne runden. De nye dekker begge
+  veier (med og uten R2), 503-en, at en feilet opplasting ikke etterlater en
+  rad, 413/415/422, og signeringen.
+
+## Ikke verifisert
+
+- **Ingenting er kjørt mot ekte R2.** Testene bytter ut HTTP-kallet. Om
+  signaturen godtas av Cloudflare, vet vi først når `r2_check.py` kjøres med
+  ekte nøkler — det er derfor scriptet finnes, og derfor jeg ikke skriver at
+  lagringen «virker».

@@ -601,6 +601,10 @@ avviser filer over `MAX_UPLOAD_BYTES` så basen ikke fylles opp.
 **Dette er en kjent avvikelse fra speccen**, ikke en beslutning om å bli
 værende. Kolonnenavnet sier det. ÅP-B5.
 
+**Avsluttet 2026-08-15 av B-44.** Opplastingen er koblet inn. Teksten over blir
+stående fordi den forklarer hvorfor `image_legacy` finnes i det hele tatt, og
+hvorfor rader fra før den datoen ligger der de ligger.
+
 *Kilde: `routers/failed_analyses.py`, modul-docstring.*
 
 ## B-33 Enum-kolonner er VARCHAR + CHECK
@@ -777,6 +781,79 @@ er ferskvare.
 
 *Kilde: eieravklaring 2026-08-09; `services/teamgov.py`,
 `annuller_overkjoerte`; `routers/messages.py`; `backend/KONTRAKT.md` §4.1.*
+
+## B-44 Feilanalyse-bildene lastes opp til R2 (ÅP-B5 lukket)
+
+**Kontekst.** ÅP-B5 var stilt som et valg: koble inn R2, eller avvikle
+oppsettet. Speccen avgjorde det — §6 og §0.1 sier begge at bildene ligger i
+objektlagring og at bare metadata ligger relasjonelt. Å avvikle R2 ville krevd
+at *speccen* ble endret, og det er ikke en kodebeslutning. Bildene er dessuten
+det materialet §6 finnes for: én donasjon er opptil 8 MB, og en Postgres-rad er
+et dårlig sted for dem.
+
+**Valg.** `services/objstore.py` laster opp til R2 ved mottak;
+`failed_analyses.object_key` er referansen, og bildet skrives ikke til basen.
+
+**Forkastet: å migrere de gamle `image_legacy`-radene i samme runde.** En
+flytting leser fra basen og skriver til et sted vi ikke hadde skrevet til før,
+og verktøyet som skulle gjort det ville vært kjørt nøyaktig én gang uten å ha
+vært prøvd. Radene blir liggende, og `/health` teller dem så det er synlig når
+kolonnen kan fjernes.
+
+**Forkastet: boto3.** Vi trenger PUT, GET og DELETE av ett objekt. boto3 drar
+med botocore og datafiler for hele AWS-tjenestekatalogen. Samme avveining som
+B-19, der google-auth ble droppet til fordel for PyJWT vi allerede hadde. Prisen er at SigV4-signeringen er vår egen — den er derfor både
+enhetstestet (`test_failed_analyses.py`) og verifiserbar mot ekte R2 med
+`tools/r2_check.py`.
+
+**Ikke konfigurert ⇒ basen, som før.** Testene og lokal kjøring har ingen
+R2-nøkler, og et endepunkt som svarer 503 uten dem ville gjort §6 uprøvbar
+lokalt.
+
+*Kilde: `services/objstore.py`, modul-docstring; `backend_spec.md` §6, §0.1.*
+
+## B-45 En feilet opplasting blir 503, aldri en stille fallback til basen
+
+**Kontekst.** «Ikke konfigurert» og «konfigurert, men opplastingen feilet» ser
+like ut hvis begge ender med at bildet legges i basen. Klienten gikk i nøyaktig
+den fella andre veien: `BackupKeys.resolve` behandlet «fikk ikke svar» som
+«fant ingenting», og en 405 var usynlig i tre versjoner (rot-`CLAUDE.md` §7.3).
+
+**Valg.** Er R2 konfigurert og opplastingen feiler, rulles raden tilbake og
+svaret er 503 med feilen logget. Ingen rad, ingen halv donasjon.
+
+**Hvorfor 503 og ikke 400.** `android/KONTRAKT.md` klassifiserer ≥ 500 som
+`retryable`. Et midlertidig R2-problem besvart med 4xx ville fått klienten til å
+kaste donasjonen — stille datatap hos brukeren.
+
+**Rekkefølgen er `flush()` før opplasting.** Objektnøkkelen navngis med rad-IDen,
+så raden må finnes; men den finnes bare i transaksjonen, og en feilet opplasting
+ruller den tilbake. Alternativet — å committe raden først og laste opp etterpå —
+ville etterlatt rader som peker på objekter som aldri ble skrevet.
+
+**Følgen for driften:** en feilsatt nøkkel viser seg som 503 og en logglinje
+med R2s egen feilkode (`SignatureDoesNotMatch`, `NoSuchBucket`,
+`AccessDenied`), ikke som stille normal drift. `/health` sier i tillegg hvilken
+lagring som faktisk er i bruk.
+
+*Kilde: `routers/failed_analyses.py`; `services/objstore.py`, modul-docstring.*
+
+## B-46 Innholdet avgjør bildetypen, ikke `Content-Type`
+
+**Kontekst.** `POST /v1/failed-analyses` krever ikke innlogging (B-31), og
+skriver fra 2026-08-15 til betalt objektlagring. Det er en åpen skrivevei.
+
+**Valg.** De første bytene må være JPEG, PNG eller WebP; ellers 415. Endelsen og
+`Content-Type` på objektet i R2 utledes av det samme, ikke av det klienten
+påstår i multiparten.
+
+**Forkastet: å stole på `image.content_type`.** Den kommer fra avsenderen og
+sier ingenting. Da ville en `.jpg`-nøkkel i R2 kunne inneholde hva som helst.
+
+**Dette verner ikke mot misbruk**, bare mot det utilsiktede: endepunktet er
+fortsatt åpent og uten kvote. Se ÅP-B9 for ratebegrensning som teller riktig.
+
+*Kilde: `routers/failed_analyses.py`, `_BILDETYPER`.*
 
 ---
 

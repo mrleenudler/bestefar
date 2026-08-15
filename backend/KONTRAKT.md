@@ -193,6 +193,17 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
 - **Endepunktet krever ikke innlogging.** Donasjonen henger på
   bildedelings-samtykket, ikke på konto.
 - Ugyldig JSON i poengfeltene ⇒ 422. Bilde over `MAX_UPLOAD_BYTES` (8 MB) ⇒ 413.
+- **Innholdet må være et bilde** — JPEG, PNG eller WebP, avgjort av de første
+  bytene og ikke av `Content-Type` i multiparten. Noe annet ⇒ **415**.
+  Endepunktet er en åpen skrivevei inn i betalt objektlagring; det er derfor
+  sjekken finnes. Klienten sender JPEG og merker ikke grensen.
+- **Bildet lagres i Cloudflare R2**, ikke i databasen (§6). Basen har bare
+  `object_key`. Nøkkelen er vår, klienten ser den aldri.
+- **Er lagringen utilgjengelig, svarer vi 503** — aldri 4xx, og aldri 201 med
+  bildet lagt i basen i stillhet. 503 er `retryable` hos klienten, så køen i
+  `dev_uploads/` beholdes og donasjonen kommer fram senere. Ved 503 er det
+  heller ikke lagret noen rad: en rad som peker på et objekt som aldri ble
+  skrevet, ville vært verre enn ingen rad.
 - Svar: `201 {id}`.
 
 ## 4. Enheter og push
@@ -496,5 +507,9 @@ hele tatt.
 - **`GET /v1/teams/near` sorterer i Python.** Holder på dagens datamengde. ÅP-B6.
 - **Fristene i §11 avgjøres lat**, første gang noen spør — ikke på selve
   fristen. ÅP-B7.
-- **Feilanalyse-bilder ligger i databasen**, ikke i R2 som §6 foreskriver.
-  Kolonnen heter `image_legacy` nettopp fordi det er midlertidig. ÅP-B5.
+- **Feilanalyse-bilder lastes opp til R2** fra 2026-08-15 (ÅP-B5). To ting
+  gjelder fortsatt: bildene som ble tatt imot *før* den datoen ligger i
+  `image_legacy` i basen og er ikke flyttet, og uten R2-secrets satt lagrer
+  serveren i basen som før. Hvilken av delene som gjelder på en gitt maskin,
+  står i `GET /health` under `bilder` — det er den ene kilden, ikke denne
+  setningen.

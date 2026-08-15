@@ -14,10 +14,13 @@ class FailedAnalysis(Base):
     """
     §6: opt-in innsending av bilder der analysen feilet eller OCR var uenig.
 
-    Bildet skal ligge i Cloudflare R2 og bare vaere REFERERT herfra
-    (`object_key`); §6/§0.1 er tydelige paa at bilder aldri lagres i databasen.
-    `image_legacy` er igjen fra skjelettet og skal vaere NULL - kolonnen fjernes
-    naar R2-opplastingen er koblet inn.
+    Bildet ligger i Cloudflare R2 og er bare REFERERT herfra (`object_key`);
+    §6/§0.1 er tydelige paa at bilder aldri lagres i databasen.
+
+    `image_legacy` brukes fortsatt naar R2 ikke er konfigurert (lokalt og i
+    testene), og holder dessuten bildene som ble tatt imot foer opplastingen ble
+    koblet inn 2026-08-15. Kolonnen kan ikke fjernes foer de radene er flyttet
+    eller kastet - /health teller dem under «bilder».
     """
     __tablename__ = "failed_analyses"
 
