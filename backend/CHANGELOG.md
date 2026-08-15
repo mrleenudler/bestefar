@@ -22,6 +22,12 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ## 2026-08-15
 
+**`tools/r2_check.py` er med i produksjonsimaget** (B-47). Verktøyet krever de
+fire R2-verdiene, og de finnes bare som Fly secrets — Fly leser dem ikke ut
+igjen. Verifiseringen kunne derfor bare kjøres et sted den ikke virket. Nå:
+`flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"`.
+`gen_openapi.py` er bevisst utelatt; skillet står som kommentar i `Dockerfile`.
+
 **§6 — feilanalyse-bildene lastes opp til Cloudflare R2** (B-44, B-45, B-46;
 ÅP-B5 lukket). Ny `app/services/objstore.py`: SigV4-signert PUT/GET/DELETE mot
 S3-API-et, uten boto3. `POST /v1/failed-analyses` skriver bildet dit og setter

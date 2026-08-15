@@ -899,6 +899,39 @@ fortsatt åpent og uten kvote. Se ÅP-B9 for ratebegrensning som teller riktig.
 
 *Kilde: `routers/failed_analyses.py`, `_BILDETYPER`.*
 
+## B-47 `r2_check.py` ligger i produksjonsimaget
+
+**Kontekst.** B-44 la SigV4-signeringen i vår egen kode, og `tools/r2_check.py`
+er verifiseringen som hører til: den er den eneste måten å vite at Cloudflare
+godtar signaturen, siden testene bytter ut HTTP-kallet. Men den krever de fire
+R2-verdiene, og de finnes bare som Fly secrets — Fly kan ikke lese dem ut igjen.
+Verktøyet kunne altså bare kjøres på en maskin der forutsetningen for å kjøre
+det ikke er oppfylt.
+
+**Valg.** `COPY tools/r2_check.py ./tools/r2_check.py` i `backend/Dockerfile`,
+så den kan kjøres der secretene faktisk står:
+
+```powershell
+flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"
+```
+
+**Begrunnelsen er §7.3, brukt på seg selv: et tiltak som ikke kan utføres der
+problemet oppstår, er ikke et tiltak.** Det er den samme feilen som
+`BACKUP_ESCROW_SECRET`-advarselen var — en instruks uten en vei til å følge den.
+Alternativet, å legge de fire verdiene i `backend\.env` på utviklerens maskin,
+lager en ny kopi av produksjonens nøkler for å teste noe som allerede har dem.
+
+**Forkastet: `COPY tools ./tools`.** `gen_openapi.py` skriver inn i repoet
+(`contracts/openapi.json`) og har ingen rolle i drift. Skillet står som kommentar
+i Dockerfile, så neste verktøy havner riktig: verktøy som trenger produksjonens
+secrets hører hjemme i imaget, repo-verktøy ikke.
+
+**Forkastet: en engangssnutt over `flyctl ssh console -C python -c ...`.** Den
+ville verifisert like godt én gang, og etterlatt ingenting som kan kjøres neste
+gang nøkkelen roteres.
+
+*Kilde: `backend/Dockerfile`; `tools/r2_check.py`, modul-docstring; ÅP-E10.*
+
 ---
 
 # Beslutninger uten dokumentert begrunnelse
