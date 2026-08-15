@@ -52,6 +52,16 @@ Krever: målesesjon med faktisk telefon mot faktisk skive. Feltrunden i
 Skjermlayouten på Kongsberg-apparatet er ikke modellert
 (`android/…/OcrVerifier.kt:14`). Grensa 0,2 er valgt, ikke målt.
 
+**Fikk større konsekvens i v0.27.** Heuristikken plukker alle desimaltall i
+[0, 10.9] fra hele skjermbildet, og *antallet* tall styrer nå en dialog: leser
+den ett tall for mye eller for lite, får brukeren et avviksvarsel der det før ble
+stille forkastet som `Inconclusive`. Grensa på 10 tall siler bort de groveste
+tilfellene, men et enkelt streiftall (vind, avstand, serienummer) gjør en
+korrekt serie til et «skjulte treff»-varsel. **Felttesten som mangler er nå
+todelt:** treffer terskelen 0,2, og treffer *antallet*. Blir varselet hyppig og
+falskt, er svaret å modellere hvor på skjermen poenglista står — ikke å heve
+terskelen.
+
 ### ÅP-U2 — `RING_STEP_CM` · label `ui`
 Ringavstanden på Kongsberg-skiva i cm per ringsteg er plassholder
 (`android/…/Stats.kt:20`). Verdien går inn i klikkforslag og spredningsmål, så
@@ -430,6 +440,13 @@ Det betyr at en klient som bygger mot svaret, kan komme til å implementere en
 ikke nå — det er riktig den dagen køen finnes — men det skal ikke leses som en
 fungerende mekanisme før den gjør det.
 
+**Falske positiver har ingen brukervei** (2026-08-12): ordlista er ikke lenger
+tom (B-43), og en delstrengsmatch på foldet form kan ramme et ekte navn — særlig
+på tvers av fornavn og etternavn, der mellomrommet er borte. Veien ut er
+`DISPLAY_NAME_ALLOWLIST`, som krever at en operatør setter en miljøvariabel.
+Brukeren får bare «velg et annet navn», og har ingen måte å si fra på. Det er
+den samme manglende flaten som over.
+
 ### ÅP-K3 — Konfidensmålet er en interim-heuristikk · label `kjerne`
 > «Kvalitetsmålet skal være at beregnede poeng ikke matcher maskinens score, men
 > **OCR er ikke implementert enda**. Det skal ikke prioriteres akkurat nå.»
@@ -448,6 +465,25 @@ og det spørsmålet er ikke besvart.
 Målt til ~0 marginalverdi på tilgjengelig data (`docs/ARCHITECTURE.md:87`).
 Resultat-skjemaet har et `aux`-utvidelsespunkt så den kan legges til uten
 ABI-brudd. Åpent: om den noen gang skal wires inn.
+
+### ÅP-U14 — Over-deteksjon dedupliseres ikke i kjernen · label `kjerne` + `ui`
+> «Doble merker ved multieksponering, mistenkt kamerabevegelse.»
+> — `backend_spec.md` §8
+
+Klienten håndhever fra v0.27 at en serie er 0–10 skudd, og bruker OCR-poengene
+til å luke ut overtallige treff (`android/CHANGELOG.md` v0.27). Det er en
+kontroll, ikke en løsning: klienten kan bare *forkaste* et treff den vet er
+feil, og uten OCR-fasit må hele serien forkastes.
+
+Den riktige fiksen ligger i kjernen, som er den eneste som ser hullene og kan
+slå sammen to merker som er samme skudd. Den krever testbilder av faktisk
+over-deteksjon, og de finnes ikke i `Testsett/` i dag.
+
+**Materialet er nå på vei inn:** donasjonene med tagg `rejected` +
+`status_code = 0`, og `ocr_mismatch` der `len(detected) > len(ocr)`, er begge
+over-deteksjon med bilde (`android/KONTRAKT.md` §2). Åpent: hvor mange bilder
+som trengs før terskelen kan kalibreres, og om dedupliseringen skal skje i
+`hits`-modulen eller som et etterfilter.
 
 ### ÅP-U11 — Speccen sier pinnet submodule, repoet er monorepo · label `ui` + `kjerne`
 > «UI-prosjektet skal **ikke forke** OpenCV/C++-kjernen. Konsumer den som
