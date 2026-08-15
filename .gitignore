@@ -32,4 +32,9 @@ backend/.pytest_cache/
 # LibreOffice-laasefiler
 .~lock.*#
 
+# Commit-meldinger skrevet til fil for `git commit -F` (rot-CLAUDE.md §5:
+# doble anfoerselstegn inne i argumenter brekker parsingen i PowerShell 5.1).
+# De er arbeidsnotater, ikke innhold - skriv dem helst utenfor repoet.
+_commitmsg*.txt
+
 android/.kotlin/
