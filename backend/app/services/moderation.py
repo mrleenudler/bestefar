@@ -11,13 +11,15 @@ i de latinske Unicode-blokkene (inkl. æ/ø/å og aksenter), mellomrom og
 tegnsettingen `-_.'`. Klientfilteret er bekvemmelighet, ikke sikkerhet - en
 modifisert klient kan sende hva som helst, saa regelen maa haandheves her.
 
-Ordlisten er bevisst TOM som standard og settes med `DISPLAY_NAME_BLOCKLIST`.
-En hardkodet norsk banneordliste ville vaert baade ufullstendig og umulig aa
-vedlikeholde herfra. Spec §3 aapner for «regelsett + evt. manuell koe»; den
-manuelle koeen krever en admin-flate som ikke finnes ennaa, saa navn som
-passerer regelsettet godkjennes direkte.
+Ordlisten er en kurert standardliste i `blocklist.py`, utvidet med
+`DISPLAY_NAME_BLOCKLIST` per miljoe. Den var tom fram til 2026-08-12; hvorfor
+den ikke er det lenger, og hvilke ord som bevisst IKKE staar der, hoerer hjemme
+i `blocklist.py` - les den foer du legger til et ord. Spec §3 aapner for
+«regelsett + evt. manuell koe»; den manuelle koeen krever en admin-flate som
+ikke finnes ennaa, saa navn som passerer regelsettet godkjennes direkte.
 """
 import unicodedata
+from collections.abc import Sequence
 
 from ..models import NameStatus
 
@@ -47,10 +49,17 @@ def _fold(name: str) -> str:
     return "".join(c for c in stripped if c.isalnum())
 
 
-def review(raw: str, blocklist: list[str]) -> tuple[str, NameStatus, str]:
+def review(raw: str, blocklist: Sequence[str],
+           allowlist: Sequence[str] = ()) -> tuple[str, NameStatus, str]:
     """
     Returnerer (normalisert navn, status, begrunnelse).
     Begrunnelsen er ment aa vises for brukeren (§3: «brukeren varsles»).
+
+    `allowlist` er uttrykk som skal gaa klar av ordlista. Foldingen fjerner
+    mellomrommene, saa et blokkert ord kan oppstaa PAA TVERS av et ekte navn -
+    «Anne Gerd» folder til «annegerd». Unntakene klippes derfor ut av den
+    foldede formen foer ordlista sjekkes, slik at «Anne Gerd Hansen» ogsaa gaar
+    klar, og ikke bare navnet uten etternavn.
     """
     name = normalize(raw)
     if not name:
@@ -64,6 +73,10 @@ def review(raw: str, blocklist: list[str]) -> tuple[str, NameStatus, str]:
             f"tegnene {PUNCTUATION}. Ikke tillatt: {' '.join(ulovlige)}")
 
     folded = _fold(name)
+    for unntak in allowlist:
+        fritatt = _fold(unntak)
+        if fritatt:
+            folded = folded.replace(fritatt, "")
     for word in blocklist:
         needle = _fold(word)
         if needle and needle in folded:

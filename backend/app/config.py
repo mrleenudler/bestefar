@@ -7,6 +7,9 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# blocklist.py importerer ingenting fra app-pakken - ingen sykel herfra.
+from .services.blocklist import DEFAULT_ALLOWLIST, DEFAULT_BLOCKLIST
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8",
@@ -99,13 +102,25 @@ class Settings(BaseSettings):
     push_budget_seconds: float = 6.0
 
     # --- Moderasjon av visningsnavn (§3) ---
-    # Kommaseparert. Tom som standard: en hardkodet norsk banneordliste ville
-    # vaert baade ufullstendig og umulig aa vedlikeholde fra repoet.
+    # Kommaseparert, og LEGGES TIL standardlista i services/blocklist.py -
+    # den erstatter den ikke. Et miljoe skal kunne stramme inn uten aa kunne
+    # slaa av grunnlista ved et uhell.
     display_name_blocklist: str = ""
+    # Uttrykk som skal gaa klar av ordlista. Foldingen fjerner mellomrom, saa et
+    # blokkert ord kan oppstaa paa tvers av et ekte navn («Anne Gerd»). Veien ut
+    # av en falsk positiv maa finnes uten en ny utrulling - en bruker som ikke
+    # faar bruke navnet sitt, skal kunne rettes opp samme dag.
+    display_name_allowlist: str = ""
 
     @property
     def display_name_blocklist_list(self) -> list[str]:
-        return [w.strip() for w in self.display_name_blocklist.split(",") if w.strip()]
+        egne = [w.strip() for w in self.display_name_blocklist.split(",") if w.strip()]
+        return [*DEFAULT_BLOCKLIST, *egne]
+
+    @property
+    def display_name_allowlist_list(self) -> list[str]:
+        egne = [w.strip() for w in self.display_name_allowlist.split(",") if w.strip()]
+        return [*DEFAULT_ALLOWLIST, *egne]
 
     # --- Opplasting og objektlagring (§6) ---
     max_upload_bytes: int = 8 * 1024 * 1024

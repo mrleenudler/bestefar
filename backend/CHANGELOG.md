@@ -44,6 +44,18 @@ måten å verifisere at signeringen virker mot ekte R2. Ingen migrasjon:
 `object_key` fantes fra `d21e5f8ac782`. Rader fra før i dag er ikke flyttet.
 Endepunktet hadde ingen tester før nå; `tests/test_failed_analyses.py` er ny.
 
+## 2026-08-12
+
+**§3 — standard blokkliste for visningsnavn** (B-43). `DISPLAY_NAME_BLOCKLIST`
+var tom som standard, og moderasjonen fanget derfor ingen ord i noen
+installasjon som ikke satte den. Standardverdien er nå en kurert liste i
+`app/services/blocklist.py`; miljøvariabelen **legges til** den og kan ikke slå
+den av. Ordene er valgt mot delstrengsmatching på foldet form — de vraket
+kandidatene står med begrunnelse i docstringen. Ny `DISPLAY_NAME_ALLOWLIST` for
+navn som treffes utilsiktet på tvers av for- og etternavn («Anne Gerd» →
+«neger»); `moderation.review` tar unntakslista som tredje argument. Ingen
+migrasjon, ingen ruteendring.
+
 ## 2026-08-11
 
 **§1 — visningsnavn fra ID-tokenet** (issue #7). `name` leses nå ut av de

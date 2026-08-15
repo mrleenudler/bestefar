@@ -49,7 +49,8 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user),
     advarsel = ""
     if body.display_name is not None:
         navn, status, begrunnelse = moderation.review(
-            body.display_name, settings().display_name_blocklist_list)
+            body.display_name, settings().display_name_blocklist_list,
+            settings().display_name_allowlist_list)
         if status == NameStatus.rejected:
             # §3: avvist navn deles ikke, og brukeren varsles. Vi lagrer det
             # ikke i det hele tatt - da kan det heller ikke lekke.

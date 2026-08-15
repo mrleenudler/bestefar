@@ -200,9 +200,15 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   (regelsett + evt. manuell kø). Avvist navn deles ikke; brukeren varsles.
 - Regelsettet håndhever tegnsett og lengde (speiler
   `Ui.nameFilters()` — klientfilteret er bekvemmelighet, ikke sikkerhet) pluss en
-  ordliste satt med `DISPLAY_NAME_BLOCKLIST`. Ordlista sammenlignes på en foldet
+  ordliste: en kurert standardliste i `app/services/blocklist.py`, utvidet med
+  `DISPLAY_NAME_BLOCKLIST` per miljø. Ordlista sammenlignes på en foldet
   form (uten aksenter, tegnsetting og store bokstaver), så «S-t-y-g-t» ikke
-  slipper unna. Avvist navn **lagres ikke i det hele tatt** — da kan det heller
+  slipper unna. Foldingen fjerner også mellomrommene, så et treff kan oppstå på
+  tvers av fornavn og etternavn («Anne Gerd»); `DISPLAY_NAME_ALLOWLIST` og
+  standardunntakene i samme fil klipper slike uttrykk ut før sammenligningen.
+  Ord som beskriver hvem noen *er* står ikke i lista — det er skjellsordene som
+  blokkeres, ikke gruppene de rammer. Avvist navn **lagres ikke i det hele
+  tatt** — da kan det heller
   ikke lekke. Er navnet ikke godkjent, eksponeres «Ukjent skytter» for andre.
   Den manuelle køen krever en admin-flate som ikke finnes ennå; navn som passerer
   regelsettet godkjennes derfor direkte.

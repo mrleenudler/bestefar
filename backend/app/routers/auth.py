@@ -112,7 +112,8 @@ def _foerste_navn(ident: oidc.Identitet) -> str:
         kandidat = ((ident.email or "").split("@")[0]
                     .replace(".", " ").replace("_", " "))
     navn, status, _ = moderation.review(
-        kandidat or "Skytter", settings().display_name_blocklist_list)
+        kandidat or "Skytter", settings().display_name_blocklist_list,
+        settings().display_name_allowlist_list)
     return navn if status == NameStatus.approved else "Skytter"
 
 

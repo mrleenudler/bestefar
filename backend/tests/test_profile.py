@@ -66,6 +66,61 @@ def test_blocklist_ser_gjennom_omskriving(client, monkeypatch):
         assert r.status_code == 422, forsok
 
 
+def test_standardlista_gjelder_uten_miljoevariabel(client):
+    """Lista var tom fram til 2026-08-12, og da fanget moderasjonen ingenting
+    med mindre driften hadde satt DISPLAY_NAME_BLOCKLIST."""
+    for forsok in ["Faen", "F.a.e.n Nordmann", "Ola Jævla Hansen"]:
+        r = client.put("/v1/profile", json={"display_name": forsok}, headers=AUTH)
+        assert r.status_code == 422, forsok
+
+
+def test_miljoevariabelen_utvider_standardlista(client, monkeypatch):
+    """Egne ord kommer I TILLEGG - et miljoe skal ikke kunne slaa av
+    grunnlista ved aa sette sin egen."""
+    from app.config import settings
+    monkeypatch.setenv("DISPLAY_NAME_BLOCKLIST", "stygt")
+    settings.cache_clear()
+    assert client.put("/v1/profile", json={"display_name": "Stygt"},
+                      headers=AUTH).status_code == 422
+    assert client.put("/v1/profile", json={"display_name": "Faen"},
+                      headers=AUTH).status_code == 422
+
+
+def test_ekte_navn_som_ligner_paa_blokkerte_ord_gaar_klar(client):
+    """Sammenlikningen er delstreng paa foldet form, og foldingen fjerner
+    mellomrommene. Hvert av disse navnene er grunnen til at et bestemt ord IKKE
+    staar i standardlista - se docstringen i services/blocklist.py."""
+    for navn in ["Kari Thoresen",     # «hore»
+                 "Ola Fagerli",       # «fag»
+                 "Nazir Ahmed",       # «nazi»
+                 "Erik Sexe",         # «sex»
+                 "Nils Slutten"]:     # «slut»
+        r = client.put("/v1/profile", json={"display_name": navn}, headers=AUTH)
+        assert r.status_code == 200, navn
+
+
+def test_unntakslista_dekker_treff_paa_tvers_av_navn(client):
+    """«Anne Gerd» folder til «annegerd», som inneholder «neger». Unntaket maa
+    ogsaa virke naar etternavnet staar der."""
+    for navn in ["Anne Gerd", "Anne Gerd Hansen", "Anne Gerda Li"]:
+        r = client.put("/v1/profile", json={"display_name": navn}, headers=AUTH)
+        assert r.status_code == 200, navn
+
+
+def test_unntak_kan_settes_med_miljoevariabel(client, monkeypatch):
+    """Veien ut av en falsk positiv skal ikke kreve en ny utrulling."""
+    from app.config import settings
+    monkeypatch.setenv("DISPLAY_NAME_BLOCKLIST", "stygt")
+    settings.cache_clear()
+    assert client.put("/v1/profile", json={"display_name": "Stygtvedt"},
+                      headers=AUTH).status_code == 422
+
+    monkeypatch.setenv("DISPLAY_NAME_ALLOWLIST", "Stygtvedt")
+    settings.cache_clear()
+    assert client.put("/v1/profile", json={"display_name": "Stygtvedt"},
+                      headers=AUTH).status_code == 200
+
+
 def test_delingsvalg_er_av_som_standard(client):
     valg = client.get("/v1/profile/sharing", headers=AUTH).json()
     assert set(valg.values()) == {False}

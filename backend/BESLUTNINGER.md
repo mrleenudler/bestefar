@@ -672,6 +672,12 @@ stedet for et filter.
 **Beslektet valg:** lista er tom som standard. En hardkodet norsk banneordliste
 ville vært både ufullstendig og umulig å vedlikeholde fra repoet.
 
+**Omgjort 2026-08-12 (B-43).** Innvendingen over står seg — lista er fortsatt
+ufullstendig og vanskelig å vedlikeholde. Men en tom liste fanger *ingenting*,
+og «ufullstendig» ble i praksis til «ingen moderasjon i det hele tatt» i hver
+eneste installasjon som ikke satte miljøvariabelen. Standardverdien er nå den
+kurerte lista; miljøvariabelen utvider den.
+
 *Kilde: `services/moderation.py`, `_fold` og modul-docstring.*
 
 ## B-38 Telefonnumre normaliseres til E.164
@@ -781,6 +787,44 @@ er ferskvare.
 
 *Kilde: eieravklaring 2026-08-09; `services/teamgov.py`,
 `annuller_overkjoerte`; `routers/messages.py`; `backend/KONTRAKT.md` §4.1.*
+
+## B-43 Standardlista er kurert mot delstrengsmatching, ikke mot fullstendighet
+
+**Kontekst.** B-37 lot ordlista være tom, og resultatet var at moderasjonen
+ikke fanget noe som helst med mindre driften hadde satt
+`DISPLAY_NAME_BLOCKLIST`. Visningsnavnet er det ene feltet en bruker kan skrive
+fritt til andre med (B-36).
+
+**Valg.** En kurert liste i `services/blocklist.py` er standardverdien;
+`DISPLAY_NAME_BLOCKLIST` **legges til** den og kan ikke slå den av. Ordene er
+valgt etter én regel: sammenligningen er delstreng på foldet form, og foldingen
+fjerner mellomrommene mellom fornavn og etternavn. Et ord må derfor være langt
+nok og særpreget nok til at det ikke kan oppstå inne i, eller på tvers av, et
+ekte navn. Lista er kort med vilje — dekning er underordnet det å ikke stenge
+folk ute fra sitt eget navn.
+
+**Forkastet: en så komplett banneordliste som mulig.** De vraket kandidatene
+står med begrunnelse i docstringen til `blocklist.py`: «hore» rammer
+«Thoresen», «fag» rammer «Fagerli», «nazi» rammer fornavnet «Nazir», «kkk»
+rammer «Erik K. Kristiansen». En liste som fanger alt, avviser også ekte navn —
+og en bruker som ikke får bruke navnet sitt, har ingen vei rundt.
+
+**Forkastet: at miljøvariabelen erstatter standardlista.** Da ville et miljø som
+ville legge til ett ord, i praksis slått av alle de andre uten å ha ment det.
+
+**`DISPLAY_NAME_ALLOWLIST` kom i samme runde.** En hardkodet liste er et
+enkeltpunkt, og veien ut måtte finnes fra dag én (§7.3: «lager du et
+enkeltpunkt, bygg utskiftningsveien i samme runde»). Unntakene klippes ut av den
+foldede formen *før* ordlista sjekkes, slik at «Anne Gerd Hansen» går klar og
+ikke bare «Anne Gerd». Det ene kjente sammenstøtet — «Anne Gerd» inneholder
+«neger» når mellomrommet er borte — står i standardunntakene.
+
+**Ord som beskriver hvem noen er, står ikke i lista.** «jøde», «muslim»,
+«same», «homofil» er nøytrale ord. Det er skjellsordene som blokkeres, ikke
+gruppene de rammer.
+
+*Kilde: eierbeslutning 2026-08-12; `services/blocklist.py`, modul-docstring;
+`config.py`, `display_name_blocklist_list`; `backend_spec.md` §3.*
 
 ## B-44 Feilanalyse-bildene lastes opp til R2 (ÅP-B5 lukket)
 
