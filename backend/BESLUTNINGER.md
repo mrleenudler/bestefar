@@ -1016,6 +1016,47 @@ CHANGELOG sier hvilken commit.
 *Kilde: migrasjonen `a3f7c1e59b24`, docstring; `routers/failed_analyses.py`,
 modul-docstring; `routers/health.py`, `_bilder_status`.*
 
+## B-50 Bildene flyttes til en jurisdiksjonsbundet bucket
+
+**Kontekst.** `bestefar-scan-failures` ble opprettet med *location hint* `EEUR`
+og uten jurisdiksjonsbinding. Et hint er en preferanse, ikke en garanti — og
+«Eastern Europe» dekker land utenfor EØS. Personvernerklæringen kan da ikke si
+hvor bildene ligger. `bestefar-scan-failures-eur` er opprettet med jurisdiksjon
+`eu`.
+
+**Valg.** Objektene kopieres med **uendret nøkkel** til den nye bucketen.
+`failed_analyses.object_key` peker på hele stien, og jobben rører derfor ikke
+databasen i det hele tatt — den leser bare hvilke nøkler som finnes.
+
+**Følgen for koden: en bucket kan ikke adresseres av navnet alene.** En
+jurisdiksjonsbundet bucket har sitt *eget endepunkt* (`.../eu`), så to buckets i
+samme konto ligger på hver sin URL. `objstore.Bucket` samler derfor endepunkt,
+bucketnavn og nøkler i ett objekt, og `fra_settings()` lager den som gjelder i
+vanlig drift. Uten det kunne koden bare snakke med «bucketen i konfigurasjonen»,
+og en kopiering mellom to var umulig å skrive.
+
+**`LagringFeilet` fikk `status`.** Kopieringen må skille «objektet er ikke der»
+(404) fra «du får ikke lov» (403), og det skal ikke gjøres ved å lete etter et
+tall i feilteksten. Et 403 som leses som et fravær ville fått jobben til å laste
+opp på nytt i det uendelige og melde suksess — samme forveksling som
+`BackupKeys.resolve` gjorde hos klienten (§7.3).
+
+**Rekkefølgen: bytt secretene FØRST, kopier etterpå.** Da skriver tjenesten
+allerede til den nye bucketen, og kilden kan ikke få nye objekter mens jobben
+går. Motsatt rekkefølge etterlater et vindu der donasjoner lander i den gamle
+bucketen etter at kopieringen er ferdig.
+
+**Ingenting slettes i denne runden.** Den gamle bucketen står urørt til den nye
+er verifisert i produksjon med en ekte donasjon. Opprydding er en egen runde —
+en kopiering som viser seg å være ufullstendig, skal ikke ha slettet originalen.
+
+**Jobben kan kjøres om igjen.** Objekter som allerede ligger i målet med
+identisk innhold hoppes over; ligger de der med *annet* innhold, er det en feil
+og ikke noe vi overskriver i stillhet.
+
+*Kilde: `services/bucketflytt.py`, modul-docstring; `tools/copy_bucket.py`;
+`tests/test_bucketflytt.py`.*
+
 ---
 
 # Beslutninger uten dokumentert begrunnelse

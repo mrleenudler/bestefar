@@ -26,6 +26,7 @@ import hashlib
 import hmac
 import logging
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from urllib.parse import quote, urlparse
 
@@ -43,7 +44,54 @@ TOM_SHA256 = hashlib.sha256(b"").hexdigest()
 
 
 class LagringFeilet(RuntimeError):
-    """Opplasting/nedlasting naadde ikke fram, eller ble avvist av R2."""
+    """
+    Opplasting/nedlasting naadde ikke fram, eller ble avvist av R2.
+
+    `status` er HTTP-statusen fra R2 naar det var et svar, ellers None (kallet
+    naadde aldri fram). Den finnes fordi 404 betyr noe annet enn resten: «dette
+    objektet er ikke der» er et svar, mens 403 og 500 er feil. En kaller som
+    maa skille dem, skal slippe aa lete i feilteksten etter et tall.
+    """
+
+    def __init__(self, melding: str, status: int | None = None) -> None:
+        super().__init__(melding)
+        self.status = status
+
+
+@dataclass(frozen=True)
+class Bucket:
+    """
+    Én bucket, med endepunktet og noeklene som hoerer til den.
+
+    Finnes fordi en bucket ikke kan adresseres av bucketnavnet alene: en
+    JURISDIKSJONSBUNDET bucket har sitt EGET endepunkt (`.../eu`), saa to
+    buckets i samme konto kan ligge paa hver sin URL. Uten dette kunne koden
+    bare snakke med «den bucketen som staar i konfigurasjonen», og en
+    kopiering fra én bucket til en annen var umulig aa skrive.
+    """
+    endpoint: str
+    bucket: str
+    access_key_id: str
+    secret_access_key: str
+    region: str = "auto"
+    timeout: float = 10.0
+
+    @property
+    def konfigurert(self) -> bool:
+        return bool(self.endpoint and self.bucket
+                    and self.access_key_id and self.secret_access_key)
+
+    def __str__(self) -> str:
+        # Til logg og feilmeldinger. Noeklene skal ALDRI med.
+        return f"{self.bucket} @ {urlparse(self.endpoint).netloc}"
+
+
+def fra_settings(cfg: Settings) -> Bucket:
+    """Bucketen tjenesten skriver til i vanlig drift."""
+    return Bucket(endpoint=cfg.r2_endpoint, bucket=cfg.r2_bucket,
+                  access_key_id=cfg.r2_access_key_id,
+                  secret_access_key=cfg.r2_secret_access_key,
+                  region=cfg.r2_region, timeout=cfg.r2_timeout_seconds)
 
 
 # Magiske byte -> (content-type, filendelse). Klienten sender JPEG; PNG og WebP
@@ -100,25 +148,23 @@ def kanonisk_forespoersel(metode: str, sti: str, hoder: dict[str, str],
     return kanonisk, signerte
 
 
-def _autorisasjon(cfg: Settings, metode: str, sti: str, hoder: dict[str, str],
+def _autorisasjon(b: Bucket, metode: str, sti: str, hoder: dict[str, str],
                   kropp_sha256: str, amz_dato: str) -> str:
     dato = amz_dato[:8]
     kanonisk, signerte = kanonisk_forespoersel(metode, sti, hoder, kropp_sha256)
-    omfang = f"{dato}/{cfg.r2_region}/{_TJENESTE}/aws4_request"
+    omfang = f"{dato}/{b.region}/{_TJENESTE}/aws4_request"
     aa_signere = "\n".join([
         _ALG, amz_dato, omfang,
         hashlib.sha256(kanonisk.encode("utf-8")).hexdigest(),
     ])
-    signatur = hmac.new(_signeringsnoekkel(cfg.r2_secret_access_key, dato,
-                                           cfg.r2_region),
+    signatur = hmac.new(_signeringsnoekkel(b.secret_access_key, dato, b.region),
                         aa_signere.encode("utf-8"), hashlib.sha256).hexdigest()
-    return (f"{_ALG} Credential={cfg.r2_access_key_id}/{omfang}, "
+    return (f"{_ALG} Credential={b.access_key_id}/{omfang}, "
             f"SignedHeaders={signerte}, Signature={signatur}")
 
 
 def er_konfigurert(cfg: Settings) -> bool:
-    return bool(cfg.r2_endpoint and cfg.r2_bucket
-                and cfg.r2_access_key_id and cfg.r2_secret_access_key)
+    return fra_settings(cfg).konfigurert
 
 
 def backend_name(cfg: Settings) -> str:
@@ -140,56 +186,84 @@ def objektnoekkel(fa_id: int, tag: str, endelse: str,
     return f"feilanalyse/{tag}/{d}/{fa_id}-{secrets.token_hex(8)}{endelse}"
 
 
-def _sti(cfg: Settings, noekkel: str) -> str:
+def _sti(b: Bucket, noekkel: str) -> str:
     # Sti-stil (endepunktet er kontospesifikt, bucketen er foerste ledd).
     # quote lar bokstaver, tall og «-._~» staa; skraastrekene i noekkelen er
     # katalogskiller og skal ikke kodes.
-    return f"/{quote(cfg.r2_bucket, safe='')}/{quote(noekkel, safe='/')}"
+    return f"/{quote(b.bucket, safe='')}/{quote(noekkel, safe='/')}"
 
 
-def _kall(cfg: Settings, metode: str, noekkel: str, kropp: bytes = b"",
+def _kall(b: Bucket, metode: str, noekkel: str, kropp: bytes = b"",
           content_type: str = "") -> httpx.Response:
-    if not er_konfigurert(cfg):
+    if not b.konfigurert:
         raise LagringFeilet("R2 er ikke konfigurert")
 
-    sti = _sti(cfg, noekkel)
+    sti = _sti(b, noekkel)
     amz_dato = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     kropp_sha = hashlib.sha256(kropp).hexdigest() if kropp else TOM_SHA256
     hoder = {
-        "host": urlparse(cfg.r2_endpoint).netloc,
+        "host": urlparse(b.endpoint).netloc,
         "x-amz-content-sha256": kropp_sha,
         "x-amz-date": amz_dato,
     }
     if content_type:
         hoder["content-type"] = content_type
-    hoder["authorization"] = _autorisasjon(cfg, metode, sti, hoder, kropp_sha,
+    hoder["authorization"] = _autorisasjon(b, metode, sti, hoder, kropp_sha,
                                            amz_dato)
 
-    url = cfg.r2_endpoint.rstrip("/") + sti
+    url = b.endpoint.rstrip("/") + sti
     try:
         r = httpx.request(metode, url, headers=hoder, content=kropp,
-                          timeout=cfg.r2_timeout_seconds)
+                          timeout=b.timeout)
     except httpx.HTTPError as exc:
-        raise LagringFeilet(f"{metode} mot R2 naadde ikke fram: {exc}") from exc
+        raise LagringFeilet(f"{metode} mot {b} naadde ikke fram: {exc}") from exc
     if r.status_code >= 300:
         # Kroppen er XML fra R2 og sier hvilken av de tre vanlige feilene det
         # er: SignatureDoesNotMatch, NoSuchBucket eller AccessDenied.
-        raise LagringFeilet(f"{metode} mot R2 svarte {r.status_code}: "
-                            f"{r.text[:300]}")
+        raise LagringFeilet(f"{metode} mot {b} svarte {r.status_code}: "
+                            f"{r.text[:300]}", status=r.status_code)
     return r
 
 
+# --- mot en navngitt bucket (kopiering mellom to) ------------------------
+
+def legg_i(b: Bucket, noekkel: str, data: bytes, content_type: str) -> None:
+    _kall(b, "PUT", noekkel, data, content_type)
+    log.info("Lastet opp %d byte til %s (%s)", len(data), b, noekkel)
+
+
+def hent_fra(b: Bucket, noekkel: str) -> bytes:
+    return _kall(b, "GET", noekkel).content
+
+
+def hent_om_finnes(b: Bucket, noekkel: str) -> bytes | None:
+    """
+    Som `hent_fra`, men None naar objektet ikke finnes (404).
+
+    Alt annet kaster fortsatt. Et 403 skal ALDRI se ut som et fravaer - det er
+    den forvekslingen som gjorde at en manglende deponering og et mislykket
+    kall saa like ut hos klienten i tre versjoner (rot-CLAUDE.md §7.3).
+    """
+    try:
+        return hent_fra(b, noekkel)
+    except LagringFeilet as exc:
+        if exc.status == 404:
+            return None
+        raise
+
+
+# --- mot bucketen i konfigurasjonen (vanlig drift) ----------------------
+
 def legg(cfg: Settings, noekkel: str, data: bytes, content_type: str) -> None:
     """Laster opp ett objekt. Kaster `LagringFeilet` - svelger ingenting."""
-    _kall(cfg, "PUT", noekkel, data, content_type)
-    log.info("Lastet opp %d byte til R2 (%s)", len(data), noekkel)
+    legg_i(fra_settings(cfg), noekkel, data, content_type)
 
 
 def hent(cfg: Settings, noekkel: str) -> bytes:
     """Henter ett objekt. Brukes av tools/r2_check.py."""
-    return _kall(cfg, "GET", noekkel).content
+    return hent_fra(fra_settings(cfg), noekkel)
 
 
 def slett(cfg: Settings, noekkel: str) -> None:
     """Sletter ett objekt. Brukes av tools/r2_check.py."""
-    _kall(cfg, "DELETE", noekkel)
+    _kall(fra_settings(cfg), "DELETE", noekkel)

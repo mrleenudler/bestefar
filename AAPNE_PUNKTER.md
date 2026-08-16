@@ -248,6 +248,31 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 Konsekvens i dag: telefoninvitasjoner til lag får `delivery_status: failed` med
 lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 
+### ÅP-E11 — R2-secretene må byttes til den EU-bundne bucketen
+Den gamle bucketen `bestefar-scan-failures` har *location hint* `EEUR` uten
+jurisdiksjonsbinding — et hint er ingen garanti, og «Eastern Europe» dekker land
+utenfor EØS. `bestefar-scan-failures-eur` er opprettet med jurisdiksjon `eu`.
+Kopieringsjobben er bygget (B-50), men **rekkefølgen er en del av tiltaket**:
+
+1. Bytt til den nye bucketen. Jurisdiksjonsbundne buckets har **eget
+   endepunkt**, så `R2_ENDPOINT` må endres, ikke bare `R2_BUCKET`:
+
+   ```powershell
+   flyctl secrets set R2_ENDPOINT="https://<konto-id>.eu.r2.cloudflarestorage.com" R2_BUCKET="bestefar-scan-failures-eur" -a bestefar-api
+   flyctl secrets set R2_KILDE_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_KILDE_BUCKET="bestefar-scan-failures" -a bestefar-api
+   ```
+
+   Er API-tokenet bucket-begrenset og ikke kontoomfattende, trengs også
+   `R2_KILDE_ACCESS_KEY_ID` og `R2_KILDE_SECRET_ACCESS_KEY` — symptomet er
+   `AccessDenied` fra den ene av dem.
+2. Kjør kopieringen **etterpå**, ikke før: da skriver tjenesten allerede til den
+   nye bucketen, og kilden kan ikke få nye objekter mens jobben går.
+3. Verifiser med `tools/r2_check.py` og en **ekte donasjon** fra appen.
+4. Først da: tøm den gamle bucketen. Egen runde, egen beslutning.
+
+Punktet står til steg 4 er gjort. `personvernerklaring.txt` kan ikke si at
+bildene ligger i EU før den gamle bucketen er tom (ÅPENT PUNKT 10 der).
+
 ---
 
 ## E. Uavklart teknisk retning

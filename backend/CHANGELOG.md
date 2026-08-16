@@ -20,6 +20,26 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-16
+
+**§6 — bildene skal til en jurisdiksjonsbundet bucket** (B-50). Den gamle
+bucketen har *location hint* `EEUR` uten jurisdiksjonsbinding — et hint er ingen
+garanti, og «Eastern Europe» dekker land utenfor EØS. Ny
+`app/services/bucketflytt.py` med `tools/copy_bucket.py` kopierer objektene med
+**uendret nøkkel** til `bestefar-scan-failures-eur`, og rører ikke databasen:
+`object_key` peker på hele stien. Tørrkjøring som standard, kan kjøres om igjen,
+og sletter ingenting — den gamle bucketen står til den nye er verifisert med en
+ekte donasjon.
+
+To ting i `objstore` fulgte med: **`Bucket`** samler endepunkt, bucketnavn og
+nøkler, siden en jurisdiksjonsbundet bucket har sitt eget endepunkt (`.../eu`)
+og to buckets derfor ligger på hver sin URL; og **`LagringFeilet.status`**, så
+404 kan skilles fra 403 uten å lete etter et tall i feilteksten.
+
+Krever nye Fly-secrets, se `tools/copy_bucket.py`: `R2_ENDPOINT` og `R2_BUCKET`
+byttes til den nye bucketen, og kilden oppgis med `R2_KILDE_ENDPOINT` og
+`R2_KILDE_BUCKET`.
+
 ## 2026-08-15
 
 **§6 — `image_legacy` er borte, og uten R2 tar vi ikke imot donasjoner**

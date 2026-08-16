@@ -206,11 +206,16 @@ Dette skjer faktisk i dag, lest ut av koden:
     Supabase er et amerikansk selskap; hvilken region prosjektet vårt er
     opprettet i, er ikke lest ut av koden. Se ÅPENT PUNKT 3.
 
-  Cloudflare R2 — objektlagring for skivebildene (2.7). Bucketen heter
-    `bestefar-scan-failures`. Endepunktet vårt har ingen jurisdiksjonsdel i
-    adressen, noe som tyder på at bucketen ble opprettet med standard
-    («automatic») plassering og ikke låst til EU. Det må bekreftes i
-    Cloudflare-panelet — se ÅPENT PUNKT 3.
+  Cloudflare R2 — objektlagring for skivebildene (2.7). Cloudflare Inc. er
+    amerikansk.
+    Den opprinnelige bucketen `bestefar-scan-failures` ble opprettet med
+    «location hint» EEUR og UTEN jurisdiksjonsbinding. Et hint er en preferanse,
+    ikke en garanti, og «Eastern Europe» dekker dessuten land utenfor EØS — det
+    var altså ingen garanti for at bildene ble liggende i EU/EØS.
+    Rettet 2026-08-16: `bestefar-scan-failures-eur` er opprettet med
+    jurisdiksjon `eu`, som binder objektene til EU, og bildene kopieres dit med
+    uendret nøkkel. Den gamle bucketen står til den nye er verifisert i drift,
+    og skal deretter tømmes — se ÅPENT PUNKT 10.
 
   Resend — sender e-post: innloggingskoder og videresending av meldinger til
     utvikleren. Amerikansk selskap. Mottakerens e-postadresse og innholdet i
@@ -264,9 +269,9 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
     Cloudflare-kontoen i dag? Er det én person eller flere, og finnes det
     tofaktor på dem? Erklæringen bør kunne si «kun behandlingsansvarlig» eller
     tallfeste det.
-    Videre: hvilken region er Supabase-prosjektet opprettet i, og hvilken
-    plassering har R2-bucketen? Fly-appen er i Amsterdam, men det gjelder bare
-    API-et — ikke databasen og ikke bildene.
+    Videre: hvilken region er Supabase-prosjektet opprettet i? Fly-appen er i
+    Amsterdam, men det gjelder bare API-et — ikke databasen. R2-spørsmålet er
+    besvart og rettet, se punkt 4 og ÅPENT PUNKT 10.
     Til slutt: er det inngått databehandleravtaler med Fly, Supabase,
     Cloudflare, Resend og Google, og finnes det overføringsgrunnlag for USA?
 
@@ -293,6 +298,14 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
     Fødselsår er et frivillig felt, og det finnes ingen aldersgrense i koden.
     Jakt og skyting har aldersgrenser i seg selv; eier må avgjøre om tjenesten
     skal ha en, og hva erklæringen skal si om mindreårige.
+
+  ÅPENT PUNKT 10 — Den gamle R2-bucketen er ikke tømt.
+    Bildene er kopiert til den EU-bundne bucketen, men originalene ligger igjen
+    i `bestefar-scan-failures`, som ikke har jurisdiksjonsbinding. Det er med
+    vilje: en kopiering som viser seg ufullstendig, skal ikke ha slettet
+    originalen. Erklæringen kan ikke si at bildene ligger i EU før den gamle
+    bucketen faktisk er tømt. Eier bestemmer når — etter at den nye er
+    verifisert i drift med en ekte donasjon.
 
   ÅPENT PUNKT 8 — Retten til innsyn og dataportabilitet.
     Kontosletting er bygget. Det finnes ingen «last ned alle data om meg»-funksjon
