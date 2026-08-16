@@ -29,8 +29,8 @@ jobs:
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with: { python-version: '3.12' }
       - run: pip install -r backend/requirements-dev.txt
       # Samme annotasjons-innpakning som i ci.yml. Uten den er en roed
@@ -56,8 +56,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: actions/checkout@v7
+      # Tagget versjon, ikke @master: en flyttbar gren kan endre seg midt under
+      # en deploy uten at noe i repoet er roert. 1.6 og ikke 1.5 - 1.5 er den
+      # GitHub melder som «latest release», men den kjoerer node20. Sjekk
+      # `runs.using` i setup-flyctl/action.yml foer du bytter tagg.
+      - uses: superfly/flyctl-actions/setup-flyctl@1.6
       # NB: kjoer fra backend/. `--config backend/fly.toml ./backend` tolkes
       # relativt til app-katalogen og feiler med "missing an app name".
       # Skiller «secreten mangler» fra «deployen feilet». flyctl sier bare
