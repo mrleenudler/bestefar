@@ -254,37 +254,6 @@ lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 
 Ikke gjeld — beslutninger som mangler.
 
-### ÅP-D1 — CI-actionene kjører på avviklet Node · label `kjerne` + `backend` + `ui`
-> «Node.js 20 is deprecated. The following actions target Node.js 20 but are
-> being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5.»
-> — annotasjon på begge workflowene, kjøring 2026-08-07
-
-`D` = delt. Punktet treffer alle tre områdene, fordi `ci.yml` har én jobb per
-område og alle bruker de samme actionene.
-
-Berørt i dag:
-
-| Action | Hvor |
-|---|---|
-| `actions/checkout@v4` | `ci.yml` (alle tre jobber), `deploy-backend.yml` (begge jobber) |
-| `actions/setup-python@v5` | `ci.yml` backend-jobben, `deploy-backend.yml` test-jobben |
-| `actions/setup-java@v4` | `ci.yml` android-jobben (som uansett står med `if: false`, ÅP-U12) |
-
-GitHub tvinger dem over på Node 24 nå og varsler. Det er ikke en feil i dag,
-men varselet blir en feil på et tidspunkt vi ikke styrer — og da stopper både
-CI og **deployen til produksjon** samtidig, siden begge workflowene bruker de
-samme actionene.
-
-Åpent: hvem som bumper, og om det gjøres samlet. `ci.yml` er delt
-(rot-`CLAUDE.md` §4: rør kun din egen jobb), så en samlet bump er den ene
-endringen som ikke passer inn i eierskapsmodellen. Enten gjør én instans det
-for alle tre etter avtale, eller så deles det opp per jobb.
-
-**Beslektet, oppdaget samtidig:** `deploy-backend.yml` bruker
-`superfly/flyctl-actions/setup-flyctl@master` — en flyttbar gren, ikke en
-tagget versjon. Den kan endre seg under føttene på en deploy uten at noe i
-repoet er endret. Om den skal pinnes, er ikke besluttet.
-
 ### ÅP-B10 — 34 av 48 svar er utypet, så kontrakten beskriver dem ikke · label `backend`
 Målt 2026-08-08 ved generering av `contracts/openapi.json`. **De 14 rutene
 Android-klienten faktisk kaller, har fått `response_model`** (lista i
@@ -492,6 +461,7 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | ÅP-E3 — `FCM_SERVICE_ACCOUNT_JSON` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `GET /health` svarer `"push":"fcm"` og ikke `"push":"log"` — `push.backend_name()` gir `fcm` bare når tjenestekonto-JSON-en lot seg lese. `FCM_PROJECT_ID` ble aldri nødvendig; `push.project_id()` leser den fra JSON-en. Merk hva testen *ikke* dekker: at nøkkelen er lesbar er ikke det samme som at FCM godtar den. Det viser seg først når et varsel faktisk sendes. |
 | ÅP-E4 — `GOOGLE_CLIENT_IDS` | 2026-08-10 | **Satt i produksjon.** Verifisert ved at `POST /v1/auth/google` med et ugyldig `id_token` svarer **401 «Ugyldig Google-token»** og ikke 503 — altså at `aud`-sjekken faktisk kjører i stedet for å bli hoppet over som ukonfigurert. Testen sier at secreten er lest; den sier ikke at *verdien* er riktig web-klient-ID. Det viser seg først ved en ekte innlogging fra klienten. **Den innloggingen er gjort 2026-08-15:** bruker logget inn med Google fra v0.27 og gjenopprettet en kopi tatt med v0.25 — en gjennomført gjenoppretting krever gyldig tokenpar, så verdien er riktig. Dermed er også ÅP-E4 helt lukket, ikke bare delvis. Se `android/ARCHITECTURE.md`. |
 | ÅP-B5 — Cloudflare R2 er betalt for og ubrukt | 2026-08-15 | **Koblet inn.** Speccen avgjorde valget: §6 og §0.1 sier begge at bildene ligger i objektlagring, så «avvikle oppsettet» ville krevd en spec-endring og ikke en kodebeslutning. `POST /v1/failed-analyses` laster opp via `app/services/objstore.py` (SigV4 uten boto3) og lagrer bare `object_key`. Backend B-44/B-45/B-46. Gamle `image_legacy`-rader er ikke flyttet — se ÅP-B11. |
+| ÅP-D1 — CI-actionene kjørte på avviklet Node | 2026-08-16 | **Bumpet, alle tre områdene i én commit etter avtale med eier** (`a020dc3`) — den ene endringen eierskapsmodellen ikke dekker, notert i commit-meldingen og i toppen av `ci.yml` så de to andre instansene ikke lurer. `checkout` v4→v7, `setup-python` v5→v7, `setup-java` v4→v5, `cache` v4→v6, `setup-gradle` v4→v6, `setup-flyctl` `@master`→`@1.6`. **Runtime ble lest fra `runs.using` i hver actions `action.yml` på den taggen vi peker på**, ikke antatt: `setup-flyctl@1.5`, som GitHub melder som «latest release», kjører node20 — å pinne til den ville låst oss på runtimen som avvikles, og `@master` var allerede node24. Verifisert på to måter, siden grønn kjøring og fravær av advarsel er to ulike påstander: alle fem jobbene `success` (CI 31940266418, Deploy backend 31940266433), **og** null node20-annotasjoner mot fire i kjøringen før (31879818643). Pinningen av `setup-flyctl` var eget avsnitt i punktet og er lukket samtidig. |
 | ÅP-B11 — gamle bilder i `image_legacy` | 2026-08-15 | **Flyttet til R2, ikke kastet** (eieravklaring: de er materialet ÅP-U14 mangler). Kjørt med `tools/migrate_legacy_images.py --utfoer` på Fly-maskinen: fem rader, 13 byte til 3 844 036 byte, 10 509 298 byte til sammen, alle JPEG, alle med innsendingsdatoen i nøkkelen. Hver rad ble lest tilbake og sammenlignet byte for byte før `image_legacy` ble tømt (B-48). Verifisert ved at `GET /health` gikk fra `"bilder": "r2 (5 gamle rader i basen)"` til `"bilder": "r2"`. Merk to ting for ettertiden: «11 MB-raden» fantes ikke — det var totalen, og ingen rad var over 8 MB-grensen — og rad 2 er 13 byte, altså en avkortet innsending uten bildeinnhold. Fire av de fem er `ocr_mismatch`. |
 | ÅP-E10 — R2-secretene og signeringen | 2026-08-15 | **Virker mot ekte R2.** Secretene sto i Fly fra før (punktet påstod først det motsatte, og ble rettet). Verifisert ved å kjøre `tools/r2_check.py` **inne på Fly-maskinen**, der secretene faktisk er: `flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"` svarte `PUT: ok` / `GET: ok (64 byte, identisk)` / `DELETE: ok` mot bucketen `bestefar-scan-failures`. Det er hele rundturen, ikke bare at verdiene lot seg lese — `/health` sier `"bilder": "r2"` uansett om Cloudflare avviser signaturen. Verktøyet ligger i imaget nettopp derfor (B-47). Merk hva testen *ikke* dekker: at en ekte donasjon fra klienten går gjennom hele veien; det viser seg først når `POST /v1/failed-analyses` svarer 201 med en `object_key`. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |
