@@ -1,0 +1,316 @@
+PERSONVERNERKLÆRING FOR BESTEFAR — UTKAST TIL GODKJENNING
+=========================================================
+
+Status: UTKAST, 2026-08-16. Skrevet av backend-instansen på grunnlag av hva
+koden faktisk gjør per commit a9b8716, ikke hva spesifikasjonene sier den skal
+gjøre. Alt som ikke kunne leses ut av koden står som ÅPENT PUNKT nederst, og er
+ikke fylt inn med noe plausibelt. Eier må avgjøre de punktene før teksten kan
+publiseres.
+
+Vurderingen av om personvernkonsekvensutredning (DPIA) er nødvendig, er en egen
+sak og hører ikke hjemme i dette dokumentet.
+
+
+DET VIKTIGSTE, KORT
+-------------------
+
+* Jaktloggen din — art, sted, koordinater, utfall — ligger kryptert av appen før
+  den sendes. Serveren kan i utgangspunktet ikke lese den.
+
+* MEN: «gjenopprett uten kode» er på som standard. Da ligger nøkkelen hos oss,
+  og vi kan i prinsippet låse opp kopien din. Slår du den av, kan vi ikke det —
+  og da er gjenopprettingskoden din eneste vei tilbake.
+
+* Skyteresultatene dine ligger derimot i klartekst hos oss: hvert treff, avstand,
+  skytestilling og tidspunkt. Det er dette venner ser statistikk fra, og du
+  velger selv hvilke felt som deles.
+
+* Vi lagrer aldri hva du felte eller hvor. Serveren har bare et tidsstempel for
+  når du sist kunngjorde et felt dyr til vennene dine.
+
+* Sender du inn et bilde av skiva når analysen feilet, lagres bildet hos oss.
+  Bildet er ikke merket med kontoen din, men det følger et serie-ID som *kan*
+  kobles til kontoen din i databasen vår. Det er ikke anonymt.
+
+* Forskningsinnsamlingen er slått av og samler ingenting i dag.
+
+* Ingenting slettes automatisk etter en viss tid. Sletter du kontoen, slettes
+  dataene dine da.
+
+
+1. HVEM ER BEHANDLINGSANSVARLIG
+-------------------------------
+
+ÅPENT PUNKT 1 — navn, organisasjonsnummer og kontaktadresse mangler. Se nederst.
+
+
+2. HVA VI LAGRER, HVOR, HVOR LENGE, OG HVEM SOM HAR TILGANG
+-----------------------------------------------------------
+
+Med mindre annet er sagt, ligger alt i databasen (Supabase Postgres) og er
+tilgjengelig for den som har tilgang til driftskontoene våre — se punkt 4 og
+ÅPENT PUNKT 3.
+
+2.1 Konto og innlogging
+  Lagres: intern konto-ID (UUID), en kort offentlig ID (f.eks. BF-7Q4K-9F2M),
+  visningsnavn og status på navnemoderering, valgfritt fødselsår, valgfri
+  hjemkommune, valgfritt telefonnummer, om du kan finnes i søk, tidspunkt for
+  opprettet/oppdatert/sist sett.
+  Ved innlogging med Google eller Apple: leverandørens bruker-ID (`sub`) og
+  e-postadressen fra ID-tokenet.
+  Ved innlogging med e-post: adressen, og engangskoden lagret som SHA-256 —
+  aldri koden selv. Raden med brukt kode blir stående så den ikke kan brukes om
+  igjen.
+  Innlogget økt: SHA-256 av fornyelsestokenet (aldri tokenet selv), User-Agent
+  fra enheten, tidspunkter.
+  Hvor lenge: til du sletter kontoen. Ingen jobb rydder utløpte økter eller
+  brukte engangskoder. Se ÅPENT PUNKT 2.
+
+2.2 Sikkerhetskopi — den delen som er uvanlig, og som er verdt å lese
+  Lagres: én kryptert blob per konto, dens størrelse, hvilken enhet som lastet
+  den opp, og tidspunkt.
+  Innholdet i bloben er skyteserier, JAKTLOGG og innstillinger. Den er kryptert
+  av appen på telefonen din (AES-256-GCM) før den forlater enheten. Serveren
+  gjør ingen validering av innholdet og kan ikke slå opp i den.
+
+  Nøkkelen: normalt ligger den i Android Block Store på telefonen din, pluss en
+  20-tegns gjenopprettingskode du får se.
+
+  «GJENOPPRETT UTEN KODE» ER PÅ SOM STANDARD. Når den er på, deponerer appen
+  nøkkelmaterialet hos oss, slik at du slipper koden når du bytter telefon.
+  Konsekvensen skal stå rett ut: DA KAN VI I PRINSIPPET DEKRYPTERE
+  SIKKERHETSKOPIEN DIN, INKLUDERT JAKTLOGGEN. Det kan også den som skaffer seg
+  tilgang til driftsmiljøet vårt.
+  Det deponerte materialet er kryptert i ro med en servernøkkel som ikke ligger
+  i databasen, men i driftsmiljøet (Fly). En stjålet databasedump alene er
+  derfor ikke nok; det kreves databasen *og* driftshemmeligheten.
+  Slår du valget av, slettes det deponerte materialet, og da er
+  gjenopprettingskoden eneste vei tilbake — mister du den, er kopien tapt for
+  alltid, også for oss.
+  Ingen andre deler av tjenesten leser den deponerte nøkkelen.
+  Hvor lenge: til du slår av deponeringen, sletter sikkerhetskopien eller
+  sletter kontoen.
+
+2.3 Skyteresultater
+  Lagres i KLARTEKST hos oss: per serie tidspunkt, våpen-ID (en ugjennomsiktig
+  streng — våpennavnet ditt ligger bare i den krypterte bloben), ammunisjonsnavn,
+  avstand i meter, skytestilling, om serien er korrigert, sesong, sum og antall
+  skudd, og for hvert enkelt skudd posisjonen på skiva og poengsummen.
+  Hvorfor: vennestatistikk (snitt og utvikling) og din egen sikkerhetskopi.
+  Delingsvalg: du velger selv hvilke felt venner får se (totalt antall skudd,
+  sesongtall, snitt, utvikling, felte dyr, telefonnummer, hjemkommune).
+  Serveren filtrerer utgående data etter dine valg — venner får aldri felt du
+  ikke har delt. Visningsnavnet ditt deles alltid.
+  Hvor lenge: til du sletter kontoen.
+
+2.4 Jaktlogg
+  Lagres på serveren: INGENTING om art, sted eller utfall. Kun ett tidsstempel
+  for når du sist kunngjorde et felt dyr til venner, og det finnes bare for å
+  begrense gjentatte kunngjøringer. Selve kunngjøringen er et varsel som sendes
+  videre og ikke lagres.
+  Alt annet om jakt ligger i den klient-krypterte bloben (se 2.2).
+
+2.5 Venner og lag
+  Lagres: hvem som har sendt og akseptert venneforespørsel, og når. Ingen data
+  deles før den andre har akseptert.
+  Lag: navn, type (jaktlag/skytterlag), valgfri posisjon (breddegrad/lengdegrad)
+  som brukes til å finne lag i nærheten, hvem som opprettet laget, medlemskap og
+  roller, lederavstemninger og stemmer.
+  Invitasjoner: E-POSTADRESSEN ELLER TELEFONNUMMERET TIL DEN DU INVITERER lagres
+  hos oss, sammen med om invitasjonen ble levert og akseptert — også når
+  mottakeren aldri blir bruker. Telefonnumre normaliseres (norske 8-sifrede får
+  +47). SMS sendes ikke i dag; en telefoninvitasjon får status «feilet» og lenken
+  må deles av deg selv.
+  Hvor lenge: medlemskap til du melder deg ut eller sletter kontoen. Invitasjoner
+  og avstemninger ryddes ikke. Se ÅPENT PUNKT 2.
+
+2.6 Meldinger og varsler
+  Lagres: en kø av meldinger til deg (tittel og tekst, f.eks. «du ble fjernet fra
+  laget»), med tidspunkt for levering.
+  Push-registrering per enhet: push-token fra Firebase, plattform, appversjon og
+  telefonmodell.
+  Hvor lenge: meldinger blir stående etter levering; døde push-tokens slettes når
+  Firebase melder at de ikke finnes. Se ÅPENT PUNKT 2.
+
+2.7 Bilder av skiva ved feilet analyse (frivillig)
+  Lagres når du har samtykket til bildedeling: selve bildet i objektlagring
+  (Cloudflare R2), og i databasen en referanse til bildet, statuskode fra
+  analysen, konfidens, versjon av analysemotoren, hvilken type avvik det var, og
+  ET SERIE-ID.
+  Merk: raden er ikke merket med kontoen din, og endepunktet krever ikke
+  innlogging. MEN serie-ID-en er den samme som brukes når serien lagres under
+  kontoen din i 2.3. Den som har tilgang til databasen, kan dermed koble bildet
+  til deg. Vi kaller det derfor ikke anonymt.
+  Hva bildet viser, avhenger av hva som sto på skjermen du fotograferte — se
+  ÅPENT PUNKT 5.
+  Hvor lenge: bildene ryddes ikke. Se ÅPENT PUNKT 2.
+
+2.8 Melding til utvikleren
+  Lagres: emne, meldingstekst, appversjon, telefonmodell og — hvis appen sender
+  den — konto-ID. Meldingen lagres alltid, og videresendes deretter på e-post til
+  utvikleren via Resend. Feiler videresendingen, blir meldingen stående hos oss
+  med feilmeldingen på raden.
+  Krever ikke innlogging.
+  Hvor lenge: ryddes ikke. Se ÅPENT PUNKT 2.
+
+2.9 Misbruksvern
+  IP-adresse brukes til å begrense antall meldinger til utvikleren per time.
+  Denne tellingen ligger i minnet og lagres ikke i databasen.
+  Ved gjentatte mislykkede søk etter andre brukere lagres derimot en
+  karanteneoppføring i databasen, der «subjektet» er enten konto-ID eller
+  IP-ADRESSE/SUBNETT, med antall forsøk og hvor lenge karantenen varer.
+  Hvor lenge: karanteneradene ryddes ikke. Se ÅPENT PUNKT 2.
+
+2.10 Forskningsdata — IKKE I BRUK
+  Funksjonen er slått av i både app og server (`RESEARCH_ENABLED` er av), og det
+  samles ikke inn forskningsdata i dag.
+  Slik er den bygget, hvis den slås på: observasjonene ligger i et eget
+  databaseskjema uten koblinger til brukertabellene, merket med et pseudonym som
+  regnes ut fra konto-ID-en med en serverhemmelighet. Pseudonymet lagres aldri
+  som en oppslagstabell, så forskningslageret alene kan ikke føres tilbake til en
+  konto. Delingsvalgene dine (art, dato, posisjonsnøyaktighet, skuddsituasjon,
+  skadedata) er alle av som standard, og serveren filtrerer innsendte data etter
+  dem.
+  Se ÅPENT PUNKT 4 om hva som skjer med sletteanmodninger her.
+
+
+3. NÅR DU SLETTER KONTOEN
+--------------------------
+
+Dette skjer faktisk i dag, lest ut av koden:
+
+  * Skyteserier og enkeltskudd, sikkerhetskopien, deponert nøkkelmateriale,
+    innlogginger og økter, push-enheter, meldingskø, delingsvalg, vennskap,
+    lagmedlemskap og stemmer slettes umiddelbart.
+  * Brukerraden slettes IKKE, men tømmes: navnet settes til «Slettet bruker»,
+    telefonnummer, fødselsår og hjemkommune fjernes, og kontoen merkes som
+    slettet. Den korte offentlige ID-en blir stående, slik at den ikke kan
+    gjenbrukes av en ny konto — en venn som har lagret ID-en din, skal ikke
+    plutselig se en fremmed.
+  * Det legges inn en sletteanmodning i forskningslageret, merket med pseudonymet
+    og ikke med hvem du er. Eventuelle forskningssamtykker trekkes tilbake.
+    MEN: ingen jobb behandler disse anmodningene i dag. Se ÅPENT PUNKT 4.
+  * Bilder du har donert ved feilet analyse (2.7) slettes IKKE av dette. De
+    ligger igjen i objektlagringen med serie-ID-en. Se ÅPENT PUNKT 6.
+  * Meldinger du har sendt til utvikleren (2.8) slettes ikke.
+
+
+4. TREDJEPARTER
+----------------
+
+  Fly.io — kjører selve API-et. Appen kjører i regionen Amsterdam (ams), altså
+    i EU. Fly.io Inc. er amerikansk. Driftshemmelighetene våre, blant annet
+    nøkkelen som beskytter deponert nøkkelmateriale (2.2), ligger her.
+
+  Supabase — Postgres-databasen der alt i punkt 2 ligger, unntatt bildene.
+    Supabase er et amerikansk selskap; hvilken region prosjektet vårt er
+    opprettet i, er ikke lest ut av koden. Se ÅPENT PUNKT 3.
+
+  Cloudflare R2 — objektlagring for skivebildene (2.7). Bucketen heter
+    `bestefar-scan-failures`. Endepunktet vårt har ingen jurisdiksjonsdel i
+    adressen, noe som tyder på at bucketen ble opprettet med standard
+    («automatic») plassering og ikke låst til EU. Det må bekreftes i
+    Cloudflare-panelet — se ÅPENT PUNKT 3.
+
+  Resend — sender e-post: innloggingskoder og videresending av meldinger til
+    utvikleren. Amerikansk selskap. Mottakerens e-postadresse og innholdet i
+    e-posten går gjennom dem.
+
+  Google — brukes til to ting: innlogging med Google-konto (vi verifiserer
+    ID-tokenet mot Googles nøkler; Google får dermed vite at du logger inn i
+    Bestefar), og Firebase Cloud Messaging for push-varsler. Push-tokenet ditt og
+    innholdet i varselet (tittel og tekst) går gjennom Googles infrastruktur.
+    Google LLC er amerikansk.
+
+  Apple — innlogging med Apple-konto er bygget, men iOS-appen er ikke publisert.
+
+  Android-appen tar IKKE lenger Googles automatiske sikkerhetskopi av appdataene
+  sine (`allowBackup="false"` fra v0.26). Før det lå jaktloggen ukryptert hos
+  Google for brukere som hadde Android-backup på.
+
+
+5. HVA VI IKKE GJØR
+--------------------
+
+  * Vi selger ikke data og deler ikke med annonsører.
+  * Vi lagrer ikke hva du felte eller hvor (2.4).
+  * Vi ser ikke inn i sikkerhetskopien din — med forbeholdet i 2.2, som er reelt
+    og gjelder de fleste brukere, siden deponering er på som standard.
+  * Appen har ingen analyse- eller sporingsbiblioteker.
+
+
+6. ÅPNE PUNKTER — MÅ AVGJØRES AV EIER FØR PUBLISERING
+------------------------------------------------------
+
+Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
+
+  ÅPENT PUNKT 1 — Behandlingsansvarlig.
+    Navn, organisasjonsform, organisasjonsnummer, postadresse og en
+    kontaktadresse for personvernhenvendelser. Også: behandlingsgrunnlag per
+    kategori (samtykke, avtale, berettiget interesse) — det er en juridisk
+    vurdering, ikke en teknisk.
+
+  ÅPENT PUNKT 2 — Lagringstid. INGEN AV DELENE SLETTES AUTOMATISK I DAG.
+    Det finnes ingen ryddejobb i koden i det hele tatt. Konkret står følgende
+    til det slettes manuelt eller kontoen slettes: brukte engangskoder, utløpte
+    og tilbakekalte økter, karanteneoppføringer med IP-adresser, leverte
+    meldinger i køen, invitasjoner med tredjeparters e-post og telefonnumre,
+    avstemninger, meldinger til utvikleren, og donerte skivebilder.
+    Eier må bestemme en oppbevaringstid per kategori. Deretter må den bygges —
+    en erklæring som lover sletting uten at noe sletter, er verre enn ingen.
+
+  ÅPENT PUNKT 3 — Hvem har tilgang, og hvor ligger dataene fysisk.
+    Hvem har innlogging til Fly-kontoen, Supabase-prosjektet og
+    Cloudflare-kontoen i dag? Er det én person eller flere, og finnes det
+    tofaktor på dem? Erklæringen bør kunne si «kun behandlingsansvarlig» eller
+    tallfeste det.
+    Videre: hvilken region er Supabase-prosjektet opprettet i, og hvilken
+    plassering har R2-bucketen? Fly-appen er i Amsterdam, men det gjelder bare
+    API-et — ikke databasen og ikke bildene.
+    Til slutt: er det inngått databehandleravtaler med Fly, Supabase,
+    Cloudflare, Resend og Google, og finnes det overføringsgrunnlag for USA?
+
+  ÅPENT PUNKT 4 — Sletteanmodninger i forskningslageret.
+    Koden legger inn anmodningen, men INGEN JOBB TØMMER DEN (ÅP-E2). I dag ville
+    en erklæring som lover sletting av forskningsdata vært usann. Siden
+    innsamlingen er av og lageret dermed er tomt, er dette ikke et problem i
+    praksis ennå — men det må løses før forskningsdelen slås på, og eier må
+    avgjøre om erklæringen skal si noe om det nå.
+
+  ÅPENT PUNKT 5 — Hva viser skivebildene.
+    Bildene er fotografier av en elektronisk Kongsberg-skive. Om skjermen viser
+    skytterens navn, startnummer eller andre opplysninger — og dermed om bildene
+    inneholder personopplysninger om andre enn den som sendte dem inn — kan ikke
+    leses ut av koden. Eier vet hvordan apparatet ser ut.
+
+  ÅPENT PUNKT 6 — Skal donerte bilder følge kontoslettingen?
+    I dag gjør de ikke det. De er ikke merket med konto-ID, men serie-ID-en gjør
+    dem koblbare (2.7). Valget står mellom å slette dem ved kontosletting, å
+    fjerne serie-ID-en så koblingen faktisk brytes, eller å si i erklæringen at
+    de blir liggende. Alle tre er forsvarlige; å la det være uavklart er ikke.
+
+  ÅPENT PUNKT 7 — Barn.
+    Fødselsår er et frivillig felt, og det finnes ingen aldersgrense i koden.
+    Jakt og skyting har aldersgrenser i seg selv; eier må avgjøre om tjenesten
+    skal ha en, og hva erklæringen skal si om mindreårige.
+
+  ÅPENT PUNKT 8 — Retten til innsyn og dataportabilitet.
+    Kontosletting er bygget. Det finnes ingen «last ned alle data om meg»-funksjon
+    i dag; en innsynsbegjæring må besvares manuelt av eier ved oppslag i basen.
+    Erklæringen bør si hvordan man ber om innsyn, og innen hvilken frist.
+
+
+7. ENDRINGER I DENNE ERKLÆRINGEN
+---------------------------------
+
+ÅPENT PUNKT 9 — hvordan brukerne varsles ved vesentlige endringer. Meldingskøen
+i 2.6 finnes og kan brukes til nettopp dette.
+
+
+-- SLUTT PÅ UTKAST --
+
+Grunnlag: backend/app/models/ (user.py, social.py, training.py, ops.py,
+research.py), backend/app/routers/ (account.py, auth.py, backup.py, feedback.py,
+failed_analyses.py, friends.py, teams.py), backend/app/services/ (escrow.py,
+mailer.py, push.py, pseudonym.py, quarantine.py), android/KONTRAKT.md §3,
+android/CHANGELOG.md v0.26, backend/fly.toml. Lest 2026-08-16.
