@@ -26,12 +26,15 @@ def boetter(monkeypatch, db_url):
     # kilden ogsaa, ville stoppet jobben foer den naadde det testen sikter paa.
     feil: dict[str, str | None] = {"put": None, "get_maal": None}
 
+    # Noekkel-ID-en er 32 tegn fordi kopieringen naa avviser et oppsett som
+    # umulig kan virke, foer den roerer et objekt (B-51).
+    noekkel_id = "0123456789abcdef0123456789abcdef"
     kilde = objstore.Bucket(endpoint="https://konto.r2.cloudflarestorage.com",
                             bucket="bestefar-scan-failures",
-                            access_key_id="a", secret_access_key="s")
+                            access_key_id=noekkel_id, secret_access_key="s")
     maal = objstore.Bucket(endpoint="https://konto.eu.r2.cloudflarestorage.com",
                            bucket="bestefar-scan-failures-eur",
-                           access_key_id="a", secret_access_key="s")
+                           access_key_id=noekkel_id, secret_access_key="s")
 
     def _navn(b):
         return "maal" if b.bucket.endswith("-eur") else "kilde"
@@ -183,6 +186,22 @@ def test_ukonfigurert_bucket_avvises(session, boetter):
                           secret_access_key="")
     with pytest.raises(RuntimeError, match="ikke konfigurert"):
         bucketflytt.kopier(session, tom, boetter["maal"], skriv=lambda s: None)
+
+
+def test_feilkonfigurert_bucket_avvises(session, boetter):
+    """
+    Alle fire verdiene satt, men kilden har bucketnavnet i endepunktet - da
+    ville hvert eneste objekt feilet med et 403 som ikke sier hvorfor (B-51).
+    """
+    import dataclasses
+
+    from app.services import bucketflytt
+
+    kilde = dataclasses.replace(
+        boetter["kilde"],
+        endpoint="https://konto.r2.cloudflarestorage.com/bestefar-scan-failures")
+    with pytest.raises(RuntimeError, match="feilkonfigurert"):
+        bucketflytt.kopier(session, kilde, boetter["maal"], skriv=lambda s: None)
 
 
 def test_rader_uten_objekt_hoppes_over(session, boetter):

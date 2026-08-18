@@ -10,11 +10,15 @@ AWS-tjenestekatalogen. Samme avveining som i push.py, der google-auth ble
 droppet til fordel for PyJWT vi allerede hadde. SigV4-signeringen er de foerste
 femti linjene under, og den er dekket av tester.
 
-**Ikke konfigurert** (tom R2_BUCKET eller manglende noekler) => `er_konfigurert`
+**Ikke konfigurert** (tom R2_BUCKET eller manglende noekler) => `kan_brukes`
 er False, og `routers/failed_analyses.py` svarer 503 uten aa lese kroppen.
 Bildekolonnen i basen er fjernet (B-49), saa det finnes ikke et annet sted aa
 gjoere av donasjonen. `/health` under «bilder» sier hvilken tilstand maskinen er
 i - det er stedet aa spoerre.
+
+**Ikke konfigurert og feilkonfigurert er to tilstander** (B-51). En verdi som er
+satt er ikke en verdi som virker, og `tilstand()` sier hvilken av delene det er.
+Se den funksjonen for hvorfor forskjellen maatte fram.
 
 **En feil herfra blir aldri en stille fallback til basen.** Da ville en feilsatt
 noekkel sett ut som «R2 er ikke konfigurert», bildene lagt seg i basen igjen, og
@@ -163,13 +167,100 @@ def _autorisasjon(b: Bucket, metode: str, sti: str, hoder: dict[str, str],
             f"SignedHeaders={signerte}, Signature={signatur}")
 
 
-def er_konfigurert(cfg: Settings) -> bool:
-    return fra_settings(cfg).konfigurert
+# R2s Access Key ID-er er 32 tegn, og R2 sier det selv naar de ikke er det:
+# «Credential access key has length 9, should be 32». Skulle lengden noen gang
+# endre seg, er det denne linjen som skal rettes - ikke sjekken som skal bort.
+AKSESSNOEKKEL_TEGN = 32
 
 
-def backend_name(cfg: Settings) -> str:
-    """Til /health, paa samme form som mailer/push.backend_name."""
-    return "r2" if er_konfigurert(cfg) else "database"
+def _verdier(b: Bucket) -> tuple[tuple[str, str], ...]:
+    """Navn -> verdi for de fire som maa settes. Navnene er de i Fly/.env."""
+    return (("R2_ENDPOINT", b.endpoint), ("R2_BUCKET", b.bucket),
+            ("R2_ACCESS_KEY_ID", b.access_key_id),
+            ("R2_SECRET_ACCESS_KEY", b.secret_access_key))
+
+
+def manglende(b: Bucket) -> list[str]:
+    """Navnene paa de verdiene som ikke er satt. Tom liste = alle fire staar."""
+    return [navn for navn, verdi in _verdier(b) if not verdi]
+
+
+def feilkonfigurasjon(b: Bucket) -> str | None:
+    """
+    Hva som er GALT med et oppsett der alle fire verdiene staar - ellers None.
+
+    Finnes fordi `/health` svarte «r2» gjennom tre ulike feilkonfigurasjoner
+    mens produksjonen ikke kunne skrive et eneste bilde og hver donasjon fikk
+    503 (AAP-B12, 2026-08-18). Ingen av dem trengte et nettverkskall for aa
+    kunne ses; de trengte bare at noen saa etter.
+
+    Her staar bare det som er ALLTID feil. At tokenet mangler EU-jurisdiksjon,
+    at bucketen ikke finnes, at signaturen avvises - det kan bare et faktisk
+    kall svare paa, og det er `tools/r2_check.py` sitt aerend. En sjekk med
+    falske positiver ville stengt en fungerende bucket, og det er verre enn den
+    tilstanden dette retter.
+
+    Verdiene skrives ALDRI ut: to av de fire er hemmeligheter, og teksten
+    herfra gaar bade i `/health` og i loggen.
+    """
+    for navn, verdi in _verdier(b):
+        # Et linjeskift paa slutten av en secret er usynlig i panelet, gir
+        # SignatureDoesNotMatch, og ser ut som feil noekkel.
+        if verdi != verdi.strip():
+            return f"{navn} har mellomrom eller linjeskift rundt verdien"
+
+    u = urlparse(b.endpoint)
+    if u.scheme not in ("http", "https") or not u.netloc:
+        return ("R2_ENDPOINT er ikke en URL - formen er "
+                "https://<konto-id>.r2.cloudflarestorage.com")
+    if u.path.strip("/"):
+        # `_sti()` legger selv paa /{bucket}/{noekkel}. Staar bucketnavnet i
+        # endepunktet ogsaa, dekker signaturen en annen sti enn forespoerselen.
+        return (f"R2_ENDPOINT har sti ('{u.path}') - bucketnavnet legges paa "
+                f"av koden og skal ikke staa i endepunktet")
+    if "/" in b.bucket:
+        return "R2_BUCKET er et bucketnavn alene, ikke en sti"
+    if len(b.access_key_id) != AKSESSNOEKKEL_TEGN:
+        return (f"R2_ACCESS_KEY_ID er {len(b.access_key_id)} tegn, skal vaere "
+                f"{AKSESSNOEKKEL_TEGN}")
+    return None
+
+
+def tilstand(cfg: Settings) -> str:
+    """
+    Tilstanden lagringen er i, paa den formen `/health` viser den under
+    «bilder»: «r2», «ikke konfigurert (§6)» eller «feilkonfigurert (...)».
+
+    TRE tilstander, ikke to. «Ingenting satt» er en funksjon som er av, og det
+    er en normal tilstand i utvikling. «Tre av fire satt» eller «Access Key ID
+    paa ni tegn» er noe i stykker, og skal ikke se ut som det foerste - det var
+    nettopp likheten som gjorde at fire feilkonfigurasjoner passerte som normal
+    drift (AAP-B12). Samme tredeling som `database` allerede har i `/health`:
+    ok | feilkonfigurert (...) | utilgjengelig.
+
+    «r2» betyr at oppsettet ikke kan vaere feil paa noen maate vi kan se uten
+    aa spoerre Cloudflare. Det betyr ikke at en opplasting vil lykkes.
+    """
+    b = fra_settings(cfg)
+    mangler = manglende(b)
+    if len(mangler) == len(_verdier(b)):
+        return "ikke konfigurert (§6)"
+    if mangler:
+        # Halvveis satt er ikke «av» - noen har vaert her og ikke blitt ferdig.
+        return f"feilkonfigurert (mangler {', '.join(mangler)})"
+    feil = feilkonfigurasjon(b)
+    return f"feilkonfigurert ({feil})" if feil else "r2"
+
+
+def kan_brukes(cfg: Settings) -> bool:
+    """
+    Om en donasjon kan tas imot.
+
+    Definert som «tilstand() sier r2» med vilje: da KAN ikke `/health` og
+    mottaket vaere uenige om hvorvidt lagringen virker, og det var uenigheten
+    som var feilen i AAP-B12.
+    """
+    return tilstand(cfg) == "r2"
 
 
 def objektnoekkel(fa_id: int, tag: str, endelse: str,

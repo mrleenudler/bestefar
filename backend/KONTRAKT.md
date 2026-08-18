@@ -34,7 +34,13 @@ Klienten kaster permanent avviste elementer og prøver de midlertidige på nytt
 `GET /health` svarer **alltid 200** så lenge prosessen lever. Databasens
 tilstand står i kroppen, ikke i statuskoden — ellers ville en midlertidig
 DB-feil fått Fly til å rulle tilbake en frisk deploy.
-Felter: `status`, `env`, `database`, `mailer`, `push`, `escrow`.
+Felter: `status`, `env`, `database`, `mailer`, `push`, `escrow`, `bilder`.
+
+**`database` og `bilder` skiller «av» fra «i stykker».** Begge kan svare
+`feilkonfigurert (…)`, og det betyr noe annet enn at funksjonen ikke er slått
+på: verdier er satt, og noe er beviselig galt med dem. `mailer`, `push` og
+`escrow` skiller ikke — de sier bare hvilken backend som er i bruk, og at en
+secret lot seg lese er ikke det samme som at leverandøren godtar den.
 
 ## 1. Innlogging og økt
 
@@ -519,7 +525,10 @@ hele tatt.
   fristen. ÅP-B7.
 - **Feilanalyse-bilder ligger i R2, aldri i databasen.** Opplastingen kom
   2026-08-15 (ÅP-B5), de fem gamle radene ble flyttet samme dag (ÅP-B11), og
-  kolonnen som holdt dem er fjernet (`a3f7c1e59b24`, B-49). Uten R2 konfigurert
-  tas donasjoner ikke imot i det hele tatt — 503. `GET /health` under `bilder`
-  sier hvilken tilstand en gitt maskin er i; det er den ene kilden, ikke denne
-  setningen.
+  kolonnen som holdt dem er fjernet (`a3f7c1e59b24`, B-49). Uten **brukbar** R2
+  tas donasjoner ikke imot i det hele tatt — 503, både når secretene mangler og
+  når de er beviselig feil (B-51). `GET /health` under `bilder` sier hvilken
+  tilstand en gitt maskin er i; det er den ene kilden, ikke denne setningen.
+  Men `"r2"` betyr bare at oppsettet ikke kan være feil på en måte vi ser uten
+  å spørre Cloudflare — at en opplasting faktisk lykkes, svarer bare
+  `tools/r2_check.py` på.

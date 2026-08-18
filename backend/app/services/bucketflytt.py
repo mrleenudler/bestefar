@@ -75,6 +75,12 @@ def kopier(s: OrmSession, kilde: objstore.Bucket, maal: objstore.Bucket,
     for b, navn in ((kilde, "kilde"), (maal, "maal")):
         if not b.konfigurert:
             raise RuntimeError(f"Bucket ({navn}) er ikke konfigurert: {b}")
+        feil = objstore.feilkonfigurasjon(b)
+        if feil:
+            # Ellers gaar jobben i gang og feiler paa hvert eneste objekt med
+            # en 403 som ikke sier hva som er galt. Navnene i teksten er
+            # R2_*; for kilden heter de R2_KILDE_* (B-51).
+            raise RuntimeError(f"Bucket ({navn}) er feilkonfigurert: {feil}")
     if (kilde.endpoint, kilde.bucket) == (maal.endpoint, maal.bucket):
         raise RuntimeError(f"Kilde og maal er samme bucket: {kilde}")
 

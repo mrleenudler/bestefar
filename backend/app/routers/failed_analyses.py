@@ -7,7 +7,9 @@ naar brukeren har godtatt bildedeling, og sender dem opportunistisk.
 Bildet lagres i Cloudflare R2 og er bare REFERERT herfra (`object_key`); §6/§0.1
 er tydelige paa at bilder aldri lagres i databasen. Se services/objstore.py.
 
-UTEN R2 KONFIGURERT TAR VI IKKE IMOT NOE - 503, ikke 201. Kolonnen som holdt
+UTEN BRUKBAR R2 TAR VI IKKE IMOT NOE - 503, ikke 201. «Brukbar» er mer enn
+«satt»: et endepunkt med sti i seg eller en Access Key ID paa ni tegn stopper
+her paa samme maate som en tom secret (B-51). Kolonnen som holdt
 bildene i basen er fjernet (migrasjon a3f7c1e59b24), saa det finnes ikke lenger
 et annet sted aa gjoere av dem, og aa svare 201 paa noe vi kastet ville vaert
 stille datatap. Samme form som JWT_SECRET: uten det vi trenger, utsteder vi
@@ -69,9 +71,15 @@ async def submit_failed(status_code: int = Form(...),
                         image: UploadFile = File(...),
                         s: OrmSession = Depends(db)) -> dict:
     cfg = settings()
-    if not objstore.er_konfigurert(cfg):
+    if not objstore.kan_brukes(cfg):
         # Foer noe leses: uten lagring har donasjonen ingen steder aa gaa, og et
         # 201 ville vaert en kvittering paa noe vi kastet. Se modul-docstringen.
+        #
+        # Logglinjen er det eneste stedet forskjellen paa «av» og «i stykker»
+        # naar et menneske. Klienten faar samme 503 uansett - den kan ikke
+        # gjoere noe med hvordan serveren er satt opp, og skal ikke faa vite det.
+        log.warning("Donasjon avvist - bildelagringen er %s",
+                    objstore.tilstand(cfg))
         raise HTTPException(503, "Bildelagringen er ikke konfigurert")
     data = await image.read()
     if len(data) > cfg.max_upload_bytes:

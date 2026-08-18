@@ -102,9 +102,12 @@ curl https://bestefar-api.fly.dev/health                     # "bilder": "r2"
 ```
 
 `r2_check.py` er den eneste maaten aa vite at signeringen faktisk godtas av R2;
-`/health` sier bare at verdiene er lest. Feilene R2 svarer med, og hva de
-betyr: `SignatureDoesNotMatch` (feil noekkel, eller `R2_REGION` som ikke er
-`auto`), `NoSuchBucket`, `AccessDenied` (tokenet mangler skrivetilgang).
+`/health` sier bare at verdiene er lest og at de ikke er beviselig feil. Svarer
+det `"bilder": "feilkonfigurert (...)"`, staar hva som er galt i parentesen, og
+da trenger du ikke kjoere `r2_check.py` for aa finne det ut (B-51). Feilene R2
+svarer med, og hva de betyr: `SignatureDoesNotMatch` (feil noekkel, eller
+`R2_REGION` som ikke er `auto`), `NoSuchBucket`, `AccessDenied` (tokenet
+mangler skrivetilgang - f.eks. uten EU-jurisdiksjon mot en `.eu`-bucket).
 
 E-postvideresending (§10) er leverandoer-agnostisk: sett `RESEND_API_KEY`
 ELLER `SMTP_HOST`+`SMTP_USER`+`SMTP_PASSWORD`. Uten noen av delene lagres

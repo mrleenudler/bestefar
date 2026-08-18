@@ -20,6 +20,35 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-18
+
+**§6 — `/health` skiller «av» fra «i stykker»** (B-51, lukker ÅP-B12). Feltet
+`bilder` hadde to verdier, `"r2"` og `"ikke konfigurert (§6)"`, og den første
+betydde bare at fire strenger var ikke-tomme. Under bucketbyttet dagen før
+svarte den `"r2"` gjennom tre ulike feilkonfigurasjoner mens produksjonen ikke
+kunne skrive et eneste bilde.
+
+Nå er det tre svar: `"r2"`, `"ikke konfigurert (§6)"` (ingenting satt — en
+funksjon som er av) og `"feilkonfigurert (<hva>)"`. Det siste dekker både
+halvveis satte secrets og de feilene som **kan ses uten et nettverkskall**:
+mellomrom eller linjeskift rundt en verdi, `R2_ENDPOINT` som ikke er en URL
+eller som har sti i seg, `R2_BUCKET` med skråstrek, og `R2_ACCESS_KEY_ID` som
+ikke er 32 tegn. `objstore.feilkonfigurasjon()` er sjekken;
+`objstore.tilstand()` er teksten.
+
+`POST /v1/failed-analyses` avviser nå det feilkonfigurerte tilfellet på samme
+måte som det ukonfigurerte — 503 før kroppen leses — og logger hvilken av dem
+det var. Klienten får samme svar som før. `tools/r2_check.py` kjører de samme
+sjekkene før den spør Cloudflare, og `bucketflytt.kopier()` nekter å starte på
+et oppsett som umulig kan virke.
+
+To ting fulgte med: `objstore.backend_name()` er slettet (ingen kallere, og den
+svarte `"database"` — et sted bildene ikke har ligget siden B-49), og
+testoppsettene bruker nå en 32 tegns nøkkel-ID.
+
+**Ikke dekket:** at tokenet mangler EU-jurisdiksjon. Det var den tredje feilen
+2026-08-18, og den kan bare et faktisk kall svare på — `r2_check.py`.
+
 ## 2026-08-16
 
 **§6 — bildene skal til en jurisdiksjonsbundet bucket** (B-50). Den gamle

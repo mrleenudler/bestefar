@@ -1,7 +1,9 @@
 """
 Verifiserer at objektlagringen (§6) faktisk virker med de secretene som staar.
 
-Gjoer en ekte rundtur mot R2 - PUT, GET, sammenlign, DELETE - og skriver hva
+Gjoer foerst de sjekkene som ikke trenger nettverk (`objstore.feilkonfigurasjon`:
+sti i endepunktet, Access Key ID paa feil lengde, linjeskift i en secret), og
+deretter en ekte rundtur mot R2 - PUT, GET, sammenlign, DELETE - og skriver hva
 hvert steg svarte. Dette er den ene maaten aa vite at signeringen i
 services/objstore.py er riktig; en feil der gir 403 fra R2, ikke en feil hos
 oss, og uten dette scriptet ville den vist seg foerste gang en bruker donerte
@@ -35,14 +37,19 @@ from app.services import objstore                              # noqa: E402
 
 def main() -> int:
     cfg = settings()
-    if not objstore.er_konfigurert(cfg):
-        mangler = [navn for navn, verdi in
-                   (("R2_ENDPOINT", cfg.r2_endpoint),
-                    ("R2_BUCKET", cfg.r2_bucket),
-                    ("R2_ACCESS_KEY_ID", cfg.r2_access_key_id),
-                    ("R2_SECRET_ACCESS_KEY", cfg.r2_secret_access_key))
-                   if not verdi]
+    b = objstore.fra_settings(cfg)
+
+    mangler = objstore.manglende(b)
+    if mangler:
         print(f"R2 er ikke konfigurert - mangler: {', '.join(mangler)}")
+        return 1
+
+    # De feilene som kan ses uten aa spoerre Cloudflare, ses foerst - ellers
+    # kommer de tilbake som et 403 uten forklaring nedenfor (B-51).
+    feil = objstore.feilkonfigurasjon(b)
+    if feil:
+        print(f"OPPSETTET ER FEIL, uten at vi trenger aa spoerre R2:\n  {feil}")
+        print('/health sier det samme under "bilder".')
         return 1
 
     print(f"endepunkt : {cfg.r2_endpoint}")

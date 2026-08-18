@@ -55,22 +55,6 @@ def _escrow_status(cfg: Settings, s: OrmSession) -> str:
     return "ok" if not avvik else f"{avvik} rader paa annen hemmelighet"
 
 
-def _bilder_status(cfg: Settings) -> str:
-    """
-    Om objektlagringen for feilanalyse-bilder (§6) er koblet paa.
-
-    Uten dette feltet ville en glemt secret sett ut som helt normal drift.
-    Konsekvensen er ikke lenger at bildene stille legger seg i databasen -
-    kolonnen er borte (a3f7c1e59b24) - men at `POST /v1/failed-analyses` svarer
-    503 paa hver donasjon, og det er like usynlig herfra.
-
-    Feltet talte tidligere rader i `image_legacy`. Tellingen forsvant med
-    kolonnen 2026-08-15; den sa naar kolonnen kunne fjernes, og det svaret er
-    gitt.
-    """
-    return "r2" if objstore.er_konfigurert(cfg) else "ikke konfigurert (§6)"
-
-
 @router.get("/health")
 def health(s: OrmSession = Depends(db)) -> dict:
     cfg = settings()
@@ -81,5 +65,10 @@ def health(s: OrmSession = Depends(db)) -> dict:
         "mailer": mailer.backend_name(cfg),
         "push": push.backend_name(cfg),
         "escrow": _escrow_status(cfg, s),
-        "bilder": _bilder_status(cfg),
+        # Uten dette feltet ville en glemt - eller feilsatt - R2-secret sett ut
+        # som helt normal drift, mens hver donasjon fikk 503. Teksten lages i
+        # objstore, saa dette feltet og mottaket ikke kan si hver sin ting
+        # (B-51). Feltet talte tidligere rader i `image_legacy`; tellingen
+        # forsvant med kolonnen 2026-08-15.
+        "bilder": objstore.tilstand(cfg),
     }

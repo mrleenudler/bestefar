@@ -265,6 +265,12 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   poeng, OCR-poeng, `tag` ∈ {ocr_match, ocr_mismatch, rejected}).
 - **Lagring:** bilder lagres i S3-kompatibel objektlagring (Cloudflare R2), ikke i
   selve databasen — kun metadata/JSON lagres relasjonelt.
+- **Uten brukbar objektlagring tas donasjoner ikke imot** — 503 før kroppen
+  leses. `GET /health` under `bilder` har tre svar: `r2`, `ikke konfigurert
+  (§6)` (ingenting satt) og `feilkonfigurert (<hva>)` (satt, men beviselig
+  galt — halvveis satte secrets, sti i `R2_ENDPOINT`, `R2_ACCESS_KEY_ID` som
+  ikke er 32 tegn, linjeskift rundt en verdi). At oppsettet passerer sjekkene
+  er ikke det samme som at R2 godtar det; det svarer `tools/r2_check.py` på.
 - Formål: kalibrere OCR-heuristikken og CV-kjernen (bl.a. **over-deteksjon av treff**,
   se §8).
 

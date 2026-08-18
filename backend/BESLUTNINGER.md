@@ -1001,6 +1001,7 @@ betale for at §6 ikke kan brytes ved et uhell.
 
 **`/health` sier nå `r2` eller `ikke konfigurert (§6)`.** Radtellingen forsvant
 med kolonnen — den svarte på når kolonnen kunne fjernes, og det svaret er gitt.
+*De to viste seg å være for få: B-51 la til `feilkonfigurert (…)`.*
 
 **Vinduet under deploy er kjent og akseptert.** `release_command` kjører
 migrasjonen før den nye versjonen slippes til, så i noen sekunder kjører gammel
@@ -1056,6 +1057,62 @@ og ikke noe vi overskriver i stillhet.
 
 *Kilde: `services/bucketflytt.py`, modul-docstring; `tools/copy_bucket.py`;
 `tests/test_bucketflytt.py`.*
+
+---
+
+## B-51 «Satt» er ikke «virker» — `/health` fikk en tredje tilstand
+
+**Kontekst.** Under byttet til den EU-bundne bucketen (B-50) tok det fire
+forsøk å få secretene riktige, og `GET /health` svarte `"bilder": "r2"` gjennom
+alle sammen — mens hver eneste donasjon fikk 503. `er_konfigurert()` sjekket at
+fire strenger var ikke-tomme, og det var alt ordet «konfigurert» betydde. To av
+de tre feilene kunne vært sett uten å spørre Cloudflare: `R2_ENDPOINT` med
+bucketnavnet i stien (signaturen dekker da en annen sti enn forespørselen), og
+en `R2_ACCESS_KEY_ID` satt til plassholderteksten — R2 sier det selv,
+«Credential access key has length 9, should be 32».
+
+**Valg: tre tilstander i samme felt**, ikke to og ikke et nytt felt.
+
+| `bilder` | Betyr |
+|---|---|
+| `r2` | Ingenting vi kan se uten å spørre Cloudflare er galt |
+| `ikke konfigurert (§6)` | **Ingen** av de fire verdiene er satt — funksjonen er av |
+| `feilkonfigurert (<hva>)` | Verdier er satt, og noe er beviselig galt |
+
+Det er den samme tredelingen `database` allerede hadde (`ok` /
+`feilkonfigurert (DATABASE_URL mangler)` / `utilgjengelig`), så feltet leses
+uten ny forklaring.
+
+**Hvorfor ikke la feilkonfigurasjon telle som «ikke konfigurert».** Det var det
+enkleste, og det ble forkastet: det er nøyaktig fellen `BackupKeys.resolve`
+gikk i hos klienten (rot-`CLAUDE.md` §7.3) — en feil som behandles som et
+fravær forsvinner. `objstore` sin egen modul-docstring har forbudt det for
+opplastingsveien siden B-45; det ville vært rart å innføre det i diagnostikken.
+
+**Hvorfor ikke et eget felt.** Da ville `bilder` fortsatt sagt `"r2"` når
+lagringen ikke virker, og det er selve påstanden som var usann.
+
+**Halvveis satt er «feilkonfigurert», ikke «av».** Tre av fire secrets satt er
+en jobb noen ikke ble ferdig med, og navnene på de manglende står i teksten.
+Bare et helt tomt oppsett er «av» — den tilstanden er normal i utvikling.
+
+**Bare det som er alltid feil.** Sjekkene er: mellomrom eller linjeskift rundt
+en verdi (usynlig i panelet, gir `SignatureDoesNotMatch`), `R2_ENDPOINT` som
+ikke er en URL eller har sti, `R2_BUCKET` med skråstrek, og `R2_ACCESS_KEY_ID`
+som ikke er 32 tegn. Ikke jurisdiksjon, ikke om bucketen finnes, ikke om
+signaturen godtas — det krever et kall, og det er `r2_check.py` sitt ærend. En
+sjekk med falske positiver ville stengt en fungerende bucket, og det er verre
+enn tilstanden dette retter.
+
+**Mottaket spør om samme tilstand som `/health` viser.** `kan_brukes()` er
+definert som «`tilstand()` sier `r2`», så de to kan ikke komme i utakt. To
+uavhengige sjekker på samme spørsmål var måten uenigheten oppsto på.
+
+**Verdiene skrives aldri ut**, bare navnene: teksten går både i `/health`, som
+er åpen, og i loggen, og to av de fire er hemmeligheter.
+
+*Kilde: `services/objstore.py` (`feilkonfigurasjon`, `tilstand`, `kan_brukes`);
+ÅP-B12, målt 2026-08-18; `tests/test_failed_analyses.py`.*
 
 ---
 

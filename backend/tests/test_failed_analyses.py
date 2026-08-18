@@ -17,6 +17,16 @@ SKJEMA = {"status_code": "3", "confidence": "0.42", "core_version": "1.2.3",
           "tag": "ocr_mismatch", "series_id": "s-1",
           "detected_scores": "[10.4, 9.1]", "ocr_scores": "[10.4, 9.2]"}
 
+# Et oppsett som skal passere alle sjekkene i objstore.feilkonfigurasjon.
+# Access Key ID-en er 32 tegn fordi kortere ALLTID er feil hos R2 og nå
+# stoppes her (B-51) - den var «AKIDEXAMPLE» til 2026-08-18.
+R2_ENV = {
+    "R2_ENDPOINT": "https://konto.r2.cloudflarestorage.com",
+    "R2_BUCKET": "bestefar-bilder",
+    "R2_ACCESS_KEY_ID": "0123456789abcdef0123456789abcdef",
+    "R2_SECRET_ACCESS_KEY": "hemmelig-testnoekkel",
+}
+
 
 def _send(client, data=JPEG, felt=None):
     return client.post("/v1/failed-analyses", data={**SKJEMA, **(felt or {})},
@@ -57,10 +67,8 @@ def r2(monkeypatch, db_url):
     `lagret` er noekkel -> (byte, content-type), altsaa den bucketen testen
     later som den skriver til.
     """
-    monkeypatch.setenv("R2_ENDPOINT", "https://konto.r2.cloudflarestorage.com")
-    monkeypatch.setenv("R2_BUCKET", "bestefar-bilder")
-    monkeypatch.setenv("R2_ACCESS_KEY_ID", "AKIDEXAMPLE")
-    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "hemmelig-testnoekkel")
+    for navn, verdi in R2_ENV.items():
+        monkeypatch.setenv(navn, verdi)
 
     from app.config import settings
     from app.services import objstore
@@ -141,6 +149,105 @@ def test_ingen_bildekolonne_igjen(session, r2):
     from app.models import FailedAnalysis
 
     assert "image_legacy" not in FailedAnalysis.__table__.columns
+
+
+# --- Feilkonfigurert R2: satt er ikke det samme som virker (AAP-B12) ------
+#
+# Alle fire verdiene staar, men oppsettet kan umulig virke. Foer B-51 svarte
+# /health «r2» paa nettopp dette, mens hver donasjon fikk 503 - fire forsoek i
+# produksjon 2026-08-18 gikk med paa aa finne ut hvorfor.
+
+def _bucket(**overstyring):
+    from app.services import objstore
+
+    v = {**R2_ENV, **overstyring}
+    return objstore.Bucket(endpoint=v["R2_ENDPOINT"], bucket=v["R2_BUCKET"],
+                           access_key_id=v["R2_ACCESS_KEY_ID"],
+                           secret_access_key=v["R2_SECRET_ACCESS_KEY"])
+
+
+def test_riktig_oppsett_har_ingen_feil():
+    from app.services import objstore
+
+    assert objstore.feilkonfigurasjon(_bucket()) is None
+
+
+@pytest.mark.parametrize("overstyring, i_teksten", [
+    # De to som faktisk skjedde: bucketnavnet i endepunktet, og Access Key
+    # ID-en satt til plassholderteksten.
+    ({"R2_ENDPOINT": "https://konto.eu.r2.cloudflarestorage.com/bestefar-eur"}, "sti"),
+    ({"R2_ACCESS_KEY_ID": "din-key-id"}, "tegn"),
+    ({"R2_ENDPOINT": "konto.eu.r2.cloudflarestorage.com"}, "URL"),
+    ({"R2_BUCKET": "konto/bestefar-bilder"}, "sti"),
+    ({"R2_SECRET_ACCESS_KEY": "hemmelig-testnoekkel\n"}, "linjeskift"),
+])
+def test_feilkonfigurasjon_fanges_uten_nettverk(overstyring, i_teksten):
+    from app.services import objstore
+
+    (navn,) = overstyring
+    grunn = objstore.feilkonfigurasjon(_bucket(**overstyring))
+    assert grunn is not None, f"{navn} slapp gjennom"
+    # Teksten skal si HVILKEN verdi som er feil - den er hele nytten.
+    assert navn in grunn and i_teksten in grunn
+    # ... men aldri verdien: to av de fire er hemmeligheter, og teksten gaar
+    # bade i /health og i loggen.
+    assert "hemmelig-testnoekkel" not in grunn
+
+
+@pytest.fixture()
+def r2_feilkonfigurert(monkeypatch, db_url):
+    """
+    Alle fire satt, endepunktet har bucketnavnet i stien.
+
+    Patcher ikke `objstore.legg`: kommer en donasjon saa langt som til et
+    HTTP-kall, er det testen som har feilet.
+    """
+    for navn, verdi in R2_ENV.items():
+        monkeypatch.setenv(navn, verdi)
+    monkeypatch.setenv("R2_ENDPOINT",
+                       "https://konto.r2.cloudflarestorage.com/bestefar-bilder")
+
+    from app.config import settings
+    settings.cache_clear()
+
+
+def test_feilkonfigurert_r2_gir_503(client, r2_feilkonfigurert):
+    assert _send(client).status_code == 503
+
+
+def test_feilkonfigurert_r2_lager_ingen_rad(client, session, r2_feilkonfigurert):
+    from sqlalchemy import func, select
+
+    from app.models import FailedAnalysis
+
+    _send(client)
+    assert session.scalar(select(func.count()).select_from(FailedAnalysis)) == 0
+
+
+def test_health_skiller_feilkonfigurert_fra_av(client, r2_feilkonfigurert):
+    bilder = client.get("/health").json()["bilder"]
+    assert bilder.startswith("feilkonfigurert (")
+    assert "R2_ENDPOINT" in bilder
+
+
+@pytest.fixture()
+def r2_halvveis(monkeypatch, db_url):
+    """Bare bucketnavnet satt - noen har vaert her og ikke blitt ferdig."""
+    monkeypatch.setenv("R2_BUCKET", "bestefar-bilder")
+
+    from app.config import settings
+    settings.cache_clear()
+
+
+def test_halvveis_satt_er_ikke_av(client, r2_halvveis):
+    """
+    Tre manglende secrets er en halvferdig jobb, ikke «funksjonen er av», og
+    skal ikke se ut som en maskin uten R2 i det hele tatt.
+    """
+    bilder = client.get("/health").json()["bilder"]
+    assert bilder.startswith("feilkonfigurert (mangler ")
+    assert "R2_ENDPOINT" in bilder and "R2_BUCKET" not in bilder
+    assert _send(client).status_code == 503
 
 
 # --- Avvisninger ---------------------------------------------------------

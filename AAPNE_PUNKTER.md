@@ -301,29 +301,32 @@ bildene ligger i EU før den gamle bucketen er tom (ÅPENT PUNKT 10 der).
 
 Ikke gjeld — beslutninger som mangler.
 
-### ÅP-B12 — `/health` sier «r2» også når lagringen er ubrukelig · label `backend`
-Målt 2026-08-18, under byttet til den EU-bundne bucketen (ÅP-E11). Fire forsøk,
-tre ulike feilkonfigurasjoner, og `GET /health` svarte `"bilder": "r2"` gjennom
-alle sammen — mens produksjonen ikke kunne skrive et eneste bilde og hver
-donasjon fikk 503.
+### ~~ÅP-B12 — `/health` sier «r2» også når lagringen er ubrukelig~~ · **LUKKET 2026-08-18**
 
-`objstore.er_konfigurert()` sjekker bare at de fire verdiene er ikke-tomme. To
-av de tre feilene er trivielt sjekkbare uten nettverk:
+Bygget som B-51. **Ingen av de to foreslåtte utfallene ble valgt.**
+Feilkonfigurasjon teller *ikke* som «ikke konfigurert» — det ville vært å
+behandle en feil som et fravær, nøyaktig fellen `BackupKeys.resolve` gikk i
+(rot-`CLAUDE.md` §7.3), og `objstore` har forbudt det for opplastingsveien
+siden B-45. Det ble heller ikke et eget felt, for da hadde `bilder` fortsatt
+sagt `"r2"` mens lagringen ikke virket, og det er selve påstanden som var
+usann.
 
-- **Access Key ID som ikke er 32 tegn** er alltid feil. R2 sier det selv:
-  «Credential access key has length 9, should be 32».
-- **`R2_ENDPOINT` med sti i seg** er alltid feil for oss — koden legger selv på
-  `/{bucket}/{nøkkel}`, så en sti i endepunktet gir dobbelt bucketnavn og en
-  signatur som dekker en annen sti enn forespørselen.
+I stedet fikk `bilder` en **tredje verdi**, som `database` allerede hadde:
+`r2` | `ikke konfigurert (§6)` | `feilkonfigurert (<hva>)`. Bare et helt tomt
+oppsett er «av»; halvveis satte secrets er «feilkonfigurert», med navnene på de
+manglende i teksten. `POST /v1/failed-analyses` avviser det feilkonfigurerte
+tilfellet før kroppen leses og logger hvilken tilstand det var; `kan_brukes()`
+er definert som «`tilstand()` sier `r2`», så mottaket og `/health` ikke kan
+komme i utakt igjen.
 
-Den tredje (token uten EU-jurisdiksjon) kan bare oppdages ved et faktisk kall,
-og er `r2_check.py` sitt område.
+Sjekkene er de som er **alltid** feil, og de kjører uten nettverk: linjeskift
+eller mellomrom rundt en verdi, `R2_ENDPOINT` som ikke er en URL eller har sti,
+`R2_BUCKET` med skråstrek, `R2_ACCESS_KEY_ID` som ikke er 32 tegn. Den tredje
+produksjonsfeilen — token uten EU-jurisdiksjon — er **fortsatt bare synlig ved
+et faktisk kall**, og `tools/r2_check.py` kjører nå de lokale sjekkene først så
+den ikke bruker en rundtur på å oppdage noe som var åpenbart.
 
-Åpent: om feilkonfigurasjon skal telle som «ikke konfigurert» — da svarer
-`/health` `ikke konfigurert (§6)` og donasjonene får 503 med en logglinje som
-sier hva som er galt — eller om det skal være et eget felt. Det første er
-enklest og gjør at feilen ser ut som det den er; motforestillingen er at
-«ikke konfigurert» da dekker to ulike tilstander.
+Se `backend/BESLUTNINGER.md` B-51 for det som ble forkastet og hvorfor.
 
 ### ÅP-B10 — 34 av 48 svar er utypet, så kontrakten beskriver dem ikke · label `backend`
 Målt 2026-08-08 ved generering av `contracts/openapi.json`. **De 14 rutene
