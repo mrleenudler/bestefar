@@ -252,7 +252,22 @@ lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
 Den gamle bucketen `bestefar-scan-failures` har *location hint* `EEUR` uten
 jurisdiksjonsbinding — et hint er ingen garanti, og «Eastern Europe» dekker land
 utenfor EØS. `bestefar-scan-failures-eur` er opprettet med jurisdiksjon `eu`.
-Kopieringsjobben er bygget (B-50), men **rekkefølgen er en del av tiltaket**:
+**Steg 1 og 2 er gjort 2026-08-18.** Secretene er byttet, og kopieringen er
+kjørt: **sju objekter, 16 096 622 byte** — ikke fem. De to ekstra er ekte
+donasjoner som kom inn etter at R2 ble koblet på, og de ble med fordi jobben
+leser nøklene fra databasen og ikke fra en telling. Verifisert ved at en ny
+tørrkjøring etterpå melder alle sju som «allerede der», altså lest fra målet og
+sammenlignet byte for byte. `r2_check.py` mot den nye bucketen: PUT/GET/DELETE
+ok.
+
+Fire feil måtte rettes underveis, og **ingen av dem ble fanget av noe hos oss** —
+alle tre første svarte `/health` `"bilder":"r2"` på: `R2_ENDPOINT` med bucketnavn
+i stien (signaturen dekket en annen sti enn forespørselen), API-token uten
+EU-jurisdiksjon, og Access Key ID satt til plassholderteksten. Se ÅP-B12.
+
+**Det som gjenstår er steg 3 og 4.**
+
+Opprinnelig rekkefølge, som **rekkefølgen er en del av tiltaket**:
 
 1. Bytt til den nye bucketen. Jurisdiksjonsbundne buckets har **eget
    endepunkt**, så `R2_ENDPOINT` må endres, ikke bare `R2_BUCKET`:
@@ -278,6 +293,30 @@ bildene ligger i EU før den gamle bucketen er tom (ÅPENT PUNKT 10 der).
 ## E. Uavklart teknisk retning
 
 Ikke gjeld — beslutninger som mangler.
+
+### ÅP-B12 — `/health` sier «r2» også når lagringen er ubrukelig · label `backend`
+Målt 2026-08-18, under byttet til den EU-bundne bucketen (ÅP-E11). Fire forsøk,
+tre ulike feilkonfigurasjoner, og `GET /health` svarte `"bilder": "r2"` gjennom
+alle sammen — mens produksjonen ikke kunne skrive et eneste bilde og hver
+donasjon fikk 503.
+
+`objstore.er_konfigurert()` sjekker bare at de fire verdiene er ikke-tomme. To
+av de tre feilene er trivielt sjekkbare uten nettverk:
+
+- **Access Key ID som ikke er 32 tegn** er alltid feil. R2 sier det selv:
+  «Credential access key has length 9, should be 32».
+- **`R2_ENDPOINT` med sti i seg** er alltid feil for oss — koden legger selv på
+  `/{bucket}/{nøkkel}`, så en sti i endepunktet gir dobbelt bucketnavn og en
+  signatur som dekker en annen sti enn forespørselen.
+
+Den tredje (token uten EU-jurisdiksjon) kan bare oppdages ved et faktisk kall,
+og er `r2_check.py` sitt område.
+
+Åpent: om feilkonfigurasjon skal telle som «ikke konfigurert» — da svarer
+`/health` `ikke konfigurert (§6)` og donasjonene får 503 med en logglinje som
+sier hva som er galt — eller om det skal være et eget felt. Det første er
+enklest og gjør at feilen ser ut som det den er; motforestillingen er at
+«ikke konfigurert» da dekker to ulike tilstander.
 
 ### ÅP-B10 — 34 av 48 svar er utypet, så kontrakten beskriver dem ikke · label `backend`
 Målt 2026-08-08 ved generering av `contracts/openapi.json`. **De 14 rutene

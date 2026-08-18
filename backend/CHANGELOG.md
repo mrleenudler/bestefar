@@ -40,6 +40,17 @@ Krever nye Fly-secrets, se `tools/copy_bucket.py`: `R2_ENDPOINT` og `R2_BUCKET`
 byttes til den nye bucketen, og kilden oppgis med `R2_KILDE_ENDPOINT` og
 `R2_KILDE_BUCKET`.
 
+**Kjørt i produksjon 2026-08-18: sju objekter, 16 096 622 byte.** Ikke fem — de
+fem gamle `image_legacy`-radene pluss to ekte donasjoner som kom inn etter at R2
+ble koblet på. De ble med fordi jobben leser nøklene fra databasen og ikke fra
+en telling; en jobb skrevet mot «de fem» ville latt det mest verdifulle
+materialet ligge igjen i bucketen uten jurisdiksjonsbinding. Verifisert ved at
+en ny tørrkjøring melder alle sju som «allerede der», altså lest fra målet og
+sammenlignet byte for byte. Den gamle bucketen er ikke tømt (ÅP-E11 steg 4).
+
+Fire konfigurasjonsfeil måtte rettes underveis, og `/health` svarte
+`"bilder": "r2"` gjennom alle sammen — se ÅP-B12.
+
 ## 2026-08-15
 
 **§6 — `image_legacy` er borte, og uten R2 tar vi ikke imot donasjoner**
