@@ -580,6 +580,11 @@ Det serveren håndhever:
   verifisert 2026-08-11.** Det viser at `aud`-sjekken kjører — ikke at verdien
   er riktig web-klient-ID. Forveksling med Android-klient-ID-en gir *også* 401,
   og oppdages først ved en ekte innlogging.
+  **Den innloggingen er nå gjort: 2026-08-15 logget en bruker inn med Google fra
+  klienten (v0.27) og gjenopprettet en sikkerhetskopi tatt med v0.25.** En
+  gjennomført gjenoppretting krever et gyldig tokenpar, så verdien er riktig —
+  det er ikke Android-klient-ID-en. Detaljene i `android/ARCHITECTURE.md`,
+  «Androids automatiske sikkerhetskopi er slått av».
 - **Sperrefristen på «send ny kode» håndheves med 429 + `Retry-After`**, og
   verdiene ligger i 202-svaret. Detaljene i §1.
 - **Apple:** `/v1/auth/apple` finnes og er uendret. `APPLE_CLIENT_IDS` er ikke

@@ -87,6 +87,31 @@ overskuddet håndteres i den retningen det peker:
 - Er OCR-lista der, slår `CountMismatch` inn først, og da kan brukeren faktisk
   redde serien. Grensa er siste utvei, ikke førstevalget.
 
+### Verifisert i felt 2026-08-15: gjenoppretting over Google-innlogging
+
+Ikke en endring i v0.27, men prøvd første gang med den, og den avgjør tre
+påstander som til nå bare var lest ut av kode:
+
+1. Kopi tatt med **v0.25** på en Google-innlogget konto.
+2. v0.25 avinstallert, **v0.27** installert. **Appen var tom — kontrollert før
+   noe ble hentet.** Med `allowBackup="true"` ville dataene vært der alt; det er
+   dette steget som gjør resten av testen gyldig (`android/ARCHITECTURE.md`).
+3. Innlogging med Google, gjenoppretting valgt, **kopiens dato kontrollert i
+   dialogen** før overskriving — lesingen skilt fra skrivingen, som v0.25 krevde.
+4. Dataene kom tilbake og ble kontrollert.
+
+I samme runde ble en gjenoppretting **avbrutt** mot en konto med data, og de
+lokale dataene sto igjen urørt. v0.25-fiksen er dermed bekreftet på enhet.
+
+Følgene: Androids automatiske kopi er faktisk av, vår gjenoppretting virker på
+tvers av versjoner (v0.25-blob lest av v0.27), og ekte Google-innlogging virker
+ende-til-ende — det siste lukker ÅP-E4, der forveksling av web- og
+Android-klient-ID ikke kunne skilles på annen måte enn nettopp dette.
+
+Ikke avgjort: om nøkkelen kom fra deponeringen eller fra Block Store (ingen
+gjenopprettingskode ble tastet, og `BackupKeys.resolve` prøver begge), og om
+kopien ble tatt manuelt eller av førstegangstilbudet.
+
 ### Ikke i denne runden
 
 Dedupliseringen hører hjemme i CV-kjernen — den ser hullene og kan slå sammen

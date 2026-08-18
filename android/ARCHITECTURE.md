@@ -151,6 +151,28 @@ verk som appens. Uten å skru den av kan vi ikke skille «vår gjenoppretting
 virket» fra «Android la det tilbake» — og det er den ene funksjonen vi ikke har
 råd til å tro på uten bevis.
 
+**De to ble skilt i felt 2026-08-15.** Kopi tatt med v0.25 på en
+Google-innlogget konto; v0.25 avinstallert; v0.27 installert. **Appen var da tom
+— verifisert før noe ble hentet**, og det er selve beviset: med
+`allowBackup="true"` ville dataene vært der allerede. Deretter innlogging med
+Google, gjenoppretting valgt, kopiens dato kontrollert i dialogen, og dataene
+kom tilbake. Fire ting følger av den ene runden:
+
+- **Androids kopi er faktisk av.** Tomt utgangspunkt etter reinstallasjon.
+- **Vår gjenoppretting virker**, og den virker **på tvers av versjoner** — en
+  blob skrevet av v0.25 ble lest av v0.27.
+- **Ekte Google-innlogging virker ende-til-ende**, altså er `GOOGLE_CLIENT_IDS`
+  den riktige web-klient-ID-en og ikke Android-klient-ID-en (`backend_spec.md`
+  §15 — den forvekslingen gir *også* 401 og kunne ikke oppdages på annen måte).
+- **«Avbryt» sletter ingenting.** I samme runde ble en gjenoppretting avbrutt
+  mot en konto med data, og de lokale dataene sto igjen urørt — v0.25-fiksen
+  bekreftet på enhet, ikke bare i kode.
+
+To ting runden **ikke** avgjorde, og som derfor ikke skal leses inn i den: om
+nøkkelen kom fra deponeringen eller fra Block Store (`BackupKeys.resolve` prøver
+begge, og ingen gjenopprettingskode ble tastet), og om kopien ble tatt manuelt
+eller av førstegangstilbudet.
+
 **Rettelse til v0.22-begrunnelsen.** Der står det at `BackupKeys.resolve` hoppet
 over deponeringen fordi «`st.backupEscrow` ligger i prefs, og prefs er borte
 etter en reinstallasjon». Den siste delen holder ikke når Androids kopi er på —
