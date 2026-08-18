@@ -265,7 +265,14 @@ alle tre første svarte `/health` `"bilder":"r2"` på: `R2_ENDPOINT` med bucketn
 i stien (signaturen dekket en annen sti enn forespørselen), API-token uten
 EU-jurisdiksjon, og Access Key ID satt til plassholderteksten. Se ÅP-B12.
 
-**Det som gjenstår er steg 3 og 4.**
+**Steg 3 er gjort 2026-08-18.** En ekte donasjon fra appen (rad 11,
+`submitted_at` 18:53:55Z, `feilanalyse/rejected/2026/08/18/11-…jpg`) ligger i
+`bestefar-scan-failures-eur` med 3 289 511 byte — og **0 byte i den gamle
+bucketen**, altså ikke der i det hele tatt. Den var heller ikke blant de sju
+kopierte objektene. Skrivingen går derfor direkte til den EU-bundne bucketen,
+ikke bare kopieringen.
+
+**Det som gjenstår er steg 4: den gamle bucketen er ikke tømt.**
 
 Opprinnelig rekkefølge, som **rekkefølgen er en del av tiltaket**:
 

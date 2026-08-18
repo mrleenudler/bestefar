@@ -51,6 +51,12 @@ sammenlignet byte for byte. Den gamle bucketen er ikke tømt (ÅP-E11 steg 4).
 Fire konfigurasjonsfeil måtte rettes underveis, og `/health` svarte
 `"bilder": "r2"` gjennom alle sammen — se ÅP-B12.
 
+**Skrivingen er verifisert i drift samme dag.** En ekte donasjon fra appen (rad
+11, 18:53:55Z) ligger i `bestefar-scan-failures-eur` med 3 289 511 byte og
+finnes ikke i den gamle bucketen — den kom altså dit ved innsending, ikke ved
+kopiering. Det er noe annet enn at `r2_check.py` kan skrive: dette er klientens
+egen multipart hele veien gjennom mottaket.
+
 ## 2026-08-15
 
 **§6 — `image_legacy` er borte, og uten R2 tar vi ikke imot donasjoner**
