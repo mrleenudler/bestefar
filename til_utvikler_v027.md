@@ -93,10 +93,13 @@ Verdiene skrives aldri ut, bare navnene: teksten går både i `/health`, som er
 
 ## Ikke verifisert
 
-- **Ikke deployet, og `/health` i produksjon er ikke lest etterpå.** Så lenge
-  secretene står riktig nå, skal feltet fortsatt si `"r2"` — men det er en
-  påstand til noen har sett det. Etter deploy:
-  `curl https://bestefar-api.fly.dev/health`.
+- ~~Ikke deployet~~ **Deployet og lest 2026-08-19.** `Deploy backend` 32216294319
+  → `success`, og `curl https://bestefar-api.fly.dev/health` svarer 200 med
+  `"bilder":"r2"`. Sjekkene stenger altså ikke den bucketen vi faktisk bruker.
+  **Det observasjonen ikke sier:** at det er den nye koden som svarer. Med et
+  friskt oppsett svarer gammel og ny kode likt på dette feltet — forskjellen er
+  bare synlig når oppsettet *er* galt. Den påstanden hviler på at deployen gikk
+  gjennom, ikke på `/health`.
 - Ingenting er kjørt mot ekte R2 i denne runden. Sjekkene er lokale med vilje,
   og den delen som krever et ekte kall er uendret.
 
