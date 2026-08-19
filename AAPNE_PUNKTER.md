@@ -507,6 +507,53 @@ over-deteksjon med bilde (`android/KONTRAKT.md` §2). Åpent: hvor mange bilder
 som trengs før terskelen kan kalibreres, og om dedupliseringen skal skje i
 `hits`-modulen eller som et etterfilter.
 
+**Bildene er treningsdata, og fra v0.28 er de førstegenerasjons.** Til og med
+v0.27 ble køfila skrevet med `bmp.compress(JPEG, 92)`, altså en omkoding av de
+pikslene kjernen fikk — en detektor finstilt på dem ville vært finstilt mot
+artefakter den aldri møter i drift. Nå køes kameraets originalbytes. **Det
+skiller de sju bildene som allerede ligger i R2 fra alle senere**, og
+forskjellen må være kjent når settet brukes. Se ÅP-U16 for prisen (filstørrelse)
+og ÅP-U15 for personopplysninger i stevnebilder.
+
+### ÅP-U15 — Skivebilder fra stevne kan inneholde navn og medlemsnummer · label `ui` + `backend`
+
+Donasjonene til `/v1/failed-analyses` er fotografier av apparatskjermen. På
+øvingsskiver viser skjermen poeng og lite annet, og **det tilfellet er avklart:
+de sju bildene som ligger i R2 i dag inneholder ingen personopplysninger.**
+
+I stevnesammenheng er det ikke gitt. Skiven kan logges inn på med personlig
+konto via QR, og squadding-lister inkluderer medlems-ID — altså kan skytterens
+**navn og medlemsnummer** stå på skjermen og havne i et bilde brukeren donerer
+for å hjelpe med å kalibrere en detektor. Samtykketeksten («Vi vil gjerne bruke
+dette bildet til å forbedre appen») dekker bildet, ikke det som måtte stå på
+det.
+
+Åpent, og skal ikke løses i kode før det er avklart: om stevnebruk i det hele
+tatt er et scenario appen skal støtte for donasjoner, og i så fall om svaret er
+å beskjære skjermområdet, gjøre samtykket kontekstavhengig, eller å la være å
+tilby donasjon når appen ikke kan vite hva som står på skjermen. Merk at dette
+er en annen avveining enn resten av personvernvalgene i appen: her er
+opplysningen ikke noe brukeren *oppgir*, men noe som følger med et bilde de tror
+de gir bort noe annet med.
+
+### ÅP-U16 — Originalbytene er 6–7 MB mot en grense på 8 MB · label `ui`
+
+Fra v0.28 køes kameraets originalfil i stedet for en omkoding (ÅP-U14 krever at
+treningsdataene er det kjernen faktisk så). Prisen er marginen:
+`MAX_UPLOAD_BYTES` er 8 MiB, og originalene er 6–7 MB på telefonen dette er
+prøvd på.
+
+Klienten sjekker grensa før den køer, så en for stor fil gir ingen 413 — den
+gir en `Log.w` og ingen donasjon. Det er riktig oppførsel (en 413 er ikke
+`retryable` og ville uansett kastet elementet), men det betyr at en telefon med
+større sensor kan slutte å bidra helt stille.
+
+**Regnes ikke som løst før det er målt på flere telefoner.** Det som må vites:
+hvor stor originalfila faktisk er på et utvalg kameraer, og om 8 MiB da er nok.
+Blir svaret nei, er valget mellom å heve serverens grense (backend eier tallet)
+og å gå tilbake til omkoding for de telefonene det gjelder — og det siste
+gjeninnfører nettopp problemet ÅP-U14 trenger at vi unngår.
+
 ### ÅP-U11 — Speccen sier pinnet submodule, repoet er monorepo · label `ui` + `kjerne`
 > «UI-prosjektet skal **ikke forke** OpenCV/C++-kjernen. Konsumer den som
 > **pinnet avhengighet** — eget repo, tagget versjon, hentet via submodule eller

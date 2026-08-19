@@ -39,6 +39,12 @@ class ResultActivity : AppCompatActivity() {
         const val EXTRA_RREL = "r_rel"
         const val EXTRA_THETA = "theta"
         const val EXTRA_IMAGE_PATH = "image_path"
+        /**
+         * Rotasjonen (0/90/180/270) som goer [EXTRA_IMAGE_PATH] opprett. Fila
+         * er kameraets originalbytes, altsaa i sensororientering — kjernen fikk
+         * de samme pikslene rotert. Se `CaptureActivity`.
+         */
+        const val EXTRA_ROTATION = "rotation"
         const val EXTRA_GALLERY_URI = "gallery_uri"
         /** «8. mars 2026    08:38» — god luft mellom dato og tid (musingsUI r7). */
         val DATE_TIME_FMT: java.time.format.DateTimeFormatter =
@@ -57,6 +63,8 @@ class ResultActivity : AppCompatActivity() {
     private var record: SeriesRecord? = null
     private var saved = false
     private var imagePath: String? = null
+    /** Rotasjon som goer [imagePath] opprett; se [EXTRA_ROTATION]. */
+    private var imageRotation = 0
     private var galleryUri: Uri? = null
     /** Kjernens interim-konfidens; følger med opplastingen (backend_spec §6). */
     private var confidence = 0.0
@@ -87,6 +95,7 @@ class ResultActivity : AppCompatActivity() {
         Ui.applyInsets(scroller)
         setContentView(scroller)
         imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH)
+        imageRotation = intent.getIntExtra(EXTRA_ROTATION, 0)
         galleryUri = intent.getStringExtra(EXTRA_GALLERY_URI)?.let { Uri.parse(it) }
         confidence = intent.getDoubleExtra(EXTRA_CONFIDENCE, 0.0)
 
@@ -282,7 +291,7 @@ class ResultActivity : AppCompatActivity() {
             try { BitmapFactory.decodeFile(path) } catch (_: Exception) { null } else null
         if (bmp == null) { render(); return }
 
-        OcrVerifier.verify(bmp, r.shots.map { it.decimal }) { result ->
+        OcrVerifier.verify(bmp, imageRotation, r.shots.map { it.decimal }) { result ->
             when (result) {
                 is OcrVerifier.Result.Match -> {
                     // Sømløs oppdatering til OCR-poengene (sortert mapping)

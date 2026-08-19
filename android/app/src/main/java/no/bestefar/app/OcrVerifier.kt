@@ -55,10 +55,19 @@ object OcrVerifier {
 
     private val numberRe = Regex("""\d{1,2}[.,]\d""")
 
-    /** Kjør OCR og sammenlign. `onDone` kalles på hovedtråden. */
-    fun verify(bitmap: Bitmap, detected: List<Double>, onDone: (Result) -> Unit) {
+    /**
+     * Kjør OCR og sammenlign. `onDone` kalles på hovedtråden.
+     *
+     * [rotationDegrees] (0/90/180/270) er rotasjonen som gjør [bitmap] opprett.
+     * Bitmapen dekodes fra kameraets originalfil og er derfor i
+     * sensororientering; ML Kit roterer selv når den får tallet. Sendes 0 for
+     * et sideveis bilde, finner den ingen poengliste og svarer `Inconclusive` —
+     * altså «fant ikke noe å sammenligne med», ikke «noe gikk galt».
+     */
+    fun verify(bitmap: Bitmap, rotationDegrees: Int, detected: List<Double>,
+               onDone: (Result) -> Unit) {
         if (detected.isEmpty()) { onDone(Result.Inconclusive); return }
-        recognizer.process(InputImage.fromBitmap(bitmap, 0))
+        recognizer.process(InputImage.fromBitmap(bitmap, rotationDegrees))
             .addOnSuccessListener { text ->
                 val nums = numberRe.findAll(text.text)
                     .map { it.value.replace(',', '.').toDouble() }

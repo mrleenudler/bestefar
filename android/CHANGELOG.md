@@ -34,6 +34,71 @@ nåtilstanden.
 
 ---
 
+## v0.28 — donasjonen er bildet kjernen så, ikke en omkoding av det
+
+Nå som feilanalysebildene faktisk lagres og skal brukes som treningsdata for
+kjernen (ÅP-U14), er det verdt å vite hva de er.
+
+### Køfila er kameraets originalbytes
+
+`takePicture` gir rå JPEG. Kjernen får aldri den fila — den får dekodede,
+roterte piksler. Fram til v0.27 skrev vi køfila med `bmp.compress(JPEG, 92)` av
+akkurat de pikslene, altså en **andre generasjons JPEG**: samme motiv, samme
+oppløsning, men ett ekstra sett komprimeringsartefakter. Det spilte ingen rolle
+da fila bare var input til OCR. Som treningsdata er det en felle — en detektor
+finstilt på omkodede bilder blir finstilt mot artefakter den aldri møter i
+drift, siden kjernen i drift ser dekodingen av kameraets egen JPEG.
+
+Nå skrives originalbytene uendret, og `Sync.queue` kopierer som før byte for
+byte. Det er ett komprimeringssteg mindre i hele kjeden.
+
+**Konsekvensen står i `android/KONTRAKT.md` §2:** de sju bildene som allerede
+ligger i R2 er andregenerasjons, alle senere er første. Brukes settet under ett,
+må forskjellen være kjent.
+
+### Bildet identifiseres, ikke bare rekkefølges
+
+Cache-fila het `last_capture.jpg` og ble overskrevet ved hver scan. Koblingen
+mellom et resultat og «bildet som hører til» hvilte dermed på at donasjonen ble
+køet før neste scan. Ingen konkret vei snudde de to, men en identitet er sikrere
+enn en rekkefølge: fila heter nå `capture_<ts>.jpg`.
+
+Effekten er at den verste utgangen ikke lenger finnes. Før kunne en foreldet sti
+peke på **et annet bilde**, og donasjonen ville båret feil bilde til riktige
+poeng — feil treningsdata, uten noe som så galt ut. Nå finner den ingen fil, og
+`Sync.send` kaster elementet. Fravær i stedet for feil.
+
+Cachen ryddes ved hver kapring, så bare én original (6–7 MB) ligger der om
+gangen.
+
+### OCR må få rotasjonen nå
+
+Originalen er i sensororientering; det roterte bildet fantes bare som omkoding.
+`OcrVerifier.verify` tar derfor `rotationDegrees` og gir den til ML Kit, som
+roterer selv. **Uten den ville OCR lest et sideveis bilde, ikke funnet noen
+poengliste, og svart `Inconclusive`** — «fant ingenting å sammenligne med», som
+ser nøyaktig ut som en dårlig skjermavlesning. Hele antallskontrollen fra v0.27
+hviler på at OCR faktisk leser, så den stille veien var den farlige her.
+
+### Rettet: en kommentar som lovet for mye
+
+Kommentaren over råbytene sa at de «lagres UENDRET, saa PC-analysen ser noeyaktig
+det kjernen saa». Det gjaldt galleri-kopien, men sto rett over både den og
+donasjonsveien — og for donasjonen var det ikke sant. Den sier nå hva hver av de
+tre veiene faktisk får.
+
+### Åpent etter denne runden
+
+- **ÅP-U16 — marginen.** Originalene er 6–7 MB mot `MAX_UPLOAD_BYTES` på 8 MiB.
+  Klienten sjekker før den køer, så en for stor fil gir en `Log.w` og ingen
+  donasjon, ikke en 413. Et kamera med større sensor kan slutte å bidra stille.
+  **Regnes ikke som løst før det er målt på flere telefoner.**
+- **ÅP-U15 — personopplysninger.** Skjermen kan i stevnesammenheng vise navn og
+  medlemsnummer. Øvingsbruk er avklart; stevnetilfellet er ikke.
+- **Orienteringen krysser ikke ledningen.** Poengene er radier og dermed
+  rotasjonsuavhengige, så bare bildets egen orientering er berørt. Trenger
+  treningen den eksakte, er det et nytt felt og en ny avtale med backend.
+
 ## v0.27 — en serie kan ikke ha flere treff enn den kan ha skudd
 
 Detekterte treff hadde ingen øvre kontroll. `BF_MAX_HITS` (32) er en

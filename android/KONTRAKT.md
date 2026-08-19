@@ -91,8 +91,25 @@ avtale mellom begge parter, ikke et felt som «egentlig skulle vært med».
 - **`core_version`** er CV-kjernens egen versjon, hentet med `bf_version()` over
   JNI (`BestefarCore.version`). Fram til 2026-08-06 var den appens
   `versionName` — eldre innsendinger bærer den verdien.
+- **Bildet er kameraets originalfil, fra v0.28.** Ikke en omkoding: `takePicture`
+  gir rå JPEG-bytes, de skrives uendret til cache, og `Sync.queue` kopierer fila
+  byte for byte. **Til og med v0.27 var det en andre generasjons JPEG** —
+  `bmp.compress(JPEG, 92)` av de samme pikslene — så eldre donasjoner i R2 bærer
+  ett ekstra sett komprimeringsartefakter. Skal de brukes som treningsdata
+  sammen med nye, er det en forskjell som må vites om, ikke oppdages.
+- **Bildet er i SENSORORIENTERING; kjernen analyserte det rotert.** Rotasjonen
+  (0/90/180/270) krysser ikke ledningen i dag — den finnes bare i klientens
+  intent. Det gjør ikke poengene tvetydige, for `detected` og `ocr` er radier og
+  dermed rotasjonsuavhengige; det betyr bare at et donert bilde kan ligge på
+  siden i forhold til det kjernen så. Trenger treningen den eksakte
+  orienteringen, er det et nytt felt og en **ny avtale** med backend, ikke noe
+  klienten kan legge til alene.
 - **Bildegrensen er 8 MiB** (`max_upload_bytes`), ikke de 16 fra §3. Et 413 er
   ikke `retryable`, så et for stort bilde kastes ut av køen ved første forsøk.
+  **Marginen er liten fra v0.28:** originalfilene er 6–7 MB der omkodingen var
+  ~3 MB. Klienten sjekker grensa *før* den køer (`Sync.kt`), så utfallet er en
+  `Log.w`-linje og ingen donasjon — ikke en 413. Et telefonkamera med større
+  sensor kan dermed slutte å bidra uten at noen ser det. ÅP-U16.
 - **Endepunktet krever ikke innlogging.** Donasjonen henger på
   bildedelings-samtykket, ikke på kontoen, og køen tømmes også for en bruker som
   aldri har logget inn.

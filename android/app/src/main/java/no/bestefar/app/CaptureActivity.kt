@@ -195,8 +195,15 @@ class CaptureActivity : AppCompatActivity() {
         ic.takePicture(analysisExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 val ts = System.currentTimeMillis()
-                // Raa JPEG-bytes (plan 0 for JPEG-format) - lagres UENDRET,
-                // saa PC-analysen ser noeyaktig det kjernen saa.
+                // Raa JPEG-bytes (plan 0 for JPEG-format). Disse bytene er
+                // kilden til ALT nedenfor: galleri-kopien, pikslene kjernen
+                // analyserer, og cache-fila som donasjonen sendes fra. Ingen av
+                // de tre komprimeres paa nytt.
+                //
+                // Kjernen faar ikke JPEG i det hele tatt - den faar dekodede,
+                // roterte piksler (se under). Donasjonen er derfor de samme
+                // bytene, men i SENSORORIENTERING: `rotationDegrees` er det som
+                // skiller den fra det kjernen saa, og foelger med i intenten.
                 val jb = image.planes[0].buffer
                 val jpeg = ByteArray(jb.remaining()).also { jb.get(it) }
                 val rotation = image.imageInfo.rotationDegrees
@@ -226,13 +233,29 @@ class CaptureActivity : AppCompatActivity() {
                     BestefarCore.FMT_RGBA8, ts)
                 saveResultSidecar(name, result, rotation)
 
-                // Lagre rotert bilde i cache saa ResultActivity kan kjoere OCR
-                // paa skjermens poengtall (musingsUI runde 4).
-                val cacheImg = File(cacheDir, "last_capture.jpg")
+                // ORIGINALBYTENE i cache - ikke en omkoding av dem. Fila brukes
+                // til to ting: OCR paa skjermens poengtall (musingsUI runde 4)
+                // og donasjonen til feilanalyse (backend_spec paragraf 6).
+                //
+                // Fram til v0.27 laa her `bmp.compress(JPEG, 92)`, altsaa en
+                // ANDRE generasjons JPEG av de samme pikslene. For OCR spilte
+                // det ingen rolle, men donasjonene er treningsdata for kjernen
+                // (AAP-U14), og en detektor finstilt paa omkodede bilder blir
+                // finstilt mot artefakter den aldri moeter i drift.
+                //
+                // Filnavnet baerer kaptur-tidsstempelet. Et fast navn koblet
+                // resultat til bilde paa REKKEFOELGE; naa er koblingen en
+                // identitet, og en foreldet sti finner ingen fil i stedet for
+                // aa finne feil bilde.
+                val cacheImg = File(cacheDir, "capture_$ts.jpg")
                 try {
-                    cacheImg.outputStream().use {
-                        bmp.compress(Bitmap.CompressFormat.JPEG, 92, it)
-                    }
+                    // Kun én kapring ligger igjen om gangen; originalene er
+                    // 6-7 MB. `last_capture.jpg` ryddes for gamle versjoner.
+                    cacheDir.listFiles { f ->
+                        f.name == "last_capture.jpg" ||
+                            (f.name.startsWith("capture_") && f.name.endsWith(".jpg"))
+                    }?.forEach { it.delete() }
+                    cacheImg.writeBytes(jpeg)
                 } catch (e: Exception) { Log.e(TAG, "cache-bilde feilet", e) }
 
                 // Doep om galleri-bildet med fasiten, saa antall treff + sum
@@ -267,6 +290,11 @@ class CaptureActivity : AppCompatActivity() {
                     .putExtra(ResultActivity.EXTRA_THETA,
                               result.hits.map { it.theta }.toDoubleArray())
                     .putExtra(ResultActivity.EXTRA_IMAGE_PATH, cacheImg.absolutePath)
+                    // Cache-fila er originalen, altsaa i SENSORORIENTERING.
+                    // Kjernen fikk pikslene rotert; OCR maa faa den samme
+                    // rotasjonen, ellers leser ML Kit et sideveis bilde og
+                    // finner ingen poengliste - uten aa melde fra om det.
+                    .putExtra(ResultActivity.EXTRA_ROTATION, rotation)
                     .putExtra(ResultActivity.EXTRA_GALLERY_URI, galleryUri?.toString()))
                 finish()
             }
