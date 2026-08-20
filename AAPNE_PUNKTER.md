@@ -130,6 +130,39 @@ kortere enn x meter, **x artsavhengig**». UI-spec §8 (linje 122) sier «dyret 
 kortere enn **100 meter**». De to kan ikke begge være riktige, og kriteriet går
 rett inn i jaktloggen og i forskningsdataene.
 
+### ÅP-B13 — Skivebildene: koblingen fjernes, og vellykkede scans lagrer koordinater · label `backend`
+
+**Retningen er avklart av eier 2026-08-20; ingenting av den er bygget.** Den
+erstatter en tidsfrist på skivebildene — 3 år ble diskutert og forkastet, fordi
+en frist utsetter koblingen i stedet for å fjerne den, og fordi den krever en
+ryddejobb som ikke finnes (ÅP-E2 er den samme mangelen ett annet sted).
+
+To ting skal bygges:
+
+1. **`series_id` skal ikke lagres på donasjonen.** `POST /v1/failed-analyses`
+   tar imot feltet i dag, og det er den eneste grunnen til at et donert bilde
+   kan knyttes til en konto: ID-en er den samme som serien lagres under i
+   `/v1/stats`. Koblingen skal brytes **ved innsending**, ikke tidsbegrenses.
+   Det er også det som gjør ÅPENT PUNKT 6 i `personvernerklaring.txt`
+   besvarbart — i dag følger ikke bildene kontoslettingen.
+2. **Vellykkede scans skal ikke lagre bildet i det hele tatt**, bare
+   treffkoordinatene (f.eks. polarkoordinater per poengenhet). Det gjelder
+   taggen `ocr_match` (`android/KONTRAKT.md` §2), altså donasjonen som sendes
+   når kjernen og OCR var enige.
+
+**Halve jobben ligger hos klienten.** Den køer sidecar-filen med `series_id` og
+selve JPEG-en (`android/KONTRAKT.md` §2–§3), så feltet må slutte å bli sendt og
+`ocr_match` må slutte å køe et bilde. Meld det som issue med label `ui` når
+backend-siden er avgjort — begge halvdelene må lande i samme runde, ellers
+sender klienten et felt serveren har sluttet å ta imot.
+
+**Konsekvensen som bør ses før det bygges:** `ocr_match`-bildene er det eneste
+materialet som viser kjernen på en scan som *gikk bra*. ÅP-U14 trenger
+over-deteksjon, og den ligger i `rejected` og `ocr_mismatch`, så den rammes
+ikke — men muligheten til å etterprøve en vellykket analyse mot bildet
+forsvinner. Hva koordinatene skal inneholde for at det fortsatt skal være
+kalibreringsmateriale, er en del av oppgaven.
+
 ---
 
 ## C. Åpne designspørsmål fra eier
@@ -247,53 +280,6 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 
 Konsekvens i dag: telefoninvitasjoner til lag får `delivery_status: failed` med
 lenken vedlagt, så klienten kan dele den via ACTION_SEND (backend_spec §4).
-
-### ÅP-E11 — R2-secretene må byttes til den EU-bundne bucketen
-Den gamle bucketen `bestefar-scan-failures` har *location hint* `EEUR` uten
-jurisdiksjonsbinding — et hint er ingen garanti, og «Eastern Europe» dekker land
-utenfor EØS. `bestefar-scan-failures-eur` er opprettet med jurisdiksjon `eu`.
-**Steg 1 og 2 er gjort 2026-08-18.** Secretene er byttet, og kopieringen er
-kjørt: **sju objekter, 16 096 622 byte** — ikke fem. De to ekstra er ekte
-donasjoner som kom inn etter at R2 ble koblet på, og de ble med fordi jobben
-leser nøklene fra databasen og ikke fra en telling. Verifisert ved at en ny
-tørrkjøring etterpå melder alle sju som «allerede der», altså lest fra målet og
-sammenlignet byte for byte. `r2_check.py` mot den nye bucketen: PUT/GET/DELETE
-ok.
-
-Fire feil måtte rettes underveis, og **ingen av dem ble fanget av noe hos oss** —
-alle tre første svarte `/health` `"bilder":"r2"` på: `R2_ENDPOINT` med bucketnavn
-i stien (signaturen dekket en annen sti enn forespørselen), API-token uten
-EU-jurisdiksjon, og Access Key ID satt til plassholderteksten. Se ÅP-B12.
-
-**Steg 3 er gjort 2026-08-18.** En ekte donasjon fra appen (rad 11,
-`submitted_at` 18:53:55Z, `feilanalyse/rejected/2026/08/18/11-…jpg`) ligger i
-`bestefar-scan-failures-eur` med 3 289 511 byte — og **0 byte i den gamle
-bucketen**, altså ikke der i det hele tatt. Den var heller ikke blant de sju
-kopierte objektene. Skrivingen går derfor direkte til den EU-bundne bucketen,
-ikke bare kopieringen.
-
-**Det som gjenstår er steg 4: den gamle bucketen er ikke tømt.**
-
-Opprinnelig rekkefølge, som **rekkefølgen er en del av tiltaket**:
-
-1. Bytt til den nye bucketen. Jurisdiksjonsbundne buckets har **eget
-   endepunkt**, så `R2_ENDPOINT` må endres, ikke bare `R2_BUCKET`:
-
-   ```powershell
-   flyctl secrets set R2_ENDPOINT="https://<konto-id>.eu.r2.cloudflarestorage.com" R2_BUCKET="bestefar-scan-failures-eur" -a bestefar-api
-   flyctl secrets set R2_KILDE_ENDPOINT="https://<konto-id>.r2.cloudflarestorage.com" R2_KILDE_BUCKET="bestefar-scan-failures" -a bestefar-api
-   ```
-
-   Er API-tokenet bucket-begrenset og ikke kontoomfattende, trengs også
-   `R2_KILDE_ACCESS_KEY_ID` og `R2_KILDE_SECRET_ACCESS_KEY` — symptomet er
-   `AccessDenied` fra den ene av dem.
-2. Kjør kopieringen **etterpå**, ikke før: da skriver tjenesten allerede til den
-   nye bucketen, og kilden kan ikke få nye objekter mens jobben går.
-3. Verifiser med `tools/r2_check.py` og en **ekte donasjon** fra appen.
-4. Først da: tøm den gamle bucketen. Egen runde, egen beslutning.
-
-Punktet står til steg 4 er gjort. `personvernerklaring.txt` kan ikke si at
-bildene ligger i EU før den gamle bucketen er tom (ÅPENT PUNKT 10 der).
 
 ---
 
@@ -585,4 +571,5 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | ÅP-D1 — CI-actionene kjørte på avviklet Node | 2026-08-16 | **Bumpet, alle tre områdene i én commit etter avtale med eier** (`a020dc3`) — den ene endringen eierskapsmodellen ikke dekker, notert i commit-meldingen og i toppen av `ci.yml` så de to andre instansene ikke lurer. `checkout` v4→v7, `setup-python` v5→v7, `setup-java` v4→v5, `cache` v4→v6, `setup-gradle` v4→v6, `setup-flyctl` `@master`→`@1.6`. **Runtime ble lest fra `runs.using` i hver actions `action.yml` på den taggen vi peker på**, ikke antatt: `setup-flyctl@1.5`, som GitHub melder som «latest release», kjører node20 — å pinne til den ville låst oss på runtimen som avvikles, og `@master` var allerede node24. Verifisert på to måter, siden grønn kjøring og fravær av advarsel er to ulike påstander: alle fem jobbene `success` (CI 31940266418, Deploy backend 31940266433), **og** null node20-annotasjoner mot fire i kjøringen før (31879818643). Pinningen av `setup-flyctl` var eget avsnitt i punktet og er lukket samtidig. |
 | ÅP-B11 — gamle bilder i `image_legacy` | 2026-08-15 | **Flyttet til R2, ikke kastet** (eieravklaring: de er materialet ÅP-U14 mangler). Kjørt med `tools/migrate_legacy_images.py --utfoer` på Fly-maskinen: fem rader, 13 byte til 3 844 036 byte, 10 509 298 byte til sammen, alle JPEG, alle med innsendingsdatoen i nøkkelen. Hver rad ble lest tilbake og sammenlignet byte for byte før `image_legacy` ble tømt (B-48). Verifisert ved at `GET /health` gikk fra `"bilder": "r2 (5 gamle rader i basen)"` til `"bilder": "r2"`. Merk to ting for ettertiden: «11 MB-raden» fantes ikke — det var totalen, og ingen rad var over 8 MB-grensen — og rad 2 er 13 byte, altså en avkortet innsending uten bildeinnhold. Fire av de fem er `ocr_mismatch`. |
 | ÅP-E10 — R2-secretene og signeringen | 2026-08-15 | **Virker mot ekte R2.** Secretene sto i Fly fra før (punktet påstod først det motsatte, og ble rettet). Verifisert ved å kjøre `tools/r2_check.py` **inne på Fly-maskinen**, der secretene faktisk er: `flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"` svarte `PUT: ok` / `GET: ok (64 byte, identisk)` / `DELETE: ok` mot bucketen `bestefar-scan-failures`. Det er hele rundturen, ikke bare at verdiene lot seg lese — `/health` sier `"bilder": "r2"` uansett om Cloudflare avviser signaturen. Verktøyet ligger i imaget nettopp derfor (B-47). Merk hva testen *ikke* dekker: at en ekte donasjon fra klienten går gjennom hele veien; det viser seg først når `POST /v1/failed-analyses` svarer 201 med en `object_key`. |
+| ÅP-E11 — R2-secretene måtte byttes til den EU-bundne bucketen | 2026-08-20 | **Gammel bucket tømt og slettet; all lagring går til `bestefar-scan-failures-eur` (jurisdiksjon `eu`).** Steg 1–3 ble gjort 2026-08-18: secretene byttet, sju objekter (16 096 622 byte) kopiert med uendret nøkkel og lest tilbake byte for byte, og en ekte donasjon fra appen verifisert i den nye bucketen med **0 byte i den gamle** — altså at også skrivingen, ikke bare kopieringen, går dit. Steg 4 er gjort 2026-08-20: `bestefar-scan-failures` er ikke bare tømt, den er slettet, så det finnes ikke lenger en bucket uten jurisdiksjonsbinding å komme i skade for å skrive til. Fire feilkonfigurasjoner måtte rettes underveis uten at noe hos oss fanget dem — det ga ÅP-B12/B-51. Detaljene: `backend/BESLUTNINGER.md` B-50, `backend/CHANGELOG.md` 2026-08-16. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |

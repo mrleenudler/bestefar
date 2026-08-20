@@ -203,19 +203,22 @@ Dette skjer faktisk i dag, lest ut av koden:
     nøkkelen som beskytter deponert nøkkelmateriale (2.2), ligger her.
 
   Supabase — Postgres-databasen der alt i punkt 2 ligger, unntatt bildene.
-    Supabase er et amerikansk selskap; hvilken region prosjektet vårt er
-    opprettet i, er ikke lest ut av koden. Se ÅPENT PUNKT 3.
+    Supabase er et amerikansk selskap. Prosjektet vårt er opprettet i regionen
+    Ireland (eu-west-1), altså innenfor EU/EØS — bekreftet av eier 2026-08-20.
+    Hvem som har tilgang til kontoen, står fortsatt åpent: se ÅPENT PUNKT 3.
 
   Cloudflare R2 — objektlagring for skivebildene (2.7). Cloudflare Inc. er
     amerikansk.
-    Den opprinnelige bucketen `bestefar-scan-failures` ble opprettet med
-    «location hint» EEUR og UTEN jurisdiksjonsbinding. Et hint er en preferanse,
-    ikke en garanti, og «Eastern Europe» dekker dessuten land utenfor EØS — det
-    var altså ingen garanti for at bildene ble liggende i EU/EØS.
-    Rettet 2026-08-16: `bestefar-scan-failures-eur` er opprettet med
-    jurisdiksjon `eu`, som binder objektene til EU, og bildene kopieres dit med
-    uendret nøkkel. Den gamle bucketen står til den nye er verifisert i drift,
-    og skal deretter tømmes — se ÅPENT PUNKT 10.
+    Bildene ligger i bucketen `bestefar-scan-failures-eur`, som er opprettet med
+    jurisdiksjon `eu`. Den bindingen holder objektene i EU.
+    Bakgrunnen, siden den gjelder bilder som allerede var sendt inn: den
+    opprinnelige bucketen `bestefar-scan-failures` ble opprettet med «location
+    hint» EEUR og UTEN jurisdiksjonsbinding. Et hint er en preferanse, ikke en
+    garanti, og «Eastern Europe» dekker dessuten land utenfor EØS — det var
+    altså ingen garanti for at bildene lå i EU/EØS. Alle bildene ble kopiert til
+    den jurisdiksjonsbundne bucketen 2026-08-18, og den gamle bucketen ble tømt
+    og slettet 2026-08-20. Det finnes ikke lenger lagring uten
+    jurisdiksjonsbinding.
 
   Resend — sender e-post: innloggingskoder og videresending av meldinger til
     utvikleren. Amerikansk selskap. Mottakerens e-postadresse og innholdet i
@@ -256,24 +259,47 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
     vurdering, ikke en teknisk.
 
   ÅPENT PUNKT 2 — Lagringstid. INGEN AV DELENE SLETTES AUTOMATISK I DAG.
-    Det finnes ingen ryddejobb i koden i det hele tatt. Konkret står følgende
-    til det slettes manuelt eller kontoen slettes: brukte engangskoder, utløpte
-    og tilbakekalte økter, karanteneoppføringer med IP-adresser, leverte
-    meldinger i køen, invitasjoner med tredjeparters e-post og telefonnumre,
-    avstemninger, meldinger til utvikleren, og donerte skivebilder.
-    Eier må bestemme en oppbevaringstid per kategori. Deretter må den bygges —
-    en erklæring som lover sletting uten at noe sletter, er verre enn ingen.
+    Det finnes ingen ryddejobb i koden i det hele tatt. Prinsippet er avklart av
+    eier 2026-08-20, i tre deler — men ingenting av det er bygget, og en
+    erklæring som lover sletting uten at noe sletter, er verre enn ingen.
+
+    a) Brukerdata — serier, jaktlogg, profil og sikkerhetskopi — lagres til
+       kontoen slettes. Uendret fra i dag.
+
+    b) Driftsdata skal ha korte, konkrete frister, ikke «til kontoen slettes».
+       Det gjelder brukte engangskoder, tilbakekalte og utløpte økter,
+       karanteneoppføringer med IP-adresser, og leverte meldinger i køen.
+       PRINSIPP AVKLART, FRISTER GJENSTÅR: selve tallene er ikke bestemt, og er
+       ikke fylt inn her.
+       Invitasjoner med tredjeparters e-post og telefonnumre, avstemninger og
+       meldinger til utvikleren er ikke plassert i noen av de tre delene ennå.
+
+    c) Skivebildene løses IKKE med en frist. En frist på 3 år ble diskutert og
+       forkastet: den utsetter koblingen mellom bilde og konto i stedet for å
+       fjerne den. Retningen er i stedet at koblingen aldri oppstår —
+       `series_id` fjernes fra donasjonen ved innsending — og at vellykkede
+       scans ikke lagrer bildet i det hele tatt, bare treffkoordinatene.
+       IKKE BYGGET. Se ÅPENT PUNKT 6 og ÅP-B13 i AAPNE_PUNKTER.md.
 
   ÅPENT PUNKT 3 — Hvem har tilgang, og hvor ligger dataene fysisk.
-    Hvem har innlogging til Fly-kontoen, Supabase-prosjektet og
-    Cloudflare-kontoen i dag? Er det én person eller flere, og finnes det
-    tofaktor på dem? Erklæringen bør kunne si «kun behandlingsansvarlig» eller
-    tallfeste det.
-    Videre: hvilken region er Supabase-prosjektet opprettet i? Fly-appen er i
-    Amsterdam, men det gjelder bare API-et — ikke databasen. R2-spørsmålet er
-    besvart og rettet, se punkt 4 og ÅPENT PUNKT 10.
-    Til slutt: er det inngått databehandleravtaler med Fly, Supabase,
-    Cloudflare, Resend og Google, og finnes det overføringsgrunnlag for USA?
+    HVOR DATAENE LIGGER ER AVKLART — BARE DEN DELEN. Alle fire
+    tredjepartstjenestene har nå bekreftet EU/EØS-lokasjon for selve dataene:
+    Fly-appen kjører i Amsterdam (ams), Supabase-prosjektet er opprettet i
+    Ireland (eu-west-1, bekreftet av eier 2026-08-20), skivebildene ligger i en
+    R2-bucket med jurisdiksjon `eu`, og eier bekrefter at det samme gjelder
+    Resend og Google. Merk forskjellen i grunnlag: for de tre første er regionen
+    en navngitt verdi i oppsettet, for Resend/Google står eiers bekreftelse
+    alene. Selskapene er uansett fortsatt amerikanske — det er lokasjonen som er
+    avklart, ikke eierskapet.
+
+    Punktet står fortsatt åpent på tre spørsmål, og ingen av dem handler om
+    region:
+      * Hvem har innlogging til de fire driftskontoene i dag — én person eller
+        flere? Erklæringen bør kunne si «kun behandlingsansvarlig» eller
+        tallfeste det.
+      * Har de kontoene tofaktor?
+      * Er det inngått databehandleravtaler (DPA) med alle fire, og finnes det
+        overføringsgrunnlag for USA?
 
   ÅPENT PUNKT 4 — Sletteanmodninger i forskningslageret.
     Koden legger inn anmodningen, men INGEN JOBB TØMMER DEN (ÅP-E2). I dag ville
@@ -290,22 +316,19 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
 
   ÅPENT PUNKT 6 — Skal donerte bilder følge kontoslettingen?
     I dag gjør de ikke det. De er ikke merket med konto-ID, men serie-ID-en gjør
-    dem koblbare (2.7). Valget står mellom å slette dem ved kontosletting, å
-    fjerne serie-ID-en så koblingen faktisk brytes, eller å si i erklæringen at
-    de blir liggende. Alle tre er forsvarlige; å la det være uavklart er ikke.
+    dem koblbare (2.7).
+    AVKLART 2026-08-20: serie-ID-en fjernes fra donasjonen ved innsending, slik
+    at koblingen aldri oppstår, og vellykkede scans lagrer ikke bilde i det hele
+    tatt — bare treffkoordinatene. IKKE BYGGET ENNÅ (ÅP-B13 i
+    AAPNE_PUNKTER.md).
+    Punktet står åpent til koden er endret. Erklæringen kan ikke beskrive
+    løsningen som gjeldende før den er det: bildene som allerede er donert bærer
+    fortsatt en serie-ID, og hva som skal skje med dem, følger av samme runde.
 
   ÅPENT PUNKT 7 — Barn.
     Fødselsår er et frivillig felt, og det finnes ingen aldersgrense i koden.
     Jakt og skyting har aldersgrenser i seg selv; eier må avgjøre om tjenesten
     skal ha en, og hva erklæringen skal si om mindreårige.
-
-  ÅPENT PUNKT 10 — Den gamle R2-bucketen er ikke tømt.
-    Bildene er kopiert til den EU-bundne bucketen, men originalene ligger igjen
-    i `bestefar-scan-failures`, som ikke har jurisdiksjonsbinding. Det er med
-    vilje: en kopiering som viser seg ufullstendig, skal ikke ha slettet
-    originalen. Erklæringen kan ikke si at bildene ligger i EU før den gamle
-    bucketen faktisk er tømt. Eier bestemmer når — etter at den nye er
-    verifisert i drift med en ekte donasjon.
 
   ÅPENT PUNKT 8 — Retten til innsyn og dataportabilitet.
     Kontosletting er bygget. Det finnes ingen «last ned alle data om meg»-funksjon
