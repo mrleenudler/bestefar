@@ -41,7 +41,12 @@ DET VIKTIGSTE, KORT
 1. HVEM ER BEHANDLINGSANSVARLIG
 -------------------------------
 
-ÅPENT PUNKT 1 — navn, organisasjonsnummer og kontaktadresse mangler. Se nederst.
+Behandlingsansvarlig er en privatperson, ikke et registrert foretak. Det finnes
+derfor ikke noe organisasjonsnummer å oppgi.
+
+Navn, postadresse og kontaktadresse er innhentet, men står ikke her: de legges
+inn ved publisering. Se ÅPENT PUNKT 1 — det gjelder også
+behandlingsgrunnlaget per kategori, som ikke er besluttet.
 
 
 2. HVA VI LAGRER, HVOR, HVOR LENGE, OG HVEM SOM HAR TILGANG
@@ -253,26 +258,43 @@ Dette skjer faktisk i dag, lest ut av koden:
 Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
 
   ÅPENT PUNKT 1 — Behandlingsansvarlig.
-    Navn, organisasjonsform, organisasjonsnummer, postadresse og en
-    kontaktadresse for personvernhenvendelser. Også: behandlingsgrunnlag per
-    kategori (samtykke, avtale, berettiget interesse) — det er en juridisk
-    vurdering, ikke en teknisk.
+    Avklart 2026-08-20: behandlingsansvarlig er en PRIVATPERSON, ikke et
+    registrert foretak, så det finnes ikke noe organisasjonsnummer.
+
+    IKKE FYLL INN PERSONALIA HER. Navn, postadresse og kontaktadresse er
+    innhentet, men de skal ikke inn i dette repoet — det er offentlig, og
+    opplysningene er ikke bekreftet av vedkommende selv. De legges inn først
+    ved publisering av erklæringen, samlet. Det gjelder også
+    personvern-kontaktadressen på eget domene, som er opprettet til formålet.
+
+    Fortsatt ubesluttet, og den juridiske halvdelen av punktet:
+    behandlingsgrunnlag per kategori (samtykke, avtale, berettiget interesse).
+    Det er en juridisk vurdering, ikke en teknisk, og den er ikke gjort.
 
   ÅPENT PUNKT 2 — Lagringstid. INGEN AV DELENE SLETTES AUTOMATISK I DAG.
-    Det finnes ingen ryddejobb i koden i det hele tatt. Prinsippet er avklart av
-    eier 2026-08-20, i tre deler — men ingenting av det er bygget, og en
-    erklæring som lover sletting uten at noe sletter, er verre enn ingen.
+    Det finnes ingen ryddejobb i koden i det hele tatt. Prinsippet OG fristene
+    er avklart av eier 2026-08-20, i tre deler — men ingenting av det er bygget,
+    og en erklæring som lover sletting uten at noe sletter, er verre enn ingen.
+    Punktet lukkes derfor ikke av at tallene nå står her.
 
     a) Brukerdata — serier, jaktlogg, profil og sikkerhetskopi — lagres til
        kontoen slettes. Uendret fra i dag.
 
-    b) Driftsdata skal ha korte, konkrete frister, ikke «til kontoen slettes».
-       Det gjelder brukte engangskoder, tilbakekalte og utløpte økter,
-       karanteneoppføringer med IP-adresser, og leverte meldinger i køen.
-       PRINSIPP AVKLART, FRISTER GJENSTÅR: selve tallene er ikke bestemt, og er
-       ikke fylt inn her.
-       Invitasjoner med tredjeparters e-post og telefonnumre, avstemninger og
-       meldinger til utvikleren er ikke plassert i noen av de tre delene ennå.
+    b) Driftsdata har korte, konkrete frister, ikke «til kontoen slettes».
+       Fristene er besluttet av eier 2026-08-20:
+
+         Brukte engangskoder ................. 1 time etter bruk
+         Utløpte/tilbakekalte økter .......... 30 dager
+         Karanteneoppføringer (IP) ........... 30 dager
+         Leverte meldinger i køen ............ 90 dager
+         Ubesvarte invitasjoner .............. 90 dager
+         Avstemninger ........................ 30 dager etter avgjort utfall
+         Meldinger til utvikleren ............ 1 år
+
+       INGEN AV DISSE HÅNDHEVES I DAG. Tallene er besluttet, ikke bygget — det
+       finnes fortsatt ingen ryddejobb. Erklæringen kan derfor ikke publiseres
+       med disse fristene som en beskrivelse av hva som skjer; de beskriver hva
+       som skal skje. Se ÅP-B14 i AAPNE_PUNKTER.md.
 
     c) Skivebildene løses IKKE med en frist. En frist på 3 år ble diskutert og
        forkastet: den utsetter koblingen mellom bilde og konto i stedet for å

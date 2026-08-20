@@ -171,6 +171,16 @@ class Settings(BaseSettings):
 
     # --- Feedback (§10) ---
     feedback_to: str = ""                 # utviklerens innboks; tom => kun logg
+    # AVSENDERADRESSEN FOR ALL UTGAAENDE E-POST, ikke bare §10: innloggingskoder
+    # (§1, routers/auth.py), lag-invitasjoner (§4, routers/teams.py) og
+    # videresendt feedback (§10) gaar alle gjennom services/mailer.send og faar
+    # denne som «From» - baade over Resend og over SMTP. Navnet er arvet fra da
+    # §10 var den eneste som sendte noe.
+    #
+    # Settes som Fly-secret (FEEDBACK_FROM), saa den kan byttes uten deploy.
+    # Standardverdien under er en PLASSHOLDER og gjelder bare paa en maskin der
+    # secreten ikke er satt; en adresse paa et domene vi ikke har verifisert hos
+    # leverandoeren blir avvist ved utsending.
     feedback_from: str = "bestefar@bestefar.app"
     feedback_rate_per_hour: int = 5       # per IP
     resend_api_key: str = ""

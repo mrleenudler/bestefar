@@ -358,6 +358,31 @@ Merk at selve verdien 5 heller ikke har noen dokumentert begrunnelse
 
 Åpent: hvilken av de to, og ved hvilket antall lag.
 
+### ÅP-B14 — Ingenting håndhever lagringsfristene · label `backend`
+
+Eier besluttet 2026-08-20 en oppbevaringstid per kategori driftsdata.
+**Verdiene står i `personvernerklaring.txt` ÅPENT PUNKT 2 og skal ikke
+gjentas her** — to kopier av en frist blir før eller siden to ulike frister.
+
+Det som mangler er alt: det finnes ingen ryddejobb i koden, og ingen av
+fristene håndheves. Brukte engangskoder, tilbakekalte økter,
+karanteneoppføringer med IP, leverte meldinger, ubesvarte invitasjoner,
+avstemninger og meldinger til utvikleren blir stående til kontoen slettes —
+og de tre siste også etter det.
+
+**Derfor kan ÅPENT PUNKT 2 i erklæringen ikke lukkes av at tallene er
+bestemt.** Erklæringen sier hva som skal skje, ikke hva som skjer, og en
+erklæring som lover sletting uten at noe sletter er verre enn ingen — det
+står allerede i den fila, og det er fortsatt sant. Punktet her lukkes når en
+jobb faktisk kjører og det kan vises hva den slettet.
+
+Åpent: hva som kaller den (samme spørsmål som ÅP-B7 — se vurderingen der),
+og om slettingen skal være hard eller en anonymisering for de kategoriene som
+har verdi i aggregat.
+
+Merk at skivebildene **ikke** hører hjemme her: de løses ved frikobling
+(ÅP-B13), ikke ved en frist.
+
 ### ÅP-B7 — Frister avgjøres lat · label `backend`
 > «Nå som push (fase 8) er på plass **bør et periodisk kall legges inn**, så
 > varselet går ut på fristen og ikke ved neste besøk.»
@@ -365,6 +390,29 @@ Merk at selve verdien 5 heller ikke har noen dokumentert begrunnelse
 
 Gjelder lederavstemning og inaktiv-leder-utfordring, begge med 7-dagers frist.
 Åpent: hva som skal kalle det — Fly cron, ekstern pinger, eller noe annet.
+
+**Ryddejobben i ÅP-B14 trenger det samme (vurdert 2026-08-20).** Vurderingen,
+uten at noe er valgt:
+
+- **Mekanismen er én oppgave.** Begge trenger nøyaktig det samme: noe som kjører
+  uten at en bruker har spurt om noe. Å bygge to måter å bli kalt på ville gitt
+  to steder å glemme, og valget mellom Fly cron, ekstern pinger og noe annet er
+  det samme valget i begge tilfeller. Det er også dette valget som blokkerer
+  begge — ingen av jobbene kan skrives ferdig uten å vite hva som kaller dem.
+- **Jobbene er to oppgaver**, og de hører til hver sin risikoklasse. ÅP-B7 gjør
+  en avgjørelse tidligere enn den ellers ville blitt gjort; kjører den for ofte
+  eller to ganger, skjer det ingenting galt, og verste utfall er et varsel som
+  kommer sent. ÅP-B14 **sletter**, og en feil der er ugjenkallelig og treffer
+  data brukeren ikke kan skaffe igjen. Den trenger ting den andre ikke trenger:
+  tørrkjøring, tall per kategori før og etter, en øvre grense per kjøring, og en
+  logglinje som kan siteres i erklæringen. Å slå dem sammen til én funksjon
+  ville gitt slettingen samme letthet som avstemningen.
+- **Hastene er ulike.** ÅP-B7 er en brukeropplevelse. ÅP-B14 holder
+  `personvernerklaring.txt` ÅPENT PUNKT 2 åpent, og det punktet står mellom
+  utkastet og en erklæring som kan publiseres.
+
+Konklusjonen som *ikke* er trukket: hvilken mekanisme. Den er fortsatt det
+åpne i dette punktet, og bør avgjøres én gang for begge.
 
 ### ~~ÅP-U12 — Klienten bygges ikke av noen automatikk~~ · **LUKKET 2026-08-08**
 
