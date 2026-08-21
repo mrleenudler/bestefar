@@ -116,17 +116,6 @@
             "title": "Ocr Scores",
             "type": "string"
           },
-          "series_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Series Id"
-          },
           "status_code": {
             "title": "Status Code",
             "type": "integer"

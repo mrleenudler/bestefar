@@ -263,6 +263,12 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   godtatt bildedeling (oppstartsvindu 2) eller per-innsending.
 - **Endepunkt:** `POST /v1/failed-analyses` (multipart: bilde + JSON med detekterte
   poeng, OCR-poeng, `tag` ∈ {ocr_match, ocr_mismatch, rejected}).
+- **Donasjonen er frikoblet fra kontoen.** `series_id` tas ikke imot, og
+  kolonnen er droppet (2026-08-21). Den var samme ID som serien lagres under i
+  `/v1/stats`, altså den ene veien fra et bilde til en person; en feilet analyse
+  er ikke et resultat, så feltet hadde ingen funksjon. Sendes det likevel av en
+  eldre klient, ignoreres det. `user_id` gikk i samme migrasjon — tabellen har
+  ingen fremmednøkkel til brukertabellene igjen.
 - **Lagring:** bilder lagres i S3-kompatibel objektlagring (Cloudflare R2), ikke i
   selve databasen — kun metadata/JSON lagres relasjonelt.
 - **Uten brukbar objektlagring tas donasjoner ikke imot** — 503 før kroppen

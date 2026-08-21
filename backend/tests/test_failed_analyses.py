@@ -13,6 +13,9 @@ import pytest
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64          # gyldig magi, resten fyll
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 
+# `series_id` staar med vilje: ruten tar den ikke lenger imot (B-52), og en
+# klient som fortsatt sender den skal komme like godt gjennom. Testen for at
+# den faktisk ignoreres ligger nederst.
 SKJEMA = {"status_code": "3", "confidence": "0.42", "core_version": "1.2.3",
           "tag": "ocr_mismatch", "series_id": "s-1",
           "detected_scores": "[10.4, 9.1]", "ocr_scores": "[10.4, 9.2]"}
@@ -139,6 +142,42 @@ def test_r2_feil_lager_ingen_rad(client, session, r2):
 
 def test_health_melder_r2(client, r2):
     assert client.get("/health").json()["bilder"] == "r2"
+
+
+def test_ingen_series_id_paa_donasjonen(session, r2):
+    """
+    §6 som invariant: donasjonen skal ikke kunne kobles til en konto (B-52).
+
+    `series_id` var samme ID som serien lagres under i `/v1/stats`, altsaa den
+    ene veien fra et donert bilde til en person. `user_id` var en fremmednoekkel
+    som aldri ble satt - ingen kobling, men en ferdig oppkoblet mulighet for aa
+    lage én. Testen faller hvis noen tar en av dem inn igjen.
+    """
+    from app.models import FailedAnalysis
+
+    assert "series_id" not in FailedAnalysis.__table__.columns
+    assert "user_id" not in FailedAnalysis.__table__.columns
+    # Ingen vei til brukertabellen i det hele tatt, uansett kolonnenavn.
+    assert not FailedAnalysis.__table__.foreign_keys
+
+
+def test_gammel_klient_som_sender_series_id_slipper_gjennom(client, session, r2):
+    """
+    Feltet ignoreres, det avvises ikke.
+
+    Klientene i felten sender det fortsatt, og et 4xx her ville vaert
+    ikke-`retryable` - altsaa stille tap av donasjonen hos en bruker vi ikke
+    kan oppdatere i samme oeyeblikk.
+    """
+    from app.models import FailedAnalysis
+
+    r = _send(client, felt={"series_id": "0f4c9b2e-1111-2222-3333-444455556666"})
+    assert r.status_code == 201, r.text
+
+    fa = session.get(FailedAnalysis, r.json()["id"])
+    assert fa.object_key in r2["lagret"]
+    # Verdien skal ikke ha naadd basen i noen form.
+    assert "0f4c9b2e" not in repr(fa.__dict__)
 
 
 def test_ingen_bildekolonne_igjen(session, r2):

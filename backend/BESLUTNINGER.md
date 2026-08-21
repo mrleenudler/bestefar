@@ -1116,6 +1116,58 @@ er åpen, og i loggen, og to av de fire er hemmeligheter.
 
 ---
 
+## B-52 `series_id` fjernes fra donasjonen, i stedet for at bildene får en frist
+
+**Kontekst.** Et donert skivebilde var ikke merket med konto, og endepunktet
+krever ikke innlogging — men raden bar `series_id`, og det er *samme* ID som
+serien lagres under i `/v1/stats`. Den som har databasen kunne dermed koble
+bildet til en person, og bildene var derfor personopplysninger
+(`personvernerklaring.txt` 2.7, ÅPENT PUNKT 6).
+
+**Det forkastede alternativet var en slettefrist.** 3 år ble diskutert.
+Eieravklaring 2026-08-20 valgte bort tid som virkemiddel: en frist *utsetter*
+koblingen i stedet for å fjerne den, og den forutsetter dessuten en ryddejobb
+som ikke finnes (ÅP-B14). Frikobling ved innsending gjør spørsmålet om
+lagringstid på bildene irrelevant — det er derfor de to punktene henger sammen.
+
+**Feltet hadde ingen funksjon.** En feilet analyse er per definisjon ikke et
+resultat, så det finnes ingen serie å knytte den til på en meningsfull måte.
+Verifisert før fjerning, ikke antatt: ingenting i backend-treet leser kolonnen.
+Den hadde en indeks (`ix_failed_analyses_series_id`) uten et eneste oppslag, som
+er så tydelig et tegn på ubrukt felt som man får. Kalibreringsmaterialet
+ÅP-U14 trenger, ligger i `tag`, `status_code` og de to poenglistene.
+
+**Kolonnen droppes, den nulles ikke.** Å bare slutte å skrive den ville latt de
+eksisterende radene stå igjen som personopplysninger, og da ville tiltaket ikke
+lukket noe som helst. Migrasjonen `b8d24a0f5c17` fjerner kolonnen og indeksen;
+downgrade gir kolonnen tilbake, men tom — verdiene er borte, og det er hensikten.
+
+**Talt i produksjon rett før migrasjonen, 2026-08-21: 9 rader, 6 med
+`series_id`, 0 med `user_id`.** Seks koblinger til en konto forsvant. Tallet
+står her og i ÅP-B13 fordi det ikke kan hentes i ettertid — etter migrasjonen
+finnes ikke kolonnene å telle. Det er ikke det samme tallet som de «sju
+objektene» i B-50 (objekter i R2) eller «rad 11» i ÅP-E11 (en ID, ikke et
+antall).
+
+**`user_id` ble droppet i samme migrasjon.** Den var tom — null av ni — og har
+aldri vært satt av endepunktet, så den var ingen personopplysning. Men den var
+en *ferdig oppkoblet* fremmednøkkel til `users` på en tabell hvis hele poeng nå
+er at radene ikke kan knyttes til en konto, og en kobling som allerede ligger
+der er noe annet enn en som må lages. Etter dette kreves en ny migrasjon for å
+gjøre donasjoner identifiserbare igjen. Det er den terskelen som er poenget:
+ikke at det skal være umulig, men at det skal måtte besluttes.
+
+**Et felt vi ikke lenger tar imot, avvises ikke.** Klientene i felten sender
+det fortsatt. FastAPI ignorerer skjemafelt ruten ikke erklærer, og det er den
+riktige oppførselen her: 4xx er ikke `retryable` i `android/KONTRAKT.md`, så et
+422 på et overflødig felt ville vært stille tap av donasjoner hos alle som ikke
+hadde oppdatert. Klienten kan fjerne feltet når det passer, uten koordinering.
+
+*Kilde: ÅP-B13 og eieravklaring 2026-08-20; `migrations/versions/b8d24a0f5c17`;
+`routers/failed_analyses.py`; `tests/test_failed_analyses.py`.*
+
+---
+
 # Beslutninger uten dokumentert begrunnelse
 
 Disse verdiene og valgene står i koden uten at det er skrevet ned *hvorfor*

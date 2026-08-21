@@ -20,6 +20,40 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-21
+
+**§6 — donasjonen er frikoblet fra kontoen** (B-52, del 1 av ÅP-B13).
+`series_id` tas ikke lenger imot av `POST /v1/failed-analyses`, og kolonnen er
+droppet (migrasjon `b8d24a0f5c17`) — også for radene som alt fantes. Feltet var
+den ene veien fra et donert bilde til en person: samme ID som serien lagres
+under i `/v1/stats`. **Ingenting leste den** — den hadde til og med en indeks
+uten et eneste oppslag — og kalibreringsmaterialet (`tag`, `detected_scores`,
+`ocr_scores`) er selvstendig.
+
+Kolonnen droppes i stedet for å nulles: en «vi slutter å skrive den»-løsning
+ville latt de eksisterende radene stå igjen som personopplysninger, og da kunne
+ikke ÅPENT PUNKT 6 i `personvernerklaring.txt` lukkes.
+
+**En eldre klient som fortsatt sender feltet, får 201 som før.** FastAPI
+ignorerer skjemafelt ruten ikke erklærer. Et 4xx ville vært ikke-`retryable` og
+dermed stille tap av donasjonen hos brukere vi ikke kan oppdatere i samme
+øyeblikk — klienten kan slutte å sende det når det passer.
+
+**Talt i produksjon rett før migrasjonen: 9 rader, 6 med `series_id`, 0 med
+`user_id`.** Seks koblinger til en konto forsvant. Tallet kan ikke hentes i
+ettertid, og det er ikke det samme som «sju objekter» i B-50 (objekter i R2) —
+se ÅP-B13 for hvorfor de tallene ikke skal stemme overens.
+
+**`user_id` er droppet i samme migrasjon.** Den var tom og har aldri vært satt
+av endepunktet, så den var ingen personopplysning — men en ferdig oppkoblet
+fremmednøkkel til `users` på nettopp denne tabellen er en mulighet som nå
+krever en ny migrasjon for å gjenåpnes.
+
+Del 2 av ÅP-B13 — at vellykkede scans ikke skal lagre bilde, bare
+treffkoordinater — er **ikke** bygget: det krever at klienten slutter å legge
+ved bildet og begynner å sende koordinater, altså en kontraktendring. Meldt som
+issue med label `ui`.
+
 ## 2026-08-18
 
 **§6 — `/health` skiller «av» fra «i stykker»** (B-51, lukker ÅP-B12). Feltet

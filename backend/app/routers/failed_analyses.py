@@ -19,6 +19,14 @@ Endepunktet krever ikke innlogging: donasjonen skal fungere ogsaa for brukere
 uten konto (§6 er koblet til bildedelings-samtykket, ikke til kontoen). Det er
 ogsaa grunnen til at innholdet sjekkes: dette er en aapen skrivevei inn i betalt
 objektlagring, saa vi tar imot bilder og ikke hva som helst.
+
+DONASJONEN ER FRIKOBLET FRA KONTOEN (B-52). `series_id` tas ikke lenger imot og
+finnes ikke i skjemaet: den var samme ID som serien lagres under i `/v1/stats`,
+altsaa den ene veien fra et bilde til en person. En feilet analyse er per
+definisjon ikke et resultat, saa feltet hadde ingen funksjon her - og uten det
+er bildene ikke lenger personopplysninger. Sender en eldre klient feltet
+likevel, ignoreres det: FastAPI ser bort fra skjemafelt ruten ikke erklaerer, og
+et 4xx ville vaert ikke-`retryable` og dermed stille tap av donasjonen.
 """
 import json
 import logging
@@ -65,7 +73,6 @@ async def submit_failed(status_code: int = Form(...),
                         confidence: float = Form(...),
                         core_version: str = Form(...),
                         tag: FailedTag = Form(FailedTag.rejected),
-                        series_id: str | None = Form(None),
                         detected_scores: str = Form(""),
                         ocr_scores: str = Form(""),
                         image: UploadFile = File(...),
@@ -90,7 +97,7 @@ async def submit_failed(status_code: int = Form(...),
     content_type, endelse = type_og_endelse
 
     fa = FailedAnalysis(status_code=status_code, confidence=confidence,
-                        core_version=core_version, tag=tag, series_id=series_id,
+                        core_version=core_version, tag=tag,
                         detected_scores=_scores(detected_scores),
                         ocr_scores=_scores(ocr_scores))
 

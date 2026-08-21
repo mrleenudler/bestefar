@@ -132,29 +132,73 @@ rett inn i jaktloggen og i forskningsdataene.
 
 ### ÅP-B13 — Skivebildene: koblingen fjernes, og vellykkede scans lagrer koordinater · label `backend`
 
-**Retningen er avklart av eier 2026-08-20; ingenting av den er bygget.** Den
-erstatter en tidsfrist på skivebildene — 3 år ble diskutert og forkastet, fordi
-en frist utsetter koblingen i stedet for å fjerne den, og fordi den krever en
-ryddejobb som ikke finnes (ÅP-E2 er den samme mangelen ett annet sted).
+**Retningen er avklart av eier 2026-08-20.** Den erstatter en tidsfrist på
+skivebildene — 3 år ble diskutert og forkastet, fordi en frist utsetter
+koblingen i stedet for å fjerne den, og fordi den krever en ryddejobb som ikke
+finnes (ÅP-E2 er den samme mangelen ett annet sted).
 
-To ting skal bygges:
+**Del 1 er bygget 2026-08-21 (B-52); del 2 er det ikke.** Punktet lukkes ikke
+av at koden er skrevet: det lukkes når en ekte donasjon *uten* `series_id`
+faktisk er kommet inn i produksjon. Det samme gjelder ÅPENT PUNKT 6 i
+`personvernerklaring.txt`, som derfor står urørt til da.
 
-1. **`series_id` skal ikke lagres på donasjonen.** `POST /v1/failed-analyses`
-   tar imot feltet i dag, og det er den eneste grunnen til at et donert bilde
-   kan knyttes til en konto: ID-en er den samme som serien lagres under i
-   `/v1/stats`. Koblingen skal brytes **ved innsending**, ikke tidsbegrenses.
-   Det er også det som gjør ÅPENT PUNKT 6 i `personvernerklaring.txt`
-   besvarbart — i dag følger ikke bildene kontoslettingen.
+### Målingen fra før frikoblingen — den kan ikke gjøres om igjen
+
+Talt i produksjonsdatabasen 2026-08-21, rett før migrasjon `b8d24a0f5c17`:
+
+| | |
+|---|---|
+| Rader i `failed_analyses` | **9** |
+| Av dem med `series_id` | **6** |
+| Av dem med `user_id` | **0** |
+
+Det er altså **seks koblinger til en konto som forsvant** — ikke null, og ikke
+elleve. Tallene står her fordi de er umulige å hente i ettertid: etter
+migrasjonen finnes ikke kolonnene å telle.
+
+**Avviket mot tallene i ÅP-E11, som ser ut som de teller det samme:** de gjør
+det ikke, og de har tre ulike kilder.
+
+- **9** er rader i databasen, målt 2026-08-21.
+- **7** («sju objekter, 16 096 622 byte») er *objekter i R2*, målt av
+  kopieringsjobben 2026-08-18. En rad uten `object_key` — en donasjon der
+  opplastingen feilet — har ingen objekt å telle.
+- **11** er ingen telling i det hele tatt. Det er **rad-ID-en** til
+  verifikasjonsdonasjonen i ÅP-E11 steg 3 («rad 11»), og ID-er er en sekvens,
+  ikke en beholdning. At ID 11 er utdelt mens bare 9 rader finnes, er ventet:
+  `POST /v1/failed-analyses` gjør `flush()` for å få ID-en *før* opplastingen,
+  og ruller raden tilbake hvis R2 svarer feil — sekvensverdien er da brukt opp.
+  Nettopp det skjedde gjentatte ganger under de fire feilkonfigurasjonene
+  2026-08-18 (ÅP-B12).
+
+At «11» ble lest som et radtall, skjedde i en samtale og ikke i denne fila —
+men det er verdt å ha skrevet ned hvorfor de tre tallene ikke skal stemme
+overens.
+
+### Det som skal bygges
+
+1. ~~**`series_id` skal ikke lagres på donasjonen.**~~ **Bygget 2026-08-21
+   (B-52).** Ruten tar ikke lenger imot feltet, og migrasjon `b8d24a0f5c17`
+   dropper kolonnen — også for radene som alt fantes, siden en «vi slutter å
+   skrive den»-løsning ville latt seks eksisterende koblinger stå igjen.
+   `user_id` på samme tabell ble droppet i samme migrasjon: den var tom, men
+   en ferdig oppkoblet fremmednøkkel til `users` er en mulighet det nå kreves
+   en ny migrasjon for å gjenåpne. **Ingen klientendring var nødvendig** —
+   FastAPI ignorerer skjemafelt ruten ikke erklærer, og et 4xx ville vært
+   ikke-`retryable` og dermed stille tap av donasjonen.
 2. **Vellykkede scans skal ikke lagre bildet i det hele tatt**, bare
    treffkoordinatene (f.eks. polarkoordinater per poengenhet). Det gjelder
    taggen `ocr_match` (`android/KONTRAKT.md` §2), altså donasjonen som sendes
-   når kjernen og OCR var enige.
+   når kjernen og OCR var enige. **Ikke bygget.**
 
-**Halve jobben ligger hos klienten.** Den køer sidecar-filen med `series_id` og
-selve JPEG-en (`android/KONTRAKT.md` §2–§3), så feltet må slutte å bli sendt og
-`ocr_match` må slutte å køe et bilde. Meld det som issue med label `ui` når
-backend-siden er avgjort — begge halvdelene må lande i samme runde, ellers
-sender klienten et felt serveren har sluttet å ta imot.
+**Del 2 er en kontraktendring, og halve jobben ligger hos klienten.** `image`
+er påkrevd i ruten, og koordinater finnes ikke som felt; klienten køer sidecar
+og JPEG (`android/KONTRAKT.md` §2–§3) og må slutte å legge ved bildet for
+`ocr_match`. Meldt som **issue #10** med label `ui` 2026-08-21, med forslag om å
+gjenbruke `{r_rel, theta, decimal, integer}` fra `/v1/stats` (`models/training.py`,
+`Shot`) — det er kjernens §3-output, allerede kontraktfestet, og svarer til
+«polarkoordinater i poengenheter». Serverhalvdelen bygges ikke før feltnavnene
+er avtalt: et endepunkt uten kaller blir aldri verifisert (rot-`CLAUDE.md` §7.3).
 
 **Konsekvensen som bør ses før det bygges:** `ocr_match`-bildene er det eneste
 materialet som viser kjernen på en scan som *gikk bra*. ÅP-U14 trenger
@@ -619,5 +663,5 @@ Punkter som er lukket. Beholdes med dato så de ikke tas opp igjen.
 | ÅP-D1 — CI-actionene kjørte på avviklet Node | 2026-08-16 | **Bumpet, alle tre områdene i én commit etter avtale med eier** (`a020dc3`) — den ene endringen eierskapsmodellen ikke dekker, notert i commit-meldingen og i toppen av `ci.yml` så de to andre instansene ikke lurer. `checkout` v4→v7, `setup-python` v5→v7, `setup-java` v4→v5, `cache` v4→v6, `setup-gradle` v4→v6, `setup-flyctl` `@master`→`@1.6`. **Runtime ble lest fra `runs.using` i hver actions `action.yml` på den taggen vi peker på**, ikke antatt: `setup-flyctl@1.5`, som GitHub melder som «latest release», kjører node20 — å pinne til den ville låst oss på runtimen som avvikles, og `@master` var allerede node24. Verifisert på to måter, siden grønn kjøring og fravær av advarsel er to ulike påstander: alle fem jobbene `success` (CI 31940266418, Deploy backend 31940266433), **og** null node20-annotasjoner mot fire i kjøringen før (31879818643). Pinningen av `setup-flyctl` var eget avsnitt i punktet og er lukket samtidig. |
 | ÅP-B11 — gamle bilder i `image_legacy` | 2026-08-15 | **Flyttet til R2, ikke kastet** (eieravklaring: de er materialet ÅP-U14 mangler). Kjørt med `tools/migrate_legacy_images.py --utfoer` på Fly-maskinen: fem rader, 13 byte til 3 844 036 byte, 10 509 298 byte til sammen, alle JPEG, alle med innsendingsdatoen i nøkkelen. Hver rad ble lest tilbake og sammenlignet byte for byte før `image_legacy` ble tømt (B-48). Verifisert ved at `GET /health` gikk fra `"bilder": "r2 (5 gamle rader i basen)"` til `"bilder": "r2"`. Merk to ting for ettertiden: «11 MB-raden» fantes ikke — det var totalen, og ingen rad var over 8 MB-grensen — og rad 2 er 13 byte, altså en avkortet innsending uten bildeinnhold. Fire av de fem er `ocr_mismatch`. |
 | ÅP-E10 — R2-secretene og signeringen | 2026-08-15 | **Virker mot ekte R2.** Secretene sto i Fly fra før (punktet påstod først det motsatte, og ble rettet). Verifisert ved å kjøre `tools/r2_check.py` **inne på Fly-maskinen**, der secretene faktisk er: `flyctl ssh console -a bestefar-api -C "python tools/r2_check.py"` svarte `PUT: ok` / `GET: ok (64 byte, identisk)` / `DELETE: ok` mot bucketen `bestefar-scan-failures`. Det er hele rundturen, ikke bare at verdiene lot seg lese — `/health` sier `"bilder": "r2"` uansett om Cloudflare avviser signaturen. Verktøyet ligger i imaget nettopp derfor (B-47). Merk hva testen *ikke* dekker: at en ekte donasjon fra klienten går gjennom hele veien; det viser seg først når `POST /v1/failed-analyses` svarer 201 med en `object_key`. |
-| ÅP-E11 — R2-secretene måtte byttes til den EU-bundne bucketen | 2026-08-20 | **Gammel bucket tømt og slettet; all lagring går til `bestefar-scan-failures-eur` (jurisdiksjon `eu`).** Steg 1–3 ble gjort 2026-08-18: secretene byttet, sju objekter (16 096 622 byte) kopiert med uendret nøkkel og lest tilbake byte for byte, og en ekte donasjon fra appen verifisert i den nye bucketen med **0 byte i den gamle** — altså at også skrivingen, ikke bare kopieringen, går dit. Steg 4 er gjort 2026-08-20: `bestefar-scan-failures` er ikke bare tømt, den er slettet, så det finnes ikke lenger en bucket uten jurisdiksjonsbinding å komme i skade for å skrive til. Fire feilkonfigurasjoner måtte rettes underveis uten at noe hos oss fanget dem — det ga ÅP-B12/B-51. Detaljene: `backend/BESLUTNINGER.md` B-50, `backend/CHANGELOG.md` 2026-08-16. |
+| ÅP-E11 — R2-secretene måtte byttes til den EU-bundne bucketen | 2026-08-20 | **Gammel bucket tømt og slettet; all lagring går til `bestefar-scan-failures-eur` (jurisdiksjon `eu`).** Steg 1–3 ble gjort 2026-08-18: secretene byttet, sju objekter (16 096 622 byte) kopiert med uendret nøkkel og lest tilbake byte for byte, og en ekte donasjon fra appen verifisert i den nye bucketen med **0 byte i den gamle** — altså at også skrivingen, ikke bare kopieringen, går dit. **Merk hva tallene her teller:** «sju objekter» er objekter i R2, ikke rader i basen (en donasjon der opplastingen feilet har ingen objekt), og «rad 11» er en rad-**ID**, ikke et antall. Databasen hadde 9 rader da den ble talt 2026-08-21 — se ÅP-B13, som forklarer hvorfor de tre tallene ikke skal stemme overens. Steg 4 er gjort 2026-08-20: `bestefar-scan-failures` er ikke bare tømt, den er slettet, så det finnes ikke lenger en bucket uten jurisdiksjonsbinding å komme i skade for å skrive til. Fire feilkonfigurasjoner måtte rettes underveis uten at noe hos oss fanget dem — det ga ÅP-B12/B-51. Detaljene: `backend/BESLUTNINGER.md` B-50, `backend/CHANGELOG.md` 2026-08-16. |
 | ÅP-E6 — kopi av `BACKUP_ESCROW_SECRET` utenfor Fly | 2026-08-10 | **Utført av eier.** Verdien finnes nå lagret et annet sted enn i Fly secrets, så den kan gjenopprettes hvis Fly mister den eller den overskrives ved et uhell. Hvor kopien ligger, står ikke her og skal ikke stå her. Dermed er alle tre tiltakene i backend_spec §2.1 på plass. |

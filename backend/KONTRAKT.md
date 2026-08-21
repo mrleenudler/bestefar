@@ -183,7 +183,6 @@ dem som grunnlag for å endre rutene.
 | `confidence` | float | påkrevd; `-1.0` = ukjent |
 | `core_version` | str | påkrevd |
 | `tag` | enum | `ocr_match` \| `ocr_mismatch` \| `rejected`, standard `rejected` |
-| `series_id` | str? | valgfri |
 | `detected_scores` | JSON-liste som streng | standard `""` |
 | `ocr_scores` | JSON-liste som streng | standard `""` |
 | `image` | fil | påkrevd |
@@ -194,6 +193,17 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
 `android/KONTRAKT.md` §2 påstår «1:1» og tar feil — meldt som issue med label
 `ui`.
 
+- **`series_id` tas ikke imot** (fjernet 2026-08-21, B-52). Feltet var den ene
+  veien fra et donert bilde til en konto — samme ID som serien lagres under i
+  `/v1/stats` — og en feilet analyse er ikke et resultat, så det hadde ingen
+  funksjon her. Kolonnen er droppet, også for radene som alt fantes (seks av
+  ni bar en). **Donasjonen kan ikke knyttes til en konto i det hele tatt:**
+  `user_id` gikk i samme migrasjon, og tabellen har ingen fremmednøkkel til
+  `users` igjen.
+  **Sender du det likevel, får du 201 som før:** ukjente skjemafelt ignoreres,
+  og et 4xx ville vært ikke-`retryable` og dermed stille tap av donasjonen hos
+  en klient som ikke er oppdatert. Klienten kan slutte å sende det når det
+  passer; ingen hastesak, og ingen koordinering nødvendig.
 - **`tag`-enumet er vårt** (`models/base.py`, `FailedTag`). En ukjent verdi gir
   422 fra FastAPI-valideringen.
 - **Endepunktet krever ikke innlogging.** Donasjonen henger på

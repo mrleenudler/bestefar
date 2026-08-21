@@ -3,7 +3,7 @@ Drift: feilanalyse-innsending (§6) og melding til utvikler (§10).
 """
 from datetime import datetime
 
-from sqlalchemy import JSON, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Enum, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, FailedTag, utcnow
@@ -21,14 +21,24 @@ class FailedAnalysis(Base):
     igjen var flyttet til R2. Er ikke R2 konfigurert, tar endepunktet ikke imot
     donasjoner i det hele tatt - det finnes ikke lenger et annet sted aa gjoere
     av dem.
+
+    RADEN KAN IKKE KOBLES TIL EN PERSON, og det er en invariant (B-52). Begge
+    veiene dit er fjernet i b8d24a0f5c17:
+
+      `series_id` var den samme ID-en som serien lagres under i `/v1/stats`, og
+      dermed den ene faktiske koblingen. Seks av ni rader hadde den da den ble
+      fjernet 2026-08-21.
+
+      `user_id` var en fremmednoekkel til `users` som ALDRI ble satt (null av
+      ni). Den var ingen kobling, men en ferdig oppkoblet mulighet for aa lage
+      én, paa en tabell hvis hele poeng er det motsatte. Skal donasjoner kunne
+      knyttes til en konto igjen, krever det en ny migrasjon - og det er den
+      terskelen som er poenget.
     """
     __tablename__ = "failed_analyses"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     submitted_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
-    user_id: Mapped[str | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    series_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     tag: Mapped[FailedTag] = mapped_column(Enum(FailedTag, native_enum=False, length=16),
                                            default=FailedTag.rejected, index=True)
