@@ -61,6 +61,18 @@ en skive** utløste aldri capture. Sammen med vitrineskapet betyr det at
 tersklene bommer i begge retninger, og de to feilene kan ikke rettes med samme
 justering.
 
+**Merknad om forholdene bak begge observasjonene over (fra eier):** dette er
+ikke opptak av en fysisk skive på bane. Begge er fotografier av det gamle
+testsettet og av en PC-skjerm. Vitrineskapet og et separat funn — 17
+fantomtreff detektert i et bilde av en **sofa** — er tatt under de samme
+forholdene. Det svekker ikke observasjonene som *tegn på at tersklene bommer i
+begge retninger* (det er de fortsatt), men en terskel som skulle vært
+kalibrert mot banelys, ekte blenk fra en opplyst skjerm sett fra flere
+avstander/vinkler, og faktisk skivedybde, er **ikke** kalibrert mot det bare
+fordi den er målt mot skjermbilder — lysforhold, blenk og manglende dybde
+skiller de to. Gjelder alle feltobservasjoner fra eier «den siste tiden»
+(datostemplet her, ikke bare disse to) inntil en runde faktisk gjøres på bane.
+
 **Klienten fikk en tidsgrense i v0.29, og den er en måleordning — ikke en
 løsning.** Utløser ikke gatingen innen 8 sekunder, tar `CaptureActivity`
 gjeldende ramme og analyserer den likevel (`android/CHANGELOG.md` v0.29).
@@ -72,8 +84,10 @@ tersklene var for strenge for akkurat det motivet, med bilde ved siden av seg.
 To ting den ikke gjør: den rører ikke tersklene, og den hjelper ikke mot falske
 positive — et vitrineskap utløser fortsatt gatingen innen 8 sekunder.
 
-**Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 7
-sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon.
+**Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 8
+sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon. (7 s var
+første verdi; hevet til 8 s 2026-08-21 etter at 7 ble sett for kort — men se
+merknaden om forholdene over: heller ikke den justeringen er gjort på bane.)
 **Blokkert:** merket kommer ikke fram til basen ennå — `capture_trigger` ligger
 i sidecaren på disk, men feltet på ledningen er ikke avtalt (**issue #11**,
 label `backend`). Til det er på plass må timeout-utløste donasjoner skilles ut
