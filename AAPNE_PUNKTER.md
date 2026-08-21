@@ -44,6 +44,18 @@ samlet i `AutoCaptureParams` (`docs/ARCHITECTURE.md:109`).
 Krever: målesesjon med faktisk telefon mot faktisk skive. Feltrunden i
 `til_utvikler_v012.md:63` er nærmeste vi har, og satte bevisst permissive verdier.
 
+**Feltobservasjon 2026-08-21 — falsk positiv:** auto-capture utløste på et
+**vitrineskap**. En flat, lys, rektangulær flate holdt altså til å passere
+kriteriene. Observert av eier under en annen test (frikoblingen, ÅP-B13), ikke
+under en kalibreringsrunde — så den er et enkelttilfelle uten måletall ved
+siden av seg, og den sier ikke *hvilket* av kriteriene som slapp den gjennom.
+
+Det er første registrerte tegn på at de bevisst permissive verdiene har en
+kostnad, og det er en kostnad som treffer brukeren: en utløsning uten skive
+koster et bilde, en analyse og et avvisningsvarsel. Notert her fordi det er her
+tersklene diskuteres; materialet hører også hjemme i ÅP-U14. **Eies av kjernen
+— backend har bare ført observasjonen inn.**
+
 ### ÅP-U1 — OCR-heuristikkens avviksterskel · label `ui`
 > «OCR-finpussing av poeng (ML Kit, on-device, **UKALIBRERT heuristikk**): ≤ 0,2
 > avvik → sømløs oppdatering; > 0,2 → «kunne ikke se treffene»»
@@ -137,10 +149,14 @@ skivebildene — 3 år ble diskutert og forkastet, fordi en frist utsetter
 koblingen i stedet for å fjerne den, og fordi den krever en ryddejobb som ikke
 finnes (ÅP-E2 er den samme mangelen ett annet sted).
 
-**Del 1 er bygget 2026-08-21 (B-52); del 2 er det ikke.** Punktet lukkes ikke
-av at koden er skrevet: det lukkes når en ekte donasjon *uten* `series_id`
-faktisk er kommet inn i produksjon. Det samme gjelder ÅPENT PUNKT 6 i
-`personvernerklaring.txt`, som derfor står urørt til da.
+**Del 1 er LUKKET 2026-08-21. Del 2 står åpen, og holder punktet åpent.**
+
+Del 1 ble ikke lukket av at koden var skrevet, men av en observasjon: en ekte
+donasjon kom inn i produksjon 2026-08-21 etter frikoblingen — `failed_analyses`
+gikk fra 9 til 10 rader, mot et skjema uten `series_id` og uten `user_id`. En
+donasjon *kan* dermed ikke bære en kobling til en konto; det er lest i basen,
+ikke sluttet fra koden. `personvernerklaring.txt` ÅPENT PUNKT 6 er lukket på
+samme observasjon.
 
 ### Målingen fra før frikoblingen — den kan ikke gjøres om igjen
 
@@ -177,7 +193,7 @@ overens.
 
 ### Det som skal bygges
 
-1. ~~**`series_id` skal ikke lagres på donasjonen.**~~ **Bygget 2026-08-21
+1. ~~**`series_id` skal ikke lagres på donasjonen.**~~ **LUKKET 2026-08-21
    (B-52).** Ruten tar ikke lenger imot feltet, og migrasjon `b8d24a0f5c17`
    dropper kolonnen — også for radene som alt fantes, siden en «vi slutter å
    skrive den»-løsning ville latt seks eksisterende koblinger stå igjen.
@@ -584,6 +600,12 @@ over-deteksjon, og de finnes ikke i `Testsett/` i dag.
 over-deteksjon med bilde (`android/KONTRAKT.md` §2). Åpent: hvor mange bilder
 som trengs før terskelen kan kalibreres, og om dedupliseringen skal skje i
 `hits`-modulen eller som et etterfilter.
+
+**Én type falsk positiv er observert i felt, og den skjer før kjernen ser noe
+som helst:** auto-capture utløste på et vitrineskap 2026-08-21. Den hører til
+tersklene i ÅP-K1, der observasjonen står — nevnt her fordi materialet fra en
+slik utløsning havner i den samme donasjonsstrømmen, og «kjernen fant merker
+som ikke er skudd» ser likt ut i basen enten motivet var en skive eller ikke.
 
 **Bildene er treningsdata, og fra v0.28 er de førstegenerasjons.** Til og med
 v0.27 ble køfila skrevet med `bmp.compress(JPEG, 92)`, altså en omkoding av de

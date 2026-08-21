@@ -28,9 +28,9 @@ DET VIKTIGSTE, KORT
 * Vi lagrer aldri hva du felte eller hvor. Serveren har bare et tidsstempel for
   når du sist kunngjorde et felt dyr til vennene dine.
 
-* Sender du inn et bilde av skiva når analysen feilet, lagres bildet hos oss.
-  Bildet er ikke merket med kontoen din, men det følger et serie-ID som *kan*
-  kobles til kontoen din i databasen vår. Det er ikke anonymt.
+* Sender du inn et bilde av skiva når analysen feilet, lagres bildet hos oss —
+  uten noen kobling til kontoen din eller til serien. Vi kan ikke se hvem det
+  kom fra, og det kan heller ikke den som skulle få tilgang til databasen vår.
 
 * Forskningsinnsamlingen er slått av og samler ingenting i dag.
 
@@ -140,15 +140,19 @@ tilgjengelig for den som har tilgang til driftskontoene våre — se punkt 4 og
 2.7 Bilder av skiva ved feilet analyse (frivillig)
   Lagres når du har samtykket til bildedeling: selve bildet i objektlagring
   (Cloudflare R2), og i databasen en referanse til bildet, statuskode fra
-  analysen, konfidens, versjon av analysemotoren, hvilken type avvik det var, og
-  ET SERIE-ID.
-  Merk: raden er ikke merket med kontoen din, og endepunktet krever ikke
-  innlogging. MEN serie-ID-en er den samme som brukes når serien lagres under
-  kontoen din i 2.3. Den som har tilgang til databasen, kan dermed koble bildet
-  til deg. Vi kaller det derfor ikke anonymt.
+  analysen, konfidens, versjon av analysemotoren og hvilken type avvik det var.
+  INGEN KOBLING TIL DEG. Raden bærer verken konto-ID eller serie-ID, og
+  databasen har ingen forbindelse fra disse radene til brukertabellene i det
+  hele tatt. Endepunktet krever heller ikke innlogging. Bildene er derfor ikke
+  personopplysninger, og de kan ikke føres tilbake til deg — heller ikke av oss.
+  Slik var det ikke før 2026-08-21. Fram til da fulgte donasjonen et serie-ID,
+  det samme som serien lagres under i 2.3, og den som hadde tilgang til
+  databasen kunne koble bildet til deg. Den koblingen er fjernet, også for de
+  bildene som allerede var sendt inn.
   Hva bildet viser, avhenger av hva som sto på skjermen du fotograferte — se
   ÅPENT PUNKT 5.
-  Hvor lenge: bildene ryddes ikke. Se ÅPENT PUNKT 2.
+  Hvor lenge: bildene har ingen slettefrist, og trenger ingen. En frist ville
+  bare utsatt en kobling; her finnes den ikke.
 
 2.8 Melding til utvikleren
   Lagres: emne, meldingstekst, appversjon, telefonmodell og — hvis appen sender
@@ -195,8 +199,12 @@ Dette skjer faktisk i dag, lest ut av koden:
   * Det legges inn en sletteanmodning i forskningslageret, merket med pseudonymet
     og ikke med hvem du er. Eventuelle forskningssamtykker trekkes tilbake.
     MEN: ingen jobb behandler disse anmodningene i dag. Se ÅPENT PUNKT 4.
-  * Bilder du har donert ved feilet analyse (2.7) slettes IKKE av dette. De
-    ligger igjen i objektlagringen med serie-ID-en. Se ÅPENT PUNKT 6.
+  * Bilder du har donert ved feilet analyse (2.7) berøres ikke — de kan ikke
+    berøres. Det finnes ingen kobling fra dem til kontoen din, så en
+    kontosletting har ingen måte å finne dem på, og de er heller ikke
+    opplysninger om deg lenger. Det er en villet konsekvens av frikoblingen:
+    prisen for at bildene ikke kan spores til deg, er at de heller ikke kan
+    hentes fram og slettes på forespørsel.
   * Meldinger du har sendt til utvikleren (2.8) slettes ikke.
 
 
@@ -298,10 +306,12 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
 
     c) Skivebildene løses IKKE med en frist. En frist på 3 år ble diskutert og
        forkastet: den utsetter koblingen mellom bilde og konto i stedet for å
-       fjerne den. Retningen er i stedet at koblingen aldri oppstår —
-       `series_id` fjernes fra donasjonen ved innsending — og at vellykkede
-       scans ikke lagrer bildet i det hele tatt, bare treffkoordinatene.
-       IKKE BYGGET. Se ÅPENT PUNKT 6 og ÅP-B13 i AAPNE_PUNKTER.md.
+       fjerne den.
+       GJORT 2026-08-21 for feilede scans: `series_id` tas ikke imot, og
+       koblingen finnes ikke. Bildene trenger derfor ingen slettefrist, og
+       denne raden i ryddejobben faller bort. Se 2.7 og ÅPENT PUNKT 6.
+       IKKE GJORT: at vellykkede scans skal lagre treffkoordinater i stedet for
+       bilde. Det krever en endring i klienten (ÅP-B13 del 2, issue #10).
 
   ÅPENT PUNKT 3 — Hvem har tilgang, og hvor ligger dataene fysisk.
     HVOR DATAENE LIGGER ER AVKLART — BARE DEN DELEN. Alle fire
@@ -336,16 +346,16 @@ Disse kan ikke leses ut av koden, og er derfor ikke fylt inn.
     inneholder personopplysninger om andre enn den som sendte dem inn — kan ikke
     leses ut av koden. Eier vet hvordan apparatet ser ut.
 
-  ÅPENT PUNKT 6 — Skal donerte bilder følge kontoslettingen?
-    I dag gjør de ikke det. De er ikke merket med konto-ID, men serie-ID-en gjør
-    dem koblbare (2.7).
-    AVKLART 2026-08-20: serie-ID-en fjernes fra donasjonen ved innsending, slik
-    at koblingen aldri oppstår, og vellykkede scans lagrer ikke bilde i det hele
-    tatt — bare treffkoordinatene. IKKE BYGGET ENNÅ (ÅP-B13 i
-    AAPNE_PUNKTER.md).
-    Punktet står åpent til koden er endret. Erklæringen kan ikke beskrive
-    løsningen som gjeldende før den er det: bildene som allerede er donert bærer
-    fortsatt en serie-ID, og hva som skal skje med dem, følger av samme runde.
+  ÅPENT PUNKT 6 — Skal donerte bilder følge kontoslettingen? LUKKET 2026-08-21.
+    Spørsmålet falt bort: det finnes ikke lenger noe å følge. Serie-ID-en tas
+    ikke imot, kolonnen er droppet — også for de bildene som allerede var sendt
+    inn, seks av ni rader bar en — og fremmednøkkelen til brukertabellen gikk i
+    samme migrasjon. Se 2.7 og punkt 3.
+    Verifisert i produksjon, ikke bare i koden: en ekte donasjon kom inn
+    2026-08-21 etter endringen, mot et skjema uten begge feltene.
+    Følgen er skrevet inn i punkt 3, fordi den er en pris og ikke bare en
+    gevinst: bildene kan ikke hentes fram og slettes på forespørsel heller.
+    Se `AAPNE_PUNKTER.md` ÅP-B13 og `backend/BESLUTNINGER.md` B-52.
 
   ÅPENT PUNKT 7 — Barn.
     Fødselsår er et frivillig felt, og det finnes ingen aldersgrense i koden.

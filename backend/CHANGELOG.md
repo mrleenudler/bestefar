@@ -49,10 +49,15 @@ av endepunktet, så den var ingen personopplysning — men en ferdig oppkoblet
 fremmednøkkel til `users` på nettopp denne tabellen er en mulighet som nå
 krever en ny migrasjon for å gjenåpnes.
 
+**Verifisert i produksjon 2026-08-21**, og det er dét som lukket ÅP-B13 del 1 og
+ÅPENT PUNKT 6 — ikke at koden var skrevet: en ekte donasjon kom inn etter
+utrullingen, `failed_analyses` gikk fra 9 til 10 rader, mot et skjema uten
+begge feltene.
+
 Del 2 av ÅP-B13 — at vellykkede scans ikke skal lagre bilde, bare
 treffkoordinater — er **ikke** bygget: det krever at klienten slutter å legge
 ved bildet og begynner å sende koordinater, altså en kontraktendring. Meldt som
-issue med label `ui`.
+issue #10 med label `ui`.
 
 ## 2026-08-18
 
