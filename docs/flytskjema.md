@@ -47,12 +47,27 @@ flowchart TD
     J --> K["takeStillAndAnalyze<br/>bildet tas STILLE"]
     K --> L["Grønn ramme + «Klar!» 0,4 s<br/>→ hvit blits"]
     K --> M["→ analyse, se 1b"]
+    A -.->|"første frame armer"| TO["Tidsgrense 7 s<br/>CaptureActivity · klientside"]
+    TO -->|"gatingen har ikke utløst"| K
 ```
 
 **Capture-first** (felttest skytebanen, v0.12): bildet tas i det øyeblikket
 kriteriene er oppfylt, og UI-et spilles av *etterpå* mens analysen allerede
 kjører. Holdevinduet ble kuttet fra 24 til 6 frames — 24 fantes bare fordi den
 gamle flyten glødet grønt *før* capture, og ett dårlig frame nullstilte vinduet.
+
+**Tidsgrensen** (v0.29) er den stiplede veien i diagrammet, og den er
+**klientside** — `bf_analyze` er en egen FFI-inngang som tar piksler, så en
+capture uten `should_capture` går til nøyaktig samme analyse uten å røre
+tilstandsmaskinen i `autocapture.cpp`. Utløser ikke gatingen innen 7 sekunder
+fra første gatede frame, tas gjeldende ramme likevel. Brukeren ser ingen
+nedtelling og ingen forskjell: samme grønne ramme, samme blits.
+
+Grunnen er at de to utfallene «gatingen slapp aldri noe gjennom» og «kjernen
+kjørte og feilet» så helt like ut — begge ga *ingenting*. Lykkes analysen etter
+en timeout, er tersklene for strenge (ÅP-K1); feiler den, er det en ordinær
+feilet analyse. Donasjonen bærer `capture_trigger` i sidecaren for å skille
+dem, men feltet **krysser ikke ledningen ennå** (issue #11).
 
 ### 1b. Analyse — `core/src/analyze.cpp`
 

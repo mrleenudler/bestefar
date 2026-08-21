@@ -34,6 +34,59 @@ nåtilstanden.
 
 ---
 
+## v0.29 — et bilde som aldri tas, sier ingenting
+
+### Tidsgrense på auto-capture
+
+Utløser ikke gatingen innen **7 sekunder** fra første gatede frame, tar
+`CaptureActivity` gjeldende ramme og kjører analysen på den likevel. Ingen
+nedtelling, ingen visuell forskjell: samme grønne «Klar!»-ramme, samme blits.
+
+Bakgrunnen er at gatingen nå feiler begge veier. Den er ukalibrert og bevisst
+løsnet fordi den var treg på banen (ÅP-K1), og resultatet er at et vitrineskap
+utløste capture 2026-08-21 mens et skjermbilde av en skive aldri gjorde det.
+
+**Det som gjorde dette verdt en runde er ikke den tapte scannen, men den tapte
+kunnskapen.** To helt ulike tilstander ga samme observasjon — ingenting:
+
+- gatingen slapp aldri bildet gjennom, og vi vet da ingenting om kjernen
+- kjernen kjørte og feilet, og vi vet at pipelinen ikke holdt
+
+Med tidsgrensen blir de skillbare. **Lykkes analysen etter en timeout, er det
+ikke en feil — det er måledata om at tersklene er for strenge**, og det er
+nøyaktig det ÅP-K1 mangler. Feiler den, er det en ordinær feilet analyse.
+
+### Ingen kjerneendring, og ingen omgåelse av tilstandsmaskinen
+
+`bf_analyze` er en egen FFI-inngang som tar piksler (`bestefar_ffi.h:62`) og har
+aldri gått gjennom `BfAutoCapture`. `takeStillAndAnalyze` kalte den direkte også
+før; gatingen avgjorde bare *når*. Tidsgrensen er en andre utløser til det samme
+kallet, så `autocapture.cpp` er urørt og ingen probe blir løyet om.
+
+### Donasjonen merkes lokalt — men ikke på ledningen
+
+Sidecar-JSON-en får `capture_trigger` ∈ {`auto`, `timeout`}. Feltet **sendes
+ikke**: hverken en ny `tag`-verdi eller et nytt multipart-felt er avtalt, og det
+er meldt som **issue #11** (label `backend`). Begge gjetningene ville sviktet
+stille — en ukjent `tag` gir 422, som ikke er `retryable` og dermed dropper
+donasjonen; et ukjent skjemafelt gir 201 og forsvinner. Se `KONTRAKT.md` §2.
+
+### Kalibreringsvisningen er borte fra scan-vinduet
+
+`debugText` la elleve live probe-verdier over kamerabildet — et
+kalibreringsverktøy som ble stående på i produksjon. Verdiene logges fortsatt
+per frame (`BestefarCapture`, `probe roi=…`), der de hører hjemme.
+
+### Kjent, og ikke løst
+
+**7 sekunder er valgt, ikke målt.** Det er lenger enn en normal capture bruker
+på banen og kort nok til at brukeren ikke gir opp, men tallet hører hjemme i
+samme kalibrering som tersklene selv (ÅP-K1). Tidsgrensen fjerner heller ikke
+falske positive — et vitrineskap utløser fortsatt gatingen på 7 sekunder eller
+mindre. Den fjerner bare de falske negative.
+
+---
+
 ## v0.28 — donasjonen er bildet kjernen så, ikke en omkoding av det
 
 Nå som feilanalysebildene faktisk lagres og skal brukes som treningsdata for

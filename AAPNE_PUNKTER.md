@@ -56,6 +56,29 @@ koster et bilde, en analyse og et avvisningsvarsel. Notert her fordi det er her
 tersklene diskuteres; materialet hører også hjemme i ÅP-U14. **Eies av kjernen
 — backend har bare ført observasjonen inn.**
 
+**Feltobservasjon 2026-08-21 — falsk negativ, motsatt vei:** et **skjermbilde av
+en skive** utløste aldri capture. Sammen med vitrineskapet betyr det at
+tersklene bommer i begge retninger, og de to feilene kan ikke rettes med samme
+justering.
+
+**Klienten fikk en tidsgrense i v0.29, og den er en måleordning — ikke en
+løsning.** Utløser ikke gatingen innen 7 sekunder, tar `CaptureActivity`
+gjeldende ramme og analyserer den likevel (`android/CHANGELOG.md` v0.29).
+Hensikten er å skaffe punktet denne saken mangler: fram til nå ga en falsk
+negativ *ingen* observasjon, og var derfor ikke til å skille fra «kjernen kjørte
+og feilet». En analyse som **lykkes** etter timeout er et direkte bevis på at
+tersklene var for strenge for akkurat det motivet, med bilde ved siden av seg.
+
+To ting den ikke gjør: den rører ikke tersklene, og den hjelper ikke mot falske
+positive — et vitrineskap utløser fortsatt gatingen innen 7 sekunder.
+
+**Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 7
+sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon.
+**Blokkert:** merket kommer ikke fram til basen ennå — `capture_trigger` ligger
+i sidecaren på disk, men feltet på ledningen er ikke avtalt (**issue #11**,
+label `backend`). Til det er på plass må timeout-utløste donasjoner skilles ut
+for hånd, eller ikke i det hele tatt.
+
 ### ÅP-U1 — OCR-heuristikkens avviksterskel · label `ui`
 > «OCR-finpussing av poeng (ML Kit, on-device, **UKALIBRERT heuristikk**): ≤ 0,2
 > avvik → sømløs oppdatering; > 0,2 → «kunne ikke se treffene»»
@@ -606,6 +629,15 @@ som helst:** auto-capture utløste på et vitrineskap 2026-08-21. Den hører til
 tersklene i ÅP-K1, der observasjonen står — nevnt her fordi materialet fra en
 slik utløsning havner i den samme donasjonsstrømmen, og «kjernen fant merker
 som ikke er skudd» ser likt ut i basen enten motivet var en skive eller ikke.
+
+**Fra v0.29 kommer det en ny sort donasjon inn i samme strøm, og den må kunne
+skilles ut.** Tidsgrensen på auto-capture (ÅP-K1) gjør at bilder gatingen aldri
+ville sluppet gjennom, nå analyseres og kan bli donasjoner. Det er med hensikt —
+de er det eneste materialet som finnes om falske negative — men de er *ikke*
+representative for hva kjernen ser i drift, og et treningssett som blander dem
+inn ukjent er verre enn ett uten dem. Klienten skriver `capture_trigger` i
+sidecaren, men **feltet krysser ikke ledningen ennå** (issue #11). Inntil det
+gjør det, kan donasjoner fra tidsgrensen ikke filtreres bort server-side.
 
 **Bildene er treningsdata, og fra v0.28 er de førstegenerasjons.** Til og med
 v0.27 ble køfila skrevet med `bmp.compress(JPEG, 92)`, altså en omkoding av de

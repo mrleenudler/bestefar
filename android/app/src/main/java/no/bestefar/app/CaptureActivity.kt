@@ -44,6 +44,22 @@ class CaptureActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "BestefarCapture"
+
+        /**
+         * Tidsgrense fra foerste analyse-frame til vi tar bildet uansett.
+         *
+         * Gatingen er UKALIBRERT (AAP-K1) og bevisst loesnet fordi den var treg
+         * paa banen. Den feiler derfor begge veier: et vitrineskap utloeste
+         * capture 2026-08-21, mens et skjermbilde av en skive aldri gjorde det.
+         * Et bilde som ALDRI tas gir verken analyse eller kalibreringsmateriale
+         * — utfallet er identisk med «kjernen feilet», og de to maa kunne
+         * skilles (AAP-U14).
+         *
+         * Verdien er valgt, ikke maalt: 7 s er lenger enn en normal capture
+         * bruker paa banen, og kort nok til at brukeren ikke rekker aa gi opp.
+         * Den hoerer hjemme i samme kalibrering som tersklene selv.
+         */
+        private const val CAPTURE_TIMEOUT_MS = 7_000L
     }
 
     private val analysisExecutor = Executors.newSingleThreadExecutor()
@@ -51,9 +67,25 @@ class CaptureActivity : AppCompatActivity() {
     private val capturing = AtomicBoolean(false)
     private var imageCapture: ImageCapture? = null
     private lateinit var statusText: TextView
-    private lateinit var debugText: TextView
     private lateinit var scanFrame: ScanFrameView
     private var loggedFormat = false
+
+    /** Tidsgrensen bor paa hovedtraaden; onFrame kjoerer paa analysetraaden. */
+    private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    /**
+     * Holdes som ETT felt med vilje. `Handler.removeCallbacks` sammenligner
+     * Runnable-en med referanselikhet, og `::captureOnTimeout` ville laget en ny
+     * instans per kall — nedtellingen hadde da aldri latt seg avbryte.
+     */
+    private val timeoutRunnable = Runnable { captureOnTimeout() }
+    /** Sikrer at nedtellingen startes én gang, ved foerste frame. */
+    private val timerArmed = AtomicBoolean(false)
+    /**
+     * Ble DENNE capturen utloest av tidsgrensen og ikke av gatingen? Leses av
+     * [takeStillAndAnalyze] og foelger med til [ResultActivity]; settes foer
+     * capturen starter, og bare av den traaden som vant [capturing].
+     */
+    private var timedOut = false
 
     // sensorLandscape roterer 180 grader (landskap <-> omvendt landskap) UTEN
     // activity-recreate -> ImageCapture.targetRotation blir staaende paa bind-
@@ -79,7 +111,6 @@ class CaptureActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_capture)
         statusText = findViewById(R.id.statusText)
-        debugText = findViewById(R.id.debugText)
         scanFrame = findViewById(R.id.scanFrame)
         statusText.text = getString(R.string.status_compose)
 
@@ -128,6 +159,14 @@ class CaptureActivity : AppCompatActivity() {
         // aktiviteten er sensorLandscape-laast, men portrett-frames droppes
         // eksplisitt som ekstra sikring mot skjeve/opp-ned capture.
         if (image.width < image.height) { image.close(); return }
+        // «Scanningen startet» = foerste frame vi faktisk gater paa. Armes her
+        // og ikke i onCreate, saa kameraets oppstartstid (og en eventuell
+        // tillatelsesdialog) ikke spiser av vinduet. Portrett-frames er
+        // allerede droppet over, saa en timeout-capture er liggende som en
+        // vanlig capture.
+        if (timerArmed.compareAndSet(false, true)) {
+            timeoutHandler.postDelayed(timeoutRunnable, CAPTURE_TIMEOUT_MS)
+        }
         if (!loggedFormat) {
             loggedFormat = true
             Log.i(TAG, "analyse-frame: ${image.width}x${image.height} " +
@@ -151,6 +190,7 @@ class CaptureActivity : AppCompatActivity() {
         // oeyeblikket kriteriene er oppfylt; deretter spilles brukervennlig UI
         // («Klar!»-groenn ramme 0,4 s -> blits) mens analysen allerede kjoerer.
         if (probe.shouldCapture && capturing.compareAndSet(false, true)) {
+            timeoutHandler.removeCallbacks(timeoutRunnable)
             takeStillAndAnalyze()
             runOnUiThread { showReadyThenFlash() }
             return
@@ -158,12 +198,6 @@ class CaptureActivity : AppCompatActivity() {
 
         runOnUiThread {
             if (capturing.get()) return@runOnUiThread   // «Klar!»-UI eier skjermen
-            debugText.text = ("roi=%b skarp=%.0f lo=%.2f hi=%.2f dek=%.2f\n" +
-                              "str=%.2f bull=%.2f glare=%.3f stabil=%b kval=%b storrelse=%b")
-                .format(probe.roiFound, probe.sharpness, probe.clipLoFrac,
-                        probe.clipHiFrac, probe.coverage, probe.screenWidthFrac,
-                        probe.bullWidthFrac, probe.glareFrac, probe.stable,
-                        probe.qualityOk, probe.sizeOk)
             // Én rolig hovedinstruks; kun reelle kvalitetsblokkere (gjenskinn,
             // lys/fokus) faar egne hint. Ingen groenn ramme foer bildet er tatt.
             statusText.text = when {
@@ -173,6 +207,32 @@ class CaptureActivity : AppCompatActivity() {
                 else -> getString(R.string.status_compose)
             }
         }
+    }
+
+    /**
+     * Gatingen slapp ingenting gjennom paa [CAPTURE_TIMEOUT_MS]. Ta gjeldende
+     * ramme og kjoer den gjennom analysen likevel.
+     *
+     * Dette OMGAAR IKKE tilstandsmaskinen i kjernen. `bf_analyze` er en egen
+     * FFI-inngang som tar piksler (`bestefar_ffi.h:62`) og har aldri gaatt via
+     * `BfAutoCapture` — `takeStillAndAnalyze` kalte den direkte ogsaa foer.
+     * Gatingen avgjorde bare NAAR den ble kalt; her er det en andre utloeser
+     * til samme kall. Ingen kjerneendring, og ingen probe blir loeyet om.
+     *
+     * Brukeren skal ikke kunne se forskjell: samme «Klar!»-ramme, samme blits,
+     * ingen nedtelling underveis. Forskjellen finnes bare i donasjonen, og der
+     * er den poenget — en analyse som LYKKES etter timeout er beviset paa at
+     * tersklene i AAP-K1 er for strenge, ikke en feil.
+     */
+    private fun captureOnTimeout() {
+        if (isDestroyed || isFinishing) return
+        // Taper vi kapploepet mot gatingen, er bildet allerede tatt.
+        if (!capturing.compareAndSet(false, true)) return
+        timedOut = true
+        Log.i(TAG, "auto-capture timeout etter ${CAPTURE_TIMEOUT_MS} ms - " +
+                   "tar gjeldende ramme og analyserer den likevel")
+        takeStillAndAnalyze()
+        showReadyThenFlash()
     }
 
     /** Groenn ramme + «Klar!» i 0,4 s, deretter klassisk blits. Bildet er
@@ -290,6 +350,9 @@ class CaptureActivity : AppCompatActivity() {
                     .putExtra(ResultActivity.EXTRA_THETA,
                               result.hits.map { it.theta }.toDoubleArray())
                     .putExtra(ResultActivity.EXTRA_IMAGE_PATH, cacheImg.absolutePath)
+                    // Utloest av tidsgrensen, ikke av gatingen. Foelger med for
+                    // aa merke donasjonen; paavirker ingenting i visningen.
+                    .putExtra(ResultActivity.EXTRA_TIMED_OUT, timedOut)
                     // Cache-fila er originalen, altsaa i SENSORORIENTERING.
                     // Kjernen fikk pikslene rotert; OCR maa faa den samme
                     // rotasjonen, ellers leser ML Kit et sideveis bilde og
@@ -305,6 +368,10 @@ class CaptureActivity : AppCompatActivity() {
                     scanFrame.ready = false
                     statusText.text = getString(R.string.status_compose)
                 }
+                timedOut = false
+                // Brukeren scanner videre, saa tidsgrensen skal gjelde paa nytt
+                // — ellers ville én mislykket capture skrudd den av for godt.
+                timerArmed.set(false)
                 capturing.set(false)
             }
         })
@@ -365,6 +432,7 @@ class CaptureActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        timeoutHandler.removeCallbacks(timeoutRunnable)
         autoCapture.close()
         analysisExecutor.shutdown()
     }

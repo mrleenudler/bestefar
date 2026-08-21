@@ -48,7 +48,7 @@ object Sync {
      */
     fun queue(ctx: Context, seriesId: String, tag: String, statusCode: Int,
               confidence: Double, detected: List<Double>, ocr: List<Double>?,
-              imagePath: String?) {
+              imagePath: String?, timedOut: Boolean = false) {
         try {
             val d = dir(ctx).apply { mkdirs() }
             imagePath?.let { p ->
@@ -75,6 +75,10 @@ object Sync {
                 put("core_version", BestefarCore.version)
                 put("detected", JSONArray(detected))
                 ocr?.let { put("ocr", JSONArray(it)) }
+                // KRYSSER IKKE GRENSA ENNAA - se send() og KONTRAKT.md par. 2.
+                // Skrives likevel naa, saa koeen paa disk baerer opplysningen
+                // den dagen feltet er avtalt (issue #11).
+                put("capture_trigger", if (timedOut) "timeout" else "auto")
             }
             File(d, "${seriesId}_$tag.json").writeText(meta.toString())
         } catch (e: Exception) {
@@ -168,6 +172,13 @@ object Sync {
             "series_id" to seriesId(o, meta),
             "detected_scores" to (o.optJSONArray("detected") ?: JSONArray()).toString(),
             "ocr_scores" to (o.optJSONArray("ocr") ?: JSONArray()).toString(),
+            // `capture_trigger` staar i sidecaren, men sendes IKKE. Verken en
+            // ny tag-verdi eller et nytt felt er avtalt enda (issue #11), og
+            // ingen av de to gjetningene er ufarlige: en ukjent tag-verdi gir
+            // 422, og 422 er ikke `retryable` - donasjonen droppes stille. Et
+            // ukjent SKJEMAFELT er verre, for da svarer serveren 201 og feltet
+            // forsvinner uten at noen part ser en feil (backend/KONTRAKT.md
+            // par. 3). Legges inn her naar backend har bestemt formen.
         )
         val resp = Api.postMultipart(ctx, "/v1/failed-analyses", fields,
             fileField = "image", file = image, mime = "image/jpeg")

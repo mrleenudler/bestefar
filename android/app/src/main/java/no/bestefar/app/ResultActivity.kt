@@ -45,6 +45,13 @@ class ResultActivity : AppCompatActivity() {
          * de samme pikslene rotert. Se `CaptureActivity`.
          */
         const val EXTRA_ROTATION = "rotation"
+        /**
+         * Bildet ble tatt fordi auto-capture-tidsgrensen loep ut, ikke fordi
+         * gatingen slapp det gjennom (`CaptureActivity.CAPTURE_TIMEOUT_MS`).
+         * Endrer ingenting i visningen — brukeren skal ikke se forskjell — men
+         * merker donasjonen, se [queueDevImage].
+         */
+        const val EXTRA_TIMED_OUT = "timed_out"
         const val EXTRA_GALLERY_URI = "gallery_uri"
         /** «8. mars 2026    08:38» — god luft mellom dato og tid (musingsUI r7). */
         val DATE_TIME_FMT: java.time.format.DateTimeFormatter =
@@ -65,6 +72,8 @@ class ResultActivity : AppCompatActivity() {
     private var imagePath: String? = null
     /** Rotasjon som goer [imagePath] opprett; se [EXTRA_ROTATION]. */
     private var imageRotation = 0
+    /** Se [EXTRA_TIMED_OUT]. Kun til donasjonen, aldri til visningen. */
+    private var timedOut = false
     private var galleryUri: Uri? = null
     /** Kjernens interim-konfidens; følger med opplastingen (backend_spec §6). */
     private var confidence = 0.0
@@ -96,6 +105,7 @@ class ResultActivity : AppCompatActivity() {
         setContentView(scroller)
         imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH)
         imageRotation = intent.getIntExtra(EXTRA_ROTATION, 0)
+        timedOut = intent.getBooleanExtra(EXTRA_TIMED_OUT, false)
         galleryUri = intent.getStringExtra(EXTRA_GALLERY_URI)?.let { Uri.parse(it) }
         confidence = intent.getDoubleExtra(EXTRA_CONFIDENCE, 0.0)
 
@@ -353,7 +363,7 @@ class ResultActivity : AppCompatActivity() {
     private fun queueDevImage(r: SeriesRecord, tag: String) {
         Sync.queue(this, r.id, tag, BestefarCore.OK, confidence,
             detected = detectedScores.ifEmpty { r.shots.map { it.decimal } },
-            ocr = ocrScores, imagePath = imagePath)
+            ocr = ocrScores, imagePath = imagePath, timedOut = timedOut)
         Sync.flush(this)
     }
 
@@ -382,7 +392,7 @@ class ResultActivity : AppCompatActivity() {
                     isEnabled = false
                     Sync.queue(this@ResultActivity, Store.newId(), "rejected", status,
                         confidence, detected = emptyList(), ocr = null,
-                        imagePath = imagePath)
+                        imagePath = imagePath, timedOut = timedOut)
                     Toast.makeText(this@ResultActivity, R.string.upload_queued,
                         Toast.LENGTH_SHORT).show()
                     Sync.flush(this@ResultActivity)

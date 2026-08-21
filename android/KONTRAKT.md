@@ -41,11 +41,11 @@ ledningen:
 ```json
 {"v":2,"series_id":"<uuid>","tag":"ocr_match|ocr_mismatch|rejected",
  "status_code":0,"confidence":0.83,"core_version":"0.14",
- "detected":[10.4,9.8],"ocr":[10.4,9.9]}
+ "detected":[10.4,9.8],"ocr":[10.4,9.9],"capture_trigger":"auto|timeout"}
 ```
 
-**Seks felter går videre under samme navn, to skifter navn, og ett sendes
-ikke.** `Sync.kt:132–142` mot `POST /v1/failed-analyses`:
+**Seks felter går videre under samme navn, to skifter navn, og to sendes
+ikke.** `Sync.kt` mot `POST /v1/failed-analyses`:
 
 | Sidecar-JSON | Multipart-felt | Merknad |
 |---|---|---|
@@ -57,6 +57,7 @@ ikke.** `Sync.kt:132–142` mot `POST /v1/failed-analyses`:
 | `detected` | **`detected_scores`** | JSON-array serialisert som streng |
 | `ocr` | **`ocr_scores`** | mangler `ocr` i fila, sendes `[]` |
 | `v` | *— sendes ikke* | se under |
+| `capture_trigger` | *— sendes ikke ennå* | se under, issue #11 |
 | *(bildefila)* | `image` | `multipart/form-data`, `image/jpeg`, påkrevd |
 
 Feltnavnene i skjemaet eies av **`backend/KONTRAKT.md` §3**; tabellen her sier
@@ -69,6 +70,23 @@ Toleransen for gamle filer ligger i at hvert felt hentes med en defaultverdi
 (`confidence` → `-1.0`, `core_version` → `"ukjent"`), ikke i et versjonsvalg.
 Skal serveren noen gang få vite hvilket format fila hadde, er det en **ny**
 avtale mellom begge parter, ikke et felt som «egentlig skulle vært med».
+
+**`capture_trigger` krysser ikke grensa ennå, og det er med vilje.** Feltet
+skiller et bilde gatingen slapp gjennom (`auto`) fra ett tidsgrensen tvang fram
+(`timeout`, v0.29 — `CaptureActivity.CAPTURE_TIMEOUT_MS`). Skrives fra og med
+v0.29 i hver kø-fil, men **`Sync.send` legger det ikke i skjemaet**: verken en
+ny `tag`-verdi eller et nytt multipart-felt er avtalt (**issue #11**, label
+`backend`), og begge gjetningene svikter stille. En ukjent `tag`-verdi gir 422,
+og 422 er ikke `retryable` (§1) — donasjonen droppes. Et ukjent *skjemafelt* er
+verre: serveren svarer 201 og feltet forsvinner, uten at noen part ser en feil
+(`backend/KONTRAKT.md` §3). Fila på disk bærer opplysningen i mellomtiden, så
+køen ikke må tømmes for å ta den i bruk.
+
+**Hvorfor det ikke bare er en ny tagg:** `tag` svarer på *hva donasjonen viser*,
+`capture_trigger` på *hvordan bildet ble tatt*. De er ortogonale — en
+timeout-capture kan ende som hvilken som helst av de tre taggene, og en enkelt
+`timeout`-verdi ville overskrevet OCR-utfallet. Den avveiningen ligger i issuet;
+formen er backendens å bestemme.
 
 - **`tag` ∈ {`ocr_match`, `ocr_mismatch`, `rejected`}.**
 - **`ocr_mismatch` dekker to ulike avvik, og lengdene skiller dem.** Fram til
