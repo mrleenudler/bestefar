@@ -34,6 +34,61 @@ nåtilstanden.
 
 ---
 
+## v0.30 — to rettelser fra enhet
+
+Begge er tilbakemeldinger fra kjøring på telefon etter at v0.29 var sendt ut.
+
+### Skivevisningen var speilvendt om den horisontale aksen
+
+Ikke ny i v0.29 — feilen har ligget der så lenge `TargetView` har tegnet skudd.
+Den ble sett nå fordi den ikke fulgte telefonens orientering, og altså hverken
+var EXIF eller sensorrotasjon.
+
+`TargetView` tegnet `y = cy − r·sin(theta)`, med et fortegnsbytte som forutsatte
+at `theta` var matematisk (y oppover). KDoc-en sa det rett ut: «theta-konvensjon
+**antatt** matematisk». Antakelsen var feil, og et treff over senter ble tegnet
+under.
+
+**Første spørsmål var om feilen lå i dataene eller i opptegningen** — en
+fortegnsfeil rettet to steder gir riktig bilde og feil data, og `theta` går til
+backend som forskningsmateriale. **Konvensjonen er ikke dokumentert**
+(`bestefar_ffi.h:39` sier i sin helhet `double theta; /* radianer */`), så den
+måtte måles. Minste kvadrat på de fem treffene fra
+`bestefar_cli Testsett/C1.jpg`, med senter og skala som ukjente:
+
+| Antatt konvensjon | RMS | k (px per ringsteg) |
+|---|---|---|
+| y **nedover** (bildekoordinater) | **1,2 px** | **91,9** |
+| y oppover (matematisk) | 70,5 px | 58,4 |
+
+Kalibrert `delta_px` var 94,0, så bare den første stemmer. `theta` er
+`atan2(y_px − cy, x_px − cx)` i samme koordinatsystem som `x_px, y_px`, som
+headeren kaller «i inputbildets koordinater» — nøyaktig hva `scoring.cpp:13`
+regner ut.
+
+**Dataene var altså riktige hele tiden. Feilen lå bare i opptegningen**, og er
+rettet der: begge aksene er nå rene plusstegn, siden skjermens y også peker
+nedover. Ingen kjerneendring, ingen kompensasjon.
+
+`Stats.kt` bruker også `cos/sin(theta)`, men er sjekket og upåvirket:
+`biasAndSpread` bruker bare vektorens lengde, og `biasVector` konsumeres kun av
+`similarBias`, som regner differanse og lengder — speiles begge vektorene likt,
+endres ingen av delene. Duplikatsjekken i `ResultActivity` regner avstand og er
+også fortegns-invariant. Speilingen var isolert til `TargetView`.
+
+**Årsaken er meldt som issue #12** (`kjerne`): kjernen gjør det riktige, men
+kontrakten sier ikke hva den gjør. Feilen er av den snille sorten å se på —
+riktig radius, riktig spredning, bare speilvendt — så det finnes ingen
+feilmelding å lete etter.
+
+### Tidsgrensen på auto-capture: 7 → 8 sekunder
+
+7 s ble verifisert for kort på enhet 2026-08-21. Tallet er fortsatt valgt og
+ikke målt, men nå justert på en observasjon i stedet for et anslag. Det hører
+fremdeles hjemme i samme kalibrering som tersklene selv (ÅP-K1).
+
+---
+
 ## v0.29 — et bilde som aldri tas, sier ingenting
 
 ### Tidsgrense på auto-capture

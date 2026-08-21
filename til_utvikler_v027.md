@@ -198,3 +198,90 @@ falske positive — vitrineskapet utløser fortsatt gatingen innen 7 sekunder, o
 ser i basen ut som en helt vanlig capture. Det er fortsatt ÅP-K1, og det er
 fortsatt kjernens.
 
+
+
+---
+
+# UI — to rettelser før overlevering (v0.30)
+
+## 1. Tidsgrensen: 7 → 8 sekunder
+
+`CaptureActivity.CAPTURE_TIMEOUT_MS`. Begrunnelsen i KDoc-en er oppdatert til å
+si at 7 s ble verifisert for kort på enhet 2026-08-21, ikke bare at tallet er
+valgt. Tallet er fulgt opp i dokumentene som beskriver **nåtilstanden**:
+`docs/flytskjema.md` og ÅP-K1.
+
+**`android/CHANGELOG.md` er derimot rullet tilbake til å si 7 for v0.29**, og de
+to rettelsene er ført som en egen v0.30-seksjon. v0.29 *ble* sendt ut med 7
+sekunder og med speilvendingen inne — den APK-en ligger i `dist\`. En
+endringslogg som skriver om hva en utsendt versjon inneholdt, er ikke lenger en
+endringslogg. Samme grunn til at seksjonen over i denne fila fortsatt sier 7:
+`til_utvikler` er historikk, ikke nåtilstand.
+
+## 2. Speilvendt skivevisning — feilen lå i rendereren, ikke i dataene
+
+Du ba meg avgjøre *først* om det var opptegningen eller koordinatene. Det var
+opptegningen, og her er prøven.
+
+**Konvensjonen er ikke dokumentert noe sted.** `bestefar_ffi.h:39` sier i sin
+helhet `double theta; /* radianer */`. Det kunne altså ikke leses — bare måles.
+
+Jeg kjørte `bestefar_cli Testsett/C1.jpg`, som gir `x, y` (originalbildets
+koordinater), `r_rel` og `theta` per treff, og løste med minste kvadrat for
+senter og skala med begge fortegn:
+
+| Antatt konvensjon | RMS | k (px per ringsteg) |
+|---|---|---|
+| y **nedover** (bildekoordinater) | **1,2 px** | **91,9** |
+| y oppover (matematisk) | 70,5 px | 58,4 |
+
+Kalibrert `delta_px` for bildet var 94,0. Bare den første stemmer, og den
+stemmer godt.
+
+Så `theta = atan2(y_px − cy, x_px − cx)` — samme koordinatsystem som `x_px,
+y_px`, som headeren allerede kaller «i inputbildets koordinater». Det er også
+nøyaktig hva `scoring.cpp:13` gjør. **Dataene er riktige og internt
+konsistente.**
+
+Feilen sto i `Views.kt`, og den hadde til og med skrevet seg selv ned:
+KDoc-en sa «theta-konvensjon **antatt** matematisk (x=r·cosθ, y opp)», og
+opptegningen speilvendte y for å passe til antakelsen. Siden skjermens y også
+peker nedover, er riktig avbildning ren identitet — begge aksene skal ha pluss.
+Én linje: `cy - …` → `cy + …`.
+
+**Ingen kjerneendring, og ingenting kompensert i UI.** Hadde jeg snudd fortegnet
+her *og* kjernen hadde vært gal, ville bildet blitt riktig og dataene forblitt
+feil — og de dataene går til backend som forskningsmateriale.
+
+### Jeg sjekket om samme antakelse fantes andre steder
+
+`Stats.kt` bruker også `cos(theta)`/`sin(theta)`, men er **upåvirket**:
+`biasAndSpread` bruker bare vektorens *lengde*, og `biasVector` konsumeres kun
+av `similarBias`, som regner differanse og lengder. Speiles begge vektorene
+likt, endres ingen av delene. `ResultActivity`s duplikatsjekk regner avstand
+mellom to treff og er også fortegns-invariant.
+
+Speilingen var altså isolert til `TargetView` alene.
+
+### Meldt videre: issue #12 (`kjerne`)
+
+Kjernen gjør det riktige, men kontrakten sier ikke hva den gjør, og det er
+årsaken til at feilen kunne oppstå. Bedt om én linje i `bestefar_ffi.h` med
+konvensjonen skrevet ut. Verdt det fordi feilen er av den snille sorten å se
+på: en klient som gjetter matematisk konvensjon får riktig radius, riktig
+spredning og riktig gruppestørrelse — bare speilvendt. Det er ingen feilmelding
+å lete etter, og den sto i tre versjoner. `theta` går nå også til backend som
+forskningsdata, så det er én konsument til som skal tolke den.
+
+## Verifisert
+
+- `.\gradlew assembleDebug` → **BUILD SUCCESSFUL**, kjørt i denne økten.
+- Fortegnskonvensjonen: målt mot `Testsett/C1.jpg` som over, ikke antatt.
+
+## Ikke verifisert
+
+- **Skivevisningen er ikke sett på enhet etter rettingen.** Prøven er et treff
+  du vet ligger høyt: det skal nå tegnes høyt. Det er verdt ett blikk før
+  overlevering, siden det er den ene endringen som er rent visuell.
+- 8 sekunder er fortsatt valgt, ikke målt — men nå justert på en observasjon.
+

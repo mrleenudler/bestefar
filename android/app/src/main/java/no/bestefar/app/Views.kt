@@ -14,7 +14,22 @@ import kotlin.math.sin
 /**
  * Skivegjengivelse med plottede skudd (resultatkortet, spec §2).
  * r_rel er i ringavstander fra senter (ring k sin yttergrense ~ r_rel=11-k).
- * theta-konvensjon antatt matematisk (x=r·cosθ, y opp) — display-only.
+ *
+ * THETA-KONVENSJONEN ER BILDEKOORDINATER, ikke matematisk:
+ * `theta = atan2(y_px - cy, x_px - cx)` med y NEDOVER, altsaa samme
+ * koordinatsystem som `x_px, y_px` i BfHit («i inputbildets koordinater»).
+ * Et treff over senter har derfor sin(theta) < 0.
+ *
+ * Fram til v0.29 sto det «antatt matematisk (y opp)» her, og opptegningen
+ * speilvendte y for aa kompensere. Antakelsen var feil, og resultatet var at
+ * skivevisningen ble speilvendt om den horisontale aksen. Konvensjonen er
+ * IKKE dokumentert i `bestefar_ffi.h` (som bare sier «radianer»), saa den er
+ * maalt: minste kvadrat paa de fem treffene fra `bestefar_cli Testsett/C1.jpg`
+ * gir RMS 1,2 px med y nedover mot 70,5 px med y oppover, og k = 91,9 px mot
+ * kalibrert `delta_px` = 94,0. Se `til_utvikler_v027.md`.
+ *
+ * Skjermens y peker ogsaa nedover, saa riktig avbildning er ren identitet:
+ * ingen fortegnsbytte paa noen av aksene.
  */
 class TargetView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
@@ -66,8 +81,10 @@ class TargetView @JvmOverloads constructor(
         // Et skjult treff har ingen posisjon aa tegne. Da tegner vi det ikke -
         // en prikk i senter ville vaert en paastand vi ikke har dekning for.
         for (h in hits.filter { it.hasPosition }) {
+            // Begge fortegn er PLUSS: theta er allerede i y-nedover, og
+            // skjermen er y-nedover. Se konvensjonsnotatet paa klassen.
             val x = cx + (h.rRel * cos(h.theta)).toFloat() * step
-            val y = cy - (h.rRel * sin(h.theta)).toFloat() * step
+            val y = cy + (h.rRel * sin(h.theta)).toFloat() * step
             paint.style = Paint.Style.FILL
             paint.color = Color.parseColor("#D32F2F")
             canvas.drawCircle(x, y, holeR, paint)

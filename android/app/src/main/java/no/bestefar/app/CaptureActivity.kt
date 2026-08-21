@@ -55,11 +55,13 @@ class CaptureActivity : AppCompatActivity() {
          * — utfallet er identisk med «kjernen feilet», og de to maa kunne
          * skilles (AAP-U14).
          *
-         * Verdien er valgt, ikke maalt: 7 s er lenger enn en normal capture
-         * bruker paa banen, og kort nok til at brukeren ikke rekker aa gi opp.
-         * Den hoerer hjemme i samme kalibrering som tersklene selv.
+         * Verdien er valgt, ikke maalt. 7 s var foerste forsoek og ble
+         * verifisert for kort paa enhet (2026-08-21); 8 s er lenger enn en
+         * normal capture bruker paa banen, og fortsatt kort nok til at brukeren
+         * ikke rekker aa gi opp. Den hoerer hjemme i samme kalibrering som
+         * tersklene selv.
          */
-        private const val CAPTURE_TIMEOUT_MS = 7_000L
+        private const val CAPTURE_TIMEOUT_MS = 8_000L
     }
 
     private val analysisExecutor = Executors.newSingleThreadExecutor()

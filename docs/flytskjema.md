@@ -47,7 +47,7 @@ flowchart TD
     J --> K["takeStillAndAnalyze<br/>bildet tas STILLE"]
     K --> L["Grønn ramme + «Klar!» 0,4 s<br/>→ hvit blits"]
     K --> M["→ analyse, se 1b"]
-    A -.->|"første frame armer"| TO["Tidsgrense 7 s<br/>CaptureActivity · klientside"]
+    A -.->|"første frame armer"| TO["Tidsgrense 8 s<br/>CaptureActivity · klientside"]
     TO -->|"gatingen har ikke utløst"| K
 ```
 
@@ -59,7 +59,7 @@ gamle flyten glødet grønt *før* capture, og ett dårlig frame nullstilte vind
 **Tidsgrensen** (v0.29) er den stiplede veien i diagrammet, og den er
 **klientside** — `bf_analyze` er en egen FFI-inngang som tar piksler, så en
 capture uten `should_capture` går til nøyaktig samme analyse uten å røre
-tilstandsmaskinen i `autocapture.cpp`. Utløser ikke gatingen innen 7 sekunder
+tilstandsmaskinen i `autocapture.cpp`. Utløser ikke gatingen innen 8 sekunder
 fra første gatede frame, tas gjeldende ramme likevel. Brukeren ser ingen
 nedtelling og ingen forskjell: samme grønne ramme, samme blits.
 

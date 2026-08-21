@@ -62,7 +62,7 @@ tersklene bommer i begge retninger, og de to feilene kan ikke rettes med samme
 justering.
 
 **Klienten fikk en tidsgrense i v0.29, og den er en måleordning — ikke en
-løsning.** Utløser ikke gatingen innen 7 sekunder, tar `CaptureActivity`
+løsning.** Utløser ikke gatingen innen 8 sekunder, tar `CaptureActivity`
 gjeldende ramme og analyserer den likevel (`android/CHANGELOG.md` v0.29).
 Hensikten er å skaffe punktet denne saken mangler: fram til nå ga en falsk
 negativ *ingen* observasjon, og var derfor ikke til å skille fra «kjernen kjørte
@@ -70,7 +70,7 @@ og feilet». En analyse som **lykkes** etter timeout er et direkte bevis på at
 tersklene var for strenge for akkurat det motivet, med bilde ved siden av seg.
 
 To ting den ikke gjør: den rører ikke tersklene, og den hjelper ikke mot falske
-positive — et vitrineskap utløser fortsatt gatingen innen 7 sekunder.
+positive — et vitrineskap utløser fortsatt gatingen innen 8 sekunder.
 
 **Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 7
 sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon.
