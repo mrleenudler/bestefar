@@ -20,6 +20,31 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-22
+
+**§6 — `capture_trigger` på donasjonen** (B-53, issue #11). Nytt valgfritt
+multipart-felt, `auto` | `timeout`, med kolonne (`c4a91e7b2f38`). Eget felt og
+ikke en ny `tag`-verdi: `tag` sier hva donasjonen viser, `capture_trigger`
+hvordan bildet ble tatt, og en timeout-capture kan ende som hvilken som helst
+tag. **NULL betyr «ikke oppgitt», ikke `auto`** — donasjonene fra v0.29-vinduet
+er dels timeout-utløste uten å kunne si det, og det er nettopp de radene ÅP-K1
+skal måles på. Ingen backfill.
+
+**§4 — klienten kan kjenne igjen seg selv i et lag** (B-54, issue #14).
+`my_role` ∈ {`leader`, `member`, `null`} på **alle** lagsvar, også listesvaret
+der `members[]` ikke er med, og `public_id` i `members[]`. To felt fordi det er
+to spørsmål: hva jeg er, og hvilket element som er meg. `members[].user_id`
+står fortsatt — hele flaten tar imot den formen — og konverteringen til
+`public_id` hører sammen med venne-modellen (ÅP-U31).
+
+**`mailer.py`: SMTP-grenen sendte til utviklerinnboksen.** `msg["To"]` var
+hardkodet til `cfg.feedback_to` uansett mottaker, så innloggingskoder og
+lag-invitasjoner ville gått til utvikleren i stedet for brukeren. Resend-grenen
+ble rettet da `to` ble innført; denne ble stående. Produksjonen bruker Resend,
+så feilen var sovende. Ny `tests/test_mailer.py` kjører **begge** grenene mot
+det samme kravet, og testen er verifisert som en ekte port: den feiler på den
+gamle koden.
+
 ## 2026-08-21
 
 **§6 — donasjonen er frikoblet fra kontoen** (B-52, del 1 av ÅP-B13).

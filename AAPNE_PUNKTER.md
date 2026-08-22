@@ -78,6 +78,20 @@ fordi den er målt mot skjermbilder — lysforhold, blenk og manglende dybde
 skiller de to. Gjelder alle feltobservasjoner fra eier «den siste tiden»
 (datostemplet her, ikke bare disse to) inntil en runde faktisk gjøres på bane.
 
+**Den ene retningen har fått en målekanal (2026-08-22, B-53).** Donasjonen
+bærer nå `capture_trigger` ∈ {`auto`, `timeout`}, så en analyse som *lyktes*
+etter at gatingen ga opp — `capture_trigger = timeout` med `status_code = 0` —
+er direkte spørrbar, med bilde ved siden av seg. Det er raden som sier at
+tersklene er for **strenge**.
+
+Den motsatte retningen får ingen slik rad: på vitrineskapet *utløste* capturen,
+så donasjonen ser ut som en hvilken som helst mislykket scan. For løs gating må
+fortsatt observeres, den kan ikke spørres fram.
+
+Og målingen starter når klienten begynner å sende feltet, ikke før: `NULL`
+betyr «klienten sa det ikke», og donasjonene fra v0.29-vinduet er dels
+timeout-utløste uten å kunne si det. De kan ikke telles bakover.
+
 **Klienten fikk en tidsgrense i v0.29, og den er en måleordning — ikke en
 løsning.** Utløser ikke gatingen innen 8 sekunder, tar `CaptureActivity`
 gjeldende ramme og analyserer den likevel (`android/CHANGELOG.md` v0.29).

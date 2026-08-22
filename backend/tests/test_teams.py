@@ -50,6 +50,58 @@ def test_egen_bruker_er_alltid_i_medlemslista(client):
     assert _uid(client, AUTH) in [m["user_id"] for m in detalj["members"]]
 
 
+# --------------------------------------------------------------------
+# «Hvem er jeg i dette laget» (issue #14)
+# --------------------------------------------------------------------
+#
+# Uten disse to feltene kan klienten verken merke «(Du)» eller avgjoere om den
+# skal vise «Rediger lag» eller «Velg leder». Alternativet - aa matche
+# visningsnavn - feiler stille i lag der to personer heter det samme, og da paa
+# den maaten at feil person faar lederknappene.
+
+def _public_id(client, headers):
+    return client.get("/v1/profile", headers=headers).json()["public_id"]
+
+
+def test_my_role_sier_hva_jeg_er(client):
+    lag = _med_medlem(client)
+    som_leder = client.get(f"/v1/teams/{lag['id']}", headers=AUTH).json()
+    som_medlem = client.get(f"/v1/teams/{lag['id']}", headers=B).json()
+
+    assert som_leder["my_role"] == "leader"
+    assert som_medlem["my_role"] == "member"
+
+
+def test_my_role_staar_ogsaa_paa_lista(client):
+    """Listeskjermen skal slippe aa hente detaljer for aa vite hva den tilbyr."""
+    _med_medlem(client)
+    assert client.get("/v1/teams", headers=AUTH).json()[0]["my_role"] == "leader"
+    assert client.get("/v1/teams", headers=B).json()[0]["my_role"] == "member"
+
+
+def test_my_role_er_none_for_den_som_staar_utenfor(client):
+    """`/near` viser lag man ikke er medlem av. Da er svaret ingen rolle."""
+    _lag(client)
+    naer = client.get("/v1/teams/near?lat=60.9&lon=10.9", headers=C).json()
+    assert naer and naer[0]["my_role"] is None
+
+
+def test_medlemslista_baerer_public_id(client):
+    """
+    `public_id` er den eneste bruker-ID-en klienten har sett - den kommer i
+    innloggingssvaret. Uten den i `members[]` finnes det ingen rad aa peke paa.
+    """
+    lag = _med_medlem(client)
+    detalj = client.get(f"/v1/teams/{lag['id']}", headers=AUTH).json()
+    per_public = {m["public_id"]: m for m in detalj["members"]}
+
+    assert _public_id(client, AUTH) in per_public
+    assert _public_id(client, B) in per_public
+    assert per_public[_public_id(client, AUTH)]["role"] == "leader"
+    # Den interne ID-en staar fortsatt, fordi mutasjonsrutene tar imot DEN.
+    assert per_public[_public_id(client, B)]["user_id"] == _uid(client, B)
+
+
 def test_ikke_medlem_ser_ikke_laget(client):
     """Vi avslorer ikke at laget finnes for noen som staar utenfor."""
     lag = _lag(client)

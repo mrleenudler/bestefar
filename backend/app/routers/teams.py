@@ -48,7 +48,32 @@ def _krev_leder(s: OrmSession, team_id: str, user_id: str) -> TeamMember:
     return rad
 
 
-def _team_ut(s: OrmSession, team: Team, med_medlemmer: bool = False) -> dict:
+def _team_ut(s: OrmSession, team: Team, kaller_id: str | None = None,
+             med_medlemmer: bool = False) -> dict:
+    """
+    Lagobjektet slik klienten ser det.
+
+    KLIENTEN MAA KUNNE KJENNE IGJEN SEG SELV her (issue #14). Uten det kan den
+    verken merke «(Du)» i medlemslista eller avgjoere om den skal vise
+    «Rediger lag» eller «Velg leder», og alternativet - aa gjette paa
+    visningsnavn - feiler stille i akkurat de lagene der to personer heter det
+    samme. To felt svarer paa det, og de svarer paa hver sin halvdel:
+
+      `my_role`   hvem JEG er i dette laget. Ligger ogsaa paa listesvaret, der
+                  `members` ikke er med, saa listeskjermen slipper aa hente
+                  detaljer for aa vite hva den skal tilby.
+      `members[].public_id`
+                  hvilket ELEMENT som er meg. `public_id` og ikke `user_id`,
+                  fordi det er den eneste bruker-ID-en klienten noen gang har
+                  sett (den kommer i innloggingssvaret).
+
+    `user_id` staar fortsatt i `members[]`, og den er den interne UUID-en.
+    Grunnen er at HELE denne flaten tar imot den formen: `DELETE .../members/
+    {id}`, `POST .../leaders/{id}` og `candidate_id` i avstemningen. Aa bytte
+    `members[]` alene ville gjort lista ubrukelig som kilde til de kallene.
+    Konverteringen av flaten til `public_id` hoerer sammen med venne-modellen i
+    steg 4, som uansett er «unik per public_id» - se AAP-U31.
+    """
     medl = teamgov.medlemmer(s, team.id)
     ut = {
         "id": team.id, "name": team.name, "kind": team.kind.value,
@@ -56,12 +81,18 @@ def _team_ut(s: OrmSession, team: Team, med_medlemmer: bool = False) -> dict:
         "lat": team.lat, "lon": team.lon,
         "leaders": [m.user_id for m in medl if m.role == TeamRole.leader],
         "has_leader": any(m.role == TeamRole.leader for m in medl),
+        # None = kalleren er ikke medlem (f.eks. i /near-lista).
+        "my_role": next((m.role.value for m in medl if m.user_id == kaller_id),
+                        None),
     }
     if med_medlemmer:
+        brukere = {m.user_id: s.get(User, m.user_id) for m in medl}
         ut["members"] = [
-            {"user_id": m.user_id, "role": m.role.value,
-             "display_name": (s.get(User, m.user_id).display_name
-                              if s.get(User, m.user_id) else ""),
+            {"user_id": m.user_id,
+             "public_id": brukere[m.user_id].public_id if brukere[m.user_id] else "",
+             "role": m.role.value,
+             "display_name": (brukere[m.user_id].display_name
+                              if brukere[m.user_id] else ""),
              "joined_at": m.joined_at}
             for m in medl]
     return ut
@@ -93,7 +124,7 @@ def create_team(body: TeamIn, user: User = Depends(current_user),
     s.add(TeamMember(team_id=team.id, user_id=user.id,
                      role=TeamRole.leader if body.i_am_leader else TeamRole.member))
     s.commit()
-    return _team_ut(s, team)
+    return _team_ut(s, team, user.id)
 
 
 @router.get("")
@@ -101,7 +132,7 @@ def my_teams(user: User = Depends(current_user),
              s: OrmSession = Depends(db)) -> list[dict]:
     ider = list(s.scalars(select(TeamMember.team_id)
                           .where(TeamMember.user_id == user.id)))
-    return [_team_ut(s, s.get(Team, tid)) for tid in ider]
+    return [_team_ut(s, s.get(Team, tid), user.id) for tid in ider]
 
 
 @router.get("/near")
@@ -128,7 +159,7 @@ def teams_near(lat: float = Query(ge=-90, le=90),
     innenfor = [k for k in kandidater if k[0] <= r][:20]
     if len(innenfor) < 3:
         innenfor = kandidater[:3]
-    return [{**_team_ut(s, team), "distance_m": round(avstand)}
+    return [{**_team_ut(s, team, user.id), "distance_m": round(avstand)}
             for avstand, team in innenfor]
 
 
@@ -138,7 +169,7 @@ def team_details(team_id: str, tasks: BackgroundTasks,
                  s: OrmSession = Depends(db)) -> dict:
     _medlemskap(s, team_id, user.id)      # §11: egen bruker er alltid i lista
     team = s.get(Team, team_id)
-    ut = _team_ut(s, team, med_medlemmer=True)
+    ut = _team_ut(s, team, user.id, med_medlemmer=True)
     # `tasks`: avgjoerelsen er lat, saa dette kallet kan vaere det som kaarer en
     # leder - og da skal ikke den som bare aapnet lagsiden vente paa varselet.
     valg = teamgov.active_election(s, team_id, tasks)
@@ -167,7 +198,7 @@ def rename_team(team_id: str, body: RenameIn, tasks: BackgroundTasks,
             f"Lagleder for {gammelt} har endret navnet på laget til {team.name}.",
             team_id, tasks)
     s.commit()
-    return _team_ut(s, team)
+    return _team_ut(s, team, user.id)
 
 
 # --------------------------------------------------------------------
@@ -244,7 +275,7 @@ def join_team(body: JoinIn, user: User = Depends(current_user),
         rad.accepted_by = user.id
         rad.delivery_status = DeliveryStatus.accepted
     s.commit()
-    return _team_ut(s, s.get(Team, rad.team_id))
+    return _team_ut(s, s.get(Team, rad.team_id), user.id)
 
 
 # --------------------------------------------------------------------
@@ -285,7 +316,7 @@ def confirm_leadership(team_id: str, user: User = Depends(current_user),
     rad.role = TeamRole.leader
     s.delete(tilbud)
     s.commit()
-    return _team_ut(s, s.get(Team, team_id))
+    return _team_ut(s, s.get(Team, team_id), user.id)
 
 
 @router.post("/{team_id}/leaders/{member_id}")

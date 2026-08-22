@@ -190,6 +190,53 @@ def test_ingen_bildekolonne_igjen(session, r2):
     assert "image_legacy" not in FailedAnalysis.__table__.columns
 
 
+# --- capture_trigger: hvordan bildet ble tatt (issue #11, B-53) -----------
+#
+# Eget felt og ikke en tag-verdi, fordi de to er ortogonale: `tag` sier hva
+# donasjonen viser, `capture_trigger` hvordan bildet ble tatt, og en
+# timeout-capture kan ende som hvilken som helst tag.
+
+def test_capture_trigger_lagres(client, session, r2):
+    from app.models import FailedAnalysis
+
+    r = _send(client, felt={"capture_trigger": "timeout"})
+    assert r.status_code == 201, r.text
+    assert session.get(FailedAnalysis, r.json()["id"]).capture_trigger == "timeout"
+
+
+def test_capture_trigger_er_ortogonal_til_tag(client, session, r2):
+    """
+    Hele begrunnelsen for eget felt: en timeout-capture kan ende som et
+    vellykket OCR-treff. Med «timeout» som tag-verdi ville utfallet vaert borte.
+    """
+    from app.models import FailedAnalysis
+
+    r = _send(client, felt={"capture_trigger": "timeout", "tag": "ocr_match"})
+    fa = session.get(FailedAnalysis, r.json()["id"])
+    assert (fa.capture_trigger, fa.tag) == ("timeout", "ocr_match")
+
+
+def test_uten_capture_trigger_er_den_null_og_ikke_auto(client, session, r2):
+    """
+    NULL betyr «klienten sa det ikke». En default paa `auto` ville stemplet
+    donasjonene fra v0.29-vinduet - der timeout-capture fantes, men feltet ikke
+    ble sendt - som gatede, og det er nettopp maalingen AAP-K1 hviler paa.
+    """
+    from app.models import FailedAnalysis
+
+    r = _send(client)
+    assert session.get(FailedAnalysis, r.json()["id"]).capture_trigger is None
+
+
+def test_ukjent_capture_trigger_gir_422(client, r2):
+    """
+    Enumet er vaart, som `tag`. Konsekvensen er dokumentert i modellen: nye
+    verdier settes inn server-side FOERST, ellers kastes de donasjonene den nye
+    verdien handler om (422 er ikke `retryable`).
+    """
+    assert _send(client, felt={"capture_trigger": "manuell"}).status_code == 422
+
+
 # --- Feilkonfigurert R2: satt er ikke det samme som virker (AAP-B12) ------
 #
 # Alle fire verdiene staar, men oppsettet kan umulig virke. Foer B-51 svarte

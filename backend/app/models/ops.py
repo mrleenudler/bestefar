@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Enum, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, FailedTag, utcnow
+from .base import Base, CaptureTrigger, FailedTag, utcnow
 
 
 class FailedAnalysis(Base):
@@ -42,6 +42,12 @@ class FailedAnalysis(Base):
 
     tag: Mapped[FailedTag] = mapped_column(Enum(FailedTag, native_enum=False, length=16),
                                            default=FailedTag.rejected, index=True)
+    # NULL betyr «klienten sa det ikke», ikke «auto». Forskjellen er ekte: fra
+    # v0.29 finnes timeout-capture i klienten, men feltet ble ikke sendt foer
+    # det var avtalt (issue #11) - en default paa `auto` ville stemplet de
+    # donasjonene som gatede, og det er nettopp maalingen AAP-K1 skal hvile paa.
+    capture_trigger: Mapped[CaptureTrigger | None] = mapped_column(
+        Enum(CaptureTrigger, native_enum=False, length=16), nullable=True)
     status_code: Mapped[int] = mapped_column(Integer)      # BF_REJECTED_* / lav konfidens
     confidence: Mapped[float] = mapped_column(Float)
     core_version: Mapped[str] = mapped_column(String(32))

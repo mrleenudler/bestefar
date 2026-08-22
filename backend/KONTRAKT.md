@@ -183,6 +183,7 @@ dem som grunnlag for å endre rutene.
 | `confidence` | float | påkrevd; `-1.0` = ukjent |
 | `core_version` | str | påkrevd |
 | `tag` | enum | `ocr_match` \| `ocr_mismatch` \| `rejected`, standard `rejected` |
+| `capture_trigger` | enum? | `auto` \| `timeout`, **valgfri — utelatt betyr «ikke oppgitt»** |
 | `detected_scores` | JSON-liste som streng | standard `""` |
 | `ocr_scores` | JSON-liste som streng | standard `""` |
 | `image` | fil | påkrevd |
@@ -206,6 +207,19 @@ sidecarens `v` sendes ikke. Kartleggingen skjer i klienten (`Sync.kt`).
   passer; ingen hastesak, og ingen koordinering nødvendig.
 - **`tag`-enumet er vårt** (`models/base.py`, `FailedTag`). En ukjent verdi gir
   422 fra FastAPI-valideringen.
+- **`capture_trigger` står ved siden av `tag`, ikke inni den** (issue #11,
+  B-53). `tag` svarer på *hva donasjonen viser*, `capture_trigger` på *hvordan
+  bildet ble tatt*, og de to er ortogonale — en timeout-capture kan ende som
+  hvilken som helst av de tre taggene.
+  - **Utelatt felt lagres som NULL, og NULL betyr «ikke oppgitt» — ikke
+    `auto`.** Donasjonene fra v0.29-vinduet, der klienten hadde timeout-capture
+    men ennå ikke sendte feltet, er dels timeout-utløste uten å kunne si det.
+    En default på `auto` ville stemplet dem som gatede, og ÅP-K1 skal måles på
+    disse radene.
+  - **Enumet er vårt, med samme konsekvens som `tag`:** en ukjent verdi gir
+    422, og 422 er ikke `retryable`. **Nye verdier rulles derfor ut på serveren
+    før klienten begynner å sende dem** — motsatt rekkefølge kaster nettopp de
+    donasjonene den nye verdien handler om.
 - **Endepunktet krever ikke innlogging.** Donasjonen henger på
   bildedelings-samtykket, ikke på konto.
 - Ugyldig JSON i poengfeltene ⇒ 422. Bilde over `MAX_UPLOAD_BYTES` (8 MB) ⇒ 413.
@@ -405,6 +419,32 @@ endres den for alle klienter samtidig — det er tilsiktet.
   som eksisterer.
 - **Telefoninvitasjon gir `delivery_status: failed` med lenken vedlagt** — det
   finnes ingen SMS-leverandør (ÅP-E9), så klienten deler den selv.
+
+### Hvem kalleren selv er i et lag (issue #14)
+
+To felt svarer på det, og de svarer på hver sin halvdel. **Bygg mot begge — ett
+av dem holder ikke.**
+
+| Felt | Hvor | Svarer på |
+|---|---|---|
+| `my_role` | **alle** lagsvar, også `GET /v1/teams` og `/near` | hva *jeg* er: `"leader"`, `"member"`, eller `null` når jeg ikke er medlem |
+| `members[].public_id` | `GET /v1/teams/{id}` | hvilket *element* som er meg |
+
+- **`my_role` finnes også på listesvaret**, der `members[]` ikke er med, så
+  listeskjermen slipper å hente detaljer for å vite hva den skal tilby.
+  `null` er et normalt svar i `/near`-lista: der vises lag man står utenfor.
+- **`public_id` er formen klienten kjenner** — den kommer i innloggingssvaret og
+  er den eneste bruker-ID-en klienten noen gang har sett.
+- **`members[].user_id` står fortsatt, og er den interne UUID-en.** Den er
+  ikke til gjenkjenning, men fordi hele denne flaten *tar imot* den formen:
+  `DELETE …/members/{id}`, `POST …/leaders/{id}` og `candidate_id` i
+  avstemningen. Bytt derfor ikke ut den ene bruken med den andre.
+- **`leaders[]` er interne `user_id`-er**, ikke `public_id`. Bruk `my_role` til
+  å avgjøre om *du* er leder; `leaders[]` er ikke ment for gjenkjenning.
+- **Retningen:** hele lagflaten skal over på `public_id`, sammen med
+  venne-modellen i steg 4 — ÅP-U31 slår fast at vennskap er «unikt per
+  `public_id`», og da bør ikke lagflaten snakke en annen ID. Det blir én
+  endring, ikke seks, og den varsles. `user_id` fjernes ikke før da.
 
 ## 6.1 Lederavstemning (§11)
 

@@ -61,7 +61,13 @@ def send(cfg: Settings, subject: str, body: str, reply_to: str | None = None,
     if name == "smtp":
         msg = EmailMessage()
         msg["From"] = cfg.feedback_from
-        msg["To"] = cfg.feedback_to
+        # `mottaker`, ikke cfg.feedback_to: send_message tar konvolutt-adressen
+        # fra To-hodet, saa en hardkodet utviklerinnboks her ville sendt
+        # innloggingskoder og lag-invitasjoner til utvikleren i stedet for til
+        # brukeren. Resend-grenen ble rettet da `to` ble innfoert; denne ble
+        # staaende igjen til 2026-08-22. Produksjonen bruker Resend, saa feilen
+        # var sovende - den ville vaaknet den dagen SMTP ble tatt i bruk.
+        msg["To"] = mottaker
         msg["Subject"] = subject
         if reply_to:
             msg["Reply-To"] = reply_to
@@ -74,4 +80,4 @@ def send(cfg: Settings, subject: str, body: str, reply_to: str | None = None,
             smtp.send_message(msg)
         return
 
-    log.info("E-post (kun logg) til %s | %s\n%s", cfg.feedback_to, subject, body)
+    log.info("E-post (kun logg) til %s | %s\n%s", mottaker, subject, body)

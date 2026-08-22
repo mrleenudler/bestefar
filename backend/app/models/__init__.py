@@ -7,7 +7,8 @@ Datamodell (backend_spec §1-§11).
   ops.py       feilanalyse (§6) og feedback (§10)
   research.py  forskningsdata i EGET skjema (§7) - ingen FK til brukertabellene
 """
-from .base import (RESEARCH_SCHEMA, Base, ChallengeOutcome, DeliveryStatus,
+from .base import (RESEARCH_SCHEMA, Base, CaptureTrigger, ChallengeOutcome,
+                   DeliveryStatus,
                    ElectionOutcome, FailedTag, FriendshipStatus, InviteTarget,
                    NameStatus, Platform, PosModifier, Position,
                    PositionGranularity, Provider, QuarantineScope, ResultType,
@@ -25,7 +26,8 @@ from .user import (AuthIdentity, AuthSession, Backup, BackupKeyEscrow, Device,
 __all__ = [
     "RESEARCH_SCHEMA", "Base", "UtcDateTime", "as_utc", "new_uuid", "utcnow",
     # enums
-    "ChallengeOutcome", "DeliveryStatus", "ElectionOutcome", "FailedTag",
+    "CaptureTrigger", "ChallengeOutcome", "DeliveryStatus", "ElectionOutcome",
+    "FailedTag",
     "FriendshipStatus", "InviteTarget", "NameStatus", "Platform",
     "PosModifier", "Position", "PositionGranularity", "Provider",
     "QuarantineScope", "ResultType", "TeamKind", "TeamRole",

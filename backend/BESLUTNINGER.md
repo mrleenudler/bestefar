@@ -1168,6 +1168,84 @@ hadde oppdatert. Klienten kan fjerne feltet når det passer, uten koordinering.
 
 ---
 
+## B-53 `capture_trigger` som eget felt, ikke som en `tag`-verdi
+
+**Kontekst.** Klienten fikk i v0.29 en tidsgrense på auto-capture: utløser ikke
+gatingen innen 7 sekunder, tas gjeldende ramme og analyseres likevel. Lykkes
+analysen da, er det ikke en feil — det er måledata om at gatingen var for
+streng, og nettopp den observasjonen mangler ÅP-K1. Uten et merke i donasjonen
+er den ikke skillbar fra en helt ordinær scan. Klienten kunne ikke velge formen
+selv: `tag`-enumet er vårt, og en gjettet verdi gir 422 (issue #11).
+
+**Valg: et eget felt `capture_trigger` ∈ {`auto`, `timeout`}.** Det forkastede
+alternativet var nye `tag`-verdier. `tag` svarer på *hva donasjonen viser*,
+`capture_trigger` på *hvordan bildet ble tatt*, og de to er **ortogonale** — en
+timeout-capture kan ende som hvilken som helst av de tre taggene. En
+`timeout`-verdi i `tag` ville derfor overskrevet OCR-utfallet, og skulle begge
+deler bevares måtte enumet bli `timeout_ocr_match`, `timeout_ocr_mismatch`,
+`timeout_rejected` — og dobles igjen ved neste capture-årsak. Klienten
+anbefalte det samme, og eier sa seg enig; her er begrunnelsen skrevet ned så
+den ikke må gjenoppdages.
+
+**NULL betyr «ikke oppgitt», ikke `auto`.** Kolonnen er nullable og har ingen
+default. Klienten fikk timeout-capture i v0.29, men sendte bevisst ikke feltet
+før formen var avtalt — donasjonene fra det vinduet *er* dels timeout-utløste
+uten å kunne si det. En default på `auto` ville stemplet dem som gatede, og det
+er akkurat disse radene ÅP-K1 skal måles på. Samme skille som `objstore` gjør
+mellom «ikke konfigurert» og «feilkonfigurert» (B-51), og som `BackupKeys`
+manglet: et fravær er ikke en verdi. Ingen backfill, av samme grunn — det
+finnes ikke en riktig verdi å fylle inn.
+
+**Enumet er vårt, og det har en rekkefølge-konsekvens.** En ukjent verdi gir
+422, og 422 er ikke `retryable` — donasjonen kastes. Nye `capture_trigger`-
+verdier må derfor rulles ut på serveren **før** klienten begynner å sende dem.
+Det står i `models/base.py` ved siden av enumet, fordi det er der noen kommer
+til å legge til den neste verdien.
+
+*Kilde: issue #11; `migrations/versions/c4a91e7b2f38`; `models/base.py`;
+`tests/test_failed_analyses.py`.*
+
+---
+
+## B-54 Kalleren kjenner seg selv i et lag med `my_role` + `members[].public_id`
+
+**Kontekst.** `GET /v1/teams/{id}` ga `members[]` med intern `user_id`, og
+klienten kjenner bare `public_id` fra innloggingssvaret. Den kunne dermed ikke
+kjenne igjen seg selv i lista (issue #14). Det blokkerte «(Du)»-merkingen og
+hele ledergatingen — «Rediger lag» mot «Velg leder», og redigeringsmenyen som
+bare skal finnes for en leder. Klienten gatet i mellomtiden på `has_leader`,
+som behandler «laget har en leder» som «jeg er lederen».
+
+**Valg: to felt, fordi spørsmålet er to spørsmål.** `my_role` sier *hva jeg er*,
+`members[].public_id` sier *hvilket element som er meg*. Ett av dem alene
+holder ikke: `my_role` peker ikke ut en rad, og en `public_id` i lista sier
+ingenting på listeskjermen, der `members[]` ikke er med. `my_role` ligger
+derfor på **alle** lagsvar, også `GET /v1/teams` og `/near`, så listeskjermen
+slipper å hente detaljer for å vite hva den skal tilby.
+
+**`public_id` og ikke et ekko av `user_id`.** Klienten foreslo begge deler.
+`public_id` er formen klienten allerede har, og det er formen venne-modellen
+skal bruke (ÅP-U31, «unik per `public_id`») — bygger klienten gjenkjenning på
+den nå, står den seg gjennom steg 4.
+
+**Det forkastede alternativet var å bytte ut `user_id` i `members[]`.** Det
+ville sett renere ut, men gjort lista ubrukelig som kilde til de kallene den
+finnes for: `DELETE …/members/{id}`, `POST …/leaders/{id}` og `candidate_id` i
+avstemningen tar alle imot den *interne* ID-en. Å bytte `members[]` alene ville
+brutt dem; å bytte alt sammen er en flatedekkende endring som hører hjemme i
+samme runde som venne-modellen, ikke i en runde som skal fjerne en blokkering.
+Begge former står derfor side om side inntil da, og hva hver av dem er til,
+står i `KONTRAKT.md` §6.
+
+**Å matche visningsnavn ble aldri vurdert som en utvei**, og det er verdt å
+notere hvorfor: det ville virket i de fleste lag og feilet stille i akkurat de
+lagene der to personer heter det samme — med det utfallet at feil person får
+lederknappene.
+
+*Kilde: issue #14; `routers/teams.py` (`_team_ut`); `tests/test_teams.py`.*
+
+---
+
 # Beslutninger uten dokumentert begrunnelse
 
 Disse verdiene og valgene står i koden uten at det er skrevet ned *hvorfor*

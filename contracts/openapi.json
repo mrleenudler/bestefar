@@ -93,6 +93,16 @@
       },
       "Body_submit_failed_v1_failed_analyses_post": {
         "properties": {
+          "capture_trigger": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaptureTrigger"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "confidence": {
             "title": "Confidence",
             "type": "number"
@@ -133,6 +143,15 @@
         ],
         "title": "Body_submit_failed_v1_failed_analyses_post",
         "type": "object"
+      },
+      "CaptureTrigger": {
+        "description": "HVORDAN bildet ble tatt (§6). Staar ved siden av `tag`, ikke inni den.\n\n`tag` svarer paa hva donasjonen VISER, og de to er ortogonale: en\ntimeout-capture kan ende som hvilken som helst av de tre tag-verdiene. La\nman «timeout» inn i `FailedTag`, ville den overskrevet OCR-utfallet - og\nskulle begge deler bevares, maatte enumet dobles for hver nye\ncapture-aarsak. Issue #11, B-53.\n\nNYE VERDIER SETTES INN HER FOERST, og rulles ut FOER klienten begynner aa\nsende dem: en ukjent verdi gir 422 fra valideringen, og 422 er ikke\n`retryable` (`android/KONTRAKT.md` §1). Feil rekkefoelge betyr at nettopp\nde donasjonene den nye verdien handler om, blir kastet.",
+        "enum": [
+          "auto",
+          "timeout"
+        ],
+        "title": "CaptureTrigger",
+        "type": "string"
       },
       "ConsentIn": {
         "properties": {

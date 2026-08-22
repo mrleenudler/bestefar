@@ -166,6 +166,25 @@ class FailedTag(StrEnum):
     rejected = "rejected"
 
 
+class CaptureTrigger(StrEnum):
+    """
+    HVORDAN bildet ble tatt (§6). Staar ved siden av `tag`, ikke inni den.
+
+    `tag` svarer paa hva donasjonen VISER, og de to er ortogonale: en
+    timeout-capture kan ende som hvilken som helst av de tre tag-verdiene. La
+    man «timeout» inn i `FailedTag`, ville den overskrevet OCR-utfallet - og
+    skulle begge deler bevares, maatte enumet dobles for hver nye
+    capture-aarsak. Issue #11, B-53.
+
+    NYE VERDIER SETTES INN HER FOERST, og rulles ut FOER klienten begynner aa
+    sende dem: en ukjent verdi gir 422 fra valideringen, og 422 er ikke
+    `retryable` (`android/KONTRAKT.md` §1). Feil rekkefoelge betyr at nettopp
+    de donasjonene den nye verdien handler om, blir kastet.
+    """
+    auto = "auto"          # auto-capture-gatingen slapp bildet gjennom
+    timeout = "timeout"    # tidsgrensen loep ut, gjeldende ramme ble tatt
+
+
 class PositionGranularity(StrEnum):
     """Grovhet paa delt jaktposisjon (§7). Skadedata deles aldri som standard."""
     none = "none"

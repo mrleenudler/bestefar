@@ -238,6 +238,14 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   etter avstand; de 3 nærmeste alltid med uansett avstand.
 - **Oppretting + roller:** «jeg er leder» / «opprett for leder» / «be leder opprette».
   Flere ledere mulig.
+- **Kalleren kan kjenne igjen seg selv.** Alle lagsvar har `my_role` ∈
+  {`leader`, `member`, `null`} — også listesvaret, der `members[]` ikke er med,
+  så listeskjermen slipper å hente detaljer for å vite hva den skal tilby.
+  `members[]` bærer i tillegg `public_id`, som er formen klienten kjenner fra
+  innloggingssvaret, og den peker ut hvilket element som er kalleren.
+  `members[].user_id` er fortsatt den interne UUID-en, fordi det er den formen
+  `DELETE …/members/{id}`, `POST …/leaders/{id}` og `candidate_id` tar imot.
+  Hele flaten skal over på `public_id` sammen med venne-modellen (ÅP-U31).
 - **Invitasjon:** ACTION_SEND-intent (ingen kontakttillatelse) med **redirect-URL** i
   EXTRA_TEXT; server leser User-Agent → riktig butikk (Play/App Store). Samme URL som
   QR for e-post/SMS-invitasjon. `POST /v1/teams/{id}/invite { emailOrPhone }` med
@@ -263,6 +271,12 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   godtatt bildedeling (oppstartsvindu 2) eller per-innsending.
 - **Endepunkt:** `POST /v1/failed-analyses` (multipart: bilde + JSON med detekterte
   poeng, OCR-poeng, `tag` ∈ {ocr_match, ocr_mismatch, rejected}).
+- **`capture_trigger` ∈ {auto, timeout}, valgfri.** Hvordan bildet ble tatt, som
+  eget felt ved siden av `tag` — de er ortogonale, og en timeout-capture kan
+  ende som hvilken som helst tag. Utelatt felt lagres som NULL, som betyr «ikke
+  oppgitt» og ikke `auto`. Kombinasjonen `capture_trigger = timeout` og
+  `status_code = 0` er raden ÅP-K1 trenger: en analyse som lyktes *etter* at
+  gatingen ga opp, er måledata om at tersklene er for strenge.
 - **Donasjonen er frikoblet fra kontoen.** `series_id` tas ikke imot, og
   kolonnen er droppet (2026-08-21). Den var samme ID som serien lagres under i
   `/v1/stats`, altså den ene veien fra et bilde til en person; en feilet analyse

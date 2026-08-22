@@ -285,3 +285,92 @@ forskningsdata, så det er én konsument til som skal tolke den.
   overlevering, siden det er den ene endringen som er rent visuell.
 - 8 sekunder er fortsatt valgt, ikke målt — men nå justert på en observasjon.
 
+
+---
+
+# backend — issue #11 og #14 besvart, og en sovende feil i utsendingen
+
+## 1. `capture_trigger` som eget felt (issue #11, B-53)
+
+UI-vurderingen holder, og den er nå bygget slik: `capture_trigger` ∈
+{`auto`, `timeout`}, valgfritt multipart-felt ved siden av `tag`.
+
+Begrunnelsen er ført i `BESLUTNINGER.md` B-53 så den ikke må gjenoppdages:
+`tag` svarer på hva donasjonen *viser*, `capture_trigger` på hvordan bildet ble
+*tatt*. En timeout-capture kan ende som hvilken som helst av de tre taggene, så
+en `timeout`-verdi i `tag` ville overskrevet OCR-utfallet — og skulle begge
+bevares, måtte enumet dobles for hver nye capture-årsak.
+
+**Ett sted valgte jeg annerledes enn forslaget:** feltet har ingen default.
+Utelates det, lagres `NULL`, og **`NULL` betyr «klienten sa det ikke» — ikke
+`auto`**. Grunnen er v0.29-vinduet: der finnes timeout-capture i klienten, men
+feltet ble bevisst ikke sendt. En default på `auto` ville stemplet nettopp de
+donasjonene som gatede, og det er disse radene ÅP-K1 skal måles på. Ingen
+backfill, av samme grunn — det finnes ikke en riktig verdi å fylle inn.
+
+**Enumet er vårt, med den konsekvensen dere allerede kjenner fra `tag`:** en
+ukjent verdi gir 422, og 422 er ikke `retryable`. Nye verdier rulles derfor ut
+på serveren *før* klienten sender dem. Det står i `models/base.py` ved siden av
+enumet, der noen kommer til å legge til den neste.
+
+Klar til å kobles på. Feltnavnet er `capture_trigger` i multiparten, samme navn
+som i sidecar-fila deres.
+
+## 2. «Hvem er jeg i dette laget» (issue #14, B-54)
+
+**To felt, fordi det er to spørsmål** — ett av dem alene løser ikke begge:
+
+| Felt | Hvor | Svarer på |
+|---|---|---|
+| `my_role` | **alle** lagsvar, også `GET /v1/teams` og `/near` | `"leader"` \| `"member"` \| `null` |
+| `members[].public_id` | `GET /v1/teams/{id}` | hvilket element som er meg |
+
+`my_role` ligger med vilje også på **listesvaret**, der `members[]` ikke er med
+— dere nevnte at listeskjermen ellers må hente detaljer for å vite hva den skal
+tilby. `null` er et normalt svar i `/near`, der lag man står utenfor vises.
+
+**`public_id` og ikke et ekko av `user_id`**, som var deres foretrukne form:
+`public_id` er den dere allerede har fra innloggingssvaret, og det er formen
+venne-modellen skal bruke (ÅP-U31, «unik per `public_id`»). Bygger dere
+gjenkjenningen på den nå, står den seg gjennom steg 4.
+
+**`members[].user_id` står fortsatt, og skal fortsatt brukes til kallene.**
+`DELETE …/members/{id}`, `POST …/leaders/{id}` og `candidate_id` i avstemningen
+tar imot den interne ID-en. Å bytte `members[]` alene ville gjort lista
+ubrukelig som kilde til nettopp de kallene. Hele flaten skal over på
+`public_id`, men det er én endring i samme runde som venne-modellen — ikke seks
+små — og den varsles.
+
+**Kort sagt:** gjenkjenning på `public_id`, gating på `my_role`, kall med
+`user_id`. `has_leader` skal ikke lenger brukes til gating; den sier bare at
+laget *har* en leder.
+
+## 3. En sovende feil i `mailer.py`, rettet
+
+`msg["To"]` i SMTP-grenen var hardkodet til utviklerinnboksen, uansett
+mottaker. `send_message` tar konvolutt-adressen fra To-hodet, så
+innloggingskoder og lag-invitasjoner ville gått til utvikleren i stedet for
+brukeren. Resend-grenen ble rettet da `to` ble innført; denne ble stående.
+
+Produksjonen bruker Resend, så feilen har aldri truffet noen — den ville våknet
+den dagen SMTP ble tatt i bruk, og da på innloggingskoder.
+
+Ny `tests/test_mailer.py` kjører **begge** leverandørgrenene mot det samme
+kravet. Testen er verifisert som en ekte port, ikke bare grønn: jeg satte den
+gamle linjen tilbake og så den feile.
+
+## Verifisert
+
+- `backend\.venv\Scripts\python.exe -m pytest backend\tests -q` → se
+  commit-meldingen for tallet. 11 nye tester.
+- `upgrade head → downgrade base → upgrade head` mot fersk SQLite, siden CI
+  ellers prøver downgrade-veien først (mot Postgres).
+- `contracts/openapi.json` regenerert i samme commit — `capture_trigger` er i
+  multipart-skjemaet.
+
+## Ikke verifisert
+
+- **Ingen ekte donasjon med `capture_trigger` er sett**, og ingen klient sender
+  feltet ennå. At det tas imot er testet; at det kommer inn, er det ikke.
+- **`my_role` er ikke sett fra klienten.** Testene dekker leder, medlem og
+  ikke-medlem, men ingen har tegnet en lagside på svaret.

@@ -20,6 +20,11 @@ uten konto (§6 er koblet til bildedelings-samtykket, ikke til kontoen). Det er
 ogsaa grunnen til at innholdet sjekkes: dette er en aapen skrivevei inn i betalt
 objektlagring, saa vi tar imot bilder og ikke hva som helst.
 
+`capture_trigger` staar VED SIDEN AV `tag`, ikke inni den (B-53): `tag` sier hva
+donasjonen viser, `capture_trigger` hvordan bildet ble tatt, og en
+timeout-capture kan ende som hvilken som helst tag. Feltet er valgfritt, og
+NULL betyr "klienten sa det ikke" - ikke "auto".
+
 DONASJONEN ER FRIKOBLET FRA KONTOEN (B-52). `series_id` tas ikke lenger imot og
 finnes ikke i skjemaet: den var samme ID som serien lagres under i `/v1/stats`,
 altsaa den ene veien fra et bilde til en person. En feilet analyse er per
@@ -37,7 +42,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..config import settings
 from ..db import db
-from ..models import FailedAnalysis, FailedTag
+from ..models import CaptureTrigger, FailedAnalysis, FailedTag
 from ..services import objstore
 
 log = logging.getLogger(__name__)
@@ -73,6 +78,7 @@ async def submit_failed(status_code: int = Form(...),
                         confidence: float = Form(...),
                         core_version: str = Form(...),
                         tag: FailedTag = Form(FailedTag.rejected),
+                        capture_trigger: CaptureTrigger | None = Form(None),
                         detected_scores: str = Form(""),
                         ocr_scores: str = Form(""),
                         image: UploadFile = File(...),
@@ -98,6 +104,7 @@ async def submit_failed(status_code: int = Form(...),
 
     fa = FailedAnalysis(status_code=status_code, confidence=confidence,
                         core_version=core_version, tag=tag,
+                        capture_trigger=capture_trigger,
                         detected_scores=_scores(detected_scores),
                         ocr_scores=_scores(ocr_scores))
 
