@@ -1,28 +1,15 @@
 claude --resume 14f581a8-72d7-476d-880c-5dc0da4df6c3
 
-Du er i et Powershell miljø
-
-Remember to keep updating CLAUDE_CONTEXT.TXT with mistakes you make that should've been retained in memory.
-Always read CLAUDE_CONTEXT.TXT after compacting.
 
 Bruk egen vurderingsevne til å gjøre UI brukervennlig og tilgjengelig på måter som ikke er eksplistitt beskrevet
 
 UI-grafikkelementer ligger i mappen UI
 
-fly_api_token ligger som repo secret, men flyctl må logges inn på nytt i powershell med jevne mellomrom.
-
-Oppdater Bestefar_UI_spec, flytskjema.md, ARCHITECTURE.MD til å stemme med endringene.
-Oppdater backend_spec.md ved behov
-Les siste versjon av til_utvikler_v##.md for å se hva som ble gjort i forrige iterasjon.
-Skriv kopi av alle tilbakemeldinger i til_utvikler_v##.md
-Oppdater docs/flytskjema.md og docs/ARCHITECTURE.mdved behov.
-------------------------------------------------------
 
 
-Warning ikon: La ikonet for "Sllett alle data" være et STOP ikon, ikke warning.
 
-Innskyting: «Ikke lagre» — den sletter også dagens første serie, ikke bare den du står i. Det var ikke tydelig fra teksten alene
-	Kan du beskrive litt nærmere hva som skjer her?
+------------------------------------------------------ Gamle instrukser som skal testes av "utvikler"
+
 
 To ting klienten MÅ håndtere
 /logout gjør ikke access-tokenet ugyldig. Verifisert mot produksjon: etter 204 fra /logout svarer GET /v1/profile fortsatt 200 med det samme tokenet. Ikke en feil — tokenet er en statsløs JWT og kan ikke tilbakekalles, derfor er levetiden bare 60 minutter. Klienten må selv slette begge tokenene, og kalle POST /v1/devices/unregister samtidig. Ellers har en utlogget bruker full tilgang i opptil en time og fortsetter å få varsler.
@@ -38,12 +25,6 @@ Push varsel felling: Backend anbefaler "Vis teksten for brukeren før dere sende
 Trendvisning: Jeg vil ikke ha den som at avvik fra snittet, men som en graf som viser hvor skytteren ligger nå. førsteaksen skal være tid(dato) opp til 2 år. Når tredje sesong/jaktår startes, fjernes det første fra grafen. Andreaksen er 20-skudds rolling average. Avpass aksen slik at avstanden fra laveste datapunkt til sentrum aldri blir mindre enn 25% av andreaksen.
 	Nå ser jeg også at 20-skudds rolling average ikke går sammen med visningen min. La oss bruke gjennomsnittet for dagen, dersom det skytes mer enn 20 skudd på en dag. Hva er beste løsning for siste økt? Fremskrive trenden og justere når neste serie kommer?
 
-
-Lys visning: Telefonens statusikoner må ha svart bakgrunn, også i lys visning. (Ikke implemenetrt)
-
-"Bildet ble ikke korrekt analysert": 
-	<Scan> -> <Scan på ny>
-	Lag knapp/ring rundt <Send bildet til feilanalyse>
 
 Innsikt: 
 	Legg inn silhuetter for [rådyr] 
@@ -120,6 +101,14 @@ Logg jaktskudd:
 	<Krever_backend_verifisering>Skudd som slettes i appen, og som er overført til backend, skal ha et "deleted" flagg i backend.
 
 <krever_feltverifisering>
+v016
+->Block Store krever Play-tjenester og skjermlås. e2eAvailable() returnerer false i emulator uten Play, og da faller vi tilbake på koden — det er den tiltenkte oppførselen, men at den er tiltenkt er ikke det samme som at den er sett virke.
+->BiometricPrompt med DEVICE_CREDENTIAL bør prøves på en enhet med bare PIN (ikke fingeravtrykk), siden det er den stien androidx emulerer for eldre API-nivåer.
+->Trendgrafen er tegnet mot genererte serier. Med ekte data over to jaktår er det verdt å se om sesongstreken og etiketten kolliderer med kurven.
+v017
+-> Test innlogging av epost før Google.
+-> E-postflyten er ikke kjørt fra klienten. Backend har verifisert endepunktene mot produksjon, men ikke gjennom dette UI-et. Bruker tester dette.
+-> Nedtellingen på «Send ny kode» er testet som kode, ikke mot en ekte 429. | 429-testen: Også du, av samme grunn. Den utløses ved mer enn fem kodeforespørsler til samme adresse innen en time — altså trykk «Send ny kode» seks ganger og se hva appen gjør. Merk at du da låser den adressen i en time, så bruk gjerne en du ikke trenger til annen testing samtidig.
 => OCR: Identifiserte poeng skal bare vises hvis de avviker > 0.1p fra leste poeng (er det implementert alt?)
 
 =>Det ser ut til at hvis poengene er like, defineres seriene som like. (Fra erfaringer med opp-ned bildene) Serier må også ha samme treffpunkter med en liten margin (<= 0,1p) for at vi skal defiere dem som like og vise lik-serie dialogen.

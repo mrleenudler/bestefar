@@ -10,6 +10,12 @@ defineres av prosjekteier — ingen av dem blir riktigere av at en instans gjett
 en plausibel verdi. Denne fila foreslår derfor ingen verdier. Den sier hva som
 mangler, hvor det står, og hvem som kan avgjøre det.
 
+**Unntaket er seksjon F**, som ble lagt til 2026-08-22. Den holder utestående
+arbeid fra en feltrunde — ting som *kan* besluttes i kode, men ikke er gjort.
+De står her for å ha en ID å lukkes fra. Blandes de sammen med A–E, mister
+begge kategorier mening: en ukalibrert terskel og en uimplementert knapp er
+ikke samme slags åpent punkt.
+
 Sist gjennomgått: **2026-08-07**.
 
 **Bruk:** referer punkt-ID i issues (`ÅP-K3`) og i `til_utvikler_v##.md`. Legg
@@ -711,6 +717,232 @@ CMake/NDK (`docs/ARCHITECTURE.md`, «Repo-layout»). Intensjonen bak kravet —
 ingen divergerende kopi, versjonert endring med bump — er ivaretatt av
 `BESTEFAR_CORE_VERSION` i `core/include/bestefar/version.h`. Åpent: om speccen
 skal rettes til å beskrive monorepoet, eller om oppdelingen fortsatt er målet.
+
+---
+
+## F. Utestående fra feltrunden på v0.28 (musingsUI «v022»)
+
+**Denne seksjonen er av en annen art enn A–E.** Punktene over står her fordi de
+*ikke kan besluttes i kode* — en terskel som må måles, et feltinnhold eieren må
+definere. Punktene under **kan** besluttes i kode; de er ikke gjort. De ble
+flyttet hit fra `musingsUI.txt` 2026-08-22 for at de skulle ha en ID og et sted
+å bli lukket fra, i stedet for å ligge som løpende tekst i eierens fil.
+
+Kilden er eierens gjennomkjøring av v0.28. Ingen UI-runde har rørt dem siden:
+v0.29 og v0.30 gjaldt scan-vinduet og skivevisningen. Der noe er verifisert mot
+koden, står det ved punktet — resten er rapportert, ikke ettergått.
+
+### ÅP-U17 — Statuslinja er fortsatt lys i lys visning · label `ui`
+
+Rapportert av eier på v0.28: «Statuslinjen øverst på telefonen er fremdeles lys
+i lys visning. Der feilet forsøket på å gjøre den mørk.»
+
+**Implementasjonen finnes.** `Ui.paintSystemBars` (runde 12) legger en svart
+flate bak hver systemlinje og setter `isAppearanceLightStatusBars = false`, og
+den kalles for *alle* aktiviteter via `ActivityLifecycleCallbacks` i
+`BestefarApp.kt:28`. `values/themes.xml:21-25` setter i tillegg
+`windowOptOutEdgeToEdgeEnforcement`, svart `statusBarColor` og
+`windowLightStatusBar=false`.
+
+Dette er altså **ikke en manglende funksjon, men en virkningsløs**, og det er
+tredje forsøk på samme sak (runde 10, runde 12, og nå). Åpent: hvorfor flaten
+ikke slår ut på eierens enhet. Merk `Ui.kt:135-137` — høyden settes fra
+innsettene, og er innsettene 0 fordi opt-out-en *fortsatt* virker på den
+enheten, blir flaten 0 px høy og hele mekanismen en no-op. Det er den første
+hypotesen å måle.
+
+Relatert: `TODO`-en om `windowOptOutEdgeToEdgeEnforcement` nederst i
+`musingsUI.txt` — flagget er Googles midlertidige opt-out og forsvinner.
+
+### ÅP-U18 — «Slett alle data»: ikon, plassering og knapperekkefølge · label `ui`
+
+Tre ting i samme dialog, fra eier:
+
+- STOP-ikonet skal være **større** og stå **over** overskriften, ikke ved siden.
+- «Avbryt» og «Slett alle data» skal **bytte plass**. Begrunnelsen eieren gir er
+  den som betyr noe: *det kritiske valget skal aldri være den naturlige
+  knappen.*
+- Varseltrekanten som brukes ved sletting **andre steder** i appen skal være
+  **gul med sort kontur** (i dag rød, `Ui.warningDialog`).
+
+Merk at `Ui.kt:164-169` allerede sier at trekanten kun skal brukes på
+destruktive valg, «ellers slites ikonet ut og slutter å bety noe» — fargeskiftet
+skal ikke undergrave den regelen.
+
+### ÅP-U19 — Innloggingsflaten: fire punkter · label `ui`
+
+- **Google-'G' bak «Fortsett med Google».** Verifisert mangler: knappen settes
+  med ren tekst (`LoggInnActivity.kt:102,126`), og det finnes ingen
+  `ic_google`-drawable i `res/`.
+- **Tilbake-knapp nederst til høyre** — både på innloggingsskjermen og på den
+  innloggede visningen. Samme krav er meldt for «Legg til lag»-dialogen.
+- **Kontoen som vises må være permanent**, basert på e-post eller Google-konto,
+  ikke visningsnavnet brukeren kan endre. Merk at `Store.neverBackedUp`
+  (`Store.kt:666-671`) allerede holder `accountEmail`/`accountProvider` utenfor
+  sikkerhetskopien nettopp fordi de hører til *denne* telefonens innlogging —
+  feltet finnes altså, det er visningen som er feil.
+- **Er QR-koden for å legge til venner aktiv?** Eierens spørsmål, ikke ettergått.
+
+### ÅP-U20 — Gjenoppretting henter ikke tilbake tre profilfelter · label `ui`
+
+Eier rapporterer at **fødselsår**, **jaktlag** og **«la venner finne meg»** ikke
+kom tilbake etter gjenoppretting, mens «Mitt jaktmål» gjorde det.
+
+**Delvis ettergått, og de tre har trolig ikke samme årsak:**
+
+- `birthYear` (`Store.kt:143`) og `findable` (`Store.kt:255`) ligger i prefs, og
+  `exportPrefs` er **generisk over hele prefs-fila** med bare fem unntak
+  (`neverBackedUp`). De *skal* altså være med i bloben. Hvorfor de likevel ikke
+  kom tilbake, er ikke funnet. Kandidater: kopien ble tatt før feltene var satt,
+  eller det ble testet mot en eldre APK.
+- **Jaktlag er noe annet.** Det finnes ikke i `Store`-prefsene i det hele tatt —
+  lagmedlemskap er serverside. En gjenoppretting av en lokal blob kan derfor
+  *ikke* gjenopprette laget, og det er ikke en feil i backupen, men et hull i
+  flyten: etter innlogging må klienten hente medlemskapet fra serveren.
+
+Skal lukkes med en faktisk observasjon, ikke med en kodelesing.
+
+### ÅP-U21 — Dialoger uten OK-knapp, og manglende tilbake-knapper · label `ui`
+
+«Ønsker du at …»-dialogen ved første dummy-scan har **ingen OK-knapp**. Eier
+skriver: «Det tyder på at denne mangler et annet sted i flyten også» — så
+oppgaven er å finne mønsteret, ikke bare det ene tilfellet.
+
+Samme familie: «Legg til lag»-dialogen mangler tilbake-knapp nederst til høyre
+(se også ÅP-U19).
+
+### ÅP-U22 — Dialoger kan avbrytes ved trykk utenfor · label `ui`
+
+To krav fra eier:
+
+1. **«Lagre nøkkel»-dialogen skal ikke kunne avbrytes** ved trykk utenfor —
+   brukeren må ta et aktivt valg.
+2. **Lag en liste** over alle dialoger som i dag kan avbrytes slik.
+
+**Verifisert at dette er reelt:** `setCancelable(false)` forekommer bare **7
+ganger** i hele klienten (`Dialogs.kt` 3, `ResultActivity.kt` 4). Alle øvrige
+dialoger er avbrytbare med et trykk utenfor.
+
+Dette henger sammen med en observasjon som allerede har kostet noe: et trykk
+utenfor deponeringsdialogen sendte `DELETE /v1/backup/key-escrow`
+(produksjonslogg 2026-08-15 10:51:25, fikk 401), stikk i strid med at v0.26 sier
+at en avbrutt dialog skal la bryteren stå urørt og ikke sende noe. **En avbrutt
+dialog som utfører en handling er den farlige varianten**, og den skal
+kartlegges først.
+
+### ÅP-U23 — Startmeldingene kommer alle på én gang etter «slett alle data» · label `ui`
+
+Eier: «Etter at alle data er slettet, popper alle startmeldingene våre opp på en
+gang.» Hypotesen eieren selv foreslår — at alle har nådd triggerne sine, men
+ikke er flagget som vist — er ikke ettergått.
+
+I samme åndedrag: **det bør finnes et oppstartsvalg `<Start>` /
+`<Fortell meg om appen>`**, som er en egen liten flate og ikke bare en fiks på
+utløsningen.
+
+### ÅP-U24 — Seriegrafens førsteakse skal være tid · label `ui`
+
+Førsteaksen skal vise **datoer (dd.mm.åå) kun der det er registrert skudd**, men
+plassert med **riktig innbyrdes avstand** i tid — ikke jevnt fordelt. To års
+tidsrom er ~730 mulige punkter, og bare de med data får etikett.
+
+Dekker data mindre enn to år, skal aksen **strekkes ut** så punktene blir
+lesbare; skaleringsfaktoren er ikke bestemt og overlates til utvikler.
+
+Beslektet, og fortsatt åpent fra en tidligere runde: trendvisningens andreakse
+(rullende snitt over 20 skudd vs. dagsgjennomsnitt når det skytes mer enn 20 på
+én dag), og hva som skal gjøres med siste økt — framskrive og justere, eller
+vente. Se `musingsUI.txt`, avsnittet «Trendvisning», som står igjen der.
+
+### ÅP-U25 — Visningsnavn: lagring ved tilbake, og moderasjonsforsinkelsen · label `ui`
+
+- **Navnet forsvinner om tilbake-knappen trykkes.** Det skal lagres ved tilbake,
+  eventuelt fortløpende per tegn.
+- **Moderasjonen slår inn for sent.** Eier skrev «Fuck» uten at noe skjedde før
+  hen gikk ut av profilsiden og inn igjen — da var navnet endret til «Mr».
+  Neste forsøk ble avvist umiddelbart med varsel, som er riktig oppførsel.
+  Åpent: om dette bare er forsinkelse, eller om koden må endres.
+
+**«Mr» er trolig samme sak som ÅP-U26** — se der.
+
+### ÅP-U26 — Innloggingsnavnet blir «Mr» · label `ui`
+
+Ved innlogging uten gjenoppretting ble visningsnavnet bare «Mr». Eier spør om
+det ikke burde vært Google-kontoens visningsnavn.
+
+Verdt å merke seg at dette har vært oppe før fra motsatt kant: **issue #7**
+(`backend`, lukket) het «Google-innlogging bruker e-postens lokaldel som
+visningsnavn; name-kravet forkastes». «Mr» ser ut som lokaldelen av eierens
+e-postadresse, så symptomet kan ha overlevd lukkingen — eller ha kommet tilbake
+på klientsiden. Sjekk hva `/v1/auth`-svaret faktisk inneholder før det rettes i
+klienten.
+
+### ÅP-U27 — Småting med tekst og tid · label `ui`
+
+- **«Mitt jaktmål»-dialogen etter første serie skal hete «Velg ditt jaktmål».**
+  Verifisert ikke gjort: `strings.xml:358` `jaktmaal_title` er fortsatt «Mitt
+  jaktmål». Merk at samme streng brukes som overskrift i profilen
+  (`ProfilActivity.kt:259`), der «Mitt jaktmål» er riktig — så dette krever to
+  strenger, ikke en endring av den ene.
+- **Toasten ved innsending av avvist scan vises for kort** til å rekke å leses,
+  og kommer sent. Tidsvinduet må økes.
+- **Gjenopprettingskoden:** vis `######` i tekstfeltet, og oppgi tidsgrensen som
+  «15 min».
+
+### ÅP-U28 — Gjenopprettingstilbudet tar ikke hensyn til lokal tilstand · label `ui`
+
+Det største punktet i runden, og eierens egen instruks i sin helhet.
+
+Ved `is_new = false` og en kopi på serveren tilbys gjenoppretting umiddelbart
+etter innlogging, **uten å se på om brukeren har data lokalt**. Situasjonen som
+avdekket det: en bruker med lokale serier logger inn og får tilbud om å erstatte
+dem med en eldre kopi. Det riktige der er å tilby en **ny kopi**, ikke en
+gjenoppretting.
+
+**Undersøk først:**
+
+- Hva skjer faktisk ved avbryt? v0.25 la inn at en kopi ikke får erstatte data
+  uten bekreftelse, med avbryt som standardvalg — **men den koden er aldri
+  kjørt.** Verifiser at lokale data står urørt etter avbrutt gjenoppretting.
+- Sammenlignes kopiens `client_ts` mot lokal tilstand i det hele tatt, eller er
+  det bare 200/404 fra `/meta` som styrer?
+
+**Implementer så en avgjørelse basert på begge sider:**
+
+| Lokalt | Kopi | Tilbud |
+|---|---|---|
+| ingen data | finnes | gjenoppretting (dagens oppførsel, riktig) |
+| data finnes | eldre | tilby **ny kopi**; gjenoppretting mulig, men ikke foreslått |
+| data finnes | nyere | vis begge sider og la brukeren velge, **avbryt som standard** |
+
+«Eldre/nyere» er ikke hele bildet — en nyere kopi kan inneholde *mindre* enn det
+lokale hvis den ble tatt fra en annen telefon. **Tallene fra `Backup.les`
+(N serier, M jaktposter) er det som faktisk sier hva som står på spill, og de
+bør vises før noe overskrives.**
+
+Dette er samme lærdom som allerede står i rot-`CLAUDE.md` §7.3 — «en destruktiv
+operasjon skal lese ferdig før den skriver» — og punktet er ikke lukket før
+beslutningen ligger *mellom* lesing og skriving.
+
+**Teksten skal også være en annen når tilbudet utløses av innlogging:**
+«Eksisterende konto funnet! Gjenopprett?» og «Kontoen ble lagret (fortsetter som
+før)».
+
+Se ÅP-U22 for deponeringsdialogen, som hører til samme flate.
+
+### ÅP-E12 — Skal appen be om innlogging når sesong 2 starter? · krever eier
+
+UI-speccen slår fast: «En jeger som bare vil scanne skiver skal ikke føle at hen
+har hoppet over noe. **Ingenting i appen ber om innlogging uoppfordret.**»
+
+Eier stiller spørsmålet selv: sikkerhetskopi av resultater er viktig, og det
+krever konto. Skal appen da gi et prompt når sesong 2 starter?
+
+Det er en reell motsetning mellom invariant 1 i `android/CLAUDE.md`
+(offline-først, ingen funksjon krever innlogging som ikke *er* om noen andre) og
+det å verne data brukeren har samlet i et helt år. **Kan ikke avgjøres i kode**
+— det er et produktvalg om hvor påtrengende appen har lov til å være, og det er
+eierens.
 
 ---
 
