@@ -410,25 +410,39 @@ enum class TeamRole {
  * forskjellige ting og hentes fra hver sin kilde.
  */
 data class TeamMember(
+    /**
+     * Serverens INTERNE UUID. Denne er ikke til gjenkjenning — den er formen
+     * ruteparametrene tar imot: `DELETE …/members/{id}`, `POST …/leaders/{id}`
+     * og `candidate_id` i avstemningen (`backend/KONTRAKT.md` §6).
+     */
     val userId: String,
+    /**
+     * Den korte, haandskrivbare ID-en («BF-7Q4K-9F2M»). **Dette er den eneste
+     * bruker-ID-en klienten kjenner om seg selv** — den kommer i
+     * innloggingssvaret og ligger i `Store.accountPublicId` — og derfor den
+     * eneste som kan brukes til aa peke ut hvilket element som er meg.
+     */
+    val publicId: String = "",
     val displayName: String,
     val role: TeamRole = TeamRole.MEMBER,
 ) {
     val isLeader get() = role == TeamRole.LEADER
 
     fun toJson(): JSONObject = JSONObject().apply {
-        put("userId", userId); put("displayName", displayName)
-        put("role", role.name)
+        put("userId", userId); put("publicId", publicId)
+        put("displayName", displayName); put("role", role.name)
     }
     companion object {
         fun fromJson(o: JSONObject) = TeamMember(
             userId = o.optString("userId", ""),
+            publicId = o.optString("publicId", ""),
             displayName = o.optString("displayName", ""),
             role = if (o.optString("role") == "LEADER") TeamRole.LEADER else TeamRole.MEMBER,
         )
-        /** Fra serverens form: `{user_id, display_name, role}`. */
+        /** Fra serverens form: `{user_id, public_id, display_name, role}`. */
         fun fraServer(o: JSONObject) = TeamMember(
             userId = o.optString("user_id", ""),
+            publicId = o.optString("public_id", ""),
             displayName = o.optString("display_name", ""),
             role = TeamRole.of(o.optString("role")),
         )
@@ -459,20 +473,31 @@ data class Team(
     val hasLeader: Boolean = true,   // false -> «Velg leder» (musingsUI runde 6)
     /** `null` = IKKE HENTET. Tom liste = serveren sier laget har ingen. */
     val members: List<TeamMember>? = null,
+    /**
+     * Hva JEG er i dette laget (`my_role`). `null` = ikke medlem, eller ikke
+     * hentet fra serveren ennaa.
+     *
+     * **Ligger ogsaa paa listesvaret**, der [members] ikke er med — saa
+     * ledergatingen trenger ikke detaljkallet. Bruk denne, ikke `leaders[]`:
+     * den lista er interne `user_id`-er og er ikke ment for gjenkjenning
+     * (`backend/KONTRAKT.md` §6).
+     */
+    val myRole: TeamRole? = null,
     val electionOpen: Boolean = false,
 ) {
-    /** Er jeg lagleder? Krever hentet medlemsliste; `null` naar det er ukjent. */
-    fun amLeader(myUserId: String?): Boolean? {
-        val m = members ?: return null
-        if (myUserId.isNullOrEmpty()) return null
-        return m.any { it.userId == myUserId && it.isLeader }
-    }
+    /** Er jeg lagleder? `null` naar det er ukjent — da skal ingen leder-UI vises. */
+    val amLeader: Boolean? get() = myRole?.let { it == TeamRole.LEADER }
+
+    /** Er dette medlemmet meg? Sammenlignes paa `public_id`, aldri paa navn. */
+    fun erMeg(m: TeamMember, minPublicId: String): Boolean =
+        minPublicId.isNotEmpty() && m.publicId == minPublicId
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("name", name); put("kind", kind)
         put("memberCount", memberCount)
         put("sortOrder", sortOrder); put("hasLeader", hasLeader)
         put("electionOpen", electionOpen)
+        myRole?.let { put("myRole", it.name) }
         // Utelates helt naar den er null, saa «ikke hentet» overlever en
         // tur gjennom bufferet og ikke blir til en tom liste.
         members?.let { list ->
@@ -491,6 +516,9 @@ data class Team(
             sortOrder = o.optInt("sortOrder", 0),
             hasLeader = o.optBoolean("hasLeader", true),
             electionOpen = o.optBoolean("electionOpen", false),
+            myRole = if (o.has("myRole"))
+                (if (o.optString("myRole") == "LEADER") TeamRole.LEADER else TeamRole.MEMBER)
+                else null,
             members = o.optJSONArray("members")?.let { arr ->
                 (0 until arr.length()).mapNotNull {
                     arr.optJSONObject(it)?.let(TeamMember::fromJson)
@@ -509,6 +537,9 @@ data class Team(
             memberCount = o.optInt("member_count", 1),
             hasLeader = o.optBoolean("has_leader", true),
             electionOpen = o.optBoolean("election_open", false),
+            // JSON-null betyr «ikke medlem» og er et normalt svar i /near-lista.
+            // isNull() foerst: org.json gir ellers strengen "null" fra optString.
+            myRole = if (o.isNull("my_role")) null else TeamRole.of(o.optString("my_role")),
             members = o.optJSONArray("members")?.let { arr ->
                 (0 until arr.length()).mapNotNull {
                     arr.optJSONObject(it)?.let(TeamMember::fraServer)

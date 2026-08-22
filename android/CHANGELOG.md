@@ -34,6 +34,72 @@ nåtilstanden.
 
 ---
 
+## v0.33 — medlemsliste, «(Du)» og ledergating (steg 1 ferdig)
+
+Andre halvdel av steg 1. Ble mulig da backend lukket **issue #14** i `f2a7ee2`.
+
+### Gjenkjenning på `public_id`, aldri på navn
+
+Backend la til to felt, og de svarer på hver sin halvdel:
+
+| Felt | Svarer på |
+|---|---|
+| `my_role` | hva *jeg* er — `leader`, `member` eller `null` |
+| `members[].public_id` | hvilket *element* som er meg |
+
+`public_id` er den eneste bruker-ID-en klienten kjenner om seg selv; den kommer i
+innloggingssvaret og ligger i `Store.accountPublicId`.
+
+**«(Du)» matches derfor på `public_id`.** Alternativet — å matche visningsnavn —
+ville virket i de fleste lag og feilet stille i akkurat de der to heter det
+samme, med feil person merket «(Du)». Det er ikke en feil noen ville sett.
+
+`members[].user_id` er fortsatt den interne UUID-en, og brukes ikke til
+gjenkjenning: den er formen `DELETE …/members/{id}` og `POST …/leaders/{id}`
+tar imot. Begge står side om side til hele flaten går over på `public_id` i steg
+4 (`backend/KONTRAKT.md` §6). `Member.userId` bæres derfor med, klar til steg 2.
+
+### Ledergatingen var feil, ikke bare umulig
+
+Fram til nå leste den `has_leader` — altså **«laget har en leder»** behandlet som
+**«jeg er lederen»**. Alle i et lag med leder fikk redigeringsmenyen: endre navn,
+fjern medlem, overfør lederskap. Nå leser den `my_role`.
+
+`leaders[]` brukes bevisst ikke; den er interne `user_id`-er og er ikke ment for
+gjenkjenning.
+
+**Er rollen ukjent, vises ingen av knappene.** Ikke «Rediger lag», ikke «Velg
+leder». Vi vet ikke hva brukeren har lov til, og å gjette gir enten en meny som
+ikke virker eller en knapp som mangler.
+
+### Medlemslista skiller tre tilstander
+
+`members(t)` returnerer **`null` når lista ikke er hentet**, ikke en tom liste.
+Visningen skiller «henter …», «kunne ikke hentes» (med «Prøv igjen») og «laget
+har ingen andre medlemmer ennå». Karusellen og «Velg leder» åpner ikke i det
+hele tatt uten hentet liste — det finnes ingen medlemmer å bla i.
+
+Som i `LagActivity`: bare et vellykket svar får erstatte laget, så en feilet
+henting kan ikke gjøre et lag med medlemmer om til et uten.
+
+### Kjent regresjon, og hvorfor den er akseptert
+
+Karusellens venne-detaljer (hjemkommune, telefon, øvelsesskudd) vises ikke
+lenger. Oppslaget er `store.friends().filter { t.id in it.teamIds }`, og
+`t.id` er nå en server-ID mens `Friend.teamIds` er lokale — de kan ikke matche.
+
+Det er riktig tilstand og ikke et tap: lokale lag migreres ikke, så det finnes
+ingen ekte venner knyttet til et serverlag. Venner blir serverbaserte i steg 4
+(ÅP-U31), og ÅP-U32 beskriver hva medlemsprofilen da skal vise.
+
+### Ikke sluttestet
+
+Alt som krever to konti: at et lag med flere medlemmer tegnes riktig, at
+«(Du)» treffer riktig person, og at et vanlig medlem ikke får
+redigeringsmenyen. Med én konto kan bare lagleder-tilfellet ses.
+
+---
+
 ## v0.32 — lagene er serverens (steg 1 av 4)
 
 Første halvdel av å koble lag- og venneflaten til backend. **Delt opp for å

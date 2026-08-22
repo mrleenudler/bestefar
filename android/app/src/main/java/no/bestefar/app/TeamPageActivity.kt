@@ -27,12 +27,21 @@ class TeamPageActivity : AppCompatActivity() {
     private lateinit var root: FrameLayout
     private lateinit var content: LinearLayout
 
-    /** Ett medlem i lista/karusellen. */
-    private data class Member(val name: String, val isSelf: Boolean, val isLeader: Boolean)
+    /** Siste utfall fra `GET /v1/teams/{id}`. `null` = ikke forsoekt ennaa. */
+    private var utfall: Teams.Utfall<Team>? = null
+    private var henter = false
+
+    /** Ett medlem i lista/karusellen, utledet av serverens `members[]`. */
+    private data class Member(
+        val name: String, val isSelf: Boolean, val isLeader: Boolean,
+        /** Intern UUID — det ruteparametrene tar imot. Tom for ukjent. */
+        val userId: String = "",
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
+        // Bufret utgave gir navnet med det samme; medlemmene kommer fra kallet.
         team = store.teams().firstOrNull { it.id == intent.getStringExtra(EXTRA_TEAM_ID) }
         root = FrameLayout(this)
         Ui.applyInsets(root)
@@ -41,22 +50,63 @@ class TeamPageActivity : AppCompatActivity() {
         rebuild()
     }
 
+    override fun onResume() { super.onResume(); refresh() }
+
+    private fun refresh() {
+        val id = intent.getStringExtra(EXTRA_TEAM_ID) ?: return
+        if (henter) return
+        henter = true
+        Teams.details(this, id) { u ->
+            henter = false
+            utfall = u
+            // Bare et vellykket svar faar erstatte laget. En feilet henting skal
+            // ikke kunne gjoere et lag med medlemmer om til et uten.
+            if (u is Teams.Utfall.Ok) {
+                val sort = team?.sortOrder ?: 0
+                team = u.verdi.also { it.sortOrder = sort }
+            }
+            rebuild()
+        }
+    }
+
     private fun selfName() = store.nickname.ifBlank { getString(R.string.me_label) }
 
     /**
-     * Medlemmer i visningsrekkefølge: lagleder(e) øverst merket «(Lagleder)»,
-     * ellers alfabetisk (musingsUI runde 7). I skjelettet er egen bruker leder
-     * når laget har leder.
+     * Medlemmer i visningsrekkefoelge: lagleder(e) oeverst merket «(Lagleder)»,
+     * ellers alfabetisk (musingsUI runde 7).
+     *
+     * **Returnerer `null` naar medlemslista ikke er hentet** — ikke en tom
+     * liste. Et lag uten medlemmer og et lag vi ikke fikk svar om skal aldri
+     * tegnes likt (`Team.members`).
+     *
+     * «Meg» kjennes igjen paa `public_id`, som er den eneste bruker-ID-en
+     * klienten kjenner om seg selv. **Aldri paa visningsnavn** — det feiler
+     * stille i akkurat de lagene der to personer heter det samme, og utfallet
+     * ville vaert at feil person ble merket «(Du)».
      */
-    private fun members(t: Team): List<Member> {
-        val self = Member(selfName(), isSelf = true, isLeader = t.hasLeader)
-        val friends = store.friends().filter { t.id in it.teamIds }
-            .map { Member(it.shownName, isSelf = false, isLeader = false) }
-        return if (t.hasLeader) {
-            listOf(self) + friends.sortedBy { it.name.lowercase() }
-        } else {
-            (listOf(self) + friends).sortedBy { it.name.lowercase() }
-        }
+    private fun members(t: Team): List<Member>? {
+        val fraServer = t.members ?: return null
+        val minId = store.accountPublicId
+        return fraServer
+            .map { m ->
+                Member(
+                    name = if (t.erMeg(m, minId)) selfName() else m.displayName,
+                    isSelf = t.erMeg(m, minId),
+                    isLeader = m.isLeader,
+                    userId = m.userId,
+                )
+            }
+            .sortedWith(compareByDescending<Member> { it.isLeader }
+                .thenBy { it.name.lowercase() })
+    }
+
+    private fun addMemberButton(m: Member, i: Int) {
+        content.addView(MaterialButton(this, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = display(m)
+            layoutParams = Ui.matchWrap(2, this@TeamPageActivity)
+            setOnClickListener { memberCarousel(i) }
+        })
     }
 
     private fun display(m: Member): String {
@@ -79,13 +129,27 @@ class TeamPageActivity : AppCompatActivity() {
         })
 
         val mem = members(t)
-        mem.forEachIndexed { i, m ->
-            content.addView(MaterialButton(this, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = display(m)
-                layoutParams = Ui.matchWrap(2, this@TeamPageActivity)
-                setOnClickListener { memberCarousel(i) }
-            })
+        if (mem == null) {
+            // Ikke hentet. Si det - ikke tegn en tom liste.
+            val u = utfall
+            content.addView(Ui.hint(this, when {
+                henter || u == null -> getString(R.string.team_loading)
+                u is Teams.Utfall.IkkeInnlogget -> getString(R.string.team_needs_account)
+                else -> getString(R.string.team_members_unknown)
+            }))
+            if (!henter && u is Teams.Utfall.Feil) {
+                content.addView(MaterialButton(this, null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = getString(R.string.team_retry)
+                    layoutParams = Ui.matchWrap(8, this@TeamPageActivity)
+                    setOnClickListener { refresh() }
+                })
+            }
+        } else {
+            mem.forEachIndexed { i, m -> addMemberButton(m, i) }
+            // Serveren svarte, og laget har bare meg.
+            if (mem.none { !it.isSelf })
+                content.addView(Ui.hint(this, getString(R.string.team_members_none)))
         }
         // Plass til den faste knapperaden nederst
         content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
@@ -93,12 +157,26 @@ class TeamPageActivity : AppCompatActivity() {
         root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
 
-        // Nederst venstre: Rediger lag (leder / eneste medlem) eller Velg leder
-        val leftLabel = if (t.hasLeader) R.string.team_edit else R.string.team_choose_leader
-        root.addView(MaterialButton(this, null,
+        // Nederst venstre: «Rediger lag» til lagleder, «Velg leder» naar laget
+        // staar uten leder. Gatingen leser `my_role` (Team.amLeader), ikke
+        // `has_leader` - fram til v0.33 behandlet den «laget HAR en leder» som
+        // «jeg ER lederen», og ga dermed redigeringsmenyen til alle i et lag
+        // med leder. `leaders[]` brukes bevisst ikke: den er interne user_id-er
+        // og er ikke ment for gjenkjenning (backend/KONTRAKT.md paragraf 6).
+        //
+        // amLeader er null naar rollen ikke er hentet. Da vises INGEN av delene:
+        // vi vet ikke hva brukeren har lov til, og aa gjette gir enten en meny
+        // som ikke virker eller en knapp som mangler.
+        val erLeder = t.amLeader
+        val leftLabel = when {
+            erLeder == true -> R.string.team_edit
+            erLeder == false && !t.hasLeader -> R.string.team_choose_leader
+            else -> null
+        }
+        if (leftLabel != null) root.addView(MaterialButton(this, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(leftLabel)
-            setOnClickListener { if (t.hasLeader) editTeam(t) else chooseLeader(t) }
+            setOnClickListener { if (erLeder == true) editTeam(t) else chooseLeader(t) }
         }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START).apply {
             bottomMargin = Ui.dp(this@TeamPageActivity, 16)
@@ -123,7 +201,8 @@ class TeamPageActivity : AppCompatActivity() {
      */
     private fun memberCarousel(index: Int) {
         val t = team ?: return
-        val mem = members(t)
+        // Uten hentet medlemsliste finnes det ingen karusell aa aapne.
+        val mem = members(t) ?: return
         if (mem.isEmpty()) return
         val i = ((index % mem.size) + mem.size) % mem.size
         val m = mem[i]
@@ -297,7 +376,11 @@ class TeamPageActivity : AppCompatActivity() {
 
     /** Velg ny leder: klikk et medlem, bekreft (musingsUI runde 6-skjelett). */
     private fun chooseLeader(t: Team) {
-        val names = members(t).map { display(it) }.toTypedArray()
+        // Uten medlemsliste finnes det ingen kandidater aa stemme paa.
+        val kandidater = members(t) ?: run {
+            Ui.toast(this, R.string.team_members_unknown); return
+        }
+        val names = kandidater.map { display(it) }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.team_choose_leader)
             // Nedtellingstimer (7 dager) + push-avstemning krever backend (§11)
