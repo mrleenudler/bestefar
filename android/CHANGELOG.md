@@ -62,13 +62,36 @@ måtte måles. Minste kvadrat på de fem treffene fra
 | y oppover (matematisk) | 70,5 px | 58,4 |
 
 Kalibrert `delta_px` var 94,0, så bare den første stemmer. `theta` er
-`atan2(y_px − cy, x_px − cx)` i samme koordinatsystem som `x_px, y_px`, som
-headeren kaller «i inputbildets koordinater» — nøyaktig hva `scoring.cpp:13`
-regner ut.
+`atan2(y − cy, x − cx)` med y nedover — nøyaktig hva `scoring.cpp:13` regner ut.
 
 **Dataene var altså riktige hele tiden. Feilen lå bare i opptegningen**, og er
 rettet der: begge aksene er nå rene plusstegn, siden skjermens y også peker
 nedover. Ingen kjerneendring, ingen kompensasjon.
+
+#### Presisering etter at kjernen svarte (issue #12, lukket 2026-08-22)
+
+Teksten over sa opprinnelig at `theta` er «i samme koordinatsystem som
+`x_px, y_px`». Det er **for sterkt**. Riktig er *samme aksekonvensjon, ikke
+nødvendigvis samme ramme*:
+
+- `theta` og `r_rel` regnes i **analyserammen**, før kjernens interne skjerm-
+  og perspektivretting.
+- `x_px/y_px` transformeres **tilbake** gjennom den inverse av den rettingen.
+- Rammene faller sammen når ingen retting ble utført, og divergerer generelt
+  når telefonen var skjeviholdt.
+
+Kjernen advarer derfor eksplisitt mot å **rekonstruere `x_px/y_px` fra
+(senter, `r_rel`, `theta`)** — de to er uavhengige avlesninger av samme treff,
+ikke et polar/kartesisk-par i samme ramme.
+
+**Det svekker målingen over som bevis, og det bør stå.** RMS på 1,2 px
+forutsetter at de to rammene faller sammen, og det gjorde de nettopp fordi
+`Testsett/`-bildene er rektifiserte. Metoden generaliserer altså ikke til et
+skjeviholdt bilde. Fortegnsfunnet står — kjernen bekreftet det uavhengig — men
+det som er verifisert er *konvensjonen*, ikke at rammene er én og samme.
+
+Rettingen i `TargetView` er upåvirket: den bruker bare `r_rel`/`theta`, i sitt
+eget skiverom, og blander dem aldri med `x_px/y_px`.
 
 `Stats.kt` bruker også `cos/sin(theta)`, men er sjekket og upåvirket:
 `biasAndSpread` bruker bare vektorens lengde, og `biasVector` konsumeres kun av
