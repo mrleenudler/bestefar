@@ -442,7 +442,13 @@
     <string name="team_deleted">Lag slettet</string>
     <string name="team_leave">Forlat laget</string>
     <string name="team_dissolve">Oppløs laget for alle</string>
-    <string name="team_transfer">Overfør lederskap og forlat</string>
+    <!-- §11: lederskapet overføres, den gamle lederen blir VÆRENDE som vanlig
+         medlem, og byttet skjer først når den valgte bekrefter. Het «Overfør
+         lederskap og forlat» til v0.31; det lovet en utmelding som verken
+         skjedde eller skulle skje. -->
+    <string name="team_transfer">Overfør lederskap</string>
+    <string name="team_transfer_none">Laget har ingen andre medlemmer å overføre lederskapet til.</string>
+    <string name="team_transfer_offline">Overføring av lederskap er ikke koblet til serveren ennå. Ingenting er endret.</string>
     <string name="team_no_members">Ingen medlemmer å vise ennå.</string>
 
     <!-- Avanserte innstillinger / utvikler -->

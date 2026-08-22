@@ -51,14 +51,13 @@ Krever: målesesjon med faktisk telefon mot faktisk skive. Feltrunden i
 `til_utvikler_v012.md:63` er nærmeste vi har, og satte bevisst permissive verdier.
 
 **Feltobservasjon 2026-08-21 — falsk positiv:** auto-capture utløste på et
-**vitrineskap**. En flat, lys, rektangulær flate holdt altså til å passere
-kriteriene. Observert av eier under en annen test (frikoblingen, ÅP-B13), ikke
+**vitrineskap**. Observert av eier under en annen test (frikoblingen, ÅP-B13), ikke
 under en kalibreringsrunde — så den er et enkelttilfelle uten måletall ved
 siden av seg, og den sier ikke *hvilket* av kriteriene som slapp den gjennom.
 
 Det er første registrerte tegn på at de bevisst permissive verdiene har en
 kostnad, og det er en kostnad som treffer brukeren: en utløsning uten skive
-koster et bilde, en analyse og et avvisningsvarsel. Notert her fordi det er her
+koster irritasjon og tillit. Notert her fordi det er her
 tersklene diskuteres; materialet hører også hjemme i ÅP-U14. **Eies av kjernen
 — backend har bare ført observasjonen inn.**
 
@@ -84,11 +83,29 @@ løsning.** Utløser ikke gatingen innen 8 sekunder, tar `CaptureActivity`
 gjeldende ramme og analyserer den likevel (`android/CHANGELOG.md` v0.29).
 Hensikten er å skaffe punktet denne saken mangler: fram til nå ga en falsk
 negativ *ingen* observasjon, og var derfor ikke til å skille fra «kjernen kjørte
-og feilet». En analyse som **lykkes** etter timeout er et direkte bevis på at
-tersklene var for strenge for akkurat det motivet, med bilde ved siden av seg.
+og feilet». En analyse som **lykkes** etter timeout ville vært et direkte bevis
+på at tersklene var for strenge for akkurat det motivet, med bilde ved siden av
+seg.
+
+**Men det er ikke observert, og hensikten er derfor ikke innfridd (2026-08-22).**
+Tidsgrensen er verifisert som *mekanisme* — den utløser, tar bildet og kjører
+analysen. Den utløste bare i tilfeller der **ingen skive var vist**. Hvert
+forsøk med et faktisk skivemotiv endte i ordinær auto-capture før de 8 sekundene
+var gått, så tidsgrensen har aldri sluppet gjennom et skivebilde gatingen
+avviste. Det ene den ble bygget for å fange, er altså fortsatt ufanget.
+
+En tidligere versjon av dette punktet antydet at timeout-bildet hadde scoret en
+reell skive. **Det er feil, og strykes her framfor å bli stående som en
+observasjon andre kan bygge på.**
+
+Merk hva det gjør med bevisverdien: en timeout som utløser på en vegg eller et
+tilfeldig motiv sier ingenting om tersklene — den sier bare at det ikke var noen
+skive der. Materialet som er verdt noe, er en timeout **med** skive i bildet, og
+det finnes ikke ennå. Den falske negativen fra 2026-08-21 (skjermbildet av en
+skive) lot seg ikke gjenskape.
 
 To ting den ikke gjør: den rører ikke tersklene, og den hjelper ikke mot falske
-positive — et vitrineskap utløser fortsatt gatingen innen 8 sekunder.
+positive — et tilfeldig motiv utløser fortsatt gatingen innen 8 sekunder.
 
 **Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 8
 sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon. (7 s var
@@ -929,6 +946,37 @@ beslutningen ligger *mellom* lesing og skriving.
 før)».
 
 Se ÅP-U22 for deponeringsdialogen, som hører til samme flate.
+
+### ÅP-U29 — Lagene finnes bare lokalt, så ingen lag-rute kan kalles · label `ui`
+
+**Dette blokkerer hele lag- og venneflaten, og ble oppdaget da punkt 4
+(«Overfør laget») skulle kobles 2026-08-22.**
+
+Backend har 22 ruter under `/v1/teams/*` og `/v1/friends/*`. Klienten kaller
+**ingen** av dem — verifisert ved å liste hvert `Api.*`-kall i klienten:
+19 kall totalt, og det eneste i denne familien er `/v1/messages`.
+
+Årsaken er ikke at kallene mangler, men at **identitetene mangler**:
+
+- `Team.id` er en lokal UUID fra `Store.newId()`. Klienten har aldri kalt
+  `POST /v1/teams`, så laget finnes ikke på serveren og ID-en betyr ingenting
+  der.
+- `Team` har `memberCount: Int` — et *tall*, ikke en medlemsliste. Det finnes
+  ingen medlems-ID-er å sende som `{member_id}`.
+- «Medlemmer» utledes lokalt av `store.friends().filter { t.id in it.teamIds }`,
+  og `Friend.id` er også lokal.
+- Ingen rolle lagres per medlem; `Team.hasLeader: Boolean` er alt.
+
+**Konsekvensen for rekkefølgen:** ruter som tar `{team_id}` eller `{member_id}`
+— overføring, fjern medlem, invitasjon, avstemning, inaktiv-leder — kan ikke
+kobles før laget er opprettet på serveren og medlemslisten hentes derfra.
+`POST /v1/teams` og `GET /v1/teams/{id}` er altså ikke ett punkt blant flere;
+de er forutsetningen for resten.
+
+Åpent: om lokale lag skal migreres opp ved første innlogging, eller om de skal
+regnes som noe annet enn serverlag. Det er en eierbeslutning — en stille
+opprettelse av alle lokale lag på serveren ved innlogging er ikke åpenbart
+riktig, og en bruker som har laget «Test» tre ganger vil ikke ha tre lag.
 
 ### ÅP-E12 — Skal appen be om innlogging når sesong 2 starter? · krever eier
 

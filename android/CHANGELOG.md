@@ -34,6 +34,56 @@ nåtilstanden.
 
 ---
 
+## v0.31 — «Overfør laget» sluttet å slette laget
+
+Første del av å koble lag- og venneflaten til backend. Delt opp med vilje;
+dette er den ene delen som **fjernet et datatap**, og den står derfor alene.
+
+### Hva som var galt
+
+«Overfør lederskap» slettet laget lokalt og viste en kvittering. Ingen
+overføring skjedde noe sted — brukeren mistet laget sitt og fikk beskjed om at
+det ventet på backend. Det var galt på to måter mot `backend_spec.md` §11:
+
+- **Ingenting skal slettes.** Lederskapet flyttes, og den gamle lederen blir
+  værende som vanlig medlem.
+- **Knappen skal starte en forespørsel, ikke fullføre et bytte.** «Ingen skal
+  våkne opp som lagleder uten å ha sagt ja» — rollen settes først når den valgte
+  bekrefter.
+
+Det fantes dessuten en andre slettesti: hadde laget *ingen* andre medlemmer,
+slettet den samme funksjonen laget uten å spørre om noe som helst.
+
+### Hva som er gjort
+
+`chooseLeaderThenLeave` → `offerLeadership`. Sletter ingenting, avslutter ikke
+skjermen, og sier rett ut at ingenting er endret. Tomt lag gir nå en forklaring
+i stedet for en sletting.
+
+Strengen `team_transfer` het «Overfør lederskap **og forlat**» og kodet dermed
+den feilen den selv beskrev; den heter nå «Overfør lederskap».
+
+Menyvalget «Overfør lederskap» pekte på `chooseLeader`, som er §11-**avstemningen**
+(«Velg leder» når laget står uten leder). To ulike flyter delte funksjon; de er
+skilt nå. `chooseLeader` beholder sin egen inngang.
+
+### Det som fortsatt ikke er koblet, og hvorfor
+
+Kallet til `POST /v1/teams/{id}/leaders/{member_id}` er **ikke** lagt inn, og
+kunne ikke legges inn: `Team.id` er en lokal UUID, klienten har aldri kalt
+`POST /v1/teams`, og `Team` har `memberCount: Int` i stedet for en medlemsliste
+— det finnes ingen `member_id` å sende.
+
+**Det gjelder hele familien.** Backend har 22 ruter under `/v1/teams/*` og
+`/v1/friends/*`; klienten kaller ingen av dem. Ført som **ÅP-U29**, som også
+sier hva som må komme først: laget må opprettes på serveren og medlemslisten
+hentes derfra før noen rute med `{team_id}` eller `{member_id}` kan brukes.
+
+Knappen er altså fortsatt uten ledning — men den lyver ikke lenger, og den
+ødelegger ikke noe.
+
+---
+
 ## v0.30 — to rettelser fra enhet
 
 Begge er tilbakemeldinger fra kjøring på telefon etter at v0.29 var sendt ut.

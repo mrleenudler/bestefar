@@ -196,7 +196,11 @@ class TeamPageActivity : AppCompatActivity() {
                 when (which) {
                     0 -> renameTeam(t)
                     1 -> Ui.toast(this, R.string.team_backend_wait)   // varsler = backend
-                    2 -> chooseLeader(t)
+                    // Menyvalget heter «Overfoer lederskap» og skal derfor til
+                    // overfoeringen, ikke til avstemningen. chooseLeader er
+                    // «Velg leder» naar laget STAAR uten leder (linje 101) -
+                    // to ulike §11-flyter som delte funksjon fram til v0.31.
+                    2 -> offerLeadership(t)
                     3 -> deleteOrLeaveTeam(t)
                 }
             }
@@ -241,7 +245,9 @@ class TeamPageActivity : AppCompatActivity() {
                     getString(R.string.team_transfer))) { _, which ->
                     when (which) {
                         0 -> { removeTeamLocally(t); Ui.toast(this, R.string.team_deleted); finish() }
-                        1 -> chooseLeaderThenLeave(t)
+                        // Overfoering er IKKE en utmelding, og avslutter derfor
+                        // ikke skjermen. Se offerLeadership.
+                        1 -> offerLeadership(t)
                     }
                 }
                 .setNegativeButton(R.string.cancel, null)
@@ -258,16 +264,32 @@ class TeamPageActivity : AppCompatActivity() {
     private fun removeTeamLocally(t: Team) =
         store.saveTeams(store.teams().filter { it.id != t.id })
 
-    private fun chooseLeaderThenLeave(t: Team) {
-        // Overfør lederskap: velg medlem, deretter forlat (backend håndterer varsel)
+    /**
+     * Overfoer lederskap (`backend_spec.md` §11).
+     *
+     * **SLETTER INGENTING.** Semantikken er at lederskapet flyttes mens den
+     * gamle lederen blir VAERENDE som vanlig medlem, og at byttet skjer foerst
+     * naar den valgte BEKREFTER — «ingen skal vaakne opp som lagleder uten aa
+     * ha sagt ja». Knappen starter altsaa en foresporsel; den fullfoerer ikke
+     * en overfoering.
+     *
+     * Fram til v0.31 gjorde denne to ting den ikke skulle: den slettet laget
+     * lokalt (ogsaa naar det ikke fantes andre medlemmer i det hele tatt) og
+     * viste en kvittering. Brukeren mistet laget sitt uten at noen overfoering
+     * skjedde noe sted.
+     *
+     * Kallet til `POST /v1/teams/{id}/leaders/{member_id}` er IKKE koblet til
+     * enda, og kan ikke kobles foer laget finnes paa serveren: `Team.id` er en
+     * lokal UUID fra `Store.newId()`, og klienten har aldri kalt
+     * `POST /v1/teams`. Se `AAPNE_PUNKTER.md` AAP-U29.
+     */
+    private fun offerLeadership(t: Team) {
         val friends = store.friends().filter { t.id in it.teamIds }
-        if (friends.isEmpty()) { removeTeamLocally(t); finish(); return }
+        if (friends.isEmpty()) { Ui.toast(this, R.string.team_transfer_none); return }
         AlertDialog.Builder(this)
             .setTitle(R.string.team_transfer)
             .setItems(friends.map { it.shownName }.toTypedArray()) { _, _ ->
-                removeTeamLocally(t)
-                Ui.toast(this, R.string.team_backend_wait)
-                finish()
+                Ui.toast(this, R.string.team_transfer_offline)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
