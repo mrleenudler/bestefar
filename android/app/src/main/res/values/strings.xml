@@ -438,6 +438,24 @@
     <string name="team_edit">Rediger lag</string>
     <string name="team_mine">Mine lag</string>
     <string name="team_none">Ingen lag ennå.</string>
+    <!-- Lagtype (backend krever `kind` ved oppretting) -->
+    <string name="team_kind_title">Hva slags lag?</string>
+    <string name="team_kind_jakt">Jaktlag</string>
+    <string name="team_kind_skytter">Skytterlag</string>
+    <!-- Henting av lag: «tomt» og «fikk ikke svar» må aldri se like ut -->
+    <string name="team_needs_account">Lag krever konto. Logg inn for å se og opprette lag.</string>
+    <string name="team_load_failed_cached">Fikk ikke kontakt med serveren. Viser lagene slik de var sist.</string>
+    <string name="team_load_failed_empty">Fikk ikke kontakt med serveren, så vi vet ikke hvilke lag du er med i.</string>
+    <string name="team_load_rejected">Serveren avviste forespørselen (%1$d). Lagene kan ikke vises nå.</string>
+    <string name="team_retry">Prøv igjen</string>
+    <string name="team_loading">Henter lag …</string>
+    <string name="team_created">Laget «%1$s» er opprettet.</string>
+    <string name="team_create_failed">Laget ble ikke opprettet. Prøv igjen når du har nett.</string>
+    <string name="team_create_rejected">Laget ble ikke opprettet (%1$d).</string>
+    <string name="team_ask_leader_todo">Å be en leder opprette laget krever invitasjoner, som ikke er koblet ennå. Ingenting er sendt.</string>
+    <!-- Medlemsliste: ikke hentet er ikke det samme som ingen medlemmer -->
+    <string name="team_members_unknown">Medlemslista kunne ikke hentes.</string>
+    <string name="team_members_none">Laget har ingen andre medlemmer ennå.</string>
     <string name="team_backend_wait">Venter på backend-implementering.</string>
     <string name="team_deleted">Lag slettet</string>
     <string name="team_leave">Forlat laget</string>

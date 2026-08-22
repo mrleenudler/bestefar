@@ -38,8 +38,8 @@ android {
         applicationId = "no.bestefar.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 31
-        versionName = "0.31"
+        versionCode = 32
+        versionName = "0.32"
 
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 

@@ -978,6 +978,104 @@ regnes som noe annet enn serverlag. Det er en eierbeslutning — en stille
 opprettelse av alle lokale lag på serveren ved innlogging er ikke åpenbart
 riktig, og en bruker som har laget «Test» tre ganger vil ikke ha tre lag.
 
+### ÅP-U30 — Delingsmodellen: hvem ser hva · label `ui` + `backend`
+
+**Eierbeslutning 2026-08-22. Besluttet, ikke bygget — hører til steg (4).**
+
+- **Venner ser resultater.**
+- **Lagmedlemmer ser navn og medlemskap, ikke resultater.**
+- **Ingen bryter og ingen nivåer.** Vil du dele med noen i laget, blir dere
+  venner. Det er hele mekanismen.
+- **Lagleder ser ikke mer enn andre medlemmer.** §11 gir *administrative*
+  fullmakter — invitere, endre navn, fjerne medlem, overføre lederskap — og
+  ikke innsyn.
+
+**Ett unntak, og det følger av inaktiv-leder-utfordringen:** laget kan se om
+lederen er inaktiv, som **ja/nei**. Ikke når hen sist var pålogget, ikke noe
+tall — bare den ene boolske opplysningen utfordringen trenger for å kunne
+avvises («Lagleder er ikke inaktiv. Ta kontakt.»).
+
+**Dette skal inn i personvernerklæringen.** `personvernerklaring.txt` er ikke
+UI-eid, så den er ikke rørt herfra; punktet er at et lagmedlems
+aktivitetsstatus blir synlig for laget, og at det er en ny opplysningstype å
+beskrive.
+
+Merk hva beslutningen rydder bort: den fjerner behovet for delingsnivåer per
+lag, per venn eller per felt. Det er også grunnen til at den er verdt å skrive
+ned — «ingen bryter» er et valg, og uten begrunnelsen ved siden av vil noen før
+eller siden foreslå en bryter igjen.
+
+### ÅP-U31 — Venner er serverbaserte og unike per `public_id` · label `ui` + `backend`
+
+**Eierbeslutning 2026-08-22. Hører til steg (4).**
+
+- Vennskap ligger på **serveren**, ikke lokalt, og er **unikt per `public_id`**.
+- **Vennskap og lagmedlemskap er uavhengige relasjoner.** Man kan være det ene
+  uten det andre, i begge retninger.
+- **E-postadresser deles ALDRI automatisk** — verken med lag eller med venner.
+
+Konsekvens for dagens kode, som må ryddes i steg (4): `Friend` er i dag en rent
+lokal post med lokal `id`, og `VennerActivity` grupperer venner etter
+`Friend.teamIds`. Begge deler forutsetter at vennskap og medlemskap er samme
+sak, som beslutningen sier at de ikke er. `DevTools` fabrikkerer også venner
+direkte inn i et lokalt lag.
+
+Se ÅP-U29: så lenge medlemslista kommer fra serveren og vennelista er lokal, er
+det to ulike mengder som ikke kan sammenlignes. De kan ikke slås sammen før
+venner faktisk er serverbaserte.
+
+### ÅP-U32 — Medlemsprofil i lagvisningen · label `ui`
+
+**Eierbeslutning 2026-08-22. Hører til steg (4).**
+
+Klikk på et lagmedlem **som ikke er venn** åpner en profil med:
+
+- visningsnavn
+- bruker-ID
+- mulighet til å sette et **lokalt kallenavn** (se ÅP-U33)
+- en **«Legg til som venn»**-knapp
+
+Medlemmer som **allerede er venner** vises i lagvisningen med **antall
+øvelsesskudd** ved siden av navnet — som er delingsmodellen i ÅP-U30 gjort
+synlig: resultater følger vennskapet, ikke medlemskapet.
+
+Avhenger av ÅP-U29 (medlemslista må komme fra serveren) og av **issue #14** —
+uten å vite hvem *jeg* er i `members[]` kan visningen ikke skille «meg» fra «et
+medlem jeg kan legge til som venn», og ville tilbudt brukeren å bli venn med seg
+selv.
+
+### ÅP-U33 — Identitet og gjenkjennelse ved navnebytte · label `ui`
+
+**Eierbeslutning 2026-08-22, delvis. Hører til steg (4).**
+
+- **Lokalt kallenavn per person**, lagret på egen enhet, **deles med ingen**.
+  Dette er **hovedløsningen** på at folk skal kjenne igjen hverandre når
+  visningsnavn endres.
+
+Feltet finnes allerede i klienten som `Friend.nickAlias`, men bare for venner og
+bare lokalt i dagens lokale vennemodell. I steg (4) må det gjelde enhver person
+man møter i appen — også et lagmedlem som ikke er venn (ÅP-U32).
+
+- **`public_id` vises diskret i medlemslista som fasit** — under visningsnavnet.
+  Formålet er at to personer med samme navn kan skilles, og at en navneendring
+  ikke skjuler hvem det er.
+
+Rollefordelingen mellom de to: **kallenavnet er hovedløsningen**, `public_id` er
+**oppslagsverket når kallenavnet ikke er satt**. Den skal derfor være lesbar,
+ikke fremtredende.
+
+**Konsekvensen er vurdert og akseptert, ikke oversett:** `public_id` er også det
+man oppgir for å legge til en venn. Å vise den i medlemslista betyr at **alle i
+laget kan sende meg en venneforespørsel**. Det er greit — vi er i samme lag — men
+det er et valg, og det skal stå som et valg. Den som senere vurderer å vise
+`public_id` et sted *utenfor* laget, må ta stilling til det samme på nytt, og
+der er svaret ikke gitt.
+
+Merk sammenhengen med ÅP-U30: laget ser navn og medlemskap, ikke resultater. En
+venneforespørsel fra et lagmedlem er derfor veien fra det ene til det andre, og
+`public_id` i medlemslista er det som gjør den veien farbar uten at noen må
+utveksle noe utenfor appen.
+
 ### ÅP-E12 — Skal appen be om innlogging når sesong 2 starter? · krever eier
 
 UI-speccen slår fast: «En jeger som bare vil scanne skiver skal ikke føle at hen

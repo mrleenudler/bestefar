@@ -392,24 +392,128 @@ data class Friend(
     }
 }
 
-/** Jakt-/skytterlag (musingsUI runde 4). FRONT-END-SKJELETT, jf. backend_spec.md. */
+/** Rolle i et lag. Speiler backendens `TeamRole` (`models/base.py`). */
+enum class TeamRole {
+    MEMBER, LEADER;
+    companion object {
+        /** Ukjent verdi leses som MEDLEM: aa gjette paa LEADER ville gitt noen
+         *  laglederknapper de ikke skal ha. */
+        fun of(s: String?) = if (s == "leader") LEADER else MEMBER
+    }
+}
+
+/**
+ * Ett medlem slik SERVEREN ser laget (`GET /v1/teams/{id}` -> `members[]`).
+ *
+ * Merk at dette ikke er en [Friend]: `userId` er serverens bruker-ID, og et
+ * lagmedlem trenger ikke vaere en venn. De to listene overlapper, men er
+ * forskjellige ting og hentes fra hver sin kilde.
+ */
+data class TeamMember(
+    val userId: String,
+    val displayName: String,
+    val role: TeamRole = TeamRole.MEMBER,
+) {
+    val isLeader get() = role == TeamRole.LEADER
+
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("userId", userId); put("displayName", displayName)
+        put("role", role.name)
+    }
+    companion object {
+        fun fromJson(o: JSONObject) = TeamMember(
+            userId = o.optString("userId", ""),
+            displayName = o.optString("displayName", ""),
+            role = if (o.optString("role") == "LEADER") TeamRole.LEADER else TeamRole.MEMBER,
+        )
+        /** Fra serverens form: `{user_id, display_name, role}`. */
+        fun fraServer(o: JSONObject) = TeamMember(
+            userId = o.optString("user_id", ""),
+            displayName = o.optString("display_name", ""),
+            role = TeamRole.of(o.optString("role")),
+        )
+    }
+}
+
+/**
+ * Jakt-/skytterlag. **[id] er serverens lag-ID**, ikke en lokal UUID — laget
+ * opprettes med `POST /v1/teams` (v0.32). Lokale lag fra tidligere versjoner
+ * migreres ikke; eierbeslutning 2026-08-22, se AAP-U29.
+ *
+ * **[members] er `null` naar medlemslista ikke er hentet — ikke naar laget er
+ * tomt.** Det skillet er hele poenget: `GET /v1/teams` gir bare [memberCount],
+ * og medlemmene kommer foerst fra `GET /v1/teams/{id}`. Et mislykket kall skal
+ * aldri kunne se ut som et lag uten medlemmer, saa ingen visning har lov til aa
+ * lese `members.isEmpty()` uten aa ha sjekket `null` foerst.
+ *
+ * [memberCount] og [hasLeader] er ikke rester fra skjelettet — de er felt
+ * serveren faktisk returnerer i listeformen, der medlemslista ikke er med.
+ */
 data class Team(
     val id: String,
     val name: String,
+    val kind: String = KIND_JAKT,
+    /** Fra serveren; gjelder ogsaa naar [members] ikke er hentet. */
     val memberCount: Int = 1,
     var sortOrder: Int = 0,
     val hasLeader: Boolean = true,   // false -> «Velg leder» (musingsUI runde 6)
+    /** `null` = IKKE HENTET. Tom liste = serveren sier laget har ingen. */
+    val members: List<TeamMember>? = null,
+    val electionOpen: Boolean = false,
 ) {
-    fun toJson(): JSONObject = JSONObject().apply {
-        put("id", id); put("name", name); put("memberCount", memberCount)
-        put("sortOrder", sortOrder); put("hasLeader", hasLeader)
+    /** Er jeg lagleder? Krever hentet medlemsliste; `null` naar det er ukjent. */
+    fun amLeader(myUserId: String?): Boolean? {
+        val m = members ?: return null
+        if (myUserId.isNullOrEmpty()) return null
+        return m.any { it.userId == myUserId && it.isLeader }
     }
+
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id); put("name", name); put("kind", kind)
+        put("memberCount", memberCount)
+        put("sortOrder", sortOrder); put("hasLeader", hasLeader)
+        put("electionOpen", electionOpen)
+        // Utelates helt naar den er null, saa «ikke hentet» overlever en
+        // tur gjennom bufferet og ikke blir til en tom liste.
+        members?.let { list ->
+            put("members", JSONArray().apply { list.forEach { put(it.toJson()) } })
+        }
+    }
+
     companion object {
+        const val KIND_JAKT = "jakt"
+        const val KIND_SKYTTER = "skytter"
+
         fun fromJson(o: JSONObject) = Team(
             id = o.getString("id"), name = o.getString("name"),
+            kind = o.optString("kind", KIND_JAKT),
             memberCount = o.optInt("memberCount", 1),
             sortOrder = o.optInt("sortOrder", 0),
             hasLeader = o.optBoolean("hasLeader", true),
+            electionOpen = o.optBoolean("electionOpen", false),
+            members = o.optJSONArray("members")?.let { arr ->
+                (0 until arr.length()).mapNotNull {
+                    arr.optJSONObject(it)?.let(TeamMember::fromJson)
+                }
+            },
+        )
+
+        /**
+         * Fra serverens form. [sortOrder] finnes ikke der — den er brukerens
+         * egen rekkefoelge i venneskjermen og bevares lokalt av kalleren.
+         */
+        fun fraServer(o: JSONObject) = Team(
+            id = o.optString("id", ""),
+            name = o.optString("name", ""),
+            kind = o.optString("kind", KIND_JAKT),
+            memberCount = o.optInt("member_count", 1),
+            hasLeader = o.optBoolean("has_leader", true),
+            electionOpen = o.optBoolean("election_open", false),
+            members = o.optJSONArray("members")?.let { arr ->
+                (0 until arr.length()).mapNotNull {
+                    arr.optJSONObject(it)?.let(TeamMember::fraServer)
+                }
+            },
         )
     }
 }

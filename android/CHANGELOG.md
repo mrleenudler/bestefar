@@ -34,6 +34,74 @@ nåtilstanden.
 
 ---
 
+## v0.32 — lagene er serverens (steg 1 av 4)
+
+Første halvdel av å koble lag- og venneflaten til backend. **Delt opp for å
+kunne verifiseres stegvis**; denne runden dekker oppretting og listing, og er
+den som skal testes mot en ekte server før mer bygges oppå.
+
+### Det fantes ikke noe nettverkslag for lag
+
+Backend har 22 ruter under `/v1/teams/*` og `/v1/friends/*`. Klienten kalte
+ingen av dem (ÅP-U29). Lagene var lokale, med UUID-er serveren aldri hadde sett,
+så ingen rute med `{team_id}` kunne brukes i det hele tatt.
+
+`Teams.kt` er nytt: `list`, `details`, `create`.
+
+### Utfallet er en type, ikke en tom liste
+
+Alt i `Teams` returnerer `Utfall`: `Ok` / `Feil(code, retryable)` /
+`IkkeInnlogget`. Det er **bevisst ulikt** `Messages.fetch`, som svarer med tom
+liste på alt som går galt.
+
+For meldingskøen er det riktig — en kø som ikke lot seg hente er ikke noe
+brukeren skal forstyrres med. **For lag er det feil.** «Laget ditt har ingen
+medlemmer» og «vi fikk ikke kontakt» er to helt ulike beskjeder, og den første
+er skremmende når den er usann. En `emptyList()` kan derfor ikke oppstå ved en
+feil her.
+
+Samme skille i modellen: **`Team.members` er `null` når lista ikke er hentet**,
+ikke tom. `GET /v1/teams` gir bare `member_count`; medlemmene kommer først fra
+detaljruta. `null` utelates fra JSON, så skillet overlever bufferet.
+
+### Fire tilstander som ikke ser like ut
+
+`LagActivity` skiller henter / tom (serveren svarte) / feil / ikke innlogget.
+Ved feil vises **bufret liste med tydelig merknad** og en «Prøv igjen»-knapp, og
+et avvist kall (ikke-`retryable`) formuleres annerledes enn et som ikke kom
+fram.
+
+**Bare et vellykket svar får røre bufferet.** En feilet henting kan ikke tømme
+den lokale lista — det var nettopp slik manglende nett ville sett ut som «lagene
+er slettet».
+
+### To feil kartleggingen fant på veien
+
+- **«Jeg vil be leder opprette et lag» opprettet et lag.** Alle tre
+  rollevalgene gikk til samme kode. Det tredje er en forespørsel til en annen
+  person; det oppretter nå ingenting og sier fra.
+- **`kind` er påkrevd av serveren og hadde ingen UI.** Lagt inn et valg
+  jaktlag/skytterlag mellom rolle og navn.
+
+### Ikke sluttestet, og hva som gjenstår
+
+**Ingenting i denne runden er kjørt mot en ekte server fra klienten.** Det er
+runden som skal testes: opprett lag, se det i lista, og fremkall feiltilstandene
+(flymodus, utlogget).
+
+**Medlemslista på lagsiden er ikke konvertert.** Den er blokkert av
+**issue #14**: `members[]` bærer `user_id` (intern UUID), mens klienten bare
+kjenner sin `public_id`, så den kan ikke kjenne igjen seg selv. Det stopper
+«(Du)»-merkingen og ledergatingen. Lagsiden beholder derfor dagens gating på
+`has_leader`, som behandler «laget har en leder» som «jeg er lederen» — upresist
+på nøyaktig den måten issuet beskriver, men uendret fra før.
+
+Lokale lag fra tidligere versjoner **migreres ikke** (eierbeslutning
+2026-08-22). Delingsmodellen og vennemodellen er besluttet og skrevet ned som
+ÅP-U30 til ÅP-U33, men bygges i steg (4).
+
+---
+
 ## v0.31 — «Overfør laget» sluttet å slette laget
 
 Første del av å koble lag- og venneflaten til backend. Delt opp med vilje;
