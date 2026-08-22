@@ -112,6 +112,54 @@ RGBA8, NV21, YUV_420_888-planer}. Kjernen konverterer internt til BGR/gray.
   skjerm, faller vi alltid gjennom til helbilde-analyse. Se `docs/flytskjema.md`
   §1b for hele statustabellen.
 
+**Rettelse 2026-08-21 (issue #12 — funnet på enhet, meldt av UI-instansen):**
+
+`theta`s fortegnskonvensjon sto udokumentert (`bestefar_ffi.h:39` sa bare
+«radianer»). UI antok matematisk konvensjon (y oppover) i god tro og
+speilvendte `TargetView`: et treff over senter ble tegnet under. Målt mot
+`bestefar_cli Testsett/C1.jpg` med senter og skala som ukjente (minste
+kvadrat, begge fortegn):
+
+| Antatt konvensjon | RMS | k (px/ringsteg) |
+|---|---|---|
+| y **nedover** (bildekoordinater) | **1,2 px** | **91,9** |
+| y oppover (matematisk) | 70,5 px | 58,4 |
+
+Kalibrert `delta_px` for bildet var 94,0 — bare den første stemmer, og
+skalaen faller ut som uavhengig bekreftelse på samme konvensjon. Kjernen
+gjorde alltid det riktige (`scoring.cpp:13`: `atan2(dy, dx)` med
+`dy = y − calib.center.y` i bildekoordinater); feilen lå i rendereren og er
+rettet der (`android/CHANGELOG.md` v0.30). **`theta = atan2(y_px − cy,
+x_px − cx)`, samme aksekonvensjon som `x_px`/`y_px`** (x mot høyre, y
+nedover — ikke matematisk): et treff over senter har `sin(theta) < 0`. Nå
+skrevet inn i `bestefar_ffi.h`.
+
+**Presisering utover det issue #12 spurte om, funnet ved samme gjennomgang:**
+«samme aksekonvensjon» er ikke det samme som «samme ramme». `r_rel`/`theta`
+regnes i **analyserammen** — `score_hit` kalles på `calib`/hit-koordinater
+*før* de transformeres tilbake (`analyze.cpp:80–91`) — mens `x_px`/`y_px` er
+det **samme punktet transformert gjennom den inverse** av skjerm-/
+perspektivrettingen (`transform_point_inverse`, to steg: perspektiv i
+`analyze_core`, deretter skjerm-crop i `analyze_target`). Retting er
+`cv::warpPerspective` — en generell projeksjon, ikke vinkelbevarende — så de
+to rammene er **numerisk identiske kun når ingen retting ble utført** (typisk
+for et rett-forfra-bilde, og for et allerede rektifisert testbilde som
+`C1.jpg` — derfor stemte målingen over så godt). For et skråtthold-bilde der
+rettingen faktisk gjør noe, divergerer de. **Ikke rekonstruer `x_px`/`y_px`
+fra `(senter, r_rel, theta)`** — de er to uavhengige avlesninger av samme
+treff, ikke et polar/kartesisk-par i én ramme. Ingen konsument gjør dette i
+dag (`TargetView` bruker bare `r_rel`/`theta` mot sitt eget canvas-senter,
+ikke `x_px`/`y_px` — se `android/app/src/main/java/no/bestefar/app/Views.kt`),
+så dette er en presisering av kontrakten, ikke en feil noen har truffet.
+
+**`BfFrameProbe.quad` hadde samme klasse mangel** (ingen akse-/rammeangivelse
+utover «frame-koordinater») og er rettet i samme runde: x mot høyre, y
+nedover, i **framen slik klienten sendte den inn** til
+`bf_autocapture_feed` — ikke den nedskalerte `probe_max_side`-oppløsningen
+proben arbeider på internt. `frame_probe()` skalerer boksen tilbake før den
+rapporteres (`autocapture.cpp:142–147`); det var allerede riktig i koden, bare
+usagt i kontrakten.
+
 ### MPI-firkant (cluster-senter) — beslutning
 
 **Ikke wiret inn i denne iterasjonen.** Begrunnelse (data fra 2026-07-04/05-øktene):

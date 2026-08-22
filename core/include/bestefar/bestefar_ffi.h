@@ -34,9 +34,29 @@ typedef struct BfImage {
 } BfImage;
 
 typedef struct BfHit {
-    double x_px, y_px;    /* i inputbildets koordinater */
-    double r_rel;         /* radius i ringavstander fra kalibrert senter */
-    double theta;         /* radianer */
+    /* i inputbildets koordinater: x mot hoyre, y NEDOVER, origo i bildets
+     * ovre venstre hjorne (standard rasterkonvensjon). Dette er punktet slik
+     * det faktisk sitter i bildet klienten sendte inn, ETTER at intern
+     * skjerm-/perspektivretting er reversert. */
+    double x_px, y_px;
+    /* radius i ringavstander fra kalibrert senter, MAALT I ANALYSERAMMEN
+     * (etter evt. intern skjerm-/perspektivretting) - se merknad om theta. */
+    double r_rel;
+    /* radianer i [0, 2pi) = atan2(y - cy, x - cx), (cy, cx) = kalibrert
+     * senter I ANALYSERAMMEN. SAMME AKSEKONVENSJON som x_px/y_px (x mot
+     * hoyre, y NEDOVER - IKKE matematisk med y oppover): et treff over
+     * senter har sin(theta) < 0.
+     * IKKE noedvendigvis SAMME RAMME som x_px/y_px: skjerm-/perspektiv-
+     * rettingen kjernen gjor internt er en generell projeksjon (3x3
+     * homografi, ikke vinkelbevarende), og x_px/y_px transformeres tilbake
+     * gjennom den INVERSE av den, mens theta/r_rel regnes FOER. De to
+     * faller sammen naar ingen retting ble utfort (typisk for et rett
+     * forfra-bilde, og for allerede rektifiserte testbilder); de divergerer
+     * generelt naar telefonen var skraatthold. IKKE rekonstruer x_px/y_px
+     * fra (senter, r_rel, theta) - de to er uavhengige avlesninger av samme
+     * treff, ikke polar/kartesisk-par i samme ramme. Se core/ARCHITECTURE.md
+     * "CV-kontrakt". (issue #12) */
+    double theta;
     double decimal;       /* poeng med desimal (avkortet, offisiell regel) */
     int32_t integer;      /* heltallspoeng */
     double detect_score;
@@ -87,7 +107,13 @@ typedef struct BfAutoCaptureParams {
 
 typedef struct BfFrameProbe {
     int32_t roi_found;           /* apparat-ROI funnet i denne framen */
-    double  quad[8];             /* TL,TR,BR,BL (x,y)-par i frame-koordinater */
+    double  quad[8];             /* TL,TR,BR,BL (x,y)-par, x mot hoyre, y
+                                   * NEDOVER, origo ovre venstre hjorne i
+                                   * FRAMEN SLIK KLIENTEN SENDTE DEN INN til
+                                   * bf_autocapture_feed (ikke den nedskalerte
+                                   * probe_max_side-oppløsningen kjernen
+                                   * arbeider internt paa - boksen skaleres
+                                   * tilbake foer den rapporteres). */
     double  sharpness;           /* Laplacian-varians i ROI */
     double  clip_lo_frac;        /* andel piksler i moerkeste bin (undereksponert) */
     double  clip_hi_frac;        /* andel piksler i lyseste bin (utbrent) */

@@ -57,6 +57,10 @@ samme buffer; den tar ikke separate plan-pekere.
 
 `BfHit` per treff: `x_px, y_px` (inputbildets koordinater), `r_rel` (ringavstander
 fra kalibrert senter), `theta` (radianer), `decimal`, `integer`, `detect_score`.
+**Akse- og rammekonvensjonen for `r_rel`/`theta`/`x_px`/`y_px` — inkludert at
+`theta` deler akse men ikke nødvendigvis ramme med `x_px`/`y_px` — står i
+`bestefar_ffi.h` selv** (issue #12); gjentas ikke her for å unngå at de to
+driver fra hverandre slik `stability_frames`-kommentaren gjorde (§5).
 
 `BfResult` selv: `status`, `message[256]` (§1), `n_hits`, `hits[BF_MAX_HITS]`,
 `sum_decimal`, `sum_integer`, `confidence`, `n_rings`, `ring_resid_frac`,
