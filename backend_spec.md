@@ -233,7 +233,19 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   vindu — et annet felt og et annet delingsvalg.
 
 ## 4. Lag (jaktlag/skytterlag)
-- **Modell:** `Team { id, name, kind(jakt|skytter), memberCount, location?, leaders[] }`.
+- **Modell, slik den faktisk sendes** (`routers/teams.py`, `_team_ut`):
+  `Team { id, name, kind(jakt|skytter), member_count, lat?, lon?, leaders[],
+  has_leader, my_role }`.
+  - `my_role` ∈ {`leader`, `member`, `null`} — se kulen om gjenkjenning under.
+  - `leaders[]` er **interne** `user_id`-er, ikke `public_id`.
+  - `GET /v1/teams/{id}` legger til `members[]` og `election_open`;
+    `GET /v1/teams/near` legger til `distance_m`. Ingen av dem finnes på de
+    andre lagsvarene.
+  - `members[] { user_id, public_id, role, display_name, joined_at }`.
+  - **`contracts/openapi.json` beskriver *ikke* disse feltene.** Lagrutene er
+    annotert `-> dict`, så kontrakten sier bare «et objekt» (ÅP-B10). Denne
+    lista og `backend/KONTRAKT.md` §6 er alt som finnes — de må holdes i takt
+    med koden for hånd, uten en CI-sjekk til å fange drift.
 - **Nærliggende lag:** `GET /v1/teams/near?lat=&lon=&r=50000` → inntil 20, sortert
   etter avstand; de 3 nærmeste alltid med uansett avstand.
 - **Oppretting + roller:** «jeg er leder» / «opprett for leder» / «be leder opprette».
