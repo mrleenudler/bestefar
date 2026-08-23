@@ -26,6 +26,20 @@ class TeamPageActivity : AppCompatActivity() {
     private var team: Team? = null
     private lateinit var root: FrameLayout
     private lateinit var content: LinearLayout
+    /**
+     * ScrollView-en rundt [content], opprettet ÉN gang.
+     *
+     * `Ui.scroll` gjoer et rent `addView(content)` uten aa loesne barnet fra en
+     * tidligere forelder. Ble den kalt paa nytt for hver [rebuild], kastet den
+     * andre tegningen `IllegalStateException: The specified child already has a
+     * parent` — `root.removeAllViews()` loesner ScrollView-en fra `root`, men
+     * ScrollView-en holder fortsatt `content`.
+     *
+     * Fella laa latent saa lenge skjermen bare ble tegnet én gang. v0.33 la inn
+     * detalj-kallet, saa `rebuild()` kjoerer minst to ganger per aapning (én fra
+     * `onCreate`, én fra svaret) — og da krasjet den hver gang.
+     */
+    private lateinit var scroller: android.widget.ScrollView
 
     /** Siste utfall fra `GET /v1/teams/{id}`. `null` = ikke forsoekt ennaa. */
     private var utfall: Teams.Utfall<Team>? = null
@@ -46,6 +60,7 @@ class TeamPageActivity : AppCompatActivity() {
         root = FrameLayout(this)
         Ui.applyInsets(root)
         content = Ui.col(this)
+        scroller = Ui.scroll(this, content)
         setContentView(root)
         rebuild()
     }
@@ -154,7 +169,9 @@ class TeamPageActivity : AppCompatActivity() {
         // Plass til den faste knapperaden nederst
         content.addView(android.widget.Space(this), LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 72)))
-        root.addView(Ui.scroll(this, content), ViewGroup.LayoutParams.MATCH_PARENT,
+        // Gjenbruk den ene ScrollView-en. Se feltet: en ny per tegning gir
+        // «child already has a parent» fra og med andre gang.
+        root.addView(scroller, ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT)
 
         // Nederst venstre: «Rediger lag» til lagleder, «Velg leder» naar laget

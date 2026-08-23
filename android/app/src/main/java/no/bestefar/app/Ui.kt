@@ -26,7 +26,22 @@ object Ui {
         gravity = Gravity.CENTER_VERTICAL
     }
 
+    /**
+     * ScrollView rundt [content].
+     *
+     * **Loesner [content] fra en eventuell tidligere forelder foerst.** Uten det
+     * kaster et andre kall med samme view `IllegalStateException: The specified
+     * child already has a parent` — og det er ikke en teoretisk fare: et
+     * `root.removeAllViews()` fjerner ScrollView-en fra roten, men ScrollView-en
+     * holder fortsatt `content`, saa neste tegning treffer den. Krasjet traff
+     * lagsiden i v0.33, der detalj-kallet gjorde en andre tegning til
+     * normaltilfellet.
+     *
+     * Kall som bygger et FERSKT view hver gang er upaavirket; dette er kun for
+     * dem som gjenbruker et felt.
+     */
     fun scroll(c: Context, content: View): ScrollView = ScrollView(c).apply {
+        (content.parent as? ViewGroup)?.removeView(content)
         isFillViewport = true
         addView(content, ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)

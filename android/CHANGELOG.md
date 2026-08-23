@@ -34,6 +34,46 @@ nåtilstanden.
 
 ---
 
+## v0.34 — lagsiden krasjet ved andre tegning
+
+**v0.33 krasjet hver gang et lag ble åpnet.** Feltrapport 2026-08-23: laster-vindu,
+tilbakesprett til profilen, og etter et par forsøk Androids «Bestefar closed
+because this app has a bug».
+
+### Årsaken
+
+`Ui.scroll` gjorde et rent `addView(content)`. I `TeamPageActivity` bygget
+`rebuild()` en **ny** ScrollView hver gang:
+
+```
+root.removeAllViews()               // ScrollView løsnes fra root …
+root.addView(Ui.scroll(this, content))   // … men holder fortsatt `content`
+```
+
+`root.removeAllViews()` fjerner ScrollView-en fra roten, men den forblir
+`content`s forelder. Andre tegning kaster derfor
+`IllegalStateException: The specified child already has a parent`.
+
+**Fella lå latent så lenge skjermen bare ble tegnet én gang.** v0.33 la inn
+detalj-kallet, og da kjørte `rebuild()` alltid minst to ganger per åpning — én
+fra `onCreate`, én fra svaret. Feilen var altså ikke i det nye kallet; det nye
+kallet gjorde en gammel felle til normaltilfellet.
+
+### Fikset to steder, med vilje
+
+- **`TeamPageActivity` lager ScrollView-en én gang** og gjenbruker den.
+- **`Ui.scroll` løsner `content` fra en tidligere forelder først.** Det fjerner
+  hele klassen, ikke bare dette tilfellet: åtte andre steder kaller den samme
+  hjelperen. De er sjekket og er trygge i dag fordi de bygger et ferskt view
+  hver gang — men en hjelper som krasjer andre gang den brukes er en felle, og
+  den neste som gjenbruker et felt ville gått i den samme.
+
+Ingen funksjonell endring utover det. v0.33s medlemsliste, «(Du)»-merking og
+ledergating er uendret — de var aldri synlige, siden skjermen krasjet før den
+rakk å tegne dem.
+
+---
+
 ## v0.33 — medlemsliste, «(Du)» og ledergating (steg 1 ferdig)
 
 Andre halvdel av steg 1. Ble mulig da backend lukket **issue #14** i `f2a7ee2`.
