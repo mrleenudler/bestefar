@@ -54,8 +54,19 @@ class Settings(BaseSettings):
     #     OPPLASTINGSnoekkelen. Uten Plays avtrykk her slutter lenkene aa virke
     #     i det oeyeblikket appen distribueres derfra.
     android_cert_fingerprints: str = (
+        # release-keystoren
         "1E:8A:8C:26:DE:46:E7:18:B9:00:72:37:9F:B5:08:FC:"
-        "97:23:A3:0C:D5:19:1A:71:B9:98:00:6C:2D:C5:56:15")
+        "97:23:A3:0C:D5:19:1A:71:B9:98:00:6C:2D:C5:56:15"
+        ","
+        # debug-keystoren (~/.android/debug.keystore). MIDLERTIDIG: den ligger
+        # her for aa kunne teste App Links paa et debug-bygg foer lansering.
+        # SKAL UT NAAR APPEN PUBLISERES (AAP-E8): en debug-noekkel er ikke
+        # hemmelig - passordet er «android» og stien er standard - saa hvem som
+        # helst med den keystoren kan ellers lage en app som fanger lenkene til
+        # dette domenet. Risikoen er liten mens appen ikke er i butikk, og den
+        # er ikke liten etterpaa.
+        "DF:64:39:6F:49:02:DA:C5:E3:AB:86:85:4F:EF:68:A4:"
+        "8D:90:B9:21:64:1E:D8:76:E1:D8:B9:17:C3:04:98:93")
     android_package_name: str = "no.bestefar.app"
 
     @property

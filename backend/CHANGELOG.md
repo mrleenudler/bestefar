@@ -37,6 +37,18 @@ uten denne fila kan `autoVerify` ikke lykkes. Klientsiden — intent-filter for
 domenet og en kaller for `POST /v1/teams/join`, som ikke har hatt noen — er
 issue #15.
 
+**Verifisert utenfor vårt eget hus:** Googles Digital Asset Links-API henter og
+parser fila (`digitalassetlinks.googleapis.com/v1/statements:list`) og gir ett
+statement med riktig relasjon, pakkenavn og avtrykk. Det er noe annet enn at
+ruta svarer 200 — det siste sier bare at *vi* kan lese den.
+
+**Debug-avtrykket lagt til samme dag**, så App Links kan testes på et
+debug-bygg: `autoVerify` bruker signeringssertifikatet til det installerte
+bygget, og et debug-bygg verifiserer ikke mot release-avtrykket — det feiler
+stille, ved at lenken bare åpner nettleseren. **Det skal ut ved lansering**
+(ÅP-E8): en debug-keystore er ikke hemmelig, og etter lansering kunne hvem som
+helst med den fange lenkene til domenet.
+
 ## 2026-08-22
 
 **§6 — `capture_trigger` på donasjonen** (B-53, issue #11). Nytt valgfritt

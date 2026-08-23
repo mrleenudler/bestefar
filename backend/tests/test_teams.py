@@ -123,7 +123,15 @@ def test_assetlinks_har_formen_google_krever(client):
     maal = doc[0]["target"]
     assert maal["namespace"] == "android_app"
     assert maal["package_name"] == "no.bestefar.app"
-    assert maal["sha256_cert_fingerprints"]
+    # Release OG debug: App Links verifiserer mot signeringssertifikatet til
+    # det INSTALLERTE bygget, saa uten debug-avtrykket kan et debug-bygg ikke
+    # brukes til aa teste lenken. Debug-avtrykket skal ut ved lansering
+    # (AAP-E8) - faller denne testen paa 1 i stedet for 2, er det trolig det
+    # som er gjort, og da skal tallet her ned og ikke avtrykket inn igjen.
+    assert len(maal["sha256_cert_fingerprints"]) == 2
+    for avtrykk in maal["sha256_cert_fingerprints"]:
+        # 32 byte som store hex-par med kolon mellom.
+        assert len(avtrykk.split(":")) == 32, avtrykk
 
 
 def test_assetlinks_krever_ikke_innlogging(client):

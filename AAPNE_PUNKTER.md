@@ -407,6 +407,24 @@ må bruke punycode-formen (`xn--jegeropplring-cgb.no`).
 > / andre relevante språk.»
 > — UI-spec §10 punkt 3, linje 137
 
+**To ting til som må gjøres i samme runde som lanseringen** (ført inn
+2026-08-23, backend):
+
+- **Debug-avtrykket ut av `assetlinks.json`.** Det ligger der nå for å kunne
+  teste App Links på et debug-bygg (B-55, `ANDROID_CERT_FINGERPRINTS` i
+  `config.py`). En debug-keystore er ikke hemmelig — passordet er «android» og
+  stien er standard — så etter lansering ville hvem som helst med den kunne
+  lage en app som fanger lenkene til domenet vårt. Risikoen er liten mens
+  appen ikke er i butikk, og ikke liten etterpå.
+- **Play App Signing-avtrykket inn.** Er den på, signerer Play appen på nytt,
+  og avtrykket vi har er bare *opplastingsnøkkelen*. Uten Plays eget
+  signeringsavtrykk slutter invitasjonslenkene å virke i det øyeblikket folk
+  installerer fra butikken — verdien står i Play Console under «App signing».
+
+Begge er én `flyctl secrets set ANDROID_CERT_FINGERPRINTS=…` eller én linje i
+`config.py`, men ingen av dem oppdages av noe: symptomet er at lenken stille
+åpner nettleseren.
+
 ### ÅP-E9 — Telefon-OTP krever betalt SMS-leverandør
 > «Telefonnummer (OTP) **utsatt til v2** — krever betalt SMS-leverandør
 > (Twilio/Vonage o.l.)»
