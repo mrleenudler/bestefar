@@ -456,6 +456,22 @@
     <!-- Medlemsliste: ikke hentet er ikke det samme som ingen medlemmer -->
     <string name="team_members_unknown">Medlemslista kunne ikke hentes.</string>
     <string name="team_members_none">Laget har ingen andre medlemmer ennå.</string>
+    <!-- Invitasjon (§4). Et 201 betyr «lagret», ikke «kom fram». -->
+    <string name="team_invite_hint">E-post eller telefonnummer</string>
+    <string name="team_invite_sent">Invitasjon sendt til %1$s.</string>
+    <string name="team_invite_not_sent">Invitasjonen ble laget, men ikke sendt.\n\n%1$s\n\nVil du dele lenken selv?</string>
+    <string name="team_invite_share">Del lenken</string>
+    <string name="team_invite_share_title">Invitasjon til laget</string>
+    <string name="team_invite_invalid">Det ser ikke ut som en gyldig e-postadresse eller et gyldig telefonnummer.</string>
+    <string name="team_invite_failed">Invitasjonen ble ikke sendt. Prøv igjen når du har nett.</string>
+    <string name="team_invite_rejected">Invitasjonen ble avvist av serveren (%1$d).</string>
+    <!-- Fjern medlem (§11) -->
+    <string name="team_remove_none">Laget har ingen andre medlemmer å fjerne.</string>
+    <string name="team_remove_needs_list">Medlemslista må hentes før noen kan fjernes.</string>
+    <string name="team_remove_confirm">Fjern %1$s fra laget?</string>
+    <string name="team_remove_done">%1$s er fjernet fra laget.</string>
+    <string name="team_remove_failed">Medlemmet ble ikke fjernet. Prøv igjen når du har nett.</string>
+    <string name="team_remove_rejected">Medlemmet ble ikke fjernet (%1$d).</string>
     <string name="team_backend_wait">Venter på backend-implementering.</string>
     <string name="team_deleted">Lag slettet</string>
     <string name="team_leave">Forlat laget</string>

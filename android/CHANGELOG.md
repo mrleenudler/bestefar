@@ -34,6 +34,61 @@ nåtilstanden.
 
 ---
 
+## v0.35 — invitasjoner og fjern medlem (steg 2), og `capture_trigger` sendes
+
+### Inviter medlemmer
+
+`POST /v1/teams/{id}/invite` med `email_or_phone`. Knappen toaster ikke lenger.
+
+**Krever medlemskap, ikke lederskap** — `teams.py:invite` kaller `_medlemskap`,
+så knappen vises til alle i laget, ikke bare lagleder.
+
+**Et 201 betyr «lagret», ikke «kom fram».** Serveren lagrer invitasjonen og
+*forsøker* å sende; lykkes det ikke, står `delivery_status` som `failed` med en
+`delivery_error`. SMS sendes ikke i det hele tatt (utsatt til v2), så et
+telefonnummer gir alltid `failed`.
+
+Derfor to utfall i UI-et: levert gir en kvittering, ikke levert gir en dialog
+med årsaken og **«Del lenken»** (`ACTION_SEND`). Serveren returnerer `url` i
+begge tilfeller nettopp for dette. En invitasjon som ikke ble sendt er ikke
+tapt — men den må vises som noe brukeren må gjøre noe med.
+
+422 fra serveren behandles som «ugyldig adresse eller nummer», ikke som en
+nettverksfeil.
+
+### Fjern medlem
+
+`DELETE /v1/teams/{id}/members/{member_id}` med den **interne** `user_id` fra
+`members[]`. Bekreftelse med advarselstrekant først; lista hentes på nytt etter
+svaret framfor å fjerne raden lokalt.
+
+**De to tomme tilfellene er ikke det samme**, og sies ikke likt: medlemslista er
+ikke *hentet* («må hentes før noen kan fjernes»), eller den er hentet og
+inneholder bare deg («ingen andre medlemmer å fjerne»).
+
+### `capture_trigger` sendes nå
+
+Issue #11 ble lukket 2026-08-22. Feltet er skrevet i køfila siden v0.29, men
+først sendt nå — uten det når ÅP-K1-målingen aldri basen.
+
+**Det utelates når køfila ikke har det.** Serveren lagrer utelatt felt som NULL,
+og NULL betyr «ikke oppgitt» — ikke `auto`. Køen kan inneholde filer fra
+v0.29–v0.34, der klienten *hadde* timeout-capture men ikke sendte feltet; de
+radene skal forbli ubesvarte. Å fylle dem med `auto` ville vært å påstå noe vi
+ikke vet, i nøyaktig det datasettet ÅP-K1 skal måles på.
+
+### Ikke sluttestet
+
+**Alt som krever to konti:** at invitasjonen kommer fram, at lenken kan
+aksepteres av mottakeren, at et fjernet medlem faktisk forsvinner fra *deres*
+lagliste, og at varselet om fjerning kommer fram.
+
+Testbart alene: at invitasjonen sendes (kvittering eller del-lenke-dialog), at
+knappen ikke lenger toaster, og at «fjern medlem» sier fra når det ikke er noen
+å fjerne.
+
+---
+
 ## v0.34 — lagsiden krasjet ved andre tegning
 
 **v0.33 krasjet hver gang et lag ble åpnet.** Feltrapport 2026-08-23: laster-vindu,

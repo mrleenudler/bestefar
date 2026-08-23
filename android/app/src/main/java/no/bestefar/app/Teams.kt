@@ -109,6 +109,65 @@ object Teams {
      */
     const val NAME_MAX = 64
 
+    // ---------- Invitasjon (§4) ----------
+
+    /**
+     * Svaret fra `POST /{id}/invite`.
+     *
+     * **Et 201 betyr ikke at invitasjonen kom fram.** Serveren lagrer raden og
+     * *forsoeker* aa sende; lyktes det ikke, staar [levert] som `false` og
+     * [feil] sier hvorfor. SMS sendes ikke i det hele tatt (utsatt til v2), saa
+     * telefonnummer gir alltid `levert = false`.
+     *
+     * I begge tilfeller faar klienten [url], og det er med vilje: lenken kan
+     * deles manuelt. En invitasjon som ikke ble sendt er derfor ikke tapt — men
+     * den maa vises som noe brukeren maa gjoere noe med, ikke som en kvittering.
+     */
+    class Invitasjon(val url: String, val maal: String,
+                     val levert: Boolean, val feil: String)
+
+    fun invite(ctx: Context, teamId: String, epostEllerTlf: String,
+               onDone: (Utfall<Invitasjon>) -> Unit) {
+        if (!Auth.isLoggedIn(ctx)) { Api.ui { onDone(Utfall.IkkeInnlogget) }; return }
+        Api.io {
+            val r = Api.postJson(ctx, "$PATH/$teamId/invite", JSONObject().apply {
+                put("email_or_phone", epostEllerTlf.trim())
+            })
+            val u: Utfall<Invitasjon> = if (!r.ok) feil(r) else try {
+                val o = JSONObject(r.body)
+                Utfall.Ok(Invitasjon(
+                    url = o.optString("url", ""),
+                    maal = o.optString("target", epostEllerTlf.trim()),
+                    levert = o.optString("delivery_status") == "sent",
+                    feil = if (o.isNull("delivery_error")) ""
+                           else o.optString("delivery_error", ""),
+                ))
+            } catch (e: Exception) {
+                Log.w(TAG, "kunne ikke lese invitasjonssvar", e)
+                Utfall.Feil(r.code, retryable = false)
+            }
+            Api.ui { onDone(u) }
+        }
+    }
+
+    // ---------- Fjern medlem (§11) ----------
+
+    /**
+     * `DELETE /{team_id}/members/{member_id}` — krever lagleder, svarer 204.
+     *
+     * [memberId] er den **interne** `user_id` fra `members[]`, ikke `public_id`
+     * (`backend/KONTRAKT.md` §6).
+     */
+    fun removeMember(ctx: Context, teamId: String, memberId: String,
+                     onDone: (Utfall<Unit>) -> Unit) {
+        if (!Auth.isLoggedIn(ctx)) { Api.ui { onDone(Utfall.IkkeInnlogget) }; return }
+        Api.io {
+            val r = Api.send(ctx, "DELETE", "$PATH/$teamId/members/$memberId")
+            val u: Utfall<Unit> = if (r.ok) Utfall.Ok(Unit) else feil(r)
+            Api.ui { onDone(u) }
+        }
+    }
+
     fun create(ctx: Context, name: String, kind: String, iAmLeader: Boolean,
                onDone: (Utfall<Team>) -> Unit) {
         if (!Auth.isLoggedIn(ctx)) { Api.ui { onDone(Utfall.IkkeInnlogget) }; return }

@@ -158,6 +158,12 @@ object Sync {
             remove(meta); return Verdict.DROP
         }
 
+        // `capture_trigger` sendes KUN naar koe-fila har den. Utelatt felt
+        // lagres som NULL server-side og betyr «ikke oppgitt» - IKKE `auto`
+        // (backend/KONTRAKT.md par. 3, issue #11). Koen kan inneholde filer fra
+        // v0.29-v0.33, der klienten hadde timeout-capture men ikke skrev feltet
+        // over ledningen; de radene skal forbli ubesvarte, ikke bli til «auto».
+        val trigger = o.optString("capture_trigger", "")
         val fields = mapOf(
             "status_code" to o.optInt("status_code", BestefarCore.OK).toString(),
             "confidence" to o.optDouble("confidence", UNKNOWN_CONFIDENCE).toString(),
@@ -172,14 +178,8 @@ object Sync {
             "series_id" to seriesId(o, meta),
             "detected_scores" to (o.optJSONArray("detected") ?: JSONArray()).toString(),
             "ocr_scores" to (o.optJSONArray("ocr") ?: JSONArray()).toString(),
-            // `capture_trigger` staar i sidecaren, men sendes IKKE. Verken en
-            // ny tag-verdi eller et nytt felt er avtalt enda (issue #11), og
-            // ingen av de to gjetningene er ufarlige: en ukjent tag-verdi gir
-            // 422, og 422 er ikke `retryable` - donasjonen droppes stille. Et
-            // ukjent SKJEMAFELT er verre, for da svarer serveren 201 og feltet
-            // forsvinner uten at noen part ser en feil (backend/KONTRAKT.md
-            // par. 3). Legges inn her naar backend har bestemt formen.
-        )
+        ) + if (trigger.isEmpty()) emptyMap()
+            else mapOf("capture_trigger" to trigger)
         val resp = Api.postMultipart(ctx, "/v1/failed-analyses", fields,
             fileField = "image", file = image, mime = "image/jpeg")
         return when {

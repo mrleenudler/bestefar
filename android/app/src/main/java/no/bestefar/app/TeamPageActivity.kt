@@ -140,7 +140,7 @@ class TeamPageActivity : AppCompatActivity() {
             com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.team_invite_members)
             layoutParams = Ui.matchWrap(4, this@TeamPageActivity)
-            setOnClickListener { Ui.toast(this@TeamPageActivity, R.string.team_backend_wait) }
+            setOnClickListener { inviteDialog(t) }
         })
 
         val mem = members(t)
@@ -291,7 +291,7 @@ class TeamPageActivity : AppCompatActivity() {
                 getString(R.string.team_delete))) { _, which ->
                 when (which) {
                     0 -> renameTeam(t)
-                    1 -> Ui.toast(this, R.string.team_backend_wait)   // varsler = backend
+                    1 -> removeMemberDialog(t)
                     // Menyvalget heter «Overfoer lederskap» og skal derfor til
                     // overfoeringen, ikke til avstemningen. chooseLeader er
                     // «Velg leder» naar laget STAAR uten leder (linje 101) -
@@ -359,6 +359,123 @@ class TeamPageActivity : AppCompatActivity() {
 
     private fun removeTeamLocally(t: Team) =
         store.saveTeams(store.teams().filter { it.id != t.id })
+
+    // ---------- Invitasjon (§4) ----------
+
+    /**
+     * Inviter med e-post eller telefonnummer. Krever **medlemskap**, ikke
+     * lederskap (`teams.py:invite` kaller `_medlemskap`), saa knappen vises til
+     * alle i laget.
+     */
+    private fun inviteDialog(t: Team) {
+        val input = EditText(this).apply {
+            hint = getString(R.string.team_invite_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.team_invite_members)
+            .setView(input)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val v = input.text.toString().trim()
+                if (v.isNotEmpty()) sendInvite(t, v)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun sendInvite(t: Team, maal: String) {
+        Teams.invite(this, t.id, maal) { u ->
+            when (u) {
+                is Teams.Utfall.Ok -> {
+                    val inv = u.verdi
+                    // 201 betyr «lagret», ikke «kom fram». Er den ikke levert,
+                    // skal brukeren se det som noe hen maa gjoere noe med - og
+                    // faa lenken, som er hele grunnen til at serveren gir den.
+                    if (inv.levert) {
+                        Ui.toast(this, getString(R.string.team_invite_sent, inv.maal))
+                    } else {
+                        AlertDialog.Builder(this)
+                            .setTitle(R.string.team_invite_members)
+                            .setMessage(getString(R.string.team_invite_not_sent, inv.feil))
+                            .setPositiveButton(R.string.team_invite_share) { _, _ ->
+                                delLenke(inv.url)
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                    }
+                }
+                is Teams.Utfall.IkkeInnlogget ->
+                    Ui.toast(this, R.string.team_needs_account)
+                is Teams.Utfall.Feil -> when {
+                    // 422: serveren klarte ikke tolke adressen/nummeret.
+                    u.code == 422 -> Ui.toast(this, R.string.team_invite_invalid)
+                    u.retryable -> Ui.toast(this, R.string.team_invite_failed)
+                    else -> Ui.toast(this,
+                        getString(R.string.team_invite_rejected, u.code))
+                }
+            }
+        }
+    }
+
+    private fun delLenke(url: String) {
+        if (url.isEmpty()) return
+        startActivity(android.content.Intent.createChooser(
+            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, url)
+            }, getString(R.string.team_invite_share_title)))
+    }
+
+    // ---------- Fjern medlem (§11) ----------
+
+    /**
+     * Krever lagleder (serveren svarer 403 ellers), og naas bare fra
+     * redigeringsmenyen, som allerede er gatet paa `my_role`.
+     *
+     * Merk de to tomme tilfellene, som ikke er det samme: medlemslista er ikke
+     * HENTET, eller den er hentet og inneholder bare meg.
+     */
+    private fun removeMemberDialog(t: Team) {
+        val mem = members(t) ?: run {
+            Ui.toast(this, R.string.team_remove_needs_list); return
+        }
+        val andre = mem.filter { !it.isSelf && it.userId.isNotEmpty() }
+        if (andre.isEmpty()) { Ui.toast(this, R.string.team_remove_none); return }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.team_remove_members)
+            .setItems(andre.map { display(it) }.toTypedArray()) { _, i ->
+                val m = andre[i]
+                Ui.warningDialog(this)
+                    .setTitle(R.string.team_remove_members)
+                    .setMessage(getString(R.string.team_remove_confirm, m.name))
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.team_remove_members) { _, _ ->
+                        removeMember(t, m)
+                    }
+                    .show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun removeMember(t: Team, m: Member) {
+        Teams.removeMember(this, t.id, m.userId) { u ->
+            when (u) {
+                is Teams.Utfall.Ok -> {
+                    Ui.toast(this, getString(R.string.team_remove_done, m.name))
+                    // Hent lista paa nytt framfor aa fjerne raden lokalt: da er
+                    // skjermen riktig ogsaa om noe annet endret seg samtidig.
+                    refresh()
+                }
+                is Teams.Utfall.IkkeInnlogget ->
+                    Ui.toast(this, R.string.team_needs_account)
+                is Teams.Utfall.Feil ->
+                    if (u.retryable) Ui.toast(this, R.string.team_remove_failed)
+                    else Ui.toast(this, getString(R.string.team_remove_rejected, u.code))
+            }
+        }
+    }
 
     /**
      * Overfoer lederskap (`backend_spec.md` §11).
