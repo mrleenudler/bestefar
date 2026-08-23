@@ -113,6 +113,27 @@ E-postvideresending (§10) er leverandoer-agnostisk: sett `RESEND_API_KEY`
 ELLER `SMTP_HOST`+`SMTP_USER`+`SMTP_PASSWORD`. Uten noen av delene lagres
 meldingen i databasen og logges — den gaar aldri tapt.
 
+Android App Links (§4) serveres paa `/.well-known/assetlinks.json` og bygges av
+`ANDROID_CERT_FINGERPRINTS` - kommaseparert, med release-avtrykket som
+standardverdi i koden. Legg til flere UTEN utrulling:
+
+```powershell
+flyctl secrets set ANDROID_CERT_FINGERPRINTS="<release>,<debug>" -a bestefar-api
+```
+
+Verifiser at fila naaes utenfra, ikke bare at ruta finnes:
+
+```powershell
+curl https://bestefar-api.fly.dev/.well-known/assetlinks.json
+```
+
+To ting som gjoer at lenken stille aapner nettleseren i stedet for appen:
+`autoVerify` bruker signeringssertifikatet til DET INSTALLERTE BYGGET (et
+debug-bygg verifiserer ikke mot release-avtrykket), og med Play App Signing paa
+er avtrykket over bare OPPLASTINGSnoekkelen - da maa Plays eget
+signeringsavtrykk med. Status paa enheten: `adb shell pm get-app-links
+no.bestefar.app`.
+
 For automatisk deploy fra GitHub trengs repo-secret `FLY_API_TOKEN`:
 
 ```powershell

@@ -1246,6 +1246,46 @@ lederknappene.
 
 ---
 
+## B-55 Fingeravtrykkene i `assetlinks.json` er konfigurerbare, med produksjonsverdien som standard
+
+**Kontekst.** Invitasjonslenken nådde aldri appen. `GET /i/{token}` svarer 302
+til butikken — også for et token som ikke finnes, med vilje — og uten en
+App Links-erklæring har Android ingen grunn til å åpne appen i stedet for
+nettleseren. Fila var 404 hos oss, så et `autoVerify` i klienten ville feilet
+uansett hva manifestet sa.
+
+**Valg: én rute som bygger fila av konfigurasjonen**, ikke en statisk fil i
+repoet. Grunnen er at flere avtrykk er normalen og ikke unntaket — release,
+debug, og **Play sitt eget signeringssertifikat hvis Play App Signing er på**.
+I det siste tilfellet er avtrykket vi har i dag bare *opplastingsnøkkelen*, og
+lenkene slutter å virke i det øyeblikket appen distribueres fra Play. Det er en
+feil som først ville vist seg hos brukerne, og som da må rettes med en
+utrulling. Med `ANDROID_CERT_FINGERPRINTS` er den rettet med én
+`flyctl secrets set`.
+
+**Produksjonsverdien står som standard i koden, ikke som en påkrevd secret.**
+Et sertifikatavtrykk er ikke en hemmelighet — hele poenget med fila er at den
+er offentlig lesbar. Og motsatt vei: en tom standardverdi ville gitt en fil som
+verifiserer for ingen, uten at noe feiler hos oss. Det er nøyaktig mønsteret
+§7.3 kaller «privat som standard uten en bryter er aldri», og det er samme
+avveining som `JWT_SECRET` — bare med motsatt svar, fordi konsekvensen av å
+lekke er null.
+
+**`JSONResponse` og ikke en `dict`-retur.** FastAPI ville satt riktig
+`Content-Type` uansett, men fila er en kontrakt med en ekstern verifiserer som
+avviser feil type. Da skal typen stå i koden, ikke følge av en standardverdi
+noen kan endre i en opprydding.
+
+**Formkravene er testet fordi de er eksterne.** Toppnivå som liste, riktig
+`relation`, riktig `Content-Type`, og at ruta svarer uten innlogging. En fil som
+er «nesten riktig» verifiserer ikke, og symptomet er at lenken stille åpner
+nettleseren — ingen feilmelding noe sted.
+
+*Kilde: feilsøkingen 2026-08-23 (`/i/{token}` → Play → 404); issue #15;
+`routers/teams.py` (`assetlinks`); `tests/test_teams.py`.*
+
+---
+
 # Beslutninger uten dokumentert begrunnelse
 
 Disse verdiene og valgene står i koden uten at det er skrevet ned *hvorfor*

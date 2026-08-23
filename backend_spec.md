@@ -262,6 +262,13 @@ konkret legger i `key_material`, og hvordan den håndterer 503, eies av
   EXTRA_TEXT; server leser User-Agent → riktig butikk (Play/App Store). Samme URL som
   QR for e-post/SMS-invitasjon. `POST /v1/teams/{id}/invite { emailOrPhone }` med
   validering (identifiser e-post vs telefon) og **leveringskvittering/-feil** tilbake.
+- **`GET /.well-known/assetlinks.json`** (fra 2026-08-23) erklærer Android App
+  Links for `no.bestefar.app`, så invitasjonslenken kan åpnes *i appen* i
+  stedet for i nettleseren. Fingeravtrykkene settes med
+  `ANDROID_CERT_FINGERPRINTS` (kommaseparert), fordi flere er normalen:
+  release, debug, og Play sitt eget signeringsavtrykk hvis Play App Signing er
+  på. Uten fila går lenken alltid til nettleseren og derfra til butikken —
+  klientsiden (intent-filter + innløsning av tokenet) er issue #15.
 - `GET /i/{token}` leser User-Agent og svarer 302 til
   Play/App Store. Den svarer likt **uansett om tokenet finnes** — lenken deles i
   åpne kanaler, og et svar som skilte gyldig fra ugyldig ville gjort den til et

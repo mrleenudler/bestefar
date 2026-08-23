@@ -374,3 +374,89 @@ gamle linjen tilbake og så den feile.
   feltet ennå. At det tas imot er testet; at det kommer inn, er det ikke.
 - **`my_role` er ikke sett fra klienten.** Testene dekker leder, medlem og
   ikke-medlem, men ingen har tegnet en lagside på svaret.
+
+---
+
+# backend — invitasjonslenken: hvor «item not found» faktisk kom fra (B-55)
+
+## Diagnosen
+
+Feilen var ikke i noen av de tre delene vi mistenkte. Kjeden, sporet med et
+**oppdiktet** token:
+
+```
+$ curl -sI https://bestefar-api.fly.dev/i/etTokenSomIkkeFinnes
+HTTP/1.1 302 Found
+location: https://play.google.com/store/apps/details?id=no.bestefar.app&invite=...
+
+$ curl -sI "https://play.google.com/store/apps/details?id=no.bestefar.app"
+404
+```
+
+«item not found» kommer fra **Google Play**, fordi appen ikke er publisert
+(ÅP-E8). At et token som umulig kan finnes ga nøyaktig samme 302, er beviset
+for at feilen ikke er tilstandsavhengig: `/i/{token}` leser aldri tokenet og
+rører aldri databasen. Det er tilsiktet — §4 sier at svaret skal være likt for
+gyldig og ugyldig token — og det er også derfor den var lik før og etter
+innlogging.
+
+**Invitasjonen ble lagret.** `routers/teams.py:225–248` legger raden inn *før*
+utsendingen og committer etterpå i begge grener, så en e-post som kom fram
+betyr en rad med `delivery_status = sent`. Merk at dette er utledet fra koden,
+ikke observert i basen — en `select` mot produksjon står igjen som det som
+faktisk ville sett raden.
+
+## Den feilen som ville overlevd publisering
+
+Selv med appen installert åpnes lenken i nettleseren og går videre til
+butikken. Tre ting manglet, og de har hver sin eier:
+
+| | Eier | Status |
+|---|---|---|
+| `/.well-known/assetlinks.json` (var 404) | backend | **gjort, B-55** |
+| `VIEW`/`BROWSABLE` intent-filter for domenet | UI | issue #15 |
+| En kaller for `POST /v1/teams/join` | UI | issue #15 |
+
+Den siste er verdt å merke seg: endepunktet finnes, virker og er dokumentert —
+og har aldri hatt en kaller. Klienten kan *sende* invitasjoner, men har ingen
+vei fra et token til medlemskap.
+
+## Om fila
+
+Bygges av konfigurasjonen i stedet for å ligge statisk i repoet, fordi flere
+avtrykk er normalen: release, debug, og **Play sitt eget signeringsavtrykk hvis
+Play App Signing er på**. I det siste tilfellet er avtrykket vi har nå bare
+opplastingsnøkkelen, og lenkene ville sluttet å virke i det øyeblikket appen
+kom i butikken — en feil som først viser seg hos brukerne.
+`ANDROID_CERT_FINGERPRINTS` retter det med én `flyctl secrets set`, uten
+utrulling.
+
+Avtrykket står som **standardverdi i koden**, ikke som en påkrevd secret: et
+sertifikatavtrykk er offentlig av natur (hele poenget med fila er at Google
+skal kunne lese den), mens en tom standardverdi ville gitt en fil som
+verifiserer for ingen — uten at noe feiler hos oss.
+
+## Debug-bygg trenger noe eget
+
+`autoVerify` bruker signeringssertifikatet til **det installerte bygget**, så et
+debug-bygg verifiserer ikke mot release-avtrykket. Det feiler stille: lenken
+åpner nettleseren, uten feilmelding. Enten testes det på release-APK, eller så
+legges debug-avtrykket inn ved siden av. Status på enheten:
+`adb shell pm get-app-links no.bestefar.app`.
+
+## Verifisert
+
+- `pytest backend\tests -q` → **261 passed, 1 skipped**. 3 nye tester, som
+  dekker Googles formkrav: toppnivå som liste, riktig `relation`,
+  `Content-Type: application/json`, ingen innlogging, og at flere avtrykk kan
+  settes.
+- `contracts/openapi.json` uendret — ruta er `include_in_schema=False`, som
+  `/i/{token}`.
+
+## Ikke verifisert
+
+- **Ingen App Links-verifisering er kjørt.** Fila har riktig form, men at
+  Google faktisk godtar den for dette domenet, viser seg først når klienten har
+  et `autoVerify`-filter og en APK er installert. Til da er dette en fil som
+  ser riktig ut.
+- **Ikke lest utenfra i produksjon** før denne runden er utrullet.

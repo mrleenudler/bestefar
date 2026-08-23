@@ -11,7 +11,7 @@ import secrets
 
 from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
                      Request, Response)
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
@@ -514,3 +514,38 @@ def invite_redirect(token: str, request: Request) -> RedirectResponse:
     maal = cfg.app_store_url if ios else cfg.play_store_url
     skille = "&" if "?" in maal else "?"
     return RedirectResponse(f"{maal}{skille}invite={token}", status_code=302)
+
+
+@invite_router.get("/.well-known/assetlinks.json", include_in_schema=False)
+def assetlinks() -> JSONResponse:
+    """
+    Android App Links: dette er fila Google henter for aa avgjoere om appen
+    faar aapne `https://<dette domenet>/i/<token>` i stedet for nettleseren.
+
+    UTEN DEN GAAR INVITASJONSLENKEN ALLTID TIL NETTLESEREN, ogsaa naar appen
+    er installert - og derfra videre til butikken. Det var halvparten av
+    grunnen til at en invitasjon endte i «item not found» 2026-08-23; den
+    andre halvparten er at klienten ikke erklaerer domenet i manifestet
+    (issue #15) og at appen ikke er publisert (AAP-E8).
+
+    Kravene Google stiller, og som ikke maa brytes ved en opprydding:
+      - eksakt sti `/.well-known/assetlinks.json`, over HTTPS,
+      - Content-Type `application/json` (derfor JSONResponse, ikke en dict:
+        FastAPI ville satt riktig type her uansett, men fila er en KONTRAKT
+        med en ekstern verifiserer og skal ikke avhenge av en standardverdi),
+      - ingen redirect og ingen autentisering,
+      - toppnivaaet er en LISTE.
+
+    Avtrykkene kommer fra konfigurasjonen (`ANDROID_CERT_FINGERPRINTS`,
+    kommaseparert), saa et debug-avtrykk eller Play sitt signeringsavtrykk kan
+    legges til uten en utrulling. Se merknaden i config.py om Play App Signing.
+    """
+    cfg = settings()
+    return JSONResponse([{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": cfg.android_package_name,
+            "sha256_cert_fingerprints": cfg.android_cert_fingerprint_list,
+        },
+    }], media_type="application/json")

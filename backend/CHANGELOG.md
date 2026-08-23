@@ -20,6 +20,23 @@ Nyeste først. Datoene er de som sto i spec-notatene.
 
 ---
 
+## 2026-08-23
+
+**§4 — `/.well-known/assetlinks.json`** (B-55). Android App Links-erklæringen
+for `no.bestefar.app`, med release-avtrykket som standardverdi og
+`ANDROID_CERT_FINGERPRINTS` for å legge til flere uten en utrulling.
+
+Bakgrunnen er en invitasjon til en Gmail-adresse 2026-08-23: e-posten kom fram,
+men klikk ga «item not found» både før og etter innlogging. Kjeden ble sporet
+med et **oppdiktet** token — samme 302 — som viser at `/i/{token}` aldri leser
+tokenet: `302 → play.google.com/…?id=no.bestefar.app → 404`. Feilen kom altså
+fra **Play**, fordi appen ikke er publisert (ÅP-E8), ikke fra ruta.
+
+Det som *ville* blitt stående etter publisering, er at lenken aldri når appen:
+uten denne fila kan `autoVerify` ikke lykkes. Klientsiden — intent-filter for
+domenet og en kaller for `POST /v1/teams/join`, som ikke har hatt noen — er
+issue #15.
+
 ## 2026-08-22
 
 **§6 — `capture_trigger` på donasjonen** (B-53, issue #11). Nytt valgfritt

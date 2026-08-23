@@ -417,6 +417,24 @@ endres den for alle klienter samtidig — det er tilsiktet.
 - **`GET /i/{token}` svarer 302 til butikken uansett om tokenet finnes.**
   Lenken deles i åpne kanaler og skal ikke kunne brukes til å sjekke hvilke lag
   som eksisterer.
+  - **Følgen for feilsøking:** ruta leser aldri tokenet og rører aldri
+    databasen, så et svar herfra sier *ingenting* om at invitasjonen finnes.
+    Ender et klikk galt, er feilen lenger ute i kjeden — 2026-08-23 var det
+    Play som svarte 404, fordi appen ikke er publisert (ÅP-E8).
+- **`GET /.well-known/assetlinks.json` er Android App Links-erklæringen.**
+  Uten den åpner invitasjonslenken alltid nettleseren, også når appen er
+  installert. Toppnivået er en liste, `Content-Type` er `application/json`, og
+  ruta krever ikke innlogging — det er Googles formkrav, ikke våre valg.
+  - **Fingeravtrykkene kommer fra `ANDROID_CERT_FINGERPRINTS`** (kommaseparert,
+    med release-avtrykket som standardverdi), så et debug-avtrykk eller Play
+    sitt signeringsavtrykk kan legges til **uten en utrulling**.
+  - **`autoVerify` bruker signeringssertifikatet til det installerte bygget.**
+    Et debug-bygg verifiserer ikke mot release-avtrykket, og feiler stille:
+    lenken åpner bare nettleseren. Test på release-APK, eller få debug-avtrykket
+    inn i lista.
+  - **Play App Signing bytter sertifikat.** Er den på, er avtrykket vi har i dag
+    bare *opplastingsnøkkelen*, og Plays eget signeringsavtrykk må inn — ellers
+    slutter lenkene å virke i det øyeblikket appen distribueres fra Play.
 - **Telefoninvitasjon gir `delivery_status: failed` med lenken vedlagt** — det
   finnes ingen SMS-leverandør (ÅP-E9), så klienten deler den selv.
 

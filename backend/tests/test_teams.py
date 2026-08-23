@@ -102,6 +102,52 @@ def test_medlemslista_baerer_public_id(client):
     assert per_public[_public_id(client, B)]["user_id"] == _uid(client, B)
 
 
+# --------------------------------------------------------------------
+# App Links: /.well-known/assetlinks.json (§4)
+# --------------------------------------------------------------------
+#
+# Google henter denne fila for aa avgjoere om appen faar aapne
+# invitasjonslenken i stedet for nettleseren. Formkravene er eksterne, saa de
+# testes: en fil som er «nesten riktig» verifiserer ikke, og symptomet er at
+# lenken stille aapner nettleseren.
+
+def test_assetlinks_har_formen_google_krever(client):
+    r = client.get("/.well-known/assetlinks.json")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/json")
+
+    doc = r.json()
+    assert isinstance(doc, list) and len(doc) == 1      # toppnivaa er en LISTE
+    assert doc[0]["relation"] == ["delegate_permission/common.handle_all_urls"]
+
+    maal = doc[0]["target"]
+    assert maal["namespace"] == "android_app"
+    assert maal["package_name"] == "no.bestefar.app"
+    assert maal["sha256_cert_fingerprints"]
+
+
+def test_assetlinks_krever_ikke_innlogging(client):
+    """Verifisereren har ingen tokens. En 401 her ville vaert usynlig hos oss."""
+    assert client.get("/.well-known/assetlinks.json").status_code == 200
+
+
+def test_flere_avtrykk_kan_settes_uten_utrulling(client, monkeypatch):
+    """
+    Release, debug og - hvis Play App Signing er paa - Plays eget avtrykk maa
+    kunne staa samtidig. Uten Plays avtrykk slutter lenkene aa virke i det
+    oeyeblikket appen distribueres derfra.
+    """
+    from app.config import settings
+
+    monkeypatch.setenv("ANDROID_CERT_FINGERPRINTS", "AA:BB, CC:DD")
+    settings.cache_clear()
+    try:
+        avtrykk = client.get("/.well-known/assetlinks.json").json()[0]["target"]
+        assert avtrykk["sha256_cert_fingerprints"] == ["AA:BB", "CC:DD"]
+    finally:
+        settings.cache_clear()
+
+
 def test_ikke_medlem_ser_ikke_laget(client):
     """Vi avslorer ikke at laget finnes for noen som staar utenfor."""
     lag = _lag(client)

@@ -38,6 +38,31 @@ class Settings(BaseSettings):
     app_store_url: str = ("https://play.google.com/store/apps/details"
                           "?id=no.bestefar.app")
 
+    # Android App Links (§4): `/.well-known/assetlinks.json` er det Google
+    # verifiserer for aa la appen aapne https://<dette domenet>/i/<token> i
+    # stedet for nettleseren. INGEN HEMMELIGHET - fila er ment aa vaere
+    # offentlig lesbar, og et sertifikatavtrykk er offentlig informasjon.
+    # Derfor staar produksjonsverdien som standard: en App Links-oppsett som
+    # stille ikke virker fordi en secret ikke er satt, er nettopp fellen §7.3
+    # advarer mot.
+    #
+    # Kommaseparert, fordi FLERE avtrykk er normalen og ikke unntaket:
+    #   - release-keystoren (staar under),
+    #   - debug-keystoren, om App Links skal verifisere for et debug-bygg,
+    #   - GOOGLE PLAY sitt signeringssertifikat hvis Play App Signing er paa -
+    #     da signerer Play appen paa nytt, og avtrykket under blir bare
+    #     OPPLASTINGSnoekkelen. Uten Plays avtrykk her slutter lenkene aa virke
+    #     i det oeyeblikket appen distribueres derfra.
+    android_cert_fingerprints: str = (
+        "1E:8A:8C:26:DE:46:E7:18:B9:00:72:37:9F:B5:08:FC:"
+        "97:23:A3:0C:D5:19:1A:71:B9:98:00:6C:2D:C5:56:15")
+    android_package_name: str = "no.bestefar.app"
+
+    @property
+    def android_cert_fingerprint_list(self) -> list[str]:
+        return [f.strip() for f in self.android_cert_fingerprints.split(",")
+                if f.strip()]
+
     # --- Innlogging (§1) ---
     # Noekkelen vaare EGNE tokens signeres med (HS256). Tom => alle
     # /v1/auth/*-endepunktene svarer 503: uten den kan vi ikke utstede noe som
