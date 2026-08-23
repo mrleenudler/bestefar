@@ -472,6 +472,16 @@
     <string name="team_remove_done">%1$s er fjernet fra laget.</string>
     <string name="team_remove_failed">Medlemmet ble ikke fjernet. Prøv igjen når du har nett.</string>
     <string name="team_remove_rejected">Medlemmet ble ikke fjernet (%1$d).</string>
+    <!-- Invitasjonslenke (issue #15) -->
+    <string name="invite_title">Invitasjon til lag</string>
+    <string name="invite_working">Løser inn invitasjonen …</string>
+    <string name="invite_bad_link">Lenken mangler invitasjonskoden. Be om en ny invitasjon.</string>
+    <string name="invite_invalid">Denne invitasjonen kan ikke brukes. Den kan være trukket tilbake eller utløpt — be om en ny.</string>
+    <string name="invite_offline">Fikk ikke kontakt med serveren. Du er ikke lagt til i laget ennå.</string>
+    <string name="invite_rejected">Invitasjonen ble avvist (%1$d). Du er ikke lagt til i laget.</string>
+    <string name="invite_needs_account">Du må være logget inn for å bli med i et lag. Logg inn, så fortsetter vi der du slapp.</string>
+    <string name="invite_joined">Du er nå medlem av «%1$s».</string>
+    <string name="invite_open_team">Åpne laget</string>
     <string name="team_backend_wait">Venter på backend-implementering.</string>
     <string name="team_deleted">Lag slettet</string>
     <string name="team_leave">Forlat laget</string>

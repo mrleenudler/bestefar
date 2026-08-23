@@ -66,6 +66,29 @@
                   android:screenOrientation="portrait" />
         <activity android:name=".LoggInnActivity" android:exported="false"
                   android:screenOrientation="portrait" />
+        <!-- Invitasjonslenke: https://bestefar-api.fly.dev/i/<token> (issue #15).
+             MAA vaere exported - det er systemet som starter den fra en lenke.
+
+             android:autoVerify sjekker appens SIGNERINGSSERTIFIKAT mot
+             /.well-known/assetlinks.json paa domenet. Et debug-bygg er signert
+             med debug-keystoren og verifiserer derfor IKKE; da aapnes lenken i
+             nettleseren uten at noe melder fra. Test paa release-APK, og sjekk
+             med `adb shell pm get-app-links no.bestefar.app`.
+
+             pathPrefix "/i/" og ikke hele vertsnavnet: resten av domenet er
+             API-et, og appen skal ikke fange opp de rutene. -->
+        <activity android:name=".InviteActivity" android:exported="true"
+                  android:screenOrientation="portrait"
+                  android:launchMode="singleTask">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="bestefar-api.fly.dev"
+                      android:pathPrefix="/i/" />
+            </intent-filter>
+        </activity>
         <!-- KalkulatorActivity fjernet i runde 4 (optikk-funksjonalitet
              kommentert ut for aa forenkle) -->
         <!-- Push-mottak (backend_spec §11). Naar appen ligger i BAKGRUNNEN

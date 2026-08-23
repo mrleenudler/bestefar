@@ -34,6 +34,67 @@ nåtilstanden.
 
 ---
 
+## v0.36 — invitasjonslenken når appen (issue #15)
+
+To ting manglet, og begge måtte til. Manifestet erklærte ikke domenet, så lenken
+gikk til nettleseren og videre til Play — der den ga «item not found» fordi
+appen ikke er publisert (ÅP-E8). Og selv om den hadde nådd appen, fantes ingen
+kaller for `join`: `Teams` kunne bare *sende* invitasjoner.
+
+### `InviteActivity` + intent-filter
+
+`VIEW`/`BROWSABLE` med `android:autoVerify="true"` for
+`https://bestefar-api.fly.dev`, sti-prefiks `/i/`. Prefiks og ikke hele
+vertsnavnet: resten av domenet er API-et, og appen skal ikke fange de rutene.
+
+`Teams.join` kaller `POST /v1/teams/join` med tokenet fra siste ledd i stien.
+Svaret er laget med `my_role`, så det legges rett i bufferet og «Åpne laget»
+går videre til lagsiden.
+
+**404 er «ugyldig invitasjon», ikke nettverksfeil.** Serveren behandler ukjent
+og utløpt token likt. En invitasjon kan dessuten brukes av flere — den deles
+gjerne i en gruppechat — så gjentatt innløsning er ikke en feil, og er du
+allerede medlem svarer den 200 uten å legge deg til på nytt.
+
+### Innlogging uten å miste invitasjonen
+
+`join` krever konto. Er brukeren ikke innlogget, holdes tokenet i aktiviteten og
+`onResume` prøver på nytt når hen kommer tilbake fra innlogging.
+
+Tokenet lagres bevisst **ikke** utenfor aktiviteten. En invitasjon som blir
+liggende i preferansene og løses inn ved en senere anledning, er en overraskelse
+ingen ba om.
+
+### `onNewIntent`, fordi `singleTask`
+
+Med `launchMode="singleTask"` havner en ny lenke i `onNewIntent`, ikke
+`onCreate`. Uten håndtering ville andre invitasjon blitt løst inn med **første**
+token — riktig kvittering, feil lag. Det er samme klasse feil som har truffet
+tre ganger i denne serien: noe som bare er galt andre gang stien går.
+
+### Verifisert herfra
+
+`GET /.well-known/assetlinks.json` er hentet fra produksjon og sammenlignet med
+release-sertifikatet: avtrykket `1E:8A:8C:26:…:56:15` er identisk med APK-ens
+`1e8a8c26…5615`, relasjonen er `handle_all_urls` og pakkenavnet stemmer.
+
+### Ikke sluttestet
+
+**Selve lenkeklikket.** `autoVerify` sjekker signeringssertifikatet, og et
+debug-bygg er signert med debug-keystoren — da feiler verifiseringen **stille**
+og lenken åpner nettleseren. Må testes på release-APK, med
+`adb shell pm get-app-links no.bestefar.app` som skal si `verified`.
+
+At invitasjonen kan aksepteres av en annen konto krever fortsatt to telefoner.
+
+**Play App Signing gjelder fortsatt:** publiseres appen via Play med det på,
+signerer Play den på nytt, og avtrykket i `assetlinks.json` er da bare
+opplastingsnøkkelen. Lenkene slutter å virke i samme øyeblikk appen kommer i
+butikken hvis ikke Plays eget avtrykk legges inn (issue #15, og ÅP-U33s
+keystore-punkt).
+
+---
+
 ## v0.35 — invitasjoner og fjern medlem (steg 2), og `capture_trigger` sendes
 
 ### Inviter medlemmer

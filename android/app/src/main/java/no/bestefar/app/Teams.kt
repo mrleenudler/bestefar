@@ -150,6 +150,35 @@ object Teams {
         }
     }
 
+    /**
+     * `POST /v1/teams/join` — loeser inn et invitasjonstoken til medlemskap.
+     *
+     * Tokenet er siste ledd i invitasjonslenken `…/i/<token>`. Svaret er laget,
+     * med `my_role`, saa kalleren kan gaa rett til lagsiden.
+     *
+     * **404 betyr «ugyldig invitasjon», ikke «nettverksfeil».** Serveren
+     * behandler ukjent token og utloept token likt, og en invitasjon kan brukes
+     * av FLERE — den deles gjerne i en gruppechat — saa gjentatt innloesning er
+     * ikke en feil. Er du allerede medlem, svarer den 200 uten aa legge deg til
+     * paa nytt.
+     */
+    fun join(ctx: Context, token: String, onDone: (Utfall<Team>) -> Unit) {
+        if (!Auth.isLoggedIn(ctx)) { Api.ui { onDone(Utfall.IkkeInnlogget) }; return }
+        Api.io {
+            val r = Api.postJson(ctx, "$PATH/join", JSONObject().apply {
+                put("token", token)
+            })
+            val u: Utfall<Team> = if (!r.ok) feil(r) else try {
+                val t = Team.fraServer(JSONObject(r.body))
+                if (t.id.isEmpty()) Utfall.Feil(r.code, false) else Utfall.Ok(t)
+            } catch (e: Exception) {
+                Log.w(TAG, "kunne ikke lese join-svar", e)
+                Utfall.Feil(r.code, retryable = false)
+            }
+            Api.ui { onDone(u) }
+        }
+    }
+
     // ---------- Fjern medlem (§11) ----------
 
     /**
