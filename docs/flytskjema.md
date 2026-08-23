@@ -67,7 +67,10 @@ Grunnen er at de to utfallene «gatingen slapp aldri noe gjennom» og «kjernen
 kjørte og feilet» så helt like ut — begge ga *ingenting*. Lykkes analysen etter
 en timeout, er tersklene for strenge (ÅP-K1); feiler den, er det en ordinær
 feilet analyse. Donasjonen bærer `capture_trigger` i sidecaren for å skille
-dem, men feltet **krysser ikke ledningen ennå** (issue #11).
+dem. **Serveren tar imot feltet fra 2026-08-22** (issue #11 lukket, B-53):
+`capture_trigger` ∈ {`auto`, `timeout`} som eget multipart-felt ved siden av
+`tag`. **Klienten sender det ikke ennå**, så inntil den gjør det står feltet
+tomt på alle rader — og tomt betyr «ikke oppgitt», ikke `auto`.
 
 ### 1b. Analyse — `core/src/analyze.cpp`
 
