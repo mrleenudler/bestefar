@@ -292,6 +292,21 @@ std::optional<Calibration> calibrate_and_refine(const cv::Mat& gray_in, cv::Poin
     std::vector<std::tuple<int, HarmFit>> harmonics;   // (k_rel, fit)
     bool have = false;
 
+    // NB (2026-11-11): tre robusthetsgrep i denne loekka ble proevd og
+    // FORKASTET etter maaling med _probe_robustness_cpp.py + begge oraklene:
+    // 1) "Beste iterat"-fallback (bruk iteratet med flest sporede ringer naar
+    //    en senere iterasjon feiler): reddet C6 +20 grader tilt, men netto
+    //    null paa matrisen og konverterte trygge avvisninger til FEILSUMMER
+    //    (C1 tilt_x+20: 4 treff sum 37, fasit 5/46; C9 gamma0.6: 23 treff
+    //    sum 118, fasit 3/25). En gal sum er verre enn en avvisning.
+    // 2) Ellipsitets-adaptivt sporingsbaand (+k2-amplitude*rho): produserte
+    //    feilsummer via halv-avstands-loesninger (C2 tilt_x+20: 13 treff) og
+    //    oedela kalibreringer som konvergerte foer (C1 rot-15, C5 tilt-10).
+    // 3) Delta-kontinuitet (behold forrige delta naar autokorrelasjonen
+    //    hopper >30%): blokkerte ogsaa LEGITIM gjenoppretting fra et halv-
+    //    avstands-foerstegjett — Python-C9 falt fra PASS til FORKASTET.
+    // Loekka er derfor bevisst identisk med Python-referansen.
+
     for (int it = 0; it < n_iters; ++it) {
         cv::Mat P = warp_polar_gray(gray, center, r_max, r_samples, theta_samples);
         cv::Mat G = radial_gradient_abs(P, sigma_rho);
@@ -305,26 +320,34 @@ std::optional<Calibration> calibrate_and_refine(const cv::Mat& gray_in, cv::Poin
 
         auto delta0 = estimate_spacing_autocorr(H, static_cast<int>(0.03 * r_samples),
                                                 static_cast<int>(0.35 * r_samples));
-        if (!delta0) {
+        const double d0 = delta0 ? *delta0 : 0.0;
+        if (d0 <= 0) {
             if (rings_debug()) std::fprintf(stderr, "RINGS it%d: autocorr FEIL\n", it);
             return std::nullopt;
         }
         auto peaks = find_profile_peaks(
             H, cfg.ring_peak_min_frac,
-            std::max(3, static_cast<int>(cfg.ring_peak_min_sep_frac * *delta0)));
+            std::max(3, static_cast<int>(cfg.ring_peak_min_sep_frac * d0)));
         // Ignorer topper helt inntil senteret (markoerklynge)
         std::vector<double> prho;
         for (const auto& [pos, h] : peaks)
-            if (pos > 0.4 * *delta0) prho.push_back(pos);
-        auto pf = fit_ring_progression(prho, *delta0, cfg);
+            if (pos > 0.4 * d0) prho.push_back(pos);
+        auto pf = fit_ring_progression(prho, d0, cfg);
         if (rings_debug())
             std::fprintf(stderr, "RINGS it%d: delta0=%.2f peaks=%zu brukbare=%zu prog=%s"
                          " (delta=%.2f a=%.1f)\n",
-                         it, *delta0, peaks.size(), prho.size(), pf ? "OK" : "FEIL",
+                         it, d0, peaks.size(), prho.size(), pf ? "OK" : "FEIL",
                          pf ? pf->delta : 0.0, pf ? pf->a : 0.0);
         if (!pf) return std::nullopt;
 
-        // Per-ring harmonisk fit -> senterkorreksjon
+        // Per-ring harmonisk fit -> senterkorreksjon.
+        // NB: et ellipsitets-adaptivt baand (bredde + k2-amplitude * rho) ble
+        // proevd og FORKASTET 2026-11-11: det reddet ingen bilder riktig, men
+        // produserte feilsummer ved aa la halv-avstands-loesninger passere
+        // gaten (C2/C7 +20 grader tilt: 13 treff sum 64 mot fasit 5/40), og
+        // oedela kalibreringer som konvergerte foer (C1 rot-15, C5 tilt-10,
+        // C3 gamma0.6 - alle korrekte uten, avvist med). Maalt med
+        // _probe_robustness_cpp.py. Behold det faste baandet.
         const double band_frac = it == 0 ? 0.25 : 0.15;
         const double band_px = band_frac * pf->delta;
         std::vector<double> theta(theta_samples);

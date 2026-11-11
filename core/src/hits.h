@@ -16,6 +16,10 @@ struct Hit {
     double score;
 };
 
-std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, const Config& cfg);
+// noise_rejected (valgfri): settes true naar deteksjonen forkaster bildet som
+// stoy (kandidat-/treffantall over hit_max_candidates/hit_max_hits) - da er
+// returlisten tom og kalleren skal avvise bildet, ikke tolke det som "0 treff".
+std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, const Config& cfg,
+                             bool* noise_rejected = nullptr);
 
 } // namespace bestefar

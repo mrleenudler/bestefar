@@ -16,6 +16,15 @@ struct ProbeInternals {
     double sharpness = 0, clip_lo = 0, clip_hi = 0, coverage = 0;
     double bull_frac = 0;   // bull-bredde / framebredde (presisjonsmaal)
     double glare_frac = 0;  // stoerste mettede flekk / skjermblob-areal
+    double ring_evidence = 0;  // antall konsentriske ring-avvik rundt bull
+};
+
+// Bull-komponenten med posisjon, for ringbevis-maalingen.
+struct BullInfo {
+    double width_frac = 0;
+    cv::Point2d center{0, 0};   // absolutte probe-koordinater
+    double r_px = 0;            // halv komponentbredde
+    bool found = false;
 };
 
 // Gjenskinn (musings 2026-07): speilrefleks paa skjermglasset gir en
@@ -44,9 +53,10 @@ static double measure_glare_frac(const cv::Mat& gray, const cv::Rect& blob_box) 
 // det er den moerke bezelen/omgivelsen som omslutter skjermen inne i
 // den akse-justerte boksen (verifisert paa C-settet: uten dette maaltes
 // bezelen, ikke bullen). Bullen ligger alltid i det indre.
-static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
-                                int frame_width) {
-    if (blob_box.width < 8 || blob_box.height < 8) return 0.0;
+static BullInfo measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
+                                  int frame_width) {
+    BullInfo out;
+    if (blob_box.width < 8 || blob_box.height < 8) return out;
     cv::Mat region = gray(blob_box);
     cv::Mat dark;
     cv::threshold(region, dark, 0, 255, cv::THRESH_BINARY_INV + cv::THRESH_OTSU);
@@ -54,7 +64,7 @@ static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
                      cv::getStructuringElement(cv::MORPH_ELLIPSE, {5, 5}));
     cv::Mat labels, stats, centroids;
     const int num = cv::connectedComponentsWithStats(dark, labels, stats, centroids, 8);
-    int best_area = 0, best_w = 0;
+    int best_area = 0, best_w = 0, best_l = -1;
     for (int l = 1; l < num; ++l) {
         const int x = stats.at<int32_t>(l, cv::CC_STAT_LEFT);
         const int y = stats.at<int32_t>(l, cv::CC_STAT_TOP);
@@ -70,9 +80,107 @@ static double measure_bull_frac(const cv::Mat& gray, const cv::Rect& blob_box,
         if (area > best_area) {
             best_area = area;
             best_w = w;
+            best_l = l;
         }
     }
-    return static_cast<double>(best_w) / frame_width;
+    out.width_frac = static_cast<double>(best_w) / frame_width;
+    if (best_l > 0) {
+        out.found = true;
+        out.center = {blob_box.x + centroids.at<double>(best_l, 0),
+                      blob_box.y + centroids.at<double>(best_l, 1)};
+        out.r_px = best_w * 0.5;
+    }
+    return out;
+}
+
+// Ringbevis (2026-11-11): det som skiller en maalskive fra "en lys flate med
+// noe moerkt inni" (vitrineskap-feilutloesningen, AAPNE_PUNKTER AAP-K1) er de
+// KONSENTRISKE poengringene rundt bullen. Maal: radialprofil (vinkelsnitt)
+// fra bull-kanten og utover; tell sammenhengende avvik fra den glattede
+// trenden (moerke ringlinjer paa lys skive ELLER lyse paa moerk variant -
+// stoerste av de to polaritetstellingene). Vinkelsnittet over 48 retninger
+// drukner enkeltmarkoerer og stoy; en ringlinje ligger paa samme radius i
+// alle retninger og overlever. Koster ~10k piksellesninger - neglisjerbart.
+static double ring_evidence_at(const cv::Mat& gray, const cv::Rect& blob_box,
+                               double cx, double cy, double r_min, double r_max) {
+    // ... men aldri utenfor skjermblobben (eller bildet)
+    r_max = std::min({r_max,
+                      cx - blob_box.x, blob_box.x + blob_box.width - 1.0 - cx,
+                      cy - blob_box.y, blob_box.y + blob_box.height - 1.0 - cy});
+    if (r_max - r_min < 10.0) return 0.0;
+
+    // SNITT over vinkler, ikke median: median ble proevd og FORKASTET
+    // 2026-11-11 — en fullskutt bull (C3) har markoerer som bryter ring-
+    // linjene i mange retninger, og medianen mistet ringene der (ring=1 paa
+    // et fasitbilde) uten aa stoppe vitrineskap-mocken bedre enn snittet.
+    const int n_ang = 48;
+    const int n_r = static_cast<int>(r_max - r_min);
+    std::vector<double> prof(n_r, 0.0);
+    for (int i = 0; i < n_r; ++i) {
+        const double r = r_min + i;
+        double s = 0;
+        for (int a = 0; a < n_ang; ++a) {
+            const double t = 2.0 * CV_PI * a / n_ang;
+            int x = static_cast<int>(std::lround(cx + r * std::cos(t)));
+            int y = static_cast<int>(std::lround(cy + r * std::sin(t)));
+            x = std::clamp(x, 0, gray.cols - 1);
+            y = std::clamp(y, 0, gray.rows - 1);
+            s += gray.at<uint8_t>(y, x);
+        }
+        prof[i] = s / n_ang;
+    }
+    // Glattet trend (boksfilter) -> avvik
+    const int win = std::max(5, n_r / 6) | 1;
+    std::vector<double> dev(n_r);
+    for (int i = 0; i < n_r; ++i) {
+        const int lo = std::max(0, i - win / 2), hi = std::min(n_r, i + win / 2 + 1);
+        double m = 0;
+        for (int j = lo; j < hi; ++j) m += prof[j];
+        dev[i] = prof[i] - m / (hi - lo);
+    }
+    // Tell sammenhengende avvik-runs per polaritet, men bare SMALE runs:
+    // en ringlinje er 1-4 px bred paa probe-skala, mens brede moerke felter
+    // (bokrygger bak vitrineglass, skygger) gir brede runs. Absolutt gulv
+    // (graanivaa): en ringlinje overlever 48-retnings-snittet (konsentrisk),
+    // stoy gjoer ikke.
+    const double thr = 4.0;
+    const int max_run_w = std::max(3, n_r / 12);
+    int runs_dark = 0, runs_light = 0;
+    int len_dark = 0, len_light = 0;
+    for (int i = 0; i <= n_r; ++i) {
+        const bool d = i < n_r && dev[i] < -thr;
+        const bool l = i < n_r && dev[i] > thr;
+        if (d) ++len_dark;
+        else {
+            if (len_dark > 0 && len_dark <= max_run_w) ++runs_dark;
+            len_dark = 0;
+        }
+        if (l) ++len_light;
+        else {
+            if (len_light > 0 && len_light <= max_run_w) ++runs_light;
+            len_light = 0;
+        }
+    }
+    return static_cast<double>(std::max(runs_dark, runs_light));
+}
+
+static double measure_ring_evidence(const cv::Mat& gray, const cv::Rect& blob_box,
+                                    const BullInfo& bull) {
+    if (!bull.found || bull.r_px < 6.0) return 0.0;
+    double best = ring_evidence_at(gray, blob_box, bull.center.x, bull.center.y,
+                                   bull.r_px * 1.15, bull.r_px * 3.5);
+    // Stor moerk komponent (> 0.35 av framebredden) er ikke en bull — det er
+    // en moerk skivevariant der Otsu-inversen graaper HELE skiva (Ta/Tc/Td),
+    // eller noe som ikke er en skive. Da ligger ringene INNI komponenten:
+    // skann interioeret rundt samme sentroid. En forkastet hypotese laa her
+    // foerst: profil rundt skjermblob-SENTERET — den telte tabell-/bezelkanter
+    // og ga ring>=2 paa ALT, ogsaa reinsdyr og romfoto (maalt 2026-11-11).
+    // Sentroid-forankringen er det som goer maalet ringspesifikt.
+    if (best < 2.0 && bull.width_frac > 0.35)
+        best = std::max(best, ring_evidence_at(gray, blob_box, bull.center.x,
+                                               bull.center.y, bull.r_px * 0.12,
+                                               bull.r_px * 0.95));
+    return best;
 }
 
 // Kjerne-proben: nedskaler -> normaliser -> kontrast-ROI -> skjerm-blob ->
@@ -102,8 +210,10 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     if (!blob_box) return out;   // ingen opplyst skjerm av meningsfull stoerrelse
     out.roi_found = true;
     out.roi_box = *blob_box;
-    out.bull_frac = measure_bull_frac(gray, *blob_box, gray.cols);
+    const BullInfo bull = measure_bull_frac(gray, *blob_box, gray.cols);
+    out.bull_frac = bull.width_frac;
     out.glare_frac = measure_glare_frac(gray, *blob_box);
+    out.ring_evidence = measure_ring_evidence(gray, *blob_box, bull);
 
     // Skarphet: Laplacian-varians INNE i ROI (fokusmaal)
     cv::Mat lap;
@@ -177,6 +287,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->max_glare_frac = d.max_glare_frac;
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
+    out->min_ring_evidence = d.min_ring_evidence;
 }
 
 BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
@@ -193,6 +304,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.max_glare_frac = p->max_glare_frac;
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
+        ac->params.min_ring_evidence = p->min_ring_evidence;
     }
     return ac;
 }
@@ -326,10 +438,17 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
                              pr.bull_frac >= p.min_bull_width_frac;
         out->size_ok = size_ok ? 1 : 0;
 
+        // KRITERIUM 4: innhold - konsentriske poengringer rundt bullen.
+        // Skiller en maalskive fra "lys flate med noe moerkt inni"
+        // (vitrineskap-utloesningen, AAP-K1). min_ring_evidence = 0 slaar av.
+        out->ring_evidence = pr.ring_evidence;
+        const bool content_ok = pr.ring_evidence >= p.min_ring_evidence;
+        out->content_ok = content_ok ? 1 : 0;
+
         // KRITERIUM 1: stabilitet - blob-boksen i ro over N frames.
-        // Holdevinduet krever kvalitet OG stoerrelse gjennom hele vinduet.
+        // Holdevinduet krever kvalitet, stoerrelse OG innhold gjennom vinduet.
         ac->history.push_back(pr.roi_box);
-        ac->quality_history.push_back(quality && size_ok);
+        ac->quality_history.push_back(quality && size_ok && content_ok);
         while (static_cast<int>(ac->history.size()) > p.stability_frames) {
             ac->history.pop_front();
             ac->quality_history.pop_front();

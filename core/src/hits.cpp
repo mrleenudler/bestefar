@@ -89,7 +89,9 @@ std::tuple<double, double, char> refine_white(const cv::Mat& gray, double x, dou
 
 } // namespace
 
-std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, const Config& cfg) {
+std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, const Config& cfg,
+                             bool* noise_rejected) {
+    if (noise_rejected) *noise_rejected = false;
     const double delta = calib.delta_px;
     const double R10 = calib.R10_px;
     const double r_ring1 = R10 + 9.0 * delta;
@@ -100,6 +102,16 @@ std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, cons
     // Enhetlig stemme-detektor over HELE skiva
     const double inner_r = cfg.hit_unified_inner_frac * delta;
     auto circ = detect_circles(gray, calib.center, search_r, marker_r, dot_r, cfg, inner_r);
+
+    // Stoy-vern: kandidat-ANTALLET skiller stoy fra markoerer (se config.h).
+    // Tidlig retur ogsaa av ytelseshensyn: 200 raffinering er bortkastet.
+    if (static_cast<int>(circ.size()) > cfg.hit_max_candidates) {
+        if (hits_debug())
+            std::fprintf(stderr, "HITS stoy-vern: %zu kandidater > %d, forkastet\n",
+                         circ.size(), cfg.hit_max_candidates);
+        if (noise_rejected) *noise_rejected = true;
+        return {};
+    }
 
     std::vector<Hit> hits;
     for (const auto& c : circ) {
@@ -143,6 +155,15 @@ std::vector<Hit> detect_hits(const cv::Mat& gray, const Calibration& calib, cons
                 std::fprintf(stderr, "HITS sentrum: (%.1f,%.1f) ncc=%.2f\n",
                              t.x, t.y, t.score);
         kept.insert(kept.end(), extra.begin(), extra.end());
+    }
+    // Plausibilitet: en Kongsberg-serie er maks 20 skudd (panelrad 11-20
+    // finnes, se Testsett/Ta.jpg). Flere "treff" er per definisjon stoy.
+    if (static_cast<int>(kept.size()) > cfg.hit_max_hits) {
+        if (hits_debug())
+            std::fprintf(stderr, "HITS stoy-vern: %zu treff > %d, forkastet\n",
+                         kept.size(), cfg.hit_max_hits);
+        if (noise_rejected) *noise_rejected = true;
+        return {};
     }
     return kept;
 }

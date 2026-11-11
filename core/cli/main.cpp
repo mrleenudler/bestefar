@@ -78,10 +78,11 @@ int main(int argc, char** argv) {
         bf_autocapture_destroy(ac);
         std::fprintf(stderr,
                      "PROBE roi=%d skarp=%.0f lo=%.3f hi=%.3f dek=%.2f "
-                     "str=%.2f bull=%.2f kval=%d storrelse=%d\n",
+                     "str=%.2f bull=%.2f ring=%.0f kval=%d storrelse=%d innhold=%d\n",
                      probe.roi_found, probe.sharpness, probe.clip_lo_frac,
                      probe.clip_hi_frac, probe.coverage, probe.screen_width_frac,
-                     probe.bull_width_frac, probe.quality_ok, probe.size_ok);
+                     probe.bull_width_frac, probe.ring_evidence, probe.quality_ok,
+                     probe.size_ok, probe.content_ok);
         return 0;
     }
     if (argc >= 3 && std::strcmp(argv[2], "--outeronly") == 0) {

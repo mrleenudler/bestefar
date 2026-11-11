@@ -34,13 +34,16 @@ flowchart TD
     F --> G3["dekning<br/>coverage"]
     F --> G4["gjenskinn<br/>glare_frac"]
     F --> G5["størrelse<br/>screen_width_frac · bull_width_frac"]
+    F --> G6["innhold<br/>ring_evidence: konsentriske<br/>ringavvik rundt bull-kandidaten"]
     G1 --> Q{"quality_ok"}
     G2 --> Q
     G3 --> Q
     G4 --> Q
     G5 --> S{"size_ok"}
+    G6 --> N{"content_ok"}
     Q --> H["Historikk over 6 frames<br/>stability_frames"]
     S --> H
+    N --> H
     H --> I{"Stabil OG kvalitet i<br/>alle 6 frames?"}
     I -->|"nei"| T2["Statushint:<br/>gjenskinn · lys/fokus"]
     I -->|"ja"| J["should_capture = 1"]
@@ -50,6 +53,15 @@ flowchart TD
     A -.->|"første frame armer"| TO["Tidsgrense 8 s<br/>CaptureActivity · klientside"]
     TO -->|"gatingen har ikke utløst"| K
 ```
+
+**Innholdsporten** (kjerne 1.1.0, 2026-11-11): radialprofil (vinkelsnitt over
+48 retninger) rundt bull-komponentens sentroid; sammenhengende avvik fra
+glattet trend telles per polaritet, og `content_ok` krever
+`ring_evidence >= min_ring_evidence` (2, UKALIBRERT). En skive har
+konsentriske poengringer; vitrineskapet fra feltobservasjonen 2026-08-21
+(ÅP-K1) har ikke. Størrelsesgatene ble samtidig rekalibrert mot Testsett:
+`min_screen_width_frac` 0,90 → 0,55 og `min_bull_width_frac` 0,10 → 0,07 —
+de gamle verdiene avviste 7 av 10 C-bilder som analysen scorer feilfritt.
 
 **Capture-first** (felttest skytebanen, v0.12): bildet tas i det øyeblikket
 kriteriene er oppfylt, og UI-et spilles av *etterpå* mens analysen allerede
@@ -112,6 +124,7 @@ flowchart TD
     C1 -.->|"ingen kantpunkter"| R1["REJECTED_NO_RINGS"]
     C2 -.->|"ingen poengringer"| R1
     C3 -.->|"ikke gyldig skive"| R2["REJECTED_INVALID_TARGET"]
+    C5 -.->|"støy, ikke markører<br/>(kandidat-/treffantall)"| R2
     C5 -.->|"ingen treff"| R3["REJECTED_NO_HITS"]
     C7 --> OK["BF_OK<br/>treff sortert synkende + sum + konfidens"]
     OK --> BACK["transform_point_inverse<br/>koordinater tilbake til originalfotoet"]
@@ -125,7 +138,7 @@ signalet «dette kan jeg ikke score», og det er dette som utløser re-scan-dial
 | `BF_OK` | 0 | Gyldig kalibrering og minst ett treff |
 | `BF_REJECTED_NO_SCREEN` | 1 | *Definert, men ikke emittert* — se merknad |
 | `BF_REJECTED_NO_RINGS` | 2 | `detect_outer_circle` eller `calibrate_and_refine` feilet |
-| `BF_REJECTED_INVALID_TARGET` | 3 | `validate_calibration` avviste skiva |
+| `BF_REJECTED_INVALID_TARGET` | 3 | `validate_calibration` avviste skiva, eller treffdeteksjonen fant støy (over `hit_max_candidates`/`hit_max_hits`, kjerne 1.1.0) |
 | `BF_REJECTED_NO_HITS` | 4 | Ingen treff funnet (`gate_require_hits`) |
 | `BF_ERROR_BAD_INPUT` | 100 | Tomt bilde |
 | `BF_ERROR_INTERNAL` | 101 | Uventet exception |

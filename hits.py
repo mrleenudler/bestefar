@@ -204,6 +204,13 @@ def detect_hits(gray, calib, cfg, debug_lines=None):
         inner_r = cfg.get('hit_unified_inner_frac', 0.0) * delta
         circ = circle_det.detect_circles(gray, (cx0, cy0), search_r, marker_r, dot_r,
                                           cfg, inner_r=inner_r)
+        # Støy-vern: et kart uten ekte markører har ingen dominerende topper, og
+        # kandidatantallet eksploderer (målt: gyldige bilder 3-10, blurret T9 200).
+        # Per-topp-styrke skiller ikke støy fra ekte - antallet gjør det.
+        max_cands = cfg.get('hit_max_candidates', 40)
+        if len(circ) > max_cands:
+            raise ValueError(f"Bilde forkastet: stemmekartet er støy, ikke markører "
+                             f"({len(circ)} kandidater > {max_cands})")
         hits = []
         for (X, Y, vscore) in circ:
             rx, ry, mtype = _refine_white(gray, X, Y, marker_r, dot_r)
@@ -235,6 +242,12 @@ def detect_hits(gray, calib, cfg, debug_lines=None):
                 for e in extra:
                     log(f"  ({e['x']:.1f}, {e['y']:.1f}) ncc={e['score']:.2f}")
                 kept.extend(extra)
+        # Plausibilitet: en Kongsberg-serie er maks 20 skudd (panelrad 11-20
+        # finnes, se Ta.jpg). Flere "treff" enn det er per definisjon støy.
+        max_hits = cfg.get('hit_max_hits', 24)
+        if len(kept) > max_hits:
+            raise ValueError(f"Bilde forkastet: {len(kept)} treff er flere enn en "
+                             f"serie kan inneholde (maks {max_hits})")
         return kept
 
     h, w = gray.shape

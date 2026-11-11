@@ -342,6 +342,13 @@ def calibrate_and_refine(gray, center0, r_outer_est, cfg, debug_lines=None):
     rho_scale = r_max / r_samples
 
     calib = None
+    # NB (2026-11-11): tre robusthetsgrep i denne løkka ble prøvd og FORKASTET
+    # etter måling (perturbasjonsmatrise + begge oraklene): «beste iterat»-
+    # fallback og ellipsitets-adaptivt sporingsbånd konverterte trygge
+    # avvisninger til FEILSUMMER; delta-kontinuitet mellom iterasjoner
+    # blokkerte legitim gjenoppretting fra et halv-avstands-førstegjett og
+    # feilet C9 i fasitsettet. Detaljer i core/ARCHITECTURE.md. Løkka skal
+    # holdes identisk med C++-porten.
     for it in range(n_iters):
         P = warp_polar_gray(gray, center, r_max, r_samples, theta_samples)
         G = radial_gradient_abs(P, sigma_rho)
@@ -369,7 +376,12 @@ def calibrate_and_refine(gray, center0, r_outer_est, cfg, debug_lines=None):
                 log(f"iter {it}: progresjonstilpasning feilet ({len(peaks)} topper)")
                 return None
 
-        # Per-ring harmonisk tilpasning -> senterkorreksjon
+        # Per-ring harmonisk tilpasning -> senterkorreksjon.
+        # NB: et ellipsitets-adaptivt bånd (bredde + k2-amplitude * rho) ble
+        # prøvd og FORKASTET 2026-11-11: det reddet ingen bilder riktig, men
+        # produserte feilsummer ved å la halv-avstands-løsninger passere gaten,
+        # og ødela kalibreringer som konvergerte før (målt i C++-porten med
+        # _probe_robustness_cpp.py; se core/ARCHITECTURE.md). Fast bånd består.
         band_frac = 0.25 if it == 0 else 0.15
         band_px = band_frac * fit['delta']
         theta = 2.0 * np.pi * np.arange(theta_samples) / theta_samples

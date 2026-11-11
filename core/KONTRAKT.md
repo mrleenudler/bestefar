@@ -28,7 +28,7 @@ Alt under er verifisert mot koden 2026-08-07 (`bestefar_ffi.h`, `types.h`,
 | `BF_OK` | 0 | Analyse lyktes, `hits[]`/`sum_*` er gyldige |
 | `BF_REJECTED_NO_SCREEN` | 1 | Definert, **emitteres aldri** — se §5 |
 | `BF_REJECTED_NO_RINGS` | 2 | Fant ingen poengringer |
-| `BF_REJECTED_INVALID_TARGET` | 3 | Kalibreringen ble avvist (delta/ringtall/residual) |
+| `BF_REJECTED_INVALID_TARGET` | 3 | Kalibreringen ble avvist (delta/ringtall/residual), ELLER treffdeteksjonen fant støy i stedet for markører (kandidat-/treffantall over `hit_max_candidates`/`hit_max_hits`, fra 1.1.0) |
 | `BF_REJECTED_NO_HITS` | 4 | Ingen treff funnet på skiva |
 | `BF_ERROR_BAD_INPUT` | 100 | `image`/`out` var null, eller bildet var tomt |
 | `BF_ERROR_INTERNAL` | 101 | Uventet C++-exception fanget i FFI-laget |
@@ -68,9 +68,11 @@ driver fra hverandre slik `stability_frames`-kommentaren gjorde (§5).
 
 **`BF_MAX_HITS` = 32 er et hardt tak, ikke en foreslått default.** Flere treff
 enn det forsvinner stille — `bf_analyze` kutter ved 32, den feiler ikke og den
-varsler ikke i `status`. En konsument som teller "reelle" treff mot `n_hits`
-alene, kan derfor telle for lavt på et veldig fullt skudd-bilde uten at noe
-signaliserer det.
+varsler ikke i `status`. *Fra kjerne 1.1.0 (2026-11-11) kan kuttet i praksis
+ikke lenger inntreffe:* analysen avviser alt over `hit_max_hits` (24, under
+taket) som `BF_REJECTED_INVALID_TARGET` før resultatet bygges — en serie er
+maks 20 skudd, flere «treff» er per definisjon støy (se §1-merknaden under og
+`core/ARCHITECTURE.md`). Taket på 32 består som ABI-garanti.
 
 **Bare tre konfidens-delfelt krysser grensen: `confidence`, `n_rings`,
 `ring_resid_frac`.** C++-structen `bestefar::Confidence` har i tillegg
@@ -86,6 +88,18 @@ den.** Bevisst uavhengig av appens `versionName`: bump kun når en endring i
 `core/` faktisk påvirker analyse eller auto-capture, ikke i takt med
 UI-utgivelser. Formålet er å vite hvilken kjerne som produserte en
 §6-donasjon (`backend_spec.md` §8) — ikke å speile appversjoner.
+
+## 4b. Auto-capture-structene vokste 2026-11-11 (kjerne 1.1.0)
+
+`BfFrameProbe` fikk `ring_evidence` (double) og `content_ok` (int32) —
+innholdsporten som krever konsentrisk ringstruktur rundt bull-kandidaten.
+`BfAutoCaptureParams` fikk `min_ring_evidence` (double, default 2.0, 0 = av).
+Begge tilleggene står **sist** i structene med vilje: JNI-broen kopierer
+navngitte felter og kompilerer uendret fra samme header, så eksisterende
+serialisering brekker ikke — men klienten ser ikke de nye feltene før den
+selv legger dem til (meldt som issue, label `ui`). `should_capture` tar
+hensyn til innholdsporten uansett, så *trigger-oppførselen* endres for alle
+konsumenter uten kodeendring hos dem.
 
 ## 5. Kjente unøyaktigheter
 

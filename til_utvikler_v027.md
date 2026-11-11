@@ -460,3 +460,73 @@ legges debug-avtrykket inn ved siden av. Status på enheten:
   et `autoVerify`-filter og en APK er installert. Til da er dette en fil som
   ser riktig ut.
 - **Ikke lest utenfra i produksjon** før denne runden er utrullet.
+
+---
+
+# kjerne — 1.1.0: støy-vern i treffdeteksjonen, innholdsport i auto-capture, robusthetsmatrise
+
+Runden hadde to mål: identifisere skudd riktig (med
+robusthet mot vinkel/gjenskinn), og få auto-capture til å utløse oftere på
+ekte skjermer og sjeldnere på tilfeldig bakgrunn. Ingen nye bilder fantes, så
+alt er målt mot `Testsett/` + syntetiske perturbasjoner og negativer.
+
+## 1. Kjernen kunne rapportere 140 treff med status OK
+
+`Testsett/T9.jpg` (bevegelsesuskarpt) ga **140 treff, sum 900, OK** fra
+C++-kjernen; Python avviste samme bilde — på flaks i subsample-lotteriet,
+ikke på vern. Målingen som avgjorde: per-topp-styrke i stemmekartet skiller
+IKKE støy fra ekte markører (0,63–1,40 mot 0,72–2,44 × marker_r), men
+*antallet* kandidater gjør (3–10 på gyldige bilder, 200 på T9). Ny gate i
+begge implementasjoner: > 40 kandidater eller > 24 treff →
+`REJECTED_INVALID_TARGET`. En serie er maks 20 skudd; flere «treff» er per
+definisjon støy. Eneste endrede verdikt i Testsett: T9. Dette lukker den
+groveste delen av ÅP-U14 (fantomklassen); dedup av dobbeltmerker står igjen
+og venter på donasjonsmateriale.
+
+## 2. Robusthet: målt, forbedret der målingen holdt, og ærlig om resten
+
+Nytt verktøy `_probe_robustness_cpp.py` kjører C-settet gjennom 15
+perturbasjoner (vipp, rotasjon, skala, gjenskinn, lysgradient, gamma,
+defokus) mot fasiten: **113/150**, der rotasjon og gamma 1,6 er 10/10 og
+nesten alle avvik er trygge avvisninger, ikke gale summer. Tre forsøk på å
+heve tallet (beste-iterat-fallback, adaptivt sporingsbånd, delta-kontinuitet)
+ble **forkastet etter måling** — de konverterte trygge avvisninger til
+feilsummer (verst: 23 treff sum 118 mot fasit 3/25). Detaljer og tall i
+`core/ARCHITECTURE.md`, «Robusthetsrunden 2026-11-11». Begge oraklene står
+på 10/10.
+
+## 3. Auto-capture: begge feilretningene fra ÅP-K1 har nå en målt forklaring
+
+- **Skjermfoto som aldri utløste:** `min_screen_width_frac = 0,90` avviste
+  7 av 10 C-bilder som analysen scorer perfekt. Nå 0,55; bull-kravet 0,10 →
+  0,07. Alle 44 ekte apparatskjermer i Testsett passerer nå gatene, unntatt
+  tre mørke/små randtilfeller som faller til 8-sekunders-grensen.
+- **Vitrineskapet:** kvalitetsgatene passerte alt (kval=1 på samtlige 56
+  Testsett-bilder OG alle negativer) — ingenting så på innhold. Ny
+  innholdsport `ring_evidence`/`content_ok`: konsentriske ringavvik rundt
+  bull-kandidaten, krav ≥ 2 (UKALIBRERT). Av 9 konstruerte negativer er det
+  bare den syntetiske vitrineskap-mocken som fortsatt passerer alt — porten
+  krymper klassen, den lukker den ikke. Feltkalibreringen i ÅP-K1 står.
+
+## 4. Kontrakt og versjon
+
+`BfFrameProbe` += `ring_evidence`, `content_ok`; `BfAutoCaptureParams` +=
+`min_ring_evidence` — begge bakerst, broen kompilerer uendret og
+`should_capture` tar hensyn til porten uten klientendring. `bf_version()` →
+**1.1.0**. `BF_MAX_HITS`-trunkeringen kan ikke lenger inntreffe (24 < 32).
+Issue med label `ui` opprettes for å eksponere de nye feltene i
+debug-overlayet.
+
+## Verifisert
+
+- `verify_cset_cpp.py` → 10/10, `verify_cset.py` → 10/10 (kjørt 2026-11-11
+  etter siste endring).
+- `bestefar_cli Testsett/T9.jpg` → `REJECTED_INVALID_TARGET`.
+- Full Testsett-sweep: ingen andre verdikt endret seg.
+- Probe-sweep over Testsett + 9 negativer: tall i `core/ARCHITECTURE.md`.
+
+## Ikke verifisert
+
+- NDK-bygget (`gradlew assembleDebug`) — UI-instansens kjøring avgjør; ingen
+  nye filer eller CMake-endringer, kun eksisterende kilder.
+- Innholdsporten mot ekte vitrineskap/bane — mocken er min egen.

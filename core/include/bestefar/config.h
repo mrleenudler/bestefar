@@ -67,6 +67,13 @@ struct Config {
     double hit_search_r_max_frac     = 1.05;
     double hit_min_dist_frac         = 0.6;
     double hit_unified_inner_frac    = 0.0;
+    // Stoy-vern (2026-11-11): et stemmekart uten ekte markoerer har ingen
+    // dominerende topper - alt over terskel er jevnhoy stoy, og kandidat-
+    // ANTALLET eksploderer. Maalt: gyldige bilder 3-10 kandidater; motion-
+    // blurret T9 ga 200 (og 140 "treff", sum 900, status OK). Per-topp-styrke
+    // skiller ikke (stoy 0.63-1.40 x marker_r, ekte 0.72-2.44) - antallet gjoer.
+    int    hit_max_candidates        = 40;   // > dette fra stemmekartet -> stoy
+    int    hit_max_hits              = 24;   // > dette etter dedup -> forkast (maks serie = 20)
 
     // ---- Stemmekart-detektor (circles.py) ----
     double circ_pre_gauss_frac       = 0.10;
@@ -171,14 +178,29 @@ struct AutoCaptureParams {
     // faerre kalibrerte ringer + systematisk desimalskift. Maales paa den
     // OPPLYSTE SKJERM-BLOBBEN (ikke kontrast-ROI-en, som blaaser seg opp paa
     // tastatur/apparatramme og slapp gjennom bittesmaa skjermer, felttest
-    // 2026-07-07). 0.90 ~= skjermen fyller skannerrammen (som har margin).
-    double min_screen_width_frac   = 0.90;  // skjermblob-bredde / framebredde
+    // 2026-07-07).
+    // REKALIBRERT 2026-11-11 mot Testsett (desktop-maaling, ikke felt):
+    // 0.90 avviste 7 av 10 C-bilder som analysen scorer PERFEKT (maalt
+    // skjermbredde 0.59-0.96; C7 = 0.59 gir PASS mot fasit). Det var
+    // hovedaarsaken til at skjermfoto aldri utloeste (AAP-K1 falsk negativ).
+    // 0.55 slipper gjennom alt som beviselig analyserer riktig; bull-kravet
+    // under er det som faktisk vokter opploesningen.
+    double min_screen_width_frac   = 0.55;  // skjermblob-bredde / framebredde
     // Krav om MAALSKIVE-stoerrelse: bullens (svart senterdisk) bredde er
     // direkte proporsjonal med ringavstanden (bull ~= 5.7*delta), som er det
     // presisjonen faktisk avhenger av. Fanger ogsaa dobbel-indireksjonen i
     // monitor-testing (opplyst skjerm stor, men apparat-i-bildet lite).
-    // Geometri: delta>=50px paa 4000px-still => bull >= ~0.07; god margin 0.10.
-    double min_bull_width_frac     = 0.10;  // UKALIBRERT: bull-bredde / framebredde
+    // Geometri: delta>=50px paa 4000px-still => bull >= ~0.07.
+    // REKALIBRERT 2026-11-11: tre feltfoto med bull 0.08-0.09 analyserer OK
+    // (PXL_...161444920/171859013/172603938); 0.10 avviste dem. Satt til den
+    // geometriske nedre grensen 0.07.
+    double min_bull_width_frac     = 0.07;  // UKALIBRERT: bull-bredde / framebredde
+    // Ringbevis (2026-11-11, mot vitrineskap-utloesningen i AAP-K1): antall
+    // konsentriske ring-avvik i radialprofilen rundt bull-komponenten.
+    // En ekte skive har poengringer; en lys flate med noe moerkt inni har
+    // ikke. 0 = av. UKALIBRERT terskel - maalt paa Testsett (se
+    // core/ARCHITECTURE.md), ikke paa bane.
+    double min_ring_evidence       = 2.0;   // UKALIBRERT: krav til ringbevis
     // Gjenskinn (musings 2026-07): stoerste SAMMENHENGENDE mettede flekk i
     // skjermblobben / blob-areal. Punktvis metning (LED/markoerer) filtreres
     // med morfologisk aapning; helt utbrent skjerm fanges av max_clip_hi_frac.

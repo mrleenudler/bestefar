@@ -98,11 +98,16 @@ typedef struct BfAutoCaptureParams {
     double  max_clip_lo_frac;        /* default 0.30 */
     double  max_clip_hi_frac;        /* default 0.20 */
     double  min_coverage;            /* default 0.80 */
-    double  min_screen_width_frac;   /* default 0.90: skjermblobben maa fylle framen */
-    double  min_bull_width_frac;     /* UKALIBRERT, default 0.10: bull-bredde/framebredde */
+    double  min_screen_width_frac;   /* default 0.55 (rekalibrert 2026-11-11; 0.90
+                                      * avviste 7/10 C-bilder som analyserer perfekt) */
+    double  min_bull_width_frac;     /* UKALIBRERT, default 0.07: bull-bredde/framebredde */
     double  max_glare_frac;          /* UKALIBRERT, default 0.05: gjenskinnsflekk/blob-areal */
     double  frame_margin_frac;       /* default 0.02 */
     int32_t probe_max_side;          /* default 480 */
+    double  min_ring_evidence;       /* UKALIBRERT, default 2.0: krav til antall
+                                      * konsentriske ring-avvik rundt bullen
+                                      * (innholdsport mot vitrineskap-klassen,
+                                      * AAP-K1). 0 = porten er av. */
 } BfAutoCaptureParams;
 
 typedef struct BfFrameProbe {
@@ -126,6 +131,8 @@ typedef struct BfFrameProbe {
     double  bull_width_frac;     /* bull-bredde / framebredde (presisjonsmaal) */
     double  glare_frac;          /* stoerste mettede flekk / skjermblob-areal */
     int32_t glare_ok;            /* gjenskinnskriteriet oppfylt naa */
+    double  ring_evidence;       /* antall konsentriske ring-avvik rundt bullen */
+    int32_t content_ok;          /* ringbevis-kriteriet oppfylt naa (innholdsport) */
 } BfFrameProbe;
 
 typedef struct BfAutoCapture BfAutoCapture;   /* opaque tilstandsmaskin */

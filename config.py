@@ -149,6 +149,14 @@ DEFAULT_CONFIG = {
     # separate hvit-sone-passet. Eksperimentell - mal med verify_cset.py.
     'hit_unified_detector': True,
     'hit_unified_inner_frac': 0.0,        # Indre eksklusjon (x delta) for doed senter; 0 = hele skiva
+
+    # Stoy-vern (2026-11-11): et stemmekart uten ekte markorer har ingen dominerende
+    # topper - alt over terskel er jevnhoy stoy, og kandidat-ANTALLET eksploderer.
+    # Maalt: gyldige bilder gir 3-10 kandidater; motion-blurret T9 ga 200 (og 140
+    # "treff" med sum 900). Per-topp-styrke skiller IKKE (stoytopper 0.63-1.40 x
+    # marker_r mot ekte 0.72-2.44) - antallet gjor det, med stor margin.
+    'hit_max_candidates': 40,             # > dette fra stemmekartet -> stoy, forkast bildet
+    'hit_max_hits': 24,                   # > dette etter dedup/overlapp -> forkast (maks serie = 20 skudd)
     'circ_pre_gauss_frac': 0.10,          # Gauss-forblur foer median (x markor_r). Dreper LED-
                                           # rutenett godt nok til at 1x median holder; uten gauss
                                           # trengtes 2x median, men det produserte 2 falske positiver

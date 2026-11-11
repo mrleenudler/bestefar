@@ -230,4 +230,109 @@ meld issue begge veier (rot-`CLAUDE.md` §1).
 .venv\Scripts\python.exe verify_cset.py            # Python-fasit: 10/10
 core/build/bestefar_cli Testsett/C1.jpg            # C++-kjerne, JSON ut
 .venv\Scripts\python.exe verify_cset_cpp.py        # samme oracle mot CLI: krav 10/10
+.venv\Scripts\python.exe _probe_robustness_cpp.py  # perturbasjonsmatrise (se under)
 ```
+
+## Robusthetsrunden 2026-11-11 (kjerne 1.1.0)
+
+Ingen nye bilder fantes; alt under er målt mot `Testsett/` og syntetiske
+perturbasjoner/negativer. Tre ting ble endret, og tre ting ble prøvd og
+forkastet — de forkastede står her fordi de ellers blir foreslått igjen.
+
+### Støy-vern i treffdeteksjonen (endret, begge implementasjoner)
+
+`Testsett/T9.jpg` (bevegelsesuskarpt apparatfoto) avslørte et hull:
+C++-kjernen kalibrerte «ringer» i smøret (delta=40,6, 5 ringer, gate OK) og
+returnerte **140 treff, sum 900, status OK, confidence 0,50**.
+Python-referansen avviste samme bilde — men bare fordi dens
+subsample-lotteri i ytre-sirkel landet et annet sted; det var flaks, ikke
+vern. Målt skille:
+
+| | kandidater fra stemmekartet | stemmer per topp / marker_r |
+|---|---|---|
+| gyldige bilder (C/T-sett) | 3–10 | 0,72–2,44 |
+| T9 | 200 | 0,63–1,40 |
+
+Per-topp-styrke overlapper — intet absolutt gulv kan skille støy fra ekte.
+**Antallet skiller perfekt**, og det er også fysisk begrunnet: en
+Kongsberg-serie er maks 20 skudd (panelrad 11–20 finnes, se `Ta.jpg`).
+Derfor: `hit_max_candidates = 40` (kandidater fra stemmekartet) og
+`hit_max_hits = 24` (etter dedup/overlapp-pass); brudd →
+`REJECTED_INVALID_TARGET` («treffdeteksjonen fant stoy, ikke markoerer»).
+Implementert i både `hits.py` (ValueError) og `hits.cpp`
+(`noise_rejected`-utparameter). Eneste endrede verdikt i hele Testsett:
+T9 OK→avvist. 9 ikke-skive-negativer (beskåret bakgrunn + syntetisk
+vitrineskap/sofa): 0 fantomtreff. Bieffekt: `BF_MAX_HITS`-trunkeringen (32)
+kan ikke lenger inntreffe i praksis (24 < 32) — se `core/KONTRAKT.md` §3.
+
+### Perturbasjonsmatrisen (`_probe_robustness_cpp.py`)
+
+Syntetiske varianter av C-settet (perspektivvipp ±10/±20°, rotasjon,
+nedskalering, gjenskinnsflekk, lysgradient, gamma, defokus) kjørt mot
+C++-CLI-en og skåret mot samme fasit. Perturbasjonen endrer ikke fasiten.
+Status 2026-11-11: **113/150**; rotasjon ±15° og gamma 1,6 er 10/10;
+svakest er vipp 20° (2–6/10) og halv skala (4/10). Det viktige er *hvordan*
+det feiler: nesten alle avvik er trygge avvisninger eller ±1 treff — ikke
+gale summer. Matrisen er referansen enhver robusthetsendring skal måles mot.
+
+### Forkastet etter måling (ikke gjør om igjen uten nye data)
+
+1. **«Beste iterat»-fallback i `calibrate_and_refine`** (bruk iteratet med
+   flest sporede ringer når en senere iterasjon feiler): reddet C6 +20°
+   korrekt, men netto null på matrisen og konverterte trygge avvisninger til
+   **feilsummer** (C1 tilt_x+20: 4 treff sum 37, fasit 5/46; C9 gamma0,6:
+   23 treff sum 118, fasit 3/25 — like under 24-taket). En gal sum er verre
+   enn en avvisning.
+2. **Ellipsitets-adaptivt sporingsbånd** (grunnbånd + k2-amplitude·rho):
+   skapte feilsummene C2/C7 tilt_x+20 via halv-avstands-løsninger som
+   passerte gaten, og ødela kalibreringer som konvergerte før (C1 rot-15,
+   C5 tilt_y-10, C3 gamma0,6 — alle korrekte uten, avvist med).
+3. **Delta-kontinuitet mellom iterasjoner** (behold forrige delta når
+   autokorrelasjonen hopper >30 %): blokkerte også *legitim* gjenoppretting
+   fra et halv-avstands-førstegjett — Python-C9 falt fra PASS til avvist.
+
+Ringløkka er derfor bevisst identisk med Python-referansen. Lærdommen på
+tvers: på marginale bilder er gaten (`validate_calibration`) ikke sterk nok
+til å skille en reddet-men-gal kalibrering fra en ekte — så mekanismer som
+«redder» kalibreringer flytter feil fra synlig (avvist) til usynlig (gal
+sum). Vipp >15° forblir en kjent svakhet; riktig vei videre er trolig å
+gjøre *gaten* skarpere (f.eks. bull-størrelse mot delta), ikke å redde
+flere kalibreringer.
+
+### Auto-capture: størrelsesgatene rekalibrert + innholdsport (ny)
+
+Feltobservasjonene i ÅP-K1 (vitrineskap utløste; skjermbilde av skive
+utløste aldri) fikk målbare forklaringer:
+
+- **Falsk negativ:** `min_screen_width_frac = 0,90` avviste 7 av 10
+  C-bilder som analysen scorer feilfritt (målt 0,59–0,96). Satt til
+  **0,55**. `min_bull_width_frac` 0,10 → **0,07** (tre feltfoto med bull
+  0,08–0,09 analyserer OK; 0,07 er den geometriske nedre grensen som alt
+  sto i kommentaren).
+- **Falsk positiv:** ingen gate så på *innhold* — kvalitetsgatene (skarphet/
+  eksponering/gjenskinn) passerte samtlige 56 Testsett-bilder OG alle
+  negativer. Ny port: `ring_evidence` = antall smale, sammenhengende avvik
+  fra glattet trend i radialprofilen (vinkelsnitt over 48 retninger) rundt
+  bull-komponentens sentroid; `content_ok` krever ≥ `min_ring_evidence`
+  (2,0, UKALIBRERT). Er bull-komponenten > 0,35 av framebredden er den ikke
+  en bull men en mørk skivevariant (Ta/Tc/Td) eller noe annet — da skannes
+  komponentens *indre* rundt samme sentroid.
+
+Målt på hele Testsett + 9 negativer: alle 44 sanne apparatskjermer passerer
+innhold+størrelse unntatt tre mørke/små randtilfeller (Tc, Td,
+PXL_…164413401) som faller til klientens 8-sekunders tidsgrense; av
+negativene er det **kun den syntetiske vitrineskap-mocken som fortsatt
+passerer alle gater** — porten krymper vitrineklassen, den lukker den ikke.
+Feltkalibreringen i ÅP-K1 står.
+
+**Forkastet underveis (målt):** (a) radialprofil rundt *skjermblob-senteret*
+som fallback — telte tabell-/bezelkanter og ga ring ≥ 2 på ALT, inkl.
+reinsdyr og romfoto; sentroid-forankringen er det som gjør målet
+ringspesifikt. (b) *Median* over vinkler i stedet for snitt — teoretisk
+riktigere mot sektorstrukturer, men en fullskutt bull (C3, fasitbilde) har
+markører som bryter ringlinjene i mange retninger, og medianen mistet
+ringene der (ring=1) uten å stoppe vitrineskapet bedre.
+
+FFI: `BfFrameProbe` fikk `ring_evidence`/`content_ok`, `BfAutoCaptureParams`
+fikk `min_ring_evidence` — begge bakerst i structen (se `core/KONTRAKT.md`
+§4b). `BESTEFAR_CORE_VERSION` bumpet til 1.1.0.

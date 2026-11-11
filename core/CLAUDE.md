@@ -100,6 +100,12 @@ Du leser gjerne koden deres. Du redigerer den ikke — issue med label
 - **En kommentar i en header er kode.** Endrer du en default i `config.h`, sjekk
   om `bestefar_ffi.h` beskriver samme default i en kommentar — de to driver fra
   hverandre stille (issue #1 er akkurat dette).
+- **En måling tatt mens lenkingen feilet, er en måling av forrige binær.**
+  Windows låser kjørende exe-filer: kjører en verifiserings-/probeløkke (også
+  en du selv startet i bakgrunnen), feiler `ninja` med «cannot open output
+  file bestefar_cli.exe: Permission denied» — og den gamle binæren fortsetter
+  å svare med plausible tall. Sjekk at bygget faktisk skrev
+  («Linking CXX executable», fersk mtime) før du stoler på en måleserie.
 - **`core/build` er ikke inkrementelt trygt på tvers av CMake-cache-endringer.**
   Endrer du `CMakeLists.txt` (nye kilder, nye lenkede biblioteker), slett
   `core\build` og kjør `cmake -S core -B core\build` på nytt før du stoler på

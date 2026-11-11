@@ -121,6 +121,22 @@ skive) lot seg ikke gjenskape.
 To ting den ikke gjør: den rører ikke tersklene, og den hjelper ikke mot falske
 positive — et tilfeldig motiv utløser fortsatt gatingen innen 8 sekunder.
 
+**Kjernesiden gjorde et desktop-pass 2026-11-11 (kjerne 1.1.0) — det lukker
+ikke punktet.** Tre endringer, alle målt mot `Testsett/`, ingen mot bane:
+
+1. **Den falske negativen hadde en målbar årsak:** `min_screen_width_frac`
+   0,90 avviste 7 av 10 C-bilder som analysen scorer feilfritt (målt
+   skjermbredde 0,59–0,96). Satt til 0,55; `min_bull_width_frac` 0,10 → 0,07
+   (tre feltfoto med bull 0,08–0,09 analyserer OK). Det forklarer trolig
+   «skjermbildet av en skive utløste aldri».
+2. **Mot den falske positiven (vitrineskapet) finnes nå en innholdsport:**
+   `ring_evidence` teller konsentriske ringavvik rundt bull-kandidaten, og
+   `content_ok` krever ≥ 2. Alle 32 skivefoto i Testsett som analysen scorer,
+   måler ≥ 2 (de fleste 4–11); et syntetisk vitrineskap som passerer
+   kvalitets- OG størrelsesgatene stoppes av den. UKALIBRERT mot bane.
+3. Tersklene er fortsatt merket UKALIBRERT, og banemålingen dette punktet
+   krever er ikke gjort — skjermbilder er ikke banelys (se merknaden over).
+
 **Åpent, og eid av kjernen:** selve kalibreringen. **Åpent hos UI:** de 8
 sekundene er valgt, ikke målt, og hører hjemme i samme målesesjon. (7 s var
 første verdi; hevet til 8 s 2026-08-21 etter at 7 ble sett for kort — men se
@@ -686,6 +702,18 @@ feil, og uten OCR-fasit må hele serien forkastes.
 Den riktige fiksen ligger i kjernen, som er den eneste som ser hullene og kan
 slå sammen to merker som er samme skudd. Den krever testbilder av faktisk
 over-deteksjon, og de finnes ikke i `Testsett/` i dag.
+
+**Den groveste klassen er stengt i kjernen 2026-11-11 (kjerne 1.1.0):** et
+stemmekart uten ekte markører gir ikke sterke enkelttopper men et *kandidat-
+antall* som eksploderer (målt: gyldige bilder 3–10 kandidater, motion-blurret
+`T9.jpg` 200 — og 140 «treff» med sum 900 rapportert som OK). Analysen avviser
+nå > `hit_max_candidates` (40) kandidater eller > `hit_max_hits` (24) treff som
+`REJECTED_INVALID_TARGET`. Det er fantomklassen; 9 ikke-skive-testbilder
+(beskåret bakgrunn + syntetisk vitrineskap/sofa-tekstur) gir alle 0 fantomtreff.
+Selve sofafotoet med 17 treff finnes ikke i `Testsett/` og kan ikke etterprøves —
+17 ligger under 24-taket, så om akkurat det bildet nå stoppes, avgjøres av
+kandidattaket, og det er ikke målt. **Dedupliseringen av to merker for samme
+skudd er fortsatt åpen** — den krever materialet under.
 
 **Materialet er nå på vei inn:** donasjonene med tagg `rejected` +
 `status_code = 0`, og `ocr_mismatch` der `len(detected) > len(ocr)`, er begge

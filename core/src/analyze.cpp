@@ -65,7 +65,13 @@ AnalyzeResult analyze_core(const cv::Mat& img_bgr, const Config& cfg) {
     }
 
     // Treffdeteksjon i analyse-rammen
-    auto hit_list = detect_hits(gray, calib, cfg);
+    bool noise_rejected = false;
+    auto hit_list = detect_hits(gray, calib, cfg, &noise_rejected);
+    if (noise_rejected) {
+        out.status = Status::RejectedInvalidTarget;
+        out.message = "Bilde forkastet: treffdeteksjonen fant stoy, ikke markoerer";
+        return out;
+    }
     if (cfg.gate_require_hits && hit_list.empty()) {
         out.status = Status::RejectedNoHits;
         out.message = "Bilde forkastet: ingen treff funnet paa skiva";
