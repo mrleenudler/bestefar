@@ -92,6 +92,10 @@ struct Config {
     // ---- Overlapp-pass + sentrum-sveip (overlap.py) ----
     bool   hit_overlap_pass          = true;
     int    hit_overlap_trigger       = 10;
+    // Under denne markoerradien er NCC-templaten ikke diskriminerende
+    // (maalt 2026-11-11: falske 0.28-0.50 ved ~19px mot ekte 0.47/falske
+    // <=0.12 ved ~39px) - overlapp-passet hoppes over. 24px ~ delta 58.
+    double hit_overlap_min_marker_px = 24.0;
     double hit_overlap_max_anchor_r_frac = 3.0;
     double hit_overlap_nms_frac      = 0.20;
     double hit_overlap_vote_frac     = 0.25;

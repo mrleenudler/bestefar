@@ -100,6 +100,13 @@ std::vector<Hit> find_overlap_hits(const cv::Mat& gray, const std::vector<Hit>& 
     const double marker_r = cfg.hit_marker_radius_frac * delta;
     const double dot_r = cfg.hit_dot_radius_frac * delta;
 
+    // NCC-templaten er ikke diskriminerende naar markoeren er liten
+    // (2026-11-11): ved marker_r ~19px naadde falske treff NCC 0.28-0.50 —
+    // uskillelig fra C3s ekte skjulte treff (0.47 ved ~39px, falske <=0.12) —
+    // og det ekte skjulte treffet ble uansett ikke funnet paa den skalaen.
+    // Passet bidro altsaa kun med fantomtreff der. Hopp over.
+    if (marker_r < cfg.hit_overlap_min_marker_px) return {};
+
     // 1) Stemmekart
     VoteMap vm = circle_vote_map(gray, calib.center, search_r, marker_r, dot_r, cfg, 0.0);
     double amax;

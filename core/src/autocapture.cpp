@@ -165,7 +165,7 @@ static double ring_evidence_at(const cv::Mat& gray, const cv::Rect& blob_box,
 }
 
 static double measure_ring_evidence(const cv::Mat& gray, const cv::Rect& blob_box,
-                                    const BullInfo& bull) {
+                                    const BullInfo& bull, double min_evidence) {
     if (!bull.found || bull.r_px < 6.0) return 0.0;
     double best = ring_evidence_at(gray, blob_box, bull.center.x, bull.center.y,
                                    bull.r_px * 1.15, bull.r_px * 3.5);
@@ -176,7 +176,7 @@ static double measure_ring_evidence(const cv::Mat& gray, const cv::Rect& blob_bo
     // foerst: profil rundt skjermblob-SENTERET — den telte tabell-/bezelkanter
     // og ga ring>=2 paa ALT, ogsaa reinsdyr og romfoto (maalt 2026-11-11).
     // Sentroid-forankringen er det som goer maalet ringspesifikt.
-    if (best < 2.0 && bull.width_frac > 0.35)
+    if (best < min_evidence && bull.width_frac > 0.35)
         best = std::max(best, ring_evidence_at(gray, blob_box, bull.center.x,
                                                bull.center.y, bull.r_px * 0.12,
                                                bull.r_px * 0.95));
@@ -213,7 +213,8 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     const BullInfo bull = measure_bull_frac(gray, *blob_box, gray.cols);
     out.bull_frac = bull.width_frac;
     out.glare_frac = measure_glare_frac(gray, *blob_box);
-    out.ring_evidence = measure_ring_evidence(gray, *blob_box, bull);
+    out.ring_evidence = measure_ring_evidence(gray, *blob_box, bull,
+                                              p.min_ring_evidence);
 
     // Skarphet: Laplacian-varians INNE i ROI (fokusmaal)
     cv::Mat lap;

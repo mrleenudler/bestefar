@@ -275,6 +275,21 @@ svakest er vipp 20° (2–6/10) og halv skala (4/10). Det viktige er *hvordan*
 det feiler: nesten alle avvik er trygge avvisninger eller ±1 treff — ikke
 gale summer. Matrisen er referansen enhver robusthetsendring skal måles mot.
 
+### Overlapp-passet har et gulv for markørstørrelse (endret, begge impl.)
+
+Matrisen avslørte at halv skala ga **+1 fantomtreff** på fire bilder
+(C4/C6/C7/C10: 6 treff der fasit er 5), alle fra overlapp-passet. Målt: ved
+marker_r ≈ 19 px scorer falske NCC-treff 0,28–0,50 — uskillelig fra C3s
+ekte skjulte treff (0,47 ved marker_r ≈ 39 px, der falske målte ≤ 0,12) —
+og heller ikke avstand til anker skiller (ekte 0,59·marker_r, fantomer
+0,26–0,57). Samtidig finner passet *ikke* det ekte skjulte treffet på den
+skalaen (C3 halv skala mangler det uansett): templaten har for få piksler
+til å være diskriminerende. Passet bidro altså kun med fantomer der. Ny
+`hit_overlap_min_marker_px = 24` (≈ delta 58) hopper over passet under
+gulvet. Effekt: halv skala 4/10 → 7/10, null endring ellers, begge orakler
+10/10. Sentrum-sveipet beholdes uendret (dets 0,96-NCC er ekte treff, og en
+større eksklusjonsradius ville truet C5s tette 10,2-par).
+
 ### Forkastet etter måling (ikke gjør om igjen uten nye data)
 
 1. **«Beste iterat»-fallback i `calibrate_and_refine`** (bruk iteratet med

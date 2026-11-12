@@ -104,6 +104,14 @@ def find_overlap_hits(gray, hits, calib, cfg):
     marker_r = cfg.get('hit_marker_radius_frac', 0.41) * delta
     dot_r    = cfg.get('hit_dot_radius_frac', 0.105) * delta
 
+    # NCC-templaten er ikke diskriminerende naar markoeren er liten (2026-11-11):
+    # ved marker_r ~19px (halvskala-syntetikk) naadde falske treff NCC 0.28-0.50
+    # — over terskelen og uskillelig fra C3s ekte skjulte treff (0.47 ved ~39px,
+    # der falske maalte <=0.12) — og det ekte skjulte treffet ble uansett ikke
+    # funnet paa den skalaen. Passet bidro altsaa KUN med fantomtreff. Hopp over.
+    if marker_r < cfg.get('hit_overlap_min_marker_px', 24.0):
+        return []
+
     # ---- 1. Stemmekart (gjenbruk av hoveddetektor-infrastruktur) ----
     acc, dbg = circle_det.circle_vote_map(
         gray, (cx0, cy0), search_r, marker_r, dot_r, cfg, inner_r=0.0)

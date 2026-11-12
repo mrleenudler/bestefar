@@ -488,7 +488,12 @@ og venter på donasjonsmateriale.
 Nytt verktøy `_probe_robustness_cpp.py` kjører C-settet gjennom 15
 perturbasjoner (vipp, rotasjon, skala, gjenskinn, lysgradient, gamma,
 defokus) mot fasiten: **113/150**, der rotasjon og gamma 1,6 er 10/10 og
-nesten alle avvik er trygge avvisninger, ikke gale summer. Tre forsøk på å
+nesten alle avvik er trygge avvisninger, ikke gale summer. Én målbar
+fantomkilde ble funnet og fjernet: overlapp-passets NCC-template er ikke
+diskriminerende under marker_r ≈ 24 px (falske 0,28–0,50 mot ekte 0,47 ved
+39 px) og bidro kun med +1-fantomtreff på små skiver — passet hoppes nå
+over der (`hit_overlap_min_marker_px`), og halv-skala-kolonnen gikk fra
+4/10 til 7/10. Tre forsøk på å
 heve tallet (beste-iterat-fallback, adaptivt sporingsbånd, delta-kontinuitet)
 ble **forkastet etter måling** — de konverterte trygge avvisninger til
 feilsummer (verst: 23 treff sum 118 mot fasit 3/25). Detaljer og tall i

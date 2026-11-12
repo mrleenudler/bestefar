@@ -183,6 +183,9 @@ DEFAULT_CONFIG = {
     # Overlapp-pass (overlap.py): subterskel stemmekart + NCC for delvis-skjulte treff
     'hit_overlap_pass': True,
     'hit_overlap_trigger': 10,            # Kjoer kun hvis < dette antall treff funnet
+    'hit_overlap_min_marker_px': 24.0,    # Under dette er NCC-templaten ikke diskriminerende
+                                          # (maalt 2026-11-11: falske 0.28-0.50 ved ~19px mot
+                                          # ekte 0.47 ved ~39px) - passet hoppes over
     'hit_overlap_max_anchor_r_frac': 3.0, # Soek kun naer treff innenfor dette (x delta) fra senter
     'hit_overlap_nms_frac': 0.20,         # Liten NMS-radius (x marker_r); std ~0.7 undertrykket 22px-nabo
     'hit_overlap_vote_frac': 0.25,        # Subterskel-gulv (andel av amax) for overlapp-kandidater
