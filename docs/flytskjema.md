@@ -31,7 +31,7 @@ flowchart TD
     E --> F["Måling per frame"]
     F --> G1["skarphet<br/>Laplacian-varians"]
     F --> G2["eksponering<br/>clip_lo_frac / clip_hi_frac"]
-    F --> G3["dekning<br/>coverage"]
+    F --> G3["dekning<br/>coverage · edge_cut"]
     F --> G4["gjenskinn<br/>glare_frac"]
     F --> G5["størrelse<br/>screen_width_frac · bull_width_frac"]
     F --> G6["innhold<br/>ring_evidence: konsentriske<br/>ringavvik rundt bull-kandidaten"]
@@ -62,6 +62,14 @@ konsentriske poengringer; vitrineskapet fra feltobservasjonen 2026-08-21
 (ÅP-K1) har ikke. Størrelsesgatene ble samtidig rekalibrert mot Testsett:
 `min_screen_width_frac` 0,90 → 0,55 og `min_bull_width_frac` 0,10 → 0,07 —
 de gamle verdiene avviste 7 av 10 C-bilder som analysen scorer feilfritt.
+
+**Kutt-porten** (kjerne 1.1.0, 2026-11-12): `edge_cut` settes når
+skjermblobben berører framekanten — bezelen mangler da på en side, skjermen
+er kuttet, og skjermdeteksjonen i analysen har ingen kant å snappe til
+(T-settets feilmodus: alle gale/avviste T-resultater var kuttede foto, se
+`core/ARCHITECTURE.md`). Inngår i `quality_ok`; `block_edge_cut` (default
+på) kan slå den av i feltkalibrering. `coverage` kan ikke se dette selv:
+en klippet blob gir en klippet boks.
 
 **Capture-first** (felttest skytebanen, v0.12): bildet tas i det øyeblikket
 kriteriene er oppfylt, og UI-et spilles av *etterpå* mens analysen allerede

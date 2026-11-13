@@ -17,6 +17,7 @@ struct ProbeInternals {
     double bull_frac = 0;   // bull-bredde / framebredde (presisjonsmaal)
     double glare_frac = 0;  // stoerste mettede flekk / skjermblob-areal
     double ring_evidence = 0;  // antall konsentriske ring-avvik rundt bull
+    bool edge_cut = false;  // skjermblobben beroerer framekanten (bezel mangler)
 };
 
 // Bull-komponenten med posisjon, for ringbevis-maalingen.
@@ -210,6 +211,17 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     if (!blob_box) return out;   // ingen opplyst skjerm av meningsfull stoerrelse
     out.roi_found = true;
     out.roi_box = *blob_box;
+    // Kutt-deteksjon (2026-11-12, T-settets feilmodus): en komplett skjerm har
+    // ALLTID moerk bezel mellom den lyse blobben og framekanten; beroerer
+    // blobben kanten, er skjermen kuttet og bezelen borte paa den siden.
+    // coverage-maalet kan IKKE se dette - en klippet blob gir en klippet boks,
+    // og boks-mot-margin-snittet ser fint ut (T2: dek=0.98, crop feilet).
+    {
+        const int slack = 1;
+        out.edge_cut = blob_box->x <= slack || blob_box->y <= slack ||
+                       blob_box->x + blob_box->width >= gray.cols - slack ||
+                       blob_box->y + blob_box->height >= gray.rows - slack;
+    }
     const BullInfo bull = measure_bull_frac(gray, *blob_box, gray.cols);
     out.bull_frac = bull.width_frac;
     out.glare_frac = measure_glare_frac(gray, *blob_box);
@@ -289,6 +301,7 @@ void bf_autocapture_default_params(BfAutoCaptureParams* out) {
     out->frame_margin_frac = d.frame_margin_frac;
     out->probe_max_side = d.probe_max_side;
     out->min_ring_evidence = d.min_ring_evidence;
+    out->block_edge_cut = d.block_edge_cut ? 1 : 0;
 }
 
 BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
@@ -306,6 +319,7 @@ BfAutoCapture* bf_autocapture_create(const BfAutoCaptureParams* p) {
         ac->params.frame_margin_frac = p->frame_margin_frac;
         ac->params.probe_max_side = p->probe_max_side;
         ac->params.min_ring_evidence = p->min_ring_evidence;
+        ac->params.block_edge_cut = p->block_edge_cut != 0;
     }
     return ac;
 }
@@ -422,10 +436,15 @@ extern "C" int32_t bf_autocapture_feed(BfAutoCapture* ac, const BfImage* frame,
         const bool glare_ok = pr.glare_frac <= p.max_glare_frac;
         out->glare_frac = pr.glare_frac;
         out->glare_ok = glare_ok ? 1 : 0;
+        // edge_cut hoerer til innrammingen (samme kriterium som coverage):
+        // en kuttet skjerm mangler bezel paa en side, og skjermdeteksjonen
+        // i analysen trenger alle fire kanter (T-settets feilmodus).
+        out->edge_cut = pr.edge_cut ? 1 : 0;
         const bool quality = pr.sharpness >= p.min_sharpness &&
                              pr.clip_lo <= p.max_clip_lo_frac &&
                              pr.clip_hi <= p.max_clip_hi_frac &&
                              pr.coverage >= p.min_coverage &&
+                             !(p.block_edge_cut && pr.edge_cut) &&
                              glare_ok;
         out->quality_ok = quality ? 1 : 0;
 

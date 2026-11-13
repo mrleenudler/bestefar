@@ -535,3 +535,25 @@ debug-overlayet.
 - NDK-bygget (`gradlew assembleDebug`) — UI-instansens kjøring avgjør; ingen
   nye filer eller CMake-endringer, kun eksisterende kilder.
 - Innholdsporten mot ekte vitrineskap/bane — mocken er min egen.
+
+## Etterslep 2026-11-12: kutt-porten (T-settets feilmodus)
+
+Eier meldte at T-settet scoret galt, trolig pga. manglende bezel på en
+kant. Panel-fasiten ble lest fra fotoene og bekrefter det (avlesningene
+ligger i `hits_truth_tset.txt` — **vennligst verifiser dem**, de er lest av
+kjerne-instansen og ikke av eier): alle gale/avviste T-resultater (T2
+avvist; T4 7 treff/sum 63 mot fasit 9/82; T6 sum 55 mot 54) er foto der
+skjermen kuttes av framekanten, mens begge helt innrammede (T7 10/86, T8
+7/66) scorer riktig.
+
+Nytt probefelt `edge_cut` (skjermblobben berører framekanten = bezel
+mangler) inngår nå i `quality_ok`, med param `block_edge_cut` (default på).
+`coverage` kunne ikke se dette — en klippet blob gir en klippet boks, og
+T2 målte dek=0,98. Prisen: også stramt-men-komplett innrammede foto
+blokkeres (20 av 56 Testsett-bilder trigger nå, mot 52 uten porten) — i
+live bruk betyr det «rygg litt til hele skjermen er inne», som er riktig
+UX når alternativet er en capture som kan gi gal sum. Issue #16 (ui) er
+oppdatert: `edge_cut` og `block_edge_cut` bør også inn i debug-overlayet.
+
+Verifisert: begge orakler fortsatt 10/10 (analysen er urørt — dette er
+ren probe-endring); full probe-sweep over Testsett før/etter.

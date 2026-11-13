@@ -89,11 +89,14 @@ den.** Bevisst uavhengig av appens `versionName`: bump kun når en endring i
 UI-utgivelser. Formålet er å vite hvilken kjerne som produserte en
 §6-donasjon (`backend_spec.md` §8) — ikke å speile appversjoner.
 
-## 4b. Auto-capture-structene vokste 2026-11-11 (kjerne 1.1.0)
+## 4b. Auto-capture-structene vokste 2026-11-11/12 (kjerne 1.1.0)
 
 `BfFrameProbe` fikk `ring_evidence` (double) og `content_ok` (int32) —
-innholdsporten som krever konsentrisk ringstruktur rundt bull-kandidaten.
-`BfAutoCaptureParams` fikk `min_ring_evidence` (double, default 2.0, 0 = av).
+innholdsporten som krever konsentrisk ringstruktur rundt bull-kandidaten —
+og `edge_cut` (int32): skjermblobben berører framekanten, dvs. bezelen
+mangler på en side og skjermen er kuttet (T-settets feilmodus; inngår i
+`quality_ok`). `BfAutoCaptureParams` fikk `min_ring_evidence` (double,
+default 2.0, 0 = av) og `block_edge_cut` (int32, default 1, 0 = av).
 Begge tilleggene står **sist** i structene med vilje: JNI-broen kopierer
 navngitte felter og kompilerer uendret fra samme header, så eksisterende
 serialisering brekker ikke — men klienten ser ikke de nye feltene før den

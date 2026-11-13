@@ -351,3 +351,28 @@ ringene der (ring=1) uten å stoppe vitrineskapet bedre.
 FFI: `BfFrameProbe` fikk `ring_evidence`/`content_ok`, `BfAutoCaptureParams`
 fikk `min_ring_evidence` — begge bakerst i structen (se `core/KONTRAKT.md`
 §4b). `BESTEFAR_CORE_VERSION` bumpet til 1.1.0.
+
+### Kutt-porten: skjermblobben skal ikke beroere framekanten (2026-11-12)
+
+Eier meldte at T-settet scoret galt, trolig fordi bezelen manglet paa en
+kant. Panel-fasiten ble lest fra fotoene (`hits_truth_tset.txt`, IKKE
+eier-verifisert) og bekrefter det: **alle gale/avviste T-resultater (T2
+avvist, T4 7/63 mot fasit 9/82, T6 55 mot 54) er foto der skjermen kuttes
+av framekanten; begge helt innrammede (T7 10/86, T8 7/66) scorer riktig.**
+Mekanismen: skjermdeteksjonen snapper fire kantlinjer, og en side uten
+bezel har ingen kant aa snappe til — crop-en blir gal, og resultatet kan
+bli en gal sum, ikke bare en avvisning.
+
+`coverage`-maalet kan ikke fange dette: en klippet blob gir en klippet
+boks, og boks-mot-margin-snittet ser fint ut (T2 maalte dek=0,98). Det
+paalitelige signalet er at blobben BEROERER framekanten (<=1 px paa
+probe-skala): en komplett skjerm har alltid moerk bezel mellom lys blob og
+kant. Nytt probefelt `edge_cut`, inngaar i `quality_ok`; param
+`block_edge_cut` (default paa) for feltkalibrering.
+
+Prisen, maalt paa Testsett: porten blokkerer ogsaa stramt-men-komplett
+innrammede foto (bl.a. C2/C3/C8/C9/C10, som analyserer perfekt) — 20 av 56
+bilder trigger naa, mot 52 foer. Det er villet: testfotoene er haandtatt
+uten skannerramma, og i live bruk er svaret at brukeren rygger litt til
+hele skjermen er inne — alternativet er en capture som kan gi gal sum.
+Statisk enkeltbilde kan uansett ikke maale stabilitetsvinduet.
