@@ -376,3 +376,35 @@ bilder trigger naa, mot 52 foer. Det er villet: testfotoene er haandtatt
 uten skannerramma, og i live bruk er svaret at brukeren rygger litt til
 hele skjermen er inne — alternativet er en capture som kan gi gal sum.
 Statisk enkeltbilde kan uansett ikke maale stabilitetsvinduet.
+
+### Kutt-porten v2: maalomraadet i framen, ikke hele skjermen (2026-11-13)
+
+v1 over levde ett doegn. Eier meldte tilbake at C-blokkeringene var for
+strenge (tape paa skjermen og gjenskinn kan koble blobben til framekanten,
+og stram innramming er normal), og foreslo en bedre invariant: **bullkanten
+er 7-ringen og 1-ringen ligger paa en fast ratio fra samme senter** — bruk
+den til aa regne ut en riktig margin. Det er fast geometri (bull = 5,7δ i
+diameter → r_bull = 2,85δ; 1-ringen = 10δ = 3,51·r_bull), ikke en tunbar
+terskel.
+
+v2: `edge_cut` settes naar sirkelen 3,5·r_bull rundt bull-sentroiden gaar
+utenfor framen. Begrunnelsen er skarpere enn v1s: gaar 1-ring-sonen utenfor
+fotoet, kan en markoer der ligge HELT utenfor bildet — et manglende treff i
+summen uten noen feilmelding aa oppdage det paa.
+
+To attribusjonskorrigeringer fra eier-verifiseringen av panel-fasiten
+(`hits_truth_tset.txt`, 2026-11-14) hoerer til her: T4 har et HELT skjult
+9,1-treff, saa detekterbart maal er 8/73 — kjernens 7/63 mangler ett treff
+i 10,x-klyngen (C3-klassen overlapp, ikke noedvendigvis kuttet), og T6
+(+1 poeng) er presisjon. Det kausalt sikre kutt-tilfellet er T2, der selve
+ringomraadet er kuttet (→ NO_RINGS). v1s «alle gale/avviste er kuttede
+foto» var korrelasjon, ikke aarsak — derav v2s maalomraade-formulering.
+
+Maalt klarering (avstand bullsenter → naermeste kant, i r_bull): C2 3,62 og
+C10 5,66 slipper; T3 3,49 og T5 2,90 blokkeres — de scoret riktig kun fordi
+treffene satt sentralt — og T2 2,60 blokkeres. Resultat: **alle 10
+C-bilder trigger igjen** (26 av 56 totalt), T2 forblir blokkert, og som
+sidegevinst blokkeres reinsdyr- og moerkvariant-skjermene (bull-
+segmenteringen gir der en diger «bull», og 3,5·r gaar alltid utenfor) —
+flater kjernen uansett ikke kan score. Uten funnet bull felles ingen
+kutt-dom; stoerrelsesgaten tar det tilfellet.

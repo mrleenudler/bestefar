@@ -93,10 +93,15 @@ UI-utgivelser. Formålet er å vite hvilken kjerne som produserte en
 
 `BfFrameProbe` fikk `ring_evidence` (double) og `content_ok` (int32) —
 innholdsporten som krever konsentrisk ringstruktur rundt bull-kandidaten —
-og `edge_cut` (int32): skjermblobben berører framekanten, dvs. bezelen
-mangler på en side og skjermen er kuttet (T-settets feilmodus; inngår i
-`quality_ok`). `BfAutoCaptureParams` fikk `min_ring_evidence` (double,
-default 2.0, 0 = av) og `block_edge_cut` (int32, default 1, 0 = av).
+og `edge_cut` (int32): **målområdet** er kuttet av framekanten, dvs.
+sirkelen 3,5·bull-radius (1-ringen; bullkant = 7-ringen, fast geometri)
+rundt bull-sentroiden går utenfor framen, slik at en markør nær 1-ringen
+kan ligge utenfor fotoet og mangle i summen uten feilmelding (T-settets
+feilmodus; inngår i `quality_ok`). *Semantikken ble endret 2026-11-13 fra
+v1 («skjermblobben berører framekanten») — feltnavnet består, og ingen
+konsument hadde rukket å bygge mot v1 (issue #16 var fortsatt åpen).*
+`BfAutoCaptureParams` fikk `min_ring_evidence` (double, default 2.0,
+0 = av) og `block_edge_cut` (int32, default 1, 0 = av).
 Begge tilleggene står **sist** i structene med vilje: JNI-broen kopierer
 navngitte felter og kompilerer uendret fra samme header, så eksisterende
 serialisering brekker ikke — men klienten ser ikke de nye feltene før den

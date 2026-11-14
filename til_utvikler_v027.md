@@ -557,3 +557,30 @@ oppdatert: `edge_cut` og `block_edge_cut` bør også inn i debug-overlayet.
 
 Verifisert: begge orakler fortsatt 10/10 (analysen er urørt — dette er
 ren probe-endring); full probe-sweep over Testsett før/etter.
+
+## Etterslep 2026-11-13: kutt-porten v2 (eiers ratio-forslag), og attribusjonen korrigert
+
+Takk for verifiseringen av panel-fasiten og det skjulte T4-treffet. Det
+endret bildet: med detekterbart mål 8/73 mangler kjernen ETT treff i
+10,x-klyngen på T4 — det er C3-klassens overlappproblem, ikke kuttet. T6
+(+1 poeng) er presisjon. Det kausalt sikre kutt-tilfellet er T2, der selve
+ringområdet går ut av bildet (derav NO_RINGS). v1-portens «alle gale var
+kuttede foto» var korrelasjon; det står nå rettet i `core/ARCHITECTURE.md`
+og `hits_truth_tset.txt`.
+
+Ratio-forslaget ditt er implementert som kutt-port v2: bullkanten er
+7-ringen, 1-ringen ligger på 10δ = 3,51·bull-radius (fast geometri), og
+`edge_cut` settes når den sirkelen går utenfor framen. Skarpere begrunnelse
+enn v1: en markør nær 1-ringen kan da ligge HELT utenfor fotoet — et
+manglende treff uten feilmelding. Målt: **alle 10 C-bildene trigger igjen**
+(tape/gjenskinn/stram innramming blokkerer ikke lenger), T2 forblir
+blokkert (klarering 2,60·r_bull mot C2s 3,62), og reinsdyr-/mørkflatene
+blokkeres som sidegevinst. 26 av 56 Testsett-bilder trigger, deriblant
+samtlige fasit-verifisert korrekte. Skjermratio-ideen (bezel-rektangelets
+kjente sideforhold) er IKKE implementert — den er svak som live-gate
+(perspektiv forkorter ratioen), men god som crop-sanity i analysen; notert
+som mulig neste steg i robusthetsarbeidet.
+
+Testmodus-spørsmålet er svart i chat (kort: ja, og alt kjernen må bidra
+med finnes allerede — hvert gate-felt krysser FFI per frame; resten er
+UI + logging).

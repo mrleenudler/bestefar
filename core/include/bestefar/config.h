@@ -205,13 +205,15 @@ struct AutoCaptureParams {
     // ikke. 0 = av. UKALIBRERT terskel - maalt paa Testsett (se
     // core/ARCHITECTURE.md), ikke paa bane.
     double min_ring_evidence       = 2.0;   // UKALIBRERT: krav til ringbevis
-    // Blokker trigger naar skjermblobben beroerer framekanten (2026-11-12,
-    // T-settets feilmodus): en komplett skjerm har alltid bezel mellom lys
-    // blob og framekant; beroering betyr at skjermen er kuttet og at
-    // skjermdeteksjonen i analysen mangler en kant aa snappe til. Maalt paa
-    // T-settet mot panel-fasit: alle gale/avviste resultater (T2, T4, T6)
-    // er kuttede foto; begge helt innrammede (T7, T8) scorer riktig.
-    // coverage-maalet kan ikke se dette (klippet blob gir klippet boks).
+    // Blokker trigger naar MAALOMRAADET kuttes av framekanten (T-settets
+    // feilmodus; eiers gate-forslag 2026-11-13): sirkelen 3.5*bull-radius
+    // (1-ringen; bullkant = 7-ringen, fast geometri) rundt bull-sentroiden
+    // maa ligge i framen, ellers kan en markoer naer 1-ringen ligge utenfor
+    // fotoet og mangle i summen uten feilmelding. v1 ("skjermblobben
+    // beroerer framekanten", 2026-11-12) var for streng — blokkerte ogsaa
+    // stramt-men-komplett innrammede skiver (C2/C3/C8/C9/C10) og var saarbar
+    // for tape/gjenskinn som kobler blobben til kanten. coverage-maalet kan
+    // uansett ikke se kutt (klippet blob gir klippet boks; T2: dek=0.98).
     bool   block_edge_cut          = true;
     // Gjenskinn (musings 2026-07): stoerste SAMMENHENGENDE mettede flekk i
     // skjermblobben / blob-areal. Punktvis metning (LED/markoerer) filtreres

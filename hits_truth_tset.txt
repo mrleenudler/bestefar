@@ -1,7 +1,10 @@
-# T-settets panel-fasit — LEST AV KJERNE-INSTANSEN FRA PANELFOTOENE 2026-11-12.
-# IKKE eier-verifisert, og brukes IKKE av verify-scriptene. Formaal: dokumentere
+# T-settets panel-fasit — LEST AV KJERNE-INSTANSEN FRA PANELFOTOENE 2026-11-12,
+# EIER-VERIFISERT 2026-11-14 (se oppdateringslinjen under). Brukes IKKE av
+# verify-scriptene ennaa. Formaal: dokumentere
 # maalingen bak edge-cut-porten (core/ARCHITECTURE.md) og gi en start for en
 # fremtidig T-sett-verifisering NAAR eier har kontrollert avlesningene.
+# Oppdatering: Eier har verifisert treffene (2026-11-14). Merk skjult treff på T4. 
+# Det kan kun avsløres visuelt ved å beregne avvik for senter-klynge markøren (ikke implementert p.t.).
 # Format som hits_truth.txt: navn, antall MARKOERER paa skiva, S-10, desimaler.
 # X (tier) skrevet som 10.x, * (innertier) som 10.x. Merk T8: foerste skudd er
 # 0.0 (bom) og har INGEN markoer paa skiva — antall er derfor 7, ikke 8.
@@ -9,14 +12,21 @@
 # Kjernens resultat 2026-11-12 (kjerne 1.1.0) til sammenligning:
 #   T1 7/56 RIKTIG   T2 avvist(NO_RINGS)   T3 5/45 RIKTIG   T4 7/63 FEIL
 #   T5 5/45 RIKTIG   T6 6/55 FEIL(+1)      T7 10/86 RIKTIG  T8 7/66 RIKTIG
+# T4: med det skjulte 9.1-treffet (eier 2026-11-14) er DETEKTERBART maal
+#   8 markoerer / sum 73 — kjernen mangler altsaa ETT detekterbart treff
+#   (10.x-klyngen), samme klasse som C3s overlapp, ikke noedvendigvis kuttet.
+# Kutt-attribusjonen (2026-11-12-linjen under) ble derfor NYANSERT 2026-11-13:
+#   det kausalt sikre kutt-tilfellet er T2 (ringomraadet selv er kuttet ->
+#   NO_RINGS); T6 (+1 poeng) er presisjon, T4 er overlapp. Se
+#   core/ARCHITECTURE.md "Kutt-porten v2".
 # Alle gale/avviste (T2, T4, T6) er foto der skjermen er kuttet av framekanten.
 #
 # navn  ant  sum  desimaler
-T1    7   56   3.4, 7.6, 8.9, 9.1, 9.3, 10.4, 10.6
-T2    5   44   7.8, 8.3, 9.7, 10.2, 10.9
-T3    5   45   8.3, 9.1, 9.4, 9.6, 10.1
-T4    9   82   7.9, 8.3, 9.1, 9.1, 9.2, 10.2, 10.5, 10.7, 10.8
-T5    5   45   8.1, 9.0, 9.1, 9.4, 10.4
-T6    6   54   7.9, 8.4, 9.9, 10.2, 10.4, 10.5
-T7    10  86   8.3, 8.4, 8.5, 8.5, 8.5, 9.3, 9.4, 9.7, 9.9, 10.0
-T8    7   66   8.4, 9.2, 9.9, 10.0, 10.2, 10.3, 10.7
+T1    7   56   3.4, 7.6, 8.9, 9.1, 9.3, 10.4, 10.6 # OK
+T2    5   44   7.8, 8.3, 9.7, 10.2, 10.9 # OK
+T3    5   45   8.3, 9.1, 9.4, 9.6, 10.1 # OK
+T4    9   82   7.9, 8.3, 9.1, 9.1, 9.2, 10.2, 10.5, 10.7, 10.8 # One hit (9.1) completely hidden behind another
+T5    5   45   8.1, 9.0, 9.1, 9.4, 10.4 # OK
+T6    6   54   7.9, 8.4, 9.9, 10.2, 10.4, 10.5 # OK
+T7    10  86   8.3, 8.4, 8.5, 8.5, 8.5, 9.3, 9.4, 9.7, 9.9, 10.0 # OK
+T8    7   66   8.4, 9.2, 9.9, 10.0, 10.2, 10.3, 10.7 # OK

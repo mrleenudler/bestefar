@@ -63,13 +63,14 @@ konsentriske poengringer; vitrineskapet fra feltobservasjonen 2026-08-21
 `min_screen_width_frac` 0,90 → 0,55 og `min_bull_width_frac` 0,10 → 0,07 —
 de gamle verdiene avviste 7 av 10 C-bilder som analysen scorer feilfritt.
 
-**Kutt-porten** (kjerne 1.1.0, 2026-11-12): `edge_cut` settes når
-skjermblobben berører framekanten — bezelen mangler da på en side, skjermen
-er kuttet, og skjermdeteksjonen i analysen har ingen kant å snappe til
-(T-settets feilmodus: alle gale/avviste T-resultater var kuttede foto, se
-`core/ARCHITECTURE.md`). Inngår i `quality_ok`; `block_edge_cut` (default
-på) kan slå den av i feltkalibrering. `coverage` kan ikke se dette selv:
-en klippet blob gir en klippet boks.
+**Kutt-porten** (kjerne 1.1.0; v2 2026-11-13): `edge_cut` settes når
+**målområdet** kuttes av framekanten — sirkelen 3,5·bull-radius (1-ringen;
+bullkant = 7-ringen, fast geometri) rundt bull-sentroiden går utenfor
+framen. Da kan en markør nær 1-ringen ligge utenfor fotoet og mangle i
+summen uten feilmelding (T-settets feilmodus, se `core/ARCHITECTURE.md`
+«Kutt-porten v2»). Inngår i `quality_ok`; `block_edge_cut` (default på)
+kan slå den av i feltkalibrering. `coverage` kan ikke se kutt selv: en
+klippet blob gir en klippet boks.
 
 **Capture-first** (felttest skytebanen, v0.12): bildet tas i det øyeblikket
 kriteriene er oppfylt, og UI-et spilles av *etterpå* mens analysen allerede

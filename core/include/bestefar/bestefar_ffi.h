@@ -108,10 +108,9 @@ typedef struct BfAutoCaptureParams {
                                       * konsentriske ring-avvik rundt bullen
                                       * (innholdsport mot vitrineskap-klassen,
                                       * AAP-K1). 0 = porten er av. */
-    int32_t block_edge_cut;          /* default 1: ikke trigg naar skjermblobben
-                                      * beroerer framekanten (bezel mangler paa
-                                      * en side -> skjermen er kuttet, T-settets
-                                      * feilmodus). 0 = av. */
+    int32_t block_edge_cut;          /* default 1: ikke trigg naar maalomraadet
+                                      * (1-ringen, 3.5x bull-radius) gaar utenfor
+                                      * framen — T-settets feilmodus. 0 = av. */
 } BfAutoCaptureParams;
 
 typedef struct BfFrameProbe {
@@ -137,10 +136,13 @@ typedef struct BfFrameProbe {
     int32_t glare_ok;            /* gjenskinnskriteriet oppfylt naa */
     double  ring_evidence;       /* antall konsentriske ring-avvik rundt bullen */
     int32_t content_ok;          /* ringbevis-kriteriet oppfylt naa (innholdsport) */
-    int32_t edge_cut;            /* skjermblobben beroerer framekanten: bezelen
-                                  * mangler paa en side, skjermen er kuttet og
-                                  * crop-en kan ikke stoles paa. Inngaar i
-                                  * quality_ok (innramming, som coverage). */
+    int32_t edge_cut;            /* maalomraadet er kuttet av framekanten:
+                                  * sirkelen 3.5*bull-radius (1-ringen; bull-
+                                  * kant = 7-ringen, fast geometri) rundt
+                                  * bull-sentroiden gaar utenfor framen. En
+                                  * markoer naer 1-ringen kan da ligge utenfor
+                                  * fotoet og mangle i summen uten feilmelding.
+                                  * Inngaar i quality_ok (innramming). */
 } BfFrameProbe;
 
 typedef struct BfAutoCapture BfAutoCapture;   /* opaque tilstandsmaskin */

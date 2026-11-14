@@ -211,18 +211,26 @@ static ProbeInternals frame_probe(const cv::Mat& gray_full, const AutoCapturePar
     if (!blob_box) return out;   // ingen opplyst skjerm av meningsfull stoerrelse
     out.roi_found = true;
     out.roi_box = *blob_box;
-    // Kutt-deteksjon (2026-11-12, T-settets feilmodus): en komplett skjerm har
-    // ALLTID moerk bezel mellom den lyse blobben og framekanten; beroerer
-    // blobben kanten, er skjermen kuttet og bezelen borte paa den siden.
-    // coverage-maalet kan IKKE se dette - en klippet blob gir en klippet boks,
-    // og boks-mot-margin-snittet ser fint ut (T2: dek=0.98, crop feilet).
-    {
-        const int slack = 1;
-        out.edge_cut = blob_box->x <= slack || blob_box->y <= slack ||
-                       blob_box->x + blob_box->width >= gray.cols - slack ||
-                       blob_box->y + blob_box->height >= gray.rows - slack;
-    }
     const BullInfo bull = measure_bull_frac(gray, *blob_box, gray.cols);
+    // Kutt-deteksjon v2 (2026-11-13, eiers forslag): krav om at hele MAAL-
+    // OMRAADET er i framen, ikke hele skjermen. Bullkanten er 7-ringen
+    // (r_bull = 2.85*delta) og 1-ringen ligger paa 10*delta = 3.51*r_bull —
+    // fast geometri, ikke en tunbar terskel. Gaar sirkelen 3.5*r_bull rundt
+    // bull-sentroiden utenfor framen, kan en markoer naer 1-ringen ligge
+    // UTENFOR FOTOET og mangle i summen uten noen feilmelding.
+    // v1 (blob beroerer framekant) var for streng: den blokkerte ogsaa
+    // stramt-men-komplett innrammede skiver (C2/C3/C8/C9/C10, som scorer
+    // perfekt; tape/gjenskinn kan dessuten koble blobben til kanten).
+    // Maalt (avstand bullsenter->naermeste kant i r_bull): C2 3.62 (slipper),
+    // C10 5.66, T3 3.49 og T5 2.90 (blokkeres — de scoret riktig kun fordi
+    // treffene satt sentralt), T2 2.60 (blokkeres; ringomraadet kuttet,
+    // analysen feiler). Uten bull: ingen kutt-dom (stoerrelsesgaten tar det).
+    if (bull.found && bull.r_px >= 6.0) {
+        const double r1 = 3.5 * bull.r_px;
+        out.edge_cut = bull.center.x - r1 < 0 || bull.center.y - r1 < 0 ||
+                       bull.center.x + r1 > gray.cols - 1 ||
+                       bull.center.y + r1 > gray.rows - 1;
+    }
     out.bull_frac = bull.width_frac;
     out.glare_frac = measure_glare_frac(gray, *blob_box);
     out.ring_evidence = measure_ring_evidence(gray, *blob_box, bull,
